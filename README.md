@@ -1,6 +1,6 @@
 ![HEFFTE banner](https://bitbucket.org/aayala32/logos/raw/35784b25fbec88f5cfbc39e0a1aa545fa644955c/logo_fft.png)
 
-**HEFFTE**
+**Highly Efficient FFT for Exascale**
 
 **Innovative Computing Laboratory**
 
@@ -15,9 +15,10 @@
 About
 =====
 
-HEFFTE library is being developed as part of the Exascale Computing Project (ECP), which is a joint
-project of the U.S. Department of Energy's Office of Science and National Nuclear Security
-Administration (NNSA). HEFFT will deliver highly efficient FFT computation on heterogeneous systems, targeting the upcoming exascale machines.
+The highly efficient FFT for exascale (HEFFTE) library is being developed as part of the Exascale
+Computing Project (ECP), which is a joint project of the U.S. Department of Energy's Office of
+Science and National Nuclear Security Administration (NNSA). HEFFT will deliver highly efficient FFT
+computation on heterogeneous systems, targeting the upcoming exascale machines.
 
 
 * * *
@@ -49,7 +50,7 @@ We ask that you complete and submit a contributor agreement.
 Resources
 =========
 
-* Visit the [HEFFT website](http://icl.utk.edu/fft/) for more information about the HEFFTE project.
+* Visit the [HEFFTE website](http://icl.utk.edu/fft/) for more information about the HEFFTE project.
 * Visit the [ECP website](https://exascaleproject.org) to find out more about the DOE Exascale Computing Initiative.
 
 * * *
