@@ -33,7 +33,7 @@ Documentation
 Getting Help
 ============
 
-For assistance with HEFFTE, email *heffte-user@icl.utk.edu*.
+For assistance with HEFFTE, email *heffte@icl.utk.edu*.
 
 * * *
 
