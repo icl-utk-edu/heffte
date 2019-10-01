@@ -84,10 +84,10 @@ template <class T>
 void heffte_only_1d_ffts(FFT3d<T> *fft, T *in, int flag);
 
 template <class T>
-void heffte_only_remaps(FFT3d<T> *fft, T *in, T *out, int flag);
+void heffte_only_reshapes(FFT3d<T> *fft, T *in, T *out, int flag);
 
 template <class T>
-void heffte_only_one_remap(FFT3d<T> *fft, T *in, T *out, int flag, int which);
+void heffte_only_one_reshape(FFT3d<T> *fft, T *in, T *out, int flag, int which);
 
 // Grid processor
 void heffte_grid_setup(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,

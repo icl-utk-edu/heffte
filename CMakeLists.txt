@@ -66,7 +66,7 @@ set(libheffte_SRCS
   src/heffte.cpp
   src/heffte_fft3d.cpp
   src/heffte_pack3d.cpp
-  src/heffte_remap3d.cpp
+  src/heffte_reshape3d.cpp
   src/heffte_trace.cpp
   )
 
@@ -116,7 +116,7 @@ if(BUILD_GPU)
     src/heffte_fft3d.cpp
     src/heffte_pack3d.cu
     src/heffte_scale.cu
-    src/heffte_remap3d.cpp
+    src/heffte_reshape3d.cpp
     src/heffte_trace.cpp
     )
 

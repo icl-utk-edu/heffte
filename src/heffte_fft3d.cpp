@@ -16,7 +16,7 @@
 
 #include "fft3d.h"
 #include "scale.h"
-#include "remap3d.h"
+#include "reshape3d.h"
 #include "heffte_trace.h"
 
 using namespace HEFFTE_NS;
@@ -50,7 +50,7 @@ FFT3d<U>::FFT3d(MPI_Comm user_comm)
   // user can change them before compute()
 
   scaled = 1;
-  remaponly = 0;
+  reshapeonly = 0;
 
   // tuning results
 
@@ -77,8 +77,8 @@ FFT3d<U>::FFT3d(MPI_Comm user_comm)
   factors = new int[NFACTOR];
   nfactor = 0;
 
-  remap_prefast = remap_fastmid = remap_midslow = remap_postslow = NULL;
-  remap_preslow = remap_slowmid = remap_midfast = remap_postfast = NULL;
+  reshape_prefast = reshape_fastmid = reshape_midslow = reshape_postslow = NULL;
+  reshape_preslow = reshape_slowmid = reshape_midfast = reshape_postfast = NULL;
   fft_fast = fft_mid = fft_slow = NULL;
 
   memusage = 0;
@@ -165,7 +165,7 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
   if (!prime_factorable(nmid)) error->all("Invalid nmid");
   if (!prime_factorable(nslow)) error->all("Invalid nslow");
 
-  // set collective flags for different remap operations
+  // set collective flags for different reshape operations
   // bp = brick2pencil or pencil2brick, pp = pencel2pencil
 
   if (collective == 0) collective_bp = collective_pp = 0;
@@ -207,8 +207,8 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
                 npbrick1,npbrick2,npbrick3,ipbrick1,ipbrick2,ipbrick3);
   else npbrick1 = npbrick2 = npbrick3 = 0;
 
-  // remap from initial layout to fast pencil layout
-  // remap_preflag = 1 if remap is needed, else 0
+  // reshape from initial layout to fast pencil layout
+  // reshape_preflag = 1 if reshape is needed, else 0
   // not needed if all procs own entire fast dimension initially
   // fast indices = data layout before/after 1st set of FFTs
 
@@ -217,7 +217,7 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
   MPI_Allreduce(&flag,&allflag,1,MPI_INT,MPI_MAX,world);
 
   if (allflag == 0) {
-    remap_preflag = 0;
+    reshape_preflag = 0;
     if(me==0) printf("\tHEFFT Library: Reshape input->fast : NO\n");
     fast_ilo = in_ilo;
     fast_ihi = in_ihi;
@@ -226,7 +226,7 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
     fast_klo = in_klo;
     fast_khi = in_khi;
   } else {
-    remap_preflag = 1;
+    reshape_preflag = 1;
     if(me==0) printf("\tReshape input->fast : YES \n");
     fast_ilo = 0;
     fast_ihi = nfast - 1;
@@ -236,7 +236,7 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
     fast_khi = (ipfast3+1)*nslow/npfast3 - 1;
   }
 
-  // remap from fast pencil layout to mid pencil layout
+  // reshape from fast pencil layout to mid pencil layout
   // always needed, b/c permutation changes
   // mid indices = data layout before/after 2nd set of FFTs
 
@@ -247,7 +247,7 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
   mid_klo = ipmid3*nslow/npmid3;
   mid_khi = (ipmid3+1)*nslow/npmid3 - 1;
 
-  // remap from mid pencil layout to slow pencil layout
+  // reshape from mid pencil layout to slow pencil layout
   // always needed, b/c permutation changes
   // slow indices = data layout before/after 3rd set of FFTs
   // if final layout is slow pencil with permute=2, set slow = out
@@ -272,8 +272,8 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
     slow_khi = nslow - 1;
   }
 
-  // remap from slow pencil layout to final layout
-  // remap_postflag = 1 if remap is needed, else 0
+  // reshape from slow pencil layout to final layout
+  // reshape_postflag = 1 if reshape is needed, else 0
   // not needed if permute=2 and slow = out already
 
   if (permute == 2 &&
@@ -285,11 +285,11 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
   MPI_Allreduce(&flag,&allflag,1,MPI_INT,MPI_MAX,world);
 
   if (allflag == 0){
-     remap_postflag = 0;
+     reshape_postflag = 0;
      if(me==0) printf("\tReshape slow->output: NO\n");
   }
   else {
-    remap_postflag = 1;
+    reshape_postflag = 1;
      if(me==0) printf("\tReshape slow->output: YES\n");
   }
 
@@ -298,8 +298,8 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
    else       printf("\tScaling             : NO\n");
   }
 
-  // if exchange is set, then remap for fast/mid and mid/slow
-  // remap will be two stages, with brick layout and brick indices inbetween
+  // if exchange is set, then reshape for fast/mid and mid/slow
+  // reshape will be two stages, with brick layout and brick indices inbetween
 
   if (exchange) {
     brick_ilo = ipbrick1*nfast/npbrick1;
@@ -310,13 +310,13 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
     brick_khi = (ipbrick3+1)*nslow/npbrick3 - 1;
   }
 
-  // create Remap instances for 4 forward remaps
-  // likewise for inverse remaps if in/out layout is not the same
-  // create calls return max size of send/recv buffers needed by remaps
+  // create Reshape instances for 4 forward reshapes
+  // likewise for inverse reshapes if in/out layout is not the same
+  // create calls return max size of send/recv buffers needed by reshapes
 
   sendsize = recvsize = 0;
-  remap_forward_create(sendsize,recvsize);
-  if (!inout_layout_same) remap_inverse_create(sendsize,recvsize);
+  reshape_forward_create(sendsize,recvsize);
+  if (!inout_layout_same) reshape_inverse_create(sendsize,recvsize);
 
   // insize/outsize = # of FFT data points in initial/final layout
   // fastsize/midsize/slowsize = # of data points in fast/mid/slow layout
@@ -368,7 +368,7 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
   norm = 1.0/((bigint) nfast * nmid*nslow);
   normnum = outsize;
 
-  // allocate sendbuf, recvbuf arrays to max sizes needed by any remap
+  // allocate sendbuf, recvbuf arrays to max sizes needed by any reshape
 
   if (memoryflag) {
     setup_memory_flag = 1;
@@ -388,7 +388,7 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
   user_sendsize = sendsize;
   user_recvsize = recvsize;
 
-  // set memusage for FFT and Remap memory
+  // set memusage for FFT and Reshape memory
 
   memusage = 0;
 
@@ -397,7 +397,7 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
     memusage += (int64_t) recvsize * sizeof(T);
   }
 
-  memusage += remap_memory();
+  memusage += reshape_memory();
 
 }
 
@@ -417,23 +417,23 @@ void FFT3d<U>::deallocate_setup()
 {
   setupflag = 0;
 
-  deallocate_remap(remap_prefast);
-  deallocate_remap(remap_fastmid);
-  deallocate_remap(remap_midslow);
-  deallocate_remap(remap_postslow);
+  deallocate_reshape(reshape_prefast);
+  deallocate_reshape(reshape_fastmid);
+  deallocate_reshape(reshape_midslow);
+  deallocate_reshape(reshape_postslow);
 
-  deallocate_remap(remap_preslow);
-  deallocate_remap(remap_slowmid);
-  deallocate_remap(remap_midfast);
-  deallocate_remap(remap_postfast);
+  deallocate_reshape(reshape_preslow);
+  deallocate_reshape(reshape_slowmid);
+  deallocate_reshape(reshape_midfast);
+  deallocate_reshape(reshape_postfast);
 
   deallocate_ffts();
   delete fft_fast;
   delete fft_mid;
   delete fft_slow;
 
-  remap_prefast = remap_fastmid = remap_midslow = remap_postslow = NULL;
-  remap_preslow = remap_slowmid = remap_midfast = remap_postfast = NULL;
+  reshape_prefast = reshape_fastmid = reshape_midslow = reshape_postslow = NULL;
+  reshape_preslow = reshape_slowmid = reshape_midfast = reshape_postfast = NULL;
   fft_fast = fft_mid = fft_slow = NULL;
 }
 
@@ -443,7 +443,7 @@ template
 void FFT3d<float>::deallocate_setup();
 
 /* ----------------------------------------------------------------------
-   pass in user memory for Remap send/recv operations
+   pass in user memory for Reshape send/recv operations
    user_sendbuf = send buffer of length user_sendsize
    user_recvbuf = send buffer of length user_recvsize
 ------------------------------------------------------------------------- */
@@ -503,11 +503,11 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
 
   if (flag == 1 || inout_layout_same) {
 
-    if (remap_prefast) {
-      snprintf(func_name, sizeof(func_name), "remap_prefast");
-      snprintf(func_message, sizeof(func_message), "remap_prefast");
+    if (reshape_prefast) {
+      snprintf(func_name, sizeof(func_name), "reshape_prefast");
+      snprintf(func_message, sizeof(func_message), "reshape_prefast");
       trace_cpu_start( thread_id, func_name, func_message );
-      remap(in,out,remap_prefast);
+      reshape(in,out,reshape_prefast);
       trace_cpu_end( thread_id);
     }
     else if (in != out) {
@@ -518,19 +518,19 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       trace_cpu_end( thread_id);
     }
 
-    if (remaponly) {
-      if (remap_fastmid) {
-        snprintf(func_name, sizeof(func_name), "remap_fastmid");
-        snprintf(func_message, sizeof(func_message), "REMAPONLY:remap_fastmid");
+    if (reshapeonly) {
+      if (reshape_fastmid) {
+        snprintf(func_name, sizeof(func_name), "reshape_fastmid");
+        snprintf(func_message, sizeof(func_message), "RESHAPEONLY:reshape_fastmid");
         trace_cpu_start( thread_id, func_name, func_message );
-        remap(data,data,remap_fastmid);
+        reshape(data,data,reshape_fastmid);
 	trace_cpu_end( thread_id);
       }
-      if (remap_midslow) {
-        snprintf(func_name, sizeof(func_name), "remap_midslow");
-        snprintf(func_message, sizeof(func_message), "REMAPONLY:remap_midslow");
+      if (reshape_midslow) {
+        snprintf(func_name, sizeof(func_name), "reshape_midslow");
+        snprintf(func_message, sizeof(func_message), "RESHAPEONLY:reshape_midslow");
         trace_cpu_start( thread_id, func_name, func_message );
-        remap(data,data,remap_midslow);
+        reshape(data,data,reshape_midslow);
 	trace_cpu_end( thread_id);
       }
     } else {
@@ -539,11 +539,11 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       trace_cpu_start( thread_id, func_name, func_message );
       perform_ffts(data,flag,fft_fast);
       trace_cpu_end( thread_id);
-      if (remap_fastmid) {
-        snprintf(func_name, sizeof(func_name), "remap_fastmid");
-        snprintf(func_message, sizeof(func_message), "remap_fastmid");
+      if (reshape_fastmid) {
+        snprintf(func_name, sizeof(func_name), "reshape_fastmid");
+        snprintf(func_message, sizeof(func_message), "reshape_fastmid");
         trace_cpu_start( thread_id, func_name, func_message );
-        remap(data,data,remap_fastmid);
+        reshape(data,data,reshape_fastmid);
       	trace_cpu_end( thread_id);
       }
       snprintf(func_name, sizeof(func_name), "compute_mid");
@@ -551,11 +551,11 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       trace_cpu_start( thread_id, func_name, func_message );
       perform_ffts(data,flag,fft_mid);
       trace_cpu_end( thread_id);
-      if (remap_midslow) {
-        snprintf(func_name, sizeof(func_name), "remap_midslow");
-        snprintf(func_message, sizeof(func_message), "remap_midslow");
+      if (reshape_midslow) {
+        snprintf(func_name, sizeof(func_name), "reshape_midslow");
+        snprintf(func_message, sizeof(func_message), "reshape_midslow");
         trace_cpu_start( thread_id, func_name, func_message );
-        remap(data,data,remap_midslow);
+        reshape(data,data,reshape_midslow);
 	      trace_cpu_end( thread_id);
       }
       snprintf(func_name, sizeof(func_name), "compute_slow");
@@ -565,15 +565,15 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       trace_cpu_end( thread_id);
     }
 
-    if (remap_postslow) {
-      snprintf(func_name, sizeof(func_name), "remap_postslow");
-      snprintf(func_message, sizeof(func_message), "remap_postslow");
+    if (reshape_postslow) {
+      snprintf(func_name, sizeof(func_name), "reshape_postslow");
+      snprintf(func_message, sizeof(func_message), "reshape_postslow");
       trace_cpu_start( thread_id, func_name, func_message );
-      remap(data,data,remap_postslow);
+      reshape(data,data,reshape_postslow);
       trace_cpu_end( thread_id);
     }
 
-    if (flag == 1 && scaled && !remaponly) {
+    if (flag == 1 && scaled && !reshapeonly) {
       snprintf(func_name, sizeof(func_name), "scale_fft");
       snprintf(func_message, sizeof(func_message), "scale_fft");
       trace_cpu_start( thread_id, func_name, func_message );
@@ -583,11 +583,11 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
 
   } else {
 
-    if (remap_preslow) {
-      snprintf(func_name, sizeof(func_name), "remap_preslow");
-      snprintf(func_message, sizeof(func_message), "remap_preslow");
+    if (reshape_preslow) {
+      snprintf(func_name, sizeof(func_name), "reshape_preslow");
+      snprintf(func_message, sizeof(func_message), "reshape_preslow");
       trace_cpu_start( thread_id, func_name, func_message );
-      remap(in,out,remap_preslow);
+      reshape(in,out,reshape_preslow);
       trace_cpu_end( thread_id);
     }
     else if (in != out) {
@@ -598,19 +598,19 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
     trace_cpu_end( thread_id);
     }
 
-    if (remaponly) {
-      if (remap_slowmid) {
-        snprintf(func_name, sizeof(func_name), "remap_slowmid");
-        snprintf(func_message, sizeof(func_message), "remap_slowmid");
+    if (reshapeonly) {
+      if (reshape_slowmid) {
+        snprintf(func_name, sizeof(func_name), "reshape_slowmid");
+        snprintf(func_message, sizeof(func_message), "reshape_slowmid");
         trace_cpu_start( thread_id, func_name, func_message );
-        remap(data,data,remap_slowmid);
+        reshape(data,data,reshape_slowmid);
 	      trace_cpu_end( thread_id);
       }
-      if (remap_midfast) {
-        snprintf(func_name, sizeof(func_name), "remap_midfast");
-        snprintf(func_message, sizeof(func_message), "remap_midfast");
+      if (reshape_midfast) {
+        snprintf(func_name, sizeof(func_name), "reshape_midfast");
+        snprintf(func_message, sizeof(func_message), "reshape_midfast");
         trace_cpu_start( thread_id, func_name, func_message );
-        remap(data,data,remap_midfast);
+        reshape(data,data,reshape_midfast);
 	      trace_cpu_end( thread_id);
       }
     } else {
@@ -619,11 +619,11 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       trace_cpu_start( thread_id, func_name, func_message );
       perform_ffts(data,flag,fft_slow);
       trace_cpu_end( thread_id);
-      if (remap_slowmid) {
-      snprintf(func_name, sizeof(func_name), "remap_slowmid");
-      snprintf(func_message, sizeof(func_message), "remap_slowmid");
+      if (reshape_slowmid) {
+      snprintf(func_name, sizeof(func_name), "reshape_slowmid");
+      snprintf(func_message, sizeof(func_message), "reshape_slowmid");
       trace_cpu_start( thread_id, func_name, func_message );
-      remap(data,data,remap_slowmid);
+      reshape(data,data,reshape_slowmid);
       trace_cpu_end( thread_id);
       }
       snprintf(func_name, sizeof(func_name), "compute_mid");
@@ -631,11 +631,11 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       trace_cpu_start( thread_id, func_name, func_message );
       perform_ffts(data,flag,fft_mid);
       trace_cpu_end( thread_id);
-      if (remap_midfast) {
-      snprintf(func_name, sizeof(func_name), "remap_midfast");
-      snprintf(func_message, sizeof(func_message), "remap_midfast");
+      if (reshape_midfast) {
+      snprintf(func_name, sizeof(func_name), "reshape_midfast");
+      snprintf(func_message, sizeof(func_message), "reshape_midfast");
       trace_cpu_start( thread_id, func_name, func_message );
-      remap(data,data,remap_midfast);
+      reshape(data,data,reshape_midfast);
       trace_cpu_end( thread_id);
       }
       snprintf(func_name, sizeof(func_name), "compute_fast");
@@ -645,11 +645,11 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       trace_cpu_end( thread_id);
     }
 
-    if (remap_postfast) {
-    snprintf(func_name, sizeof(func_name), "remap_postfast");
-    snprintf(func_message, sizeof(func_message), "remap_postfast");
+    if (reshape_postfast) {
+    snprintf(func_name, sizeof(func_name), "reshape_postfast");
+    snprintf(func_message, sizeof(func_message), "reshape_postfast");
     trace_cpu_start( thread_id, func_name, func_message );
-    remap(in,out,remap_postfast);
+    reshape(in,out,reshape_postfast);
     trace_cpu_end( thread_id);
     }
   }
@@ -687,93 +687,93 @@ void FFT3d<float>::only_1d_ffts(float *in, int flag);
 
 
 /**
- * Perform all the remaps in a 3d FFT, but no 1d FFTs
+ * Perform all the reshapes in a 3d FFT, but no 1d FFTs
  * @param in Address of input data on this proc
  * @param out address of output data on this proc (can be same as in)
  * @param flag  1 for forward FFT, -1 for inverse FFT
  */
  template <class U>
  template <class T>
-void FFT3d<U>::only_remaps(T *in, T *out, int flag)
+void FFT3d<U>::only_reshapes(T *in, T *out, int flag)
 {
-  if (!setupflag) error->all("Cannot perform FFT remap before setup");
+  if (!setupflag) error->all("Cannot perform FFT reshape before setup");
   if (!setup_memory_flag)
-    error->all("Cannot perform FFT remap before setup_memory");
+    error->all("Cannot perform FFT reshape before setup_memory");
 
   T *data = out;
 
   if (flag == 1 || inout_layout_same) {
 
-    if (remap_prefast) remap(in,out,remap_prefast);
+    if (reshape_prefast) reshape(in,out,reshape_prefast);
     else if (in != out) memcpy(out,in,insize*sizeof(T));
 
-    if (remap_fastmid) remap(data,data,remap_fastmid);
-    if (remap_midslow) remap(data,data,remap_midslow);
+    if (reshape_fastmid) reshape(data,data,reshape_fastmid);
+    if (reshape_midslow) reshape(data,data,reshape_midslow);
 
-    if (remap_postslow) remap(data,data,remap_postslow);
+    if (reshape_postslow) reshape(data,data,reshape_postslow);
 
   } else {
 
-    if (remap_preslow) remap(in,out,remap_preslow);
+    if (reshape_preslow) reshape(in,out,reshape_preslow);
     else if (in != out) memcpy(out,in,outsize*sizeof(T));
 
-    if (remap_slowmid) remap(data,data,remap_slowmid);
-    if (remap_midfast) remap(data,data,remap_midfast);
+    if (reshape_slowmid) reshape(data,data,reshape_slowmid);
+    if (reshape_midfast) reshape(data,data,reshape_midfast);
 
-    if (remap_postfast) remap(data,data,remap_postfast);
+    if (reshape_postfast) reshape(data,data,reshape_postfast);
   }
 }
 
 template
-void FFT3d<double>::only_remaps(double *in, double *out, int flag);
+void FFT3d<double>::only_reshapes(double *in, double *out, int flag);
 template
-void FFT3d<float>::only_remaps(float *in, float *out, int flag);
+void FFT3d<float>::only_reshapes(float *in, float *out, int flag);
 
 /**
- * Perform just a single remap operation
+ * Perform just a single reshape operation
  * @param in Address of input data on this proc
  * @param out address of output data on this proc (can be same as in)
  * @param flag  1 for forward FFT, -1 for inverse FFT
- * @param which specify which remap to perform = 1,2,3,4
+ * @param which specify which reshape to perform = 1,2,3,4
  */
  template <class U>
  template <class T>
-void FFT3d<U>::only_one_remap(T *in, T *out, int flag, int which)
+void FFT3d<U>::only_one_reshape(T *in, T *out, int flag, int which)
 {
-  if (!setupflag) error->all("Cannot perform an FFT remap before setup");
+  if (!setupflag) error->all("Cannot perform an FFT reshape before setup");
   if (!setup_memory_flag)
-    error->all("Cannot perform an FFT remap before setup_memory");
+    error->all("Cannot perform an FFT reshape before setup_memory");
 
   if (flag == 1 || inout_layout_same) {
     if (which == 1) {
-      if (remap_prefast) remap(in,out,remap_prefast);
+      if (reshape_prefast) reshape(in,out,reshape_prefast);
       else if (in != out) memcpy(out,in,insize*sizeof(T));
     } else if (which == 2) {
-      if (remap_fastmid) remap(in,out,remap_fastmid);
+      if (reshape_fastmid) reshape(in,out,reshape_fastmid);
     } else if (which == 3) {
-      if (remap_midslow) remap(in,out,remap_midslow);
+      if (reshape_midslow) reshape(in,out,reshape_midslow);
     } else if (which == 4) {
-      if (remap_postslow) remap(in,out,remap_postslow);
+      if (reshape_postslow) reshape(in,out,reshape_postslow);
     }
 
   } else {
     if (which == 4) {
-      if (remap_preslow) remap(in,out,remap_preslow);
+      if (reshape_preslow) reshape(in,out,reshape_preslow);
       else if (in != out) memcpy(out,in,outsize*sizeof(T));
     } else if (which == 3) {
-      if (remap_slowmid) remap(in,out,remap_slowmid);
+      if (reshape_slowmid) reshape(in,out,reshape_slowmid);
     } else if (which == 2) {
-      if (remap_midfast) remap(in,out,remap_midfast);
+      if (reshape_midfast) reshape(in,out,reshape_midfast);
     } else if (which == 1) {
-      if (remap_postfast) remap(in,out,remap_postfast);
+      if (reshape_postfast) reshape(in,out,reshape_postfast);
     }
   }
 }
 
 template
-void FFT3d<double>::only_one_remap(double *in, double *out, int flag, int which);
+void FFT3d<double>::only_one_reshape(double *in, double *out, int flag, int which);
 template
-void FFT3d<float>::only_one_remap(float *in, float *out, int flag, int which);
+void FFT3d<float>::only_one_reshape(float *in, float *out, int flag, int which);
 
 
 /**
@@ -784,36 +784,36 @@ void FFT3d<float>::only_one_remap(float *in, float *out, int flag, int which);
  */
 template <class U>
 template <class T>
-void FFT3d<U>::remap(T *in, T *out, Remap *plan)
+void FFT3d<U>::reshape(T *in, T *out, Reshape *plan)
 {
-  plan->remap3d->remap(in,out, sendbuf, recvbuf);
-  if (plan->remap3d_extra)
-    plan->remap3d_extra->remap(in,out,sendbuf,recvbuf);
+  plan->reshape3d->reshape(in,out, sendbuf, recvbuf);
+  if (plan->reshape3d_extra)
+    plan->reshape3d_extra->reshape(in,out,sendbuf,recvbuf);
 }
 
 template
-void FFT3d<double>::remap(double *in, double *out, Remap *plan);
+void FFT3d<double>::reshape(double *in, double *out, Reshape *plan);
 template
-void FFT3d<float>::remap(float *in, float *out, Remap *plan);
+void FFT3d<float>::reshape(float *in, float *out, Reshape *plan);
 
 
 /* ----------------------------------------------------------------------
-   dellocate a Remap and its contents
+   dellocate a Reshape and its contents
 ------------------------------------------------------------------------- */
 
 template <class U>
-void FFT3d<U>::deallocate_remap(Remap *remap)
+void FFT3d<U>::deallocate_reshape(Reshape *reshape)
 {
-  if (remap == NULL) return;
-  delete remap->remap3d;
-  delete remap->remap3d_extra;
-  delete remap;
+  if (reshape == NULL) return;
+  delete reshape->reshape3d;
+  delete reshape->reshape3d_extra;
+  delete reshape;
 }
 
 template
-void FFT3d<double>::deallocate_remap(Remap *remap);
+void FFT3d<double>::deallocate_reshape(Reshape *reshape);
 template
-void FFT3d<float>::deallocate_remap(Remap *remap);
+void FFT3d<float>::deallocate_reshape(Reshape *reshape);
 
 /**
  * Create plans for reshaping at all stages of forward 3D FFT computation
@@ -821,60 +821,60 @@ void FFT3d<float>::deallocate_remap(Remap *remap);
  * @param recvsize Size of receiving buffer for inter-process communication
  */
 template <class U>
-void FFT3d<U>::remap_forward_create(int &sendsize, int &recvsize)
+void FFT3d<U>::reshape_forward_create(int &sendsize, int &recvsize)
 {
   int ssize,rsize;
 
-  // remap uses I=fast, J=mid, K=slow, b/c current permute=0
-  if (remap_preflag) {
-    remap_prefast = new Remap;
-    remap_prefast->remap3d = new Remap3d<U>(world);
-    remap_prefast->remap3d->memory_type = mem_type;
-    remap_prefast->remap3d->collective = collective_bp;
-    remap_prefast->remap3d->packflag = packflag;
-    remap_prefast->remap3d->
+  // reshape uses I=fast, J=mid, K=slow, b/c current permute=0
+  if (reshape_preflag) {
+    reshape_prefast = new Reshape;
+    reshape_prefast->reshape3d = new Reshape3d<U>(world);
+    reshape_prefast->reshape3d->memory_type = mem_type;
+    reshape_prefast->reshape3d->collective = collective_bp;
+    reshape_prefast->reshape3d->packflag = packflag;
+    reshape_prefast->reshape3d->
       setup(in_ilo,in_ihi,in_jlo,in_jhi,in_klo,in_khi,
             fast_ilo,fast_ihi,fast_jlo,fast_jhi,fast_klo,fast_khi,
             2,0,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_prefast->remap3d_extra = NULL;
+    reshape_prefast->reshape3d_extra = NULL;
   }
 
-  // if exchange = 0, remap direct from pencil to pencil
-  // if exchange = 1, two remaps from pencil to brick, then brick to pencil
-  // remap uses I=fast, J=mid, K=slow, b/c current permute=0
+  // if exchange = 0, reshape direct from pencil to pencil
+  // if exchange = 1, two reshapes from pencil to brick, then brick to pencil
+  // reshape uses I=fast, J=mid, K=slow, b/c current permute=0
 
-  remap_fastmid = new Remap;
+  reshape_fastmid = new Reshape;
   if (exchange == 0) {
-    remap_fastmid->remap3d = new Remap3d<U>(world);
-    remap_fastmid->remap3d->memory_type = mem_type;
-    remap_fastmid->remap3d->collective = collective_pp;
-    remap_fastmid->remap3d->packflag = packflag;
-    remap_fastmid->remap3d->
+    reshape_fastmid->reshape3d = new Reshape3d<U>(world);
+    reshape_fastmid->reshape3d->memory_type = mem_type;
+    reshape_fastmid->reshape3d->collective = collective_pp;
+    reshape_fastmid->reshape3d->packflag = packflag;
+    reshape_fastmid->reshape3d->
       setup(fast_ilo,fast_ihi,fast_jlo,fast_jhi,fast_klo,fast_khi,
             mid_ilo,mid_ihi,mid_jlo,mid_jhi,mid_klo,mid_khi,
             2,1,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_fastmid->remap3d_extra = NULL;
+    reshape_fastmid->reshape3d_extra = NULL;
 
   } else {
-    remap_fastmid->remap3d = new Remap3d<U>(world);
-    remap_fastmid->remap3d->memory_type = mem_type;
-    remap_fastmid->remap3d->collective = collective_bp;
-    remap_fastmid->remap3d->packflag = packflag;
-    remap_fastmid->remap3d->
+    reshape_fastmid->reshape3d = new Reshape3d<U>(world);
+    reshape_fastmid->reshape3d->memory_type = mem_type;
+    reshape_fastmid->reshape3d->collective = collective_bp;
+    reshape_fastmid->reshape3d->packflag = packflag;
+    reshape_fastmid->reshape3d->
       setup(fast_ilo,fast_ihi,fast_jlo,fast_jhi,fast_klo,fast_khi,
             brick_ilo,brick_ihi,brick_jlo,brick_jhi,brick_klo,brick_khi,
             2,0,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_fastmid->remap3d_extra = new Remap3d<U>(world);
-    remap_fastmid->remap3d->memory_type = mem_type;
-    remap_fastmid->remap3d_extra->collective = collective_bp;
-    remap_fastmid->remap3d_extra->packflag = packflag;
-    remap_fastmid->remap3d_extra->
+    reshape_fastmid->reshape3d_extra = new Reshape3d<U>(world);
+    reshape_fastmid->reshape3d->memory_type = mem_type;
+    reshape_fastmid->reshape3d_extra->collective = collective_bp;
+    reshape_fastmid->reshape3d_extra->packflag = packflag;
+    reshape_fastmid->reshape3d_extra->
       setup(brick_ilo,brick_ihi,brick_jlo,brick_jhi,brick_klo,brick_khi,
             mid_ilo,mid_ihi,mid_jlo,mid_jhi,mid_klo,mid_khi,
             2,1,0,ssize,rsize);
@@ -882,40 +882,40 @@ void FFT3d<U>::remap_forward_create(int &sendsize, int &recvsize)
     recvsize = std::max(recvsize,rsize);
   }
 
-  // if exchange = 0, remap direct from pencil to pencil
-  // if exchange = 1, two remaps from pencil to brick, then brick to pencil
-  // remap uses J=fast, K=mid, I=slow, b/c current permute=1
+  // if exchange = 0, reshape direct from pencil to pencil
+  // if exchange = 1, two reshapes from pencil to brick, then brick to pencil
+  // reshape uses J=fast, K=mid, I=slow, b/c current permute=1
 
-  remap_midslow = new Remap;
+  reshape_midslow = new Reshape;
   if (exchange == 0) {
-    remap_midslow->remap3d = new Remap3d<U>(world);
-    remap_midslow->remap3d->memory_type = mem_type;
-    remap_midslow->remap3d->collective = collective_pp;
-    remap_midslow->remap3d->packflag = packflag;
-    remap_midslow->remap3d->
+    reshape_midslow->reshape3d = new Reshape3d<U>(world);
+    reshape_midslow->reshape3d->memory_type = mem_type;
+    reshape_midslow->reshape3d->collective = collective_pp;
+    reshape_midslow->reshape3d->packflag = packflag;
+    reshape_midslow->reshape3d->
       setup(mid_jlo,mid_jhi,mid_klo,mid_khi,mid_ilo,mid_ihi,
             slow_jlo,slow_jhi,slow_klo,slow_khi,slow_ilo,slow_ihi,
             2,1,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_midslow->remap3d_extra = NULL;
+    reshape_midslow->reshape3d_extra = NULL;
 
   } else {
-    remap_midslow->remap3d = new Remap3d<U>(world);
-    remap_midslow->remap3d->memory_type = mem_type;
-    remap_midslow->remap3d->collective = collective_bp;
-    remap_midslow->remap3d->packflag = packflag;
-    remap_midslow->remap3d->
+    reshape_midslow->reshape3d = new Reshape3d<U>(world);
+    reshape_midslow->reshape3d->memory_type = mem_type;
+    reshape_midslow->reshape3d->collective = collective_bp;
+    reshape_midslow->reshape3d->packflag = packflag;
+    reshape_midslow->reshape3d->
       setup(mid_jlo,mid_jhi,mid_klo,mid_khi,mid_ilo,mid_ihi,
             brick_jlo,brick_jhi,brick_klo,brick_khi,brick_ilo,brick_ihi,
             2,0,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_midslow->remap3d_extra = new Remap3d<U>(world);
-    remap_midslow->remap3d->memory_type = mem_type;
-    remap_midslow->remap3d_extra->collective = collective_bp;
-    remap_midslow->remap3d_extra->packflag = packflag;
-    remap_midslow->remap3d_extra->
+    reshape_midslow->reshape3d_extra = new Reshape3d<U>(world);
+    reshape_midslow->reshape3d->memory_type = mem_type;
+    reshape_midslow->reshape3d_extra->collective = collective_bp;
+    reshape_midslow->reshape3d_extra->packflag = packflag;
+    reshape_midslow->reshape3d_extra->
       setup(brick_jlo,brick_jhi,brick_klo,brick_khi,brick_ilo,brick_ihi,
             slow_jlo,slow_jhi,slow_klo,slow_khi,slow_ilo,slow_ihi,
             2,1,0,ssize,rsize);
@@ -923,33 +923,33 @@ void FFT3d<U>::remap_forward_create(int &sendsize, int &recvsize)
     recvsize = std::max(recvsize,rsize);
   }
 
-  // remap uses K=fast, I=mid, J=slow, b/c current permute=2
+  // reshape uses K=fast, I=mid, J=slow, b/c current permute=2
   // newpermute is from current permute=2 to desired permute=user_permute
 
-  if (remap_postflag) {
-    remap_postslow = new Remap;
+  if (reshape_postflag) {
+    reshape_postslow = new Reshape;
     int newpermute;
     if (permute == 0) newpermute = 1;
     if (permute == 1) newpermute = 2;
     if (permute == 2) newpermute = 0;
-    remap_postslow->remap3d = new Remap3d<U>(world);
-    remap_postslow->remap3d->memory_type = mem_type;
-    remap_postslow->remap3d->collective = collective_bp;
-    remap_postslow->remap3d->packflag = packflag;
-    remap_postslow->remap3d->
+    reshape_postslow->reshape3d = new Reshape3d<U>(world);
+    reshape_postslow->reshape3d->memory_type = mem_type;
+    reshape_postslow->reshape3d->collective = collective_bp;
+    reshape_postslow->reshape3d->packflag = packflag;
+    reshape_postslow->reshape3d->
       setup(slow_klo,slow_khi,slow_ilo,slow_ihi,slow_jlo,slow_jhi,
             out_klo,out_khi,out_ilo,out_ihi,out_jlo,out_jhi,
             2,newpermute,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_postslow->remap3d_extra = NULL;
+    reshape_postslow->reshape3d_extra = NULL;
   }
 }
 
 template
-void FFT3d<double>::remap_forward_create(int &sendsize, int &recvsize);
+void FFT3d<double>::reshape_forward_create(int &sendsize, int &recvsize);
 template
-void FFT3d<float>::remap_forward_create(int &sendsize, int &recvsize);
+void FFT3d<float>::reshape_forward_create(int &sendsize, int &recvsize);
 
 /**
  * Create plans for reshaping at all stages of backward 3D FFT computation
@@ -957,86 +957,86 @@ void FFT3d<float>::remap_forward_create(int &sendsize, int &recvsize);
  * @param recvsize Size of receiving buffer for inter-process communication
  */
 template <class U>
-void FFT3d<U>::remap_inverse_create(int &sendsize, int &recvsize)
+void FFT3d<U>::reshape_inverse_create(int &sendsize, int &recvsize)
 {
   int ssize,rsize;
 
-  // if current permute=0. remap uses I=fast, J=mid, K=slow
-  // if current permute=1, remap uses J=fast, K=mid, I=slow
-  // if current permute=2, remap uses K=fast, I=mid, J=slow
+  // if current permute=0. reshape uses I=fast, J=mid, K=slow
+  // if current permute=1, reshape uses J=fast, K=mid, I=slow
+  // if current permute=2, reshape uses K=fast, I=mid, J=slow
 
-  if (remap_postflag) {
-    remap_preslow = new Remap();
+  if (reshape_postflag) {
+    reshape_preslow = new Reshape();
     if (permute == 0) {
-      remap_preslow->remap3d = new Remap3d<U>(world);
-      remap_preslow->remap3d->memory_type = mem_type;
-      remap_preslow->remap3d->collective = collective_bp;
-      remap_preslow->remap3d->packflag = packflag;
-      remap_preslow->remap3d->
+      reshape_preslow->reshape3d = new Reshape3d<U>(world);
+      reshape_preslow->reshape3d->memory_type = mem_type;
+      reshape_preslow->reshape3d->collective = collective_bp;
+      reshape_preslow->reshape3d->packflag = packflag;
+      reshape_preslow->reshape3d->
         setup(out_ilo,out_ihi,out_jlo,out_jhi,out_klo,out_khi,
               slow_ilo,slow_ihi,slow_jlo,slow_jhi,slow_klo,slow_khi,
               2,2,0,ssize,rsize);
       sendsize = std::max(sendsize,ssize);
       recvsize = std::max(recvsize,rsize);
     } else if (permute == 1) {
-      remap_preslow->remap3d = new Remap3d<U>(world);
-      remap_preslow->remap3d->memory_type = mem_type;
-      remap_preslow->remap3d->collective = collective_bp;
-      remap_preslow->remap3d->packflag = packflag;
-      remap_preslow->remap3d->
+      reshape_preslow->reshape3d = new Reshape3d<U>(world);
+      reshape_preslow->reshape3d->memory_type = mem_type;
+      reshape_preslow->reshape3d->collective = collective_bp;
+      reshape_preslow->reshape3d->packflag = packflag;
+      reshape_preslow->reshape3d->
         setup(out_jlo,out_jhi,out_klo,out_khi,out_ilo,out_ihi,
               slow_jlo,slow_jhi,slow_klo,slow_khi,slow_ilo,slow_ihi,
               2,1,0,ssize,rsize);
       sendsize = std::max(sendsize,ssize);
       recvsize = std::max(recvsize,rsize);
     } else if (permute == 2) {
-      remap_preslow->remap3d = new Remap3d<U>(world);
-      remap_preslow->remap3d->memory_type = mem_type;
-      remap_preslow->remap3d->collective = collective_bp;
-      remap_preslow->remap3d->packflag = packflag;
-      remap_preslow->remap3d->
+      reshape_preslow->reshape3d = new Reshape3d<U>(world);
+      reshape_preslow->reshape3d->memory_type = mem_type;
+      reshape_preslow->reshape3d->collective = collective_bp;
+      reshape_preslow->reshape3d->packflag = packflag;
+      reshape_preslow->reshape3d->
         setup(out_klo,out_khi,out_ilo,out_ihi,out_jlo,out_jhi,
               slow_klo,slow_khi,slow_ilo,slow_ihi,slow_jlo,slow_jhi,
               2,0,0,ssize,rsize);
       sendsize = std::max(sendsize,ssize);
       recvsize = std::max(recvsize,rsize);
     }
-    remap_preslow->remap3d_extra = NULL;
+    reshape_preslow->reshape3d_extra = NULL;
   }
 
-  // if exchange = 0, remap direct from pencil to pencil
-  // if exchange = 1, two remaps from pencil to brick, then brick to pencil
-  // remap uses K=fast, I=mid, J=slow, b/c current permute=2
+  // if exchange = 0, reshape direct from pencil to pencil
+  // if exchange = 1, two reshapes from pencil to brick, then brick to pencil
+  // reshape uses K=fast, I=mid, J=slow, b/c current permute=2
 
-  remap_slowmid = new Remap;
+  reshape_slowmid = new Reshape;
   if (exchange == 0) {
-    remap_slowmid->remap3d = new Remap3d<U>(world);
-    remap_slowmid->remap3d->memory_type = mem_type;
-    remap_slowmid->remap3d->collective = collective_pp;
-    remap_slowmid->remap3d->packflag = packflag;
-    remap_slowmid->remap3d->
+    reshape_slowmid->reshape3d = new Reshape3d<U>(world);
+    reshape_slowmid->reshape3d->memory_type = mem_type;
+    reshape_slowmid->reshape3d->collective = collective_pp;
+    reshape_slowmid->reshape3d->packflag = packflag;
+    reshape_slowmid->reshape3d->
       setup(slow_klo,slow_khi,slow_ilo,slow_ihi,slow_jlo,slow_jhi,
             mid_klo,mid_khi,mid_ilo,mid_ihi,mid_jlo,mid_jhi,
             2,2,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_slowmid->remap3d_extra = NULL;
+    reshape_slowmid->reshape3d_extra = NULL;
   } else {
-    remap_slowmid->remap3d = new Remap3d<U>(world);
-    remap_slowmid->remap3d->memory_type = mem_type;
-    remap_slowmid->remap3d->collective = collective_bp;
-    remap_slowmid->remap3d->packflag = packflag;
-    remap_slowmid->remap3d->
+    reshape_slowmid->reshape3d = new Reshape3d<U>(world);
+    reshape_slowmid->reshape3d->memory_type = mem_type;
+    reshape_slowmid->reshape3d->collective = collective_bp;
+    reshape_slowmid->reshape3d->packflag = packflag;
+    reshape_slowmid->reshape3d->
       setup(slow_klo,slow_khi,slow_ilo,slow_ihi,slow_jlo,slow_jhi,
             brick_klo,brick_khi,brick_ilo,brick_ihi,brick_jlo,brick_jhi,
             2,0,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_slowmid->remap3d_extra = new Remap3d<U>(world);
-    remap_slowmid->remap3d->memory_type = mem_type;
-    remap_slowmid->remap3d_extra->collective = collective_bp;
-    remap_slowmid->remap3d_extra->packflag = packflag;
-    remap_slowmid->remap3d_extra->
+    reshape_slowmid->reshape3d_extra = new Reshape3d<U>(world);
+    reshape_slowmid->reshape3d->memory_type = mem_type;
+    reshape_slowmid->reshape3d_extra->collective = collective_bp;
+    reshape_slowmid->reshape3d_extra->packflag = packflag;
+    reshape_slowmid->reshape3d_extra->
       setup(brick_klo,brick_khi,brick_ilo,brick_ihi,brick_jlo,brick_jhi,
             mid_klo,mid_khi,mid_ilo,mid_ihi,mid_jlo,mid_jhi,
             2,2,0,ssize,rsize);
@@ -1044,123 +1044,123 @@ void FFT3d<U>::remap_inverse_create(int &sendsize, int &recvsize)
     recvsize = std::max(recvsize,rsize);
   }
 
-  // if exchange = 0, remap direct from pencil to pencil
-  // if exchange = 1, two remaps from pencil to brick, then brick to pencil
-  // remap uses J=fast, K=mid, I=slow, b/c current permute=1
+  // if exchange = 0, reshape direct from pencil to pencil
+  // if exchange = 1, two reshapes from pencil to brick, then brick to pencil
+  // reshape uses J=fast, K=mid, I=slow, b/c current permute=1
 
-  remap_midfast = new Remap;
+  reshape_midfast = new Reshape;
   if (exchange == 0) {
-    remap_midfast->remap3d = new Remap3d<U>(world);
-    remap_midfast->remap3d->memory_type = mem_type;
-    remap_midfast->remap3d->collective = collective_pp;
-    remap_midfast->remap3d->packflag = packflag;
-    remap_midfast->remap3d->
+    reshape_midfast->reshape3d = new Reshape3d<U>(world);
+    reshape_midfast->reshape3d->memory_type = mem_type;
+    reshape_midfast->reshape3d->collective = collective_pp;
+    reshape_midfast->reshape3d->packflag = packflag;
+    reshape_midfast->reshape3d->
       setup(mid_jlo,mid_jhi,mid_klo,mid_khi,mid_ilo,mid_ihi,
             fast_jlo,fast_jhi,fast_klo,fast_khi,fast_ilo,fast_ihi,
             2,2,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_midfast->remap3d_extra = NULL;
+    reshape_midfast->reshape3d_extra = NULL;
   } else {
-    remap_midfast->remap3d = new Remap3d<U>(world);
-    remap_midfast->remap3d->memory_type = mem_type;
-    remap_midfast->remap3d->collective = collective_bp;
-    remap_midfast->remap3d->packflag = packflag;
-    remap_midfast->remap3d->
+    reshape_midfast->reshape3d = new Reshape3d<U>(world);
+    reshape_midfast->reshape3d->memory_type = mem_type;
+    reshape_midfast->reshape3d->collective = collective_bp;
+    reshape_midfast->reshape3d->packflag = packflag;
+    reshape_midfast->reshape3d->
       setup(mid_jlo,mid_jhi,mid_klo,mid_khi,mid_ilo,mid_ihi,
             brick_jlo,brick_jhi,brick_klo,brick_khi,brick_ilo,brick_ihi,
             2,0,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_midfast->remap3d_extra = new Remap3d<U>(world);
-    remap_midfast->remap3d->memory_type = mem_type;
-    remap_midfast->remap3d_extra->collective = collective_bp;
-    remap_midfast->remap3d_extra->packflag = packflag;
-    remap_midfast->remap3d_extra->
+    reshape_midfast->reshape3d_extra = new Reshape3d<U>(world);
+    reshape_midfast->reshape3d->memory_type = mem_type;
+    reshape_midfast->reshape3d_extra->collective = collective_bp;
+    reshape_midfast->reshape3d_extra->packflag = packflag;
+    reshape_midfast->reshape3d_extra->
       setup(brick_jlo,brick_jhi,brick_klo,brick_khi,brick_ilo,brick_ihi,
             fast_jlo,fast_jhi,fast_klo,fast_khi,fast_ilo,fast_ihi,
             2,2,0,ssize,rsize);
   }
 
-  // remap uses I=fast, J=mid, K=slow, b/c current permute=0
+  // reshape uses I=fast, J=mid, K=slow, b/c current permute=0
 
-  if (remap_preflag) {
-    remap_postfast = new Remap;
-    remap_postfast->remap3d = new Remap3d<U>(world);
-    remap_postfast->remap3d->memory_type = mem_type;
-    remap_postfast->remap3d->collective = collective_bp;
-    remap_postfast->remap3d->packflag = packflag;
-    remap_postfast->remap3d->
+  if (reshape_preflag) {
+    reshape_postfast = new Reshape;
+    reshape_postfast->reshape3d = new Reshape3d<U>(world);
+    reshape_postfast->reshape3d->memory_type = mem_type;
+    reshape_postfast->reshape3d->collective = collective_bp;
+    reshape_postfast->reshape3d->packflag = packflag;
+    reshape_postfast->reshape3d->
       setup(fast_ilo,fast_ihi,fast_jlo,fast_jhi,fast_klo,fast_khi,
             in_ilo,in_ihi,in_jlo,in_jhi,in_klo,in_khi,
             2,0,0,ssize,rsize);
     sendsize = std::max(sendsize,ssize);
     recvsize = std::max(recvsize,rsize);
-    remap_postfast->remap3d_extra = NULL;
+    reshape_postfast->reshape3d_extra = NULL;
   }
 }
 
 template
-void FFT3d<double>::remap_inverse_create(int &sendsize, int &recvsize);
+void FFT3d<double>::reshape_inverse_create(int &sendsize, int &recvsize);
 template
-void FFT3d<float>::remap_inverse_create(int &sendsize, int &recvsize);
+void FFT3d<float>::reshape_inverse_create(int &sendsize, int &recvsize);
 
 /* ----------------------------------------------------------------------
-   tally memory used by all Remap3d instances
+   tally memory used by all Reshape3d instances
 ------------------------------------------------------------------------- */
 template <class U>
-int64_t FFT3d<U>::remap_memory()
+int64_t FFT3d<U>::reshape_memory()
 {
   int64_t memusage = 0;
 
-  if (remap_prefast) {
-    memusage += remap_prefast->remap3d->memusage;
-    if (remap_prefast->remap3d_extra)
-      memusage += remap_prefast->remap3d_extra->memusage;
+  if (reshape_prefast) {
+    memusage += reshape_prefast->reshape3d->memusage;
+    if (reshape_prefast->reshape3d_extra)
+      memusage += reshape_prefast->reshape3d_extra->memusage;
   }
-  if (remap_fastmid) {
-    memusage += remap_fastmid->remap3d->memusage;
-    if (remap_fastmid->remap3d_extra)
-      memusage += remap_fastmid->remap3d_extra->memusage;
+  if (reshape_fastmid) {
+    memusage += reshape_fastmid->reshape3d->memusage;
+    if (reshape_fastmid->reshape3d_extra)
+      memusage += reshape_fastmid->reshape3d_extra->memusage;
   }
-  if (remap_midslow) {
-    memusage += remap_midslow->remap3d->memusage;
-    if (remap_midslow->remap3d_extra)
-      memusage += remap_midslow->remap3d_extra->memusage;
+  if (reshape_midslow) {
+    memusage += reshape_midslow->reshape3d->memusage;
+    if (reshape_midslow->reshape3d_extra)
+      memusage += reshape_midslow->reshape3d_extra->memusage;
   }
-  if (remap_postslow) {
-    memusage += remap_postslow->remap3d->memusage;
-    if (remap_postslow->remap3d_extra)
-      memusage += remap_postslow->remap3d_extra->memusage;
+  if (reshape_postslow) {
+    memusage += reshape_postslow->reshape3d->memusage;
+    if (reshape_postslow->reshape3d_extra)
+      memusage += reshape_postslow->reshape3d_extra->memusage;
   }
 
-  if (remap_preslow) {
-    memusage += remap_preslow->remap3d->memusage;
-    if (remap_preslow->remap3d_extra)
-      memusage += remap_preslow->remap3d_extra->memusage;
+  if (reshape_preslow) {
+    memusage += reshape_preslow->reshape3d->memusage;
+    if (reshape_preslow->reshape3d_extra)
+      memusage += reshape_preslow->reshape3d_extra->memusage;
   }
-  if (remap_slowmid) {
-    memusage += remap_slowmid->remap3d->memusage;
-    if (remap_slowmid->remap3d_extra)
-      memusage += remap_slowmid->remap3d_extra->memusage;
+  if (reshape_slowmid) {
+    memusage += reshape_slowmid->reshape3d->memusage;
+    if (reshape_slowmid->reshape3d_extra)
+      memusage += reshape_slowmid->reshape3d_extra->memusage;
   }
-  if (remap_midfast) {
-    memusage += remap_midfast->remap3d->memusage;
-    if (remap_midfast->remap3d_extra)
-      memusage += remap_midfast->remap3d_extra->memusage;
+  if (reshape_midfast) {
+    memusage += reshape_midfast->reshape3d->memusage;
+    if (reshape_midfast->reshape3d_extra)
+      memusage += reshape_midfast->reshape3d_extra->memusage;
   }
-  if (remap_postfast) {
-    memusage += remap_postfast->remap3d->memusage;
-    if (remap_postfast->remap3d_extra)
-      memusage += remap_postfast->remap3d_extra->memusage;
+  if (reshape_postfast) {
+    memusage += reshape_postfast->reshape3d->memusage;
+    if (reshape_postfast->reshape3d_extra)
+      memusage += reshape_postfast->reshape3d_extra->memusage;
   }
 
   return memusage;
 }
 template
-int64_t FFT3d<double>::remap_memory();
+int64_t FFT3d<double>::reshape_memory();
 template
-int64_t FFT3d<float>::remap_memory();
+int64_t FFT3d<float>::reshape_memory();
 
 // -------------------------------------------------------------------
 // -------------------------------------------------------------------

@@ -11,7 +11,7 @@
 #include <mpi.h>
 #include "heffte_utils.h"
 #include "heffte_common.h"
-#include "remap3d.h"
+#include "reshape3d.h"
 
 #ifdef FFT_FFTW
 #define FFT_FFTW3
@@ -22,9 +22,8 @@ namespace HEFFTE_NS {
   /*!
    * The class FFT3d is the main function of HEFFTE library, it is in charge of creating the plans for
    * the 1D FFT computations, as well as the plans for data reshaping. It also calls the appropriate routines
-   * for execution and transposition. Objects can be created as follows: new Remap3d(MPI_Comm user_comm, int user_precision)
+   * for execution and transposition. Objects can be created as follows: new FFT3d<T>(MPI_Comm user_comm)
    * @param user_comm  MPI communicator for the P procs which own the data
-   * @param user_precision int, defines precision for FFT data, 1=single, 2=double
    */
  //------------------------------------------------------------------------------
 
@@ -69,7 +68,7 @@ template <class U>
 class FFT3d {
  public:
   MPI_Comm world;
-  int scaled, remaponly;
+  int scaled, reshapeonly;
   int permute, collective, exchange, packflag, memoryflag;
   int collective_bp, collective_pp;
   int64_t memusage;                 // memory usage in bytes
@@ -90,9 +89,9 @@ class FFT3d {
   double setuptime;                      // setup() time after tuning
   double tfft[10];                       // single 3d FFT time for each trial
   double t1d[10];                        // 1d FFT time for each trial
-  double tremap[10];                     // total remap time for each trial
-  double tremap1[10],tremap2[10],
-    tremap3[10],tremap4[10];             // per-remap time for each trial
+  double treshape[10];                     // total reshape time for each trial
+  double treshape1[10],treshape2[10],
+    treshape3[10],treshape4[10];             // per-reshape time for each trial
 
   const char *fft1d;                // name of 1d FFT lib
   const char *precision;            // precision of FFTs, "single" or "double"
@@ -106,8 +105,8 @@ class FFT3d {
   template <class T> void setup_memory(T *, T *);
   template <class T> void compute(T *in, T *out, int flag);
   template <class T> void only_1d_ffts(T *, int);
-  template <class T> void only_remaps(T *, T *, int);
-  template <class T> void only_one_remap(T *, T *, int, int);
+  template <class T> void only_reshapes(T *, T *, int);
+  template <class T> void only_one_reshape(T *, T *, int, int);
 
  private:
   int me,nprocs;
@@ -142,24 +141,24 @@ class FFT3d {
 
   int inout_layout_same;            // 1 if initial layout = final layout
 
-  // Remap data structs
-  struct Remap {
-    class Remap3d<U> *remap3d;
-    class Remap3d<U> *remap3d_extra;
+  // Reshape data structs
+  struct Reshape {
+    class Reshape3d<U> *reshape3d;
+    class Reshape3d<U> *reshape3d_extra;
   };
 
-  Remap *remap_prefast, *remap_fastmid, *remap_midslow, *remap_postslow;
-  Remap *remap_preslow, *remap_slowmid, *remap_midfast, *remap_postfast;
-  int remap_preflag, remap_postflag;
+  Reshape *reshape_prefast, *reshape_fastmid, *reshape_midslow, *reshape_postslow;
+  Reshape *reshape_preslow, *reshape_slowmid, *reshape_midfast, *reshape_postfast;
+  int reshape_preflag, reshape_postflag;
 
-  U *sendbuf;              // buffer for remap sends
-  U *recvbuf;              // buffer for remap recvs
+  U *sendbuf;              // buffer for reshape sends
+  U *recvbuf;              // buffer for reshape recvs
 
 
-  template <class T> void remap(T *, T *, Remap *);
-  void remap_forward_create(int &, int &);
-  void remap_inverse_create(int &, int &);
-  void deallocate_remap(Remap *);
+  template <class T> void reshape(T *, T *, Reshape *);
+  void reshape_forward_create(int &, int &);
+  void reshape_inverse_create(int &, int &);
+  void deallocate_reshape(Reshape *);
   template <class T> void scale_ffts(T &fft_norm, T *data);
 
 
@@ -195,7 +194,7 @@ class FFT3d {
   // private methods
   void deallocate_setup();
   void deallocate_setup_memory();
-  int64_t remap_memory();
+  int64_t reshape_memory();
 
   void setup_ffts();
   void perform_ffts(U *, int, FFT1d *);

@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include "heffte.h"
 #include "heffte_common.h"
-#include "heffte_remap3d.h"
+#include "heffte_reshape3d.h"
 #include "mpi.h"
 
 typedef int64_t bigint;
@@ -29,7 +29,7 @@ void heffte_set(FFT3d<T> *fft, const char *keyword, int value)
   else if (strcmp(keyword,"pack") == 0) fft->packflag = value;
   else if (strcmp(keyword,"memory") == 0) fft->memoryflag = value;
   else if (strcmp(keyword,"scale") == 0) fft->scaled = value;
-  else if (strcmp(keyword,"remaponly") == 0) fft->remaponly = value;
+  else if (strcmp(keyword,"reshapeonly") == 0) fft->reshapeonly = value;
 }
 
 template
@@ -71,11 +71,11 @@ void *heffte_get(FFT3d<T> *fft, const char *keyword)
   else if (strcmp(keyword,"pflags") == 0) return fft->pflags;
   else if (strcmp(keyword,"tfft") == 0) return fft->tfft;
   else if (strcmp(keyword,"t1d") == 0) return fft->t1d;
-  else if (strcmp(keyword,"tremap") == 0) return fft->tremap;
-  else if (strcmp(keyword,"tremap1") == 0) return fft->tremap1;
-  else if (strcmp(keyword,"tremap2") == 0) return fft->tremap2;
-  else if (strcmp(keyword,"tremap3") == 0) return fft->tremap3;
-  else if (strcmp(keyword,"tremap4") == 0) return fft->tremap4;
+  else if (strcmp(keyword,"treshape") == 0) return fft->treshape;
+  else if (strcmp(keyword,"treshape1") == 0) return fft->treshape1;
+  else if (strcmp(keyword,"treshape2") == 0) return fft->treshape2;
+  else if (strcmp(keyword,"treshape3") == 0) return fft->treshape3;
+  else if (strcmp(keyword,"treshape4") == 0) return fft->treshape4;
   else return NULL;
 }
 
@@ -113,7 +113,7 @@ void heffte_plan_create(float *work, FFT3d<float> *fft, int *N, int *i_lo, int *
 
 
 /* ----------------------------------------------------------------------
-   pass in user memory for a 3d remap send/recv
+   pass in user memory for a 3d reshape send/recv
 ------------------------------------------------------------------------- */
 
 template <class T>
@@ -164,33 +164,33 @@ void heffte_only_1d_ffts(FFT3d<float> *fft, float *in, int flag);
 
 
 /* ----------------------------------------------------------------------
-   perform all the remaps in a 3d FFT, but no 1d FFTs
+   perform all the reshapes in a 3d FFT, but no 1d FFTs
 ------------------------------------------------------------------------- */
 template <class T>
-void heffte_only_remaps(FFT3d<T> *fft, T *in, T *out, int flag)
+void heffte_only_reshapes(FFT3d<T> *fft, T *in, T *out, int flag)
 {
-  fft->only_remaps(in,out,flag);
+  fft->only_reshapes(in,out,flag);
 }
 
 template
-void heffte_only_remaps(FFT3d<double> *fft, double *in, double *out, int flag);
+void heffte_only_reshapes(FFT3d<double> *fft, double *in, double *out, int flag);
 template
-void heffte_only_remaps(FFT3d<float> *fft, float *in, float *out, int flag);
+void heffte_only_reshapes(FFT3d<float> *fft, float *in, float *out, int flag);
 
 
 /* ----------------------------------------------------------------------
-   perform just a single 3d remap operation
+   perform just a single 3d reshape operation
 ------------------------------------------------------------------------- */
 template <class T>
-void heffte_only_one_remap(FFT3d<T> *fft, T *in, T *out, int flag, int which)
+void heffte_only_one_reshape(FFT3d<T> *fft, T *in, T *out, int flag, int which)
 {
-  fft->only_one_remap(in,out,flag,which);
+  fft->only_one_reshape(in,out,flag,which);
 }
 
 template
-void heffte_only_one_remap(FFT3d<double> *fft, double *in, double *out, int flag, int which);
+void heffte_only_one_reshape(FFT3d<double> *fft, double *in, double *out, int flag, int which);
 template
-void heffte_only_one_remap(FFT3d<float> *fft, float *in, float *out, int flag, int which);
+void heffte_only_one_reshape(FFT3d<float> *fft, float *in, float *out, int flag, int which);
 
 
 /* ----------------------------------------------------------------------

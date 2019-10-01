@@ -9,7 +9,7 @@ HEFFTE Flags
           pencil = pencil to pencil data exchange (4 stages for full FFT)
           brick = brick to pencil data exchange (6 stages for full FFT)
 
-3. pflag: select pack/unpack for methods of data remapping, can be set to (default = memcpy):
+3. pflag: select pack/unpack for methods of data reshaping, can be set to (default = memcpy):
           array = array based
           ptr = pointer based
           memcpy = memcpy based
@@ -27,11 +27,3 @@ HEFFTE Flags
 8. vflag: Check correctness of FFT computation (default = deactivated)
 
 9. verb : Verbosity flag, prints hardware and extra information (default = deactivated)
-
-
-HEFFTE also provides flags to tune the library during the setup time
-to use the best configuration. Currently two flags are supported:
-
-1. FHEFFTE_ESTIMATE: Minimal/no tuning.
-2. FHEFFTE_MEASURE: Tunes for local FFT execution algorithm, as well as global transposes to
-reduce communication time.

@@ -9,7 +9,7 @@ timing_array[1] = compute_time
 
 timing_array[2] = scale_time               
 
-timing_array[3] = time_remap_total         
+timing_array[3] = time_reshape_total         
 
 timing_array[5] = time_pack                
 

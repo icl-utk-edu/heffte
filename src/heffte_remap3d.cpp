@@ -8,14 +8,14 @@
         @date
  */
 
-// Remap3d class
+// Reshape3d class
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
 
-#include "heffte_remap3d.h"
+#include "heffte_reshape3d.h"
 #include "heffte_pack3d.h"
 #include "heffte_common.h"
 #include "heffte_trace.h"
@@ -27,7 +27,7 @@ using namespace HEFFTE_NS;
  * @param user_comm  MPI communicator for the P procs which own the data
  */
 template <class U>
-Remap3d<U>::Remap3d(MPI_Comm user_comm)
+Reshape3d<U>::Reshape3d(MPI_Comm user_comm)
 {
   world = user_comm;
   MPI_Comm_rank(world,&me);
@@ -60,15 +60,15 @@ Remap3d<U>::Remap3d(MPI_Comm user_comm)
   setupflag = 0;
 }
 template
-Remap3d<double>::Remap3d(MPI_Comm user_comm);
+Reshape3d<double>::Reshape3d(MPI_Comm user_comm);
 template
-Remap3d<float>::Remap3d(MPI_Comm user_comm);
+Reshape3d<float>::Reshape3d(MPI_Comm user_comm);
 
 /* ----------------------------------------------------------------------
-   delete a 3d remap plan
+   delete a 3d reshape plan
 ------------------------------------------------------------------------- */
 template <class U>
-Remap3d<U>::~Remap3d()
+Reshape3d<U>::~Reshape3d()
 {
   delete memory;
   delete error;
@@ -114,12 +114,12 @@ Remap3d<U>::~Remap3d()
   }
 }
 template
-Remap3d<double>::~Remap3d();
+Reshape3d<double>::~Reshape3d();
 template
-Remap3d<float>::~Remap3d();
+Reshape3d<float>::~Reshape3d();
 
 /* ----------------------------------------------------------------------
-   create plan for performing a 3d remap
+   create plan for performing a 3d reshape
 
    inputs:
    in_ilo,in_ihi        input bounds of data I own in fast index
@@ -157,7 +157,7 @@ Remap3d<float>::~Remap3d();
 
 
  template <class U>
-void Remap3d<U>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
+void Reshape3d<U>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
                     int in_klo, int in_khi,
                     int out_ilo, int out_ihi, int out_jlo, int out_jhi,
                     int out_klo, int out_khi,
@@ -236,7 +236,7 @@ void Remap3d<U>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
     packplan = (struct pack_plan_3d *)
       memory->smalloc(nsend*sizeof(struct pack_plan_3d),HEFFTE_MEM_CPU_ALIGN);
     if (!send_offset || !send_size || !send_proc || !packplan)
-      error->one("Could not allocate remap send info");
+      error->one("Could not allocate reshape send info");
   }
 
   // store send info, with self as last entry
@@ -328,7 +328,7 @@ void Remap3d<U>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
       memory->smalloc(nrecv*sizeof(struct pack_plan_3d),HEFFTE_MEM_CPU_ALIGN);
     if (!recv_offset || !recv_size || !recv_proc || !recv_bufloc ||
         !request || !unpackplan)
-      error->one("Could not allocate remap recv info");
+      error->one("Could not allocate reshape recv info");
   }
 
   // store recv info, with self as last entry
@@ -416,7 +416,7 @@ void Remap3d<U>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
   }
 
   // setup for collective communication
-  // pgroup = list of procs I communicate with during remap
+  // pgroup = list of procs I communicate with during reshape
   // ngroup = # of procs in pgroup
 
   if (collective) {
@@ -487,7 +487,7 @@ void Remap3d<U>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
 
     memory->sfree(pflag,HEFFTE_MEM_CPU_ALIGN);
 
-    // create all2all communicators for the remap
+    // create all2all communicators for the reshape
     // based on the group each proc belongs to
 
     MPI_Group orig_group,new_group;
@@ -604,14 +604,14 @@ void Remap3d<U>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
 }
 
 template
-void Remap3d<double>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
+void Reshape3d<double>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
                    int in_klo, int in_khi,
                    int out_ilo, int out_ihi, int out_jlo, int out_jhi,
                    int out_klo, int out_khi,
                    int nqty, int user_permute, int user_memoryflag,
                    int &user_sendsize, int &user_recvsize);
 template
-void Remap3d<float>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
+void Reshape3d<float>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
                    int in_klo, int in_khi,
                    int out_ilo, int out_ihi, int out_jlo, int out_jhi,
                    int out_klo, int out_khi,
@@ -620,12 +620,12 @@ void Remap3d<float>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
 
 
 /* ----------------------------------------------------------------------
-   perform a 3d remap
+   perform a 3d reshape
 
    in           starting address of input data on this proc
    out          starting address of where output data for this proc
                   will be placed (can be same as in)
-   buf          extra memory required for remap
+   buf          extra memory required for reshape
                 if memoryflag=0 was used in call to setup()
                   user_sendbuf and user_recvbuf are used
                   size was returned to caller by setup()
@@ -642,20 +642,20 @@ void Remap3d<float>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
  */
 template <class U>
 template <class T>
-void Remap3d<U>::remap(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
+void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
 {
   int  thread_id = 1;
   char func_name[80], func_message[80];
   int isend,irecv;
 
-  if (!setupflag) error->all("Cannot perform remap before setup");
+  if (!setupflag) error->all("Cannot perform reshape before setup");
 
   if (!memoryflag) {
     sendbuf = user_sendbuf;
     recvbuf = user_recvbuf;
   }
 
-  // point-to-point remap communication
+  // point-to-point reshape communication
 
   if (!collective) {
 
@@ -747,7 +747,7 @@ void Remap3d<U>::remap(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
       trace_cpu_end( thread_id);
     }
 
-  // All2Allv collective for remap communication
+  // All2Allv collective for reshape communication
 
   } else {
 
@@ -826,10 +826,10 @@ void Remap3d<U>::remap(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
 }
 
 template
-void Remap3d<double>::remap(double *in, double *out,
+void Reshape3d<double>::reshape(double *in, double *out,
                     double *user_sendbuf, double *user_recvbuf);
 template
-void Remap3d<float>::remap(float *in, float *out,
+void Reshape3d<float>::reshape(float *in, float *out,
                     float *user_sendbuf, float *user_recvbuf);
 
 /* ----------------------------------------------------------------------
@@ -847,7 +847,7 @@ void Remap3d<float>::remap(float *in, float *out,
  * @return 1 if blocks overlap, 0 otherwise
  */
 template <class U>
-int Remap3d<U>::collide(struct extent_3d *block1, struct extent_3d *block2,
+int Reshape3d<U>::collide(struct extent_3d *block1, struct extent_3d *block2,
                      struct extent_3d *overlap)
 {
   overlap->ilo = std::max(block1->ilo,block2->ilo);
@@ -868,8 +868,8 @@ int Remap3d<U>::collide(struct extent_3d *block1, struct extent_3d *block2,
   return 1;
 }
 template
-int Remap3d<double>::collide(struct extent_3d *block1, struct extent_3d *block2,
+int Reshape3d<double>::collide(struct extent_3d *block1, struct extent_3d *block2,
                      struct extent_3d *overlap);
 template
-int Remap3d<float>::collide(struct extent_3d *block1, struct extent_3d *block2,
+int Reshape3d<float>::collide(struct extent_3d *block1, struct extent_3d *block2,
                      struct extent_3d *overlap);

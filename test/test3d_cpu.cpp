@@ -195,7 +195,7 @@ void read_input(int narg, char **args)
   heffte_set(fft,"pack",pflag);
   heffte_set(fft,"memory",1);
   heffte_set(fft,"scale",1);
-  heffte_set(fft,"remaponly",rflag);
+  heffte_set(fft,"reshapeonly",rflag);
 
 // parse args
   int iarg = 1;
@@ -256,7 +256,7 @@ void read_input(int narg, char **args)
       iarg += 1;
     } else if (strcmp(args[iarg],"-r") == 0) {
       rflag = 1;
-      heffte_set(fft,"remaponly",eflag);
+      heffte_set(fft,"reshapeonly",eflag);
       iarg += 1;
     } else if (strcmp(args[iarg],"-o") == 0) {
       oflag = 1;
@@ -394,8 +394,8 @@ void heffte_output(int flag, const char *str)
 
 void heffte_timing()
 {
-  double time1d,time_remap;
-  double time_remap1,time_remap2,time_remap3,time_remap4;
+  double time1d,time_reshape;
+  double time_reshape1,time_reshape2,time_reshape3,time_reshape4;
 
   // nfft = # of FFTs performed = 2x larger
   int nfft;
