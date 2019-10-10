@@ -26,7 +26,7 @@ computation on heterogeneous systems, targeting the upcoming exascale machines.
 Documentation
 =============
 
-* A Doxygen documentation on how to use the library can be found in the *doc* folder of this repository.
+* Installation and a Doxygen documentation on how to use the library can be found in the *doc* folder of this repository.
 * [HEFFTE Website and Papers](https://www.icl.utk.edu/publications/fft-ecp-fast-fourier-transform)
 
 * * *
