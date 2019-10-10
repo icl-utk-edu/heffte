@@ -21,18 +21,6 @@ namespace HEFFTE_NS {
 
   #define NX 16
   #define NY 16
-/*!
- * Plan for packing 3d data on the CPU
- */
-struct pack_plan_3d {
-  int nfast;                 // # of elements in fast index
-  int nmid;                  // # of elements in mid index
-  int nslow;                 // # of elements in slow index
-  int nstride_line;          // stride between successive mid indices
-  int nstride_plane;         // stride between successive slow indices
-  int nqty;                  // # of values/element
-};
-
 
 /* ----------------------------------------------------------------------
    pack from data -> buf

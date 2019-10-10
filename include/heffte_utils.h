@@ -21,9 +21,8 @@
 
 #elif defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
   #include <cufft.h>
-
 #else // By default we include FFTW3
-    #include "fftw3.h"
+  #include "fftw3.h"
 #endif
 
 // ==============================================================================

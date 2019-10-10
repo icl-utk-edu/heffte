@@ -14,9 +14,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "fft3d.h"
-#include "scale.h"
-#include "reshape3d.h"
+#include <fftw3.h>
+#include "heffte_fft3d.h"
+#include "heffte_scale.h"
 #include "heffte_trace.h"
 
 using namespace HEFFTE_NS;
@@ -218,7 +218,6 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
 
   if (allflag == 0) {
     reshape_preflag = 0;
-    if(me==0) printf("\tHEFFT Library: Reshape input->fast : NO\n");
     fast_ilo = in_ilo;
     fast_ihi = in_ihi;
     fast_jlo = in_jlo;
@@ -227,7 +226,6 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
     fast_khi = in_khi;
   } else {
     reshape_preflag = 1;
-    if(me==0) printf("\tReshape input->fast : YES \n");
     fast_ilo = 0;
     fast_ihi = nfast - 1;
     fast_jlo = ipfast2*nmid/npfast2;
@@ -272,6 +270,21 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
     slow_khi = nslow - 1;
   }
 
+
+// Check if reshape is needed from 3rd-direction to final grid, regardless permutation
+  if (out_ilo == slow_ilo && out_ihi == slow_ihi &&
+      out_jlo == slow_jlo && out_jhi == slow_jhi &&
+      out_klo == slow_klo && out_khi == slow_khi) flag = 0;
+  else flag = 1;
+  MPI_Allreduce(&flag,&allflag,1,MPI_INT,MPI_MAX,world);
+
+  if (allflag == 0){
+     reshape_final_grid = 0;
+  }
+  else {
+    reshape_final_grid = 1;
+  }
+
   // reshape from slow pencil layout to final layout
   // reshape_postflag = 1 if reshape is needed, else 0
   // not needed if permute=2 and slow = out already
@@ -286,16 +299,9 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
 
   if (allflag == 0){
      reshape_postflag = 0;
-     if(me==0) printf("\tReshape slow->output: NO\n");
   }
   else {
     reshape_postflag = 1;
-     if(me==0) printf("\tReshape slow->output: YES\n");
-  }
-
-  if(me==0){
-   if(scaled) printf("\tScaling             : YES\n");
-   else       printf("\tScaling             : NO\n");
   }
 
   // if exchange is set, then reshape for fast/mid and mid/slow

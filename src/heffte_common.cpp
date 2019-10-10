@@ -264,8 +264,6 @@ void *Memory::smalloc(int64_t nbytes, heffte_memory_type_t memory_type)
 
     switch (memory_type) {
         case HEFFTE_MEM_GPU:
-        printf("we are aboout to allocate gpu \n");
-
             cudaMalloc((void**)&ptr, nbytes);
             magma_check_cuda_error();
             if (ptr == NULL) printf("null ------------------ \n");
@@ -305,7 +303,6 @@ void *Memory::smalloc(int64_t nbytes, heffte_memory_type_t memory_type)
             #endif
             break;
         case HEFFTE_MEM_CPU:
-            // printf("we are aboout to allocate CPU \n");
             ptr = malloc(nbytes);
             if (ptr == NULL) printf("null ------------------ \n");
             FFT_PRINTF("HEFFTE_MEM_CPU::: Called allocation called from %s \n", __func__);

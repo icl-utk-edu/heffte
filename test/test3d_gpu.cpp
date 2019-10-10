@@ -51,16 +51,19 @@ int nfft_out;                     // # of grid pts I own in final partition
 int fftsize;                      // FFT buffer size returned by FFT setup
 int sendsize,recvsize;            // Buffer size for global reshape and transposition
 
-FFT3d<float> *fft;
-// FFT3d <double> *fft;
 double timefft,timeinit,timesetup;
 double epsmax;
 
 int64_t nbytes;
+// Single precision test
 float *work;
 float *dwork;
+FFT3d<float> *fft;
+
+// Double precision test
 // double *work;
 // double *dwork;
+// FFT3d <double> *fft;
 
 // functions
 void read_input(int, char **);
@@ -91,8 +94,10 @@ int main(int narg, char **args)
 
   heffte_init();
 
-  // fft = new FFT3d<double>(fft_comm);
+  // Single precision test
   fft = new FFT3d<float>(fft_comm);
+  // Double precision test
+  // fft = new FFT3d<double>(fft_comm);
 
   read_input(narg,args);
 
@@ -199,7 +204,12 @@ void read_input(int narg, char **args)
   verb  = 0;
 
 // Default initialization
+#if defined(FFT_CUFFT_A)
+  fft->mem_type = HEFFTE_MEM_GPU;  // setting memory type for ffts
+#else
   fft->mem_type = HEFFTE_MEM_CPU;  // setting memory type for ffts
+#endif
+
   heffte_set(fft,"collective",cflag);
   heffte_set(fft,"exchange",eflag);
   heffte_set(fft,"pack",pflag);
@@ -309,37 +319,37 @@ else permute = 2;
 
 
 if (me == 0){
-  printf( "__________________________________________________________________________________________________________________________________________ \n");
-  printf("                                                           Testing HEFFTE library                                                           \n");
-  printf( "------------------------------------------------------------------------------------------------------------------------------------------ \n");
+  printf( "____________________________________________________________________________________________________________________________ \n");
+  printf("                                               Testing HEFFTE library                                                         \n");
+  printf( "---------------------------------------------------------------------------------------------------------------------------- \n");
 
-  printf("Parameters:\n");
-  printf("----------- \n");
+  printf("Test summary:\n");
+  printf("-------------\n");
   if(mode==0)
   printf("\t%d forward and %d backward 3D-FFTs on %d procs on a complex %dx%dx%d grid\n",nloop,nloop,nprocs,N[0],N[1],N[2]);
   if(mode==1)
   printf("\t%d forward 3D-FFTs on %d procs on a complex %dx%dx%d grid\n",nloop,nloop,nprocs,N[0],N[1],N[2]);
   #if defined(FFT_CUFFTW) || defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
-  printf("\t1D FFT library    : CUFFT\n");
+    printf("\t1D FFT library       : CUFFT\n");
   #else
-    #if defined(FFT_CUFFTW) || defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
-    printf("\t1D FFT library    : CUFFT\n");
-    #else
-    printf("\t1D FFT library    : FFTW3\n");
-    #endif
+    printf("\t1D FFT library       : FFTW3\n");
   #endif
   if(typeid(work)==typeid(double*))
-  printf("\tPrecision         : DOUBLE\n");
+    printf("\tPrecision            : DOUBLE\n");
   if(typeid(work)==typeid(float*))
-  printf("\tPrecision         : SINGLE\n");
+    printf("\tPrecision            : SINGLE\n");
   if(cflag==POINT)
-  printf("\tComunication type : POINT2POINT\n");
+    printf("\tComunication type    : POINT2POINT\n");
   if(cflag==ALL2ALL)
-  printf("\tComunication type : ALL2ALL\n");
+    printf("\tComunication type    : ALL2ALL\n");
+  if(fft->scaled)
+    printf("\tScaling after forward: YES\n");
+  else
+    printf("\tScaling after forward: NO\n");
 }
 
 #if defined(FFT_CUFFTW) || defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
-  // print devices
+  // print available GPU devices, if verb flag is set to 1
   int ndevices = 0;
   cudaGetDeviceCount( &ndevices );
   magma_check_cuda_error();
@@ -457,29 +467,58 @@ void heffte_timing()
 
   if (me == 0) {
 
-    printf("Processor grids:\n");
-    printf("---------------- \n");
-    printf("\tInitial     : %d %d %d\n",proc_i[0],proc_i[1],proc_i[2]);
-    printf("\tX direction : %d %d %d\n",
-           fft->npfast1,fft->npfast2,fft->npfast3);
-    printf("\tY direction : %d %d %d\n",
-           fft->npmid1,fft->npmid2,fft->npmid3);
-    printf("\tZ direction : %d %d %d\n",
-           fft->npslow1,fft->npslow2,fft->npslow3);
-    printf("\tFinal       : %d %d %d\n",proc_o[0],proc_o[1],proc_o[2]);
-
-  if(verb){
     printf("Memory comsuption:\n");
     printf("------------------\n");
     printf("\tMemory usage (per-proc) for FFT grid   = %.2g MB\n",(double) gridbytes / 1024/1024);
     printf("\tMemory usage (per-proc) by FFT library = %.2g MB\n",(double) fft->memusage / 1024/1024);
-    printf("\tTotal comsuption = %.2g MB\n", (double) nprocs*fft->memusage / 1024/1024 );
-  }
+    printf("\tTotal memory comsuption                = %.2g MB\n", (double) nprocs*fft->memusage / 1024/1024 );
+
+    printf("Processor grids for FFT stages:\n");
+    printf("------------------------------- \n");
+
+    if (fft->reshape_preflag && fft->reshape_final_grid){
+      printf("\tInitial grid \t1st-direction  \t2nd-direction  \t3rd-direction \tFinal grid \n");
+      printf("\t    %d %d %d \t     %d %d %d  \t    %d %d %d \t    %d %d %d \t   %d %d %d \n",
+      proc_i[0], proc_i[1], proc_i[2],
+      fft->npfast1,fft->npfast2,fft->npfast3,
+      fft->npmid1,fft->npmid2,fft->npmid3,
+      fft->npslow1,fft->npslow2,fft->npslow3,
+      proc_o[0],proc_o[1],proc_o[2]);
+    }
+
+    if (!fft->reshape_preflag && fft->reshape_final_grid){
+      printf("\t1st-direction  \t2nd-direction  \t3rd-direction \tFinal grid \n");
+      printf("\t     %d %d %d  \t    %d %d %d \t    %d %d %d \t   %d %d %d \n",
+      fft->npfast1,fft->npfast2,fft->npfast3,
+      fft->npmid1,fft->npmid2,fft->npmid3,
+      fft->npslow1,fft->npslow2,fft->npslow3,
+      proc_o[0],proc_o[1],proc_o[2]);
+      printf("\t(Initial grid) \n");
+    }
+
+    if (fft->reshape_preflag && !fft->reshape_final_grid){
+      printf("\tInitial grid \t1st-direction  \t2nd-direction  \t3rd-direction\n");
+      printf("\t    %d %d %d \t     %d %d %d  \t    %d %d %d \t    %d %d %d \n",
+      proc_i[0], proc_i[1], proc_i[2],
+      fft->npfast1,fft->npfast2,fft->npfast3,
+      fft->npmid1,fft->npmid2,fft->npmid3,
+      fft->npslow1,fft->npslow2,fft->npslow3);
+      printf("\t\t\t\t\t\t\t(Final grid)\n");
+    }
+
+    if (!fft->reshape_preflag && !fft->reshape_final_grid){
+      printf("\t1st-direction  \t2nd-direction  \t3rd-direction\n");
+      printf("\t     %d %d %d  \t    %d %d %d \t    %d %d %d \n",
+      fft->npfast1,fft->npfast2,fft->npfast3,
+      fft->npmid1,fft->npmid2,fft->npmid3,
+      fft->npslow1,fft->npslow2,fft->npslow3);
+      printf("\t(Initial grid)\t\t\t (Final grid) \n");
+    }
 
     double computeTime = fft->computeTime/nfft;
-    printf( "____________________________________________________________________________________________________________________________________________________ \n");
-    printf(" ID\tnp \t  nx \t  ny \t  nz \t  Gflops  \tExecution\t  One FFT \t Transpose \t Initialisation      Plan\t  Max Error \n");
-    printf("_3D_\t %d\t%5d\t%5d\t%5d\t%10.4g\t%10.4g\t%10.4g\t%10.4g\t%10.4g\t%10.4g\t%e\n",nprocs, N[0], N[1], N[2], floprate, computeTime, onetime, timing_array[3], timeinit-timesetup, timesetup, epsmax);
-    printf( "---------------------------------------------------------------------------------------------------------------------------------------------------- \n");
+    printf( "____________________________________________________________________________________________________________________________\n");
+    printf(" ID\tnp \t  nx \t  ny \t  nz \t   Gflops/s  \tExecution (s) \t  One FFT (s) \t Initialisation (s)\t  Max Error \n");
+    printf("_3D_\t %d\t%5d\t%5d\t%5d\t%10.4g\t%10.4g\t %10.4g  \t     %10.4g      \t%e\n", nprocs, N[0], N[1], N[2], floprate, computeTime, onetime, timeinit-timesetup, epsmax);
+    printf( "---------------------------------------------------------------------------------------------------------------------------- \n");
   }
 }

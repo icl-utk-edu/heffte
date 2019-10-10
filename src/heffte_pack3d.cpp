@@ -14,38 +14,13 @@
 #define FFT_PACK3D_H
 
 #include <string.h>
-#include "pack3d.h"
+#include "heffte_pack3d.h"
+#include "heffte_utils.h"
 
 namespace HEFFTE_NS {
 
-// loop counters for doing a pack/unpack
-/*!
- * Plan for packing 3d data on the CPU
- */
-struct pack_plan_3d {
-  int nfast;                 // # of elements in fast index
-  int nmid;                  // # of elements in mid index
-  int nslow;                 // # of elements in slow index
-  int nstride_line;          // stride between successive mid indices
-  int nstride_plane;         // stride between successive slow indices
-  int nqty;                  // # of values/element
-};
-
-
-/* ----------------------------------------------------------------------
-   Pack and unpack functions:
-   pack routines copy strided values from data into contiguous locs in buf
-   unpack routines copy contiguous values from buf into strided locs in data
-   different versions of unpack depending on permutation
-     and # of values/element
-   ARRAY routines work via array indices (default)
-   POINTER routines work via pointers
-   MEMCPY routines work via pointers and memcpy function
-------------------------------------------------------------------------- */
-
-// ----------------------------------------------------------------------
-// pack/unpack with array indices
-// ----------------------------------------------------------------------
+  #define NX 16
+  #define NY 16
 
 /* ----------------------------------------------------------------------
    pack from data -> buf

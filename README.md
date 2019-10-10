@@ -15,7 +15,7 @@
 About
 =====
 
-The highly efficient FFT for exascale (HEFFTE) library is being developed as part of the Exascale
+The Highly Efficient FFT for Exascale (HEFFTE) library is being developed as part of the Exascale
 Computing Project (ECP), which is a joint project of the U.S. Department of Energy's Office of
 Science and National Nuclear Security Administration (NNSA). HEFFT will deliver highly efficient FFT
 computation on heterogeneous systems, targeting the upcoming exascale machines.

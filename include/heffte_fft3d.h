@@ -9,9 +9,10 @@
 #define FFT_FFT3D_H
 
 #include <mpi.h>
+#include <fftw3.h>
 #include "heffte_utils.h"
 #include "heffte_common.h"
-#include "reshape3d.h"
+#include "heffte_reshape3d.h"
 
 #ifdef FFT_FFTW
 #define FFT_FFTW3
@@ -108,6 +109,8 @@ class FFT3d {
   template <class T> void only_reshapes(T *, T *, int);
   template <class T> void only_one_reshape(T *, T *, int, int);
 
+  int reshape_preflag, reshape_postflag, reshape_final_grid;
+
  private:
   int me,nprocs;
   int setupflag, setup_memory_flag;
@@ -149,7 +152,6 @@ class FFT3d {
 
   Reshape *reshape_prefast, *reshape_fastmid, *reshape_midslow, *reshape_postslow;
   Reshape *reshape_preslow, *reshape_slowmid, *reshape_midfast, *reshape_postfast;
-  int reshape_preflag, reshape_postflag;
 
   U *sendbuf;              // buffer for reshape sends
   U *recvbuf;              // buffer for reshape recvs

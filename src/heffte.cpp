@@ -434,7 +434,7 @@ int heffte_init(){
  */
 int heffte_init(int nthreads) {
 	int threads_ok = 1;
-#ifdef FFT_FFTW3
+#ifdef FFT_FFTW3_OMP
 	if (threads_ok)
 		threads_ok = fftw_init_threads();
 	if (threads_ok)
@@ -447,7 +447,7 @@ int heffte_init(int nthreads) {
  * Cleanup all CPU resources
  */
 void heffte_cleanup() {
-  #ifdef FFT_FFTW3
+  #ifdef FFT_FFTW3_OMP
 	fftw_cleanup_threads();
 	fftw_cleanup();
   #endif

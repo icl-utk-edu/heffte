@@ -9,8 +9,8 @@
 
 #include <mpi.h>
 #include <stdint.h>
-#include <fft3d.h>
 #include <math.h>
+#include "heffte_fft3d.h"
 
 
 #if !defined(FFT_MEMALIGN)
