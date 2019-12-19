@@ -27,14 +27,6 @@ Documentation
 =============
 
 * Installation and a Doxygen documentation on how to use the library can be found in the *doc* folder of this repository.
-* [HEFFTE Website and Papers](https://www.icl.utk.edu/publications/fft-ecp-fast-fourier-transform)
-
-* * *
-
-Getting Help
-============
-
-For assistance with HEFFTE, email *heffte@icl.utk.edu*.
 
 * * *
 
@@ -50,7 +42,6 @@ We ask that you complete and submit a contributor agreement.
 Resources
 =========
 
-* Visit the [HEFFTE website](http://icl.utk.edu/fft/) for more information about the HEFFTE project.
 * Visit the [ECP website](https://exascaleproject.org) to find out more about the DOE Exascale Computing Initiative.
 
 * * *

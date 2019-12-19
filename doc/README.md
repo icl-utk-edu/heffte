@@ -15,6 +15,7 @@ library, and executables.
 mkdir build; cd $_
 build/
     cmake -DBUILD_GPU=true -DCXX_FLAGS="-O3" -DBUILD_SHARED=false ..
+    make
 ~~~
 
 ## Install HEFFTE without GPU functionality
