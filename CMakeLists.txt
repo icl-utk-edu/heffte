@@ -1,8 +1,8 @@
 # require cmake 2.8.0 for findCUDA.cmake
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.0 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.5 FATAL_ERROR)
 
 ##################
-project("heffte")
+project("heffte" VERSION 0.1)
 # The version number.
 set (heffte_VERSION_MAJOR 0)
 set (heffte_VERSION_MINOR 1)
@@ -80,9 +80,12 @@ else(BUILD_SHARED_LIBS)
 endif(BUILD_SHARED_LIBS)
 target_link_libraries(heffte ${FFTW_LIB} ${FFTWF_LIB})
 
-
 # install
-install(TARGETS heffte DESTINATION lib)
+install(TARGETS heffte EXPORT HEFFTE_Targets DESTINATION lib)
+install(EXPORT HEFFTE_Targets FILE HEFFTE_Targets.cmake NAMESPACE HEFFTE:: DESTINATION lib/cmake/HEFFTE)
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file("HEFFTEConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY ExactVersion)
+install(FILES "HEFFTEConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfigVersion.cmake" DESTINATION lib/cmake/HEFFTE)
 #install(DIRECTORY heffte DESTINATION include FILES_MATCHING PATTERN "include/*.h")
 install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
   PATTERN "**~" EXCLUDE
@@ -90,6 +93,7 @@ install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
   PATTERN "*.cu*" EXCLUDE
   PATTERN "*_cuda*" EXCLUDE
   )
+target_include_directories(heffte PUBLIC $<INSTALL_INTERFACE:include>)
 
 
 # ##########
@@ -133,7 +137,7 @@ if(BUILD_GPU)
   set_target_properties(heffte_gpu PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT_A")
 
   # install
-  install(TARGETS heffte_gpu DESTINATION lib)
+  install(TARGETS heffte_gpu EXPORT HEFFTE_Targets DESTINATION lib)
   install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
 
 endif(BUILD_GPU)
