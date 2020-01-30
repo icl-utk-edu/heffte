@@ -1,4 +1,4 @@
-#-- HEFFTE (version 0.1) --
+#-- HEFFTE (version 0.2) --
 # Univ. of Tennessee, Knoxville
 # Standard makefile for linux systems.
 
@@ -6,8 +6,7 @@ SHELL 			= /bin/sh
 
 # Tracing flags
 MYFLAGS			=
-#MYFLAGS=-DTRACING_MPI
-#MYFLAGS=-DFFTECP_NVTX_TRACING
+#MYFLAGS	  = -DTRACING_HEFFTE
 
 # ----------------------------------------
 
@@ -129,12 +128,12 @@ NVCCFLAGS += $(NV_SM) $(NV_COMP)
 
 # -------------------------------------------------------------------------------
 # 1d FFT library
-# fft     = CUFFT_A
+# fft     = CUFFT
 fft     		= FFTW3
 FFT     		= $(shell echo $(fft) | tr a-z A-Z)
 FFT_INC 		= -I../include -DFFT_$(FFT)
 
-ifneq (,$(filter CUFFTW CUFFT_A CUFFT_M CUFFT_R,$(FFT)))
+ifneq (,$(filter CUFFTW CUFFT CUFFT_M CUFFT_R,$(FFT)))
 FFT_INC		 += -I$(CUDADIR)/include/  -L$(CUDADIR)/lib64/ -lcufft -lcudart -lnvToolsExt
 endif
 
@@ -154,7 +153,7 @@ MEM_INC   	=	-DFFT_MEMALIGN=64
 LIB3D      	= libheffte.a
 SHLIB3D    	= libheffte.so
 SRC3D_CPU   = heffte_common.cpp heffte_fft3d.cpp heffte_reshape3d.cpp heffte_trace.cpp heffte.cpp
-ifneq (,$(filter CUFFTW CUFFT_A CUFFT_M CUFFT_R,$(FFT)))
+ifneq (,$(filter CUFFTW CUFFT CUFFT_M CUFFT_R,$(FFT)))
 SRC3D_GPU   = heffte_pack3d.cu heffte_scale.cu
 else
 SRC3D_CPU  += heffte_pack3d.cpp
@@ -224,7 +223,7 @@ heffte_trace.o:heffte_trace.cpp
 	$(CC) $(CCFLAGS) $(SHFLAGS) $(MEM_INC) $(FFT_INC) $(FFT1D_INC) -c $<
 
 # Rules for CUDA compilation
-ifneq (,$(filter CUFFTW CUFFT_A CUFFT_M CUFFT_R,$(FFT)))
+ifneq (,$(filter CUFFTW CUFFT CUFFT_M CUFFT_R,$(FFT)))
 %.o:%.cu
 	$(NVCC) $(NVCCFLAGS) $(CPPFLAGS) $(FFT_INC) $(FFT1D_INC)  -c $< -o $@
 else

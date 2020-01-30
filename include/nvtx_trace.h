@@ -1,3 +1,8 @@
+/*
+    -- HEFFTE (version 0.2) --
+       Univ. of Tennessee, Knoxville
+       @date
+*/
 #include "nvToolsExt.h"
 
 static const uint32_t colors4[] = { 0x000ff00, 0x00ffff00, 0x00ff00ff, 0x0000ffff, 0x00ff0000, 0x00ffffff }; \

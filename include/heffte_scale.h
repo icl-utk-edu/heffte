@@ -1,5 +1,5 @@
 /*
-    -- HEFFTE (version 0.1) --
+    -- HEFFTE (version 0.2) --
        Univ. of Tennessee, Knoxville
        @date
 */

@@ -1,13 +1,13 @@
-#-- HEFFTE (version 0.1) --
+#-- HEFFTE (version 0.2) --
 # Univ. of Tennessee, Knoxville
 # Standard makefile for linux systems.
 
 SHELL = /bin/sh
 
 # Tracing flags
-MYFLAGS =
-#MYFLAGS =-DTRACING_MPI
-#MYFLAGS =-DFFTECP_NVTX_TRACING
+MYFLAGS		 =
+#MYFLAGS	  = -DTRACING_HEFFTE
+
 
 # ----------------------------------------
 
@@ -22,7 +22,7 @@ MEM_INC =	-DFFT_MEMALIGN=64
 # ----------------------------------------
 
 # 1d FFT library
-# fft     = CUFFT_A
+# fft     = CUFFT
 fft     = FFTW3
 FFT     = $(shell echo $(fft) | tr a-z A-Z)
 
@@ -36,33 +36,47 @@ FFT1D_LIB 	= -L$(FFT1D_DIR)/lib/
 # ----------------------------------------
 # Building test executables, no edit needed after this line.
 
-ifneq (,$(filter CUFFT_A CUFFT_M CUFFT_R, $(FFT)))
-    FFT1D_LIB = -L$(CUDA_DIR)/lib64/ -lcufft -lcudart -lnvToolsExt
+ifneq (,$(filter CUFFT CUFFT_M CUFFT_R, $(FFT)))
+    FFT1D_LIB = -L$(CUDADIR)/lib64/ -lcufft -lcudart -lnvToolsExt
 endif
 
 FFT_INC    =   -I../include -DFFT_$(FFT)
 FFT3D_LIB  =   -L../src
 
-ifneq (,$(filter CUFFTW CUFFT_A CUFFT_M CUFFT_R,$(FFT)))
-FFT_INC		+=   -I$(CUDA_DIR)/include/
+ifneq (,$(filter CUFFTW CUFFT CUFFT_M CUFFT_R,$(FFT)))
+FFT_INC		+=   -I$(CUDADIR)/include/
 endif
 
 # -----------------------------------------------------------------------------------
 # targets
 
-all:	clean  test3d_cpu
+all: cleanall	test3d_cpu_r2c test3d_cpu test3d_gpu_r2c test3d_gpu
+tests_cpu:  clean_cpu test3d_cpu_r2c test3d_cpu
+tests_gpu:  clean_gpu test3d_gpu_r2c test3d_gpu
+
+test3d_cpu_r2c:	test3d_cpu_r2c.o
+	$(MPICC) $(LINKFLAGS) $(FFT3D_LIB) test3d_cpu_r2c.o -lheffte $(FFT1D_LIB) -lfftw3 -lfftw3f -o test3d_cpu_r2c
 
 test3d_cpu:	test3d_cpu.o
 	$(MPICC) $(LINKFLAGS) $(FFT3D_LIB) test3d_cpu.o -lheffte $(FFT1D_LIB) -lfftw3 -lfftw3f -o test3d_cpu
+
+test3d_gpu_r2c:	test3d_gpu_r2c.o
+	$(MPICC) $(LINKFLAGS) $(FFT3D_LIB) test3d_gpu_r2c.o -lheffte $(FFT1D_LIB) -o test3d_gpu_r2c
 
 test3d_gpu:	test3d_gpu.o
 	$(MPICC) $(LINKFLAGS) $(FFT3D_LIB) test3d_gpu.o -lheffte $(FFT1D_LIB) -o test3d_gpu
 
 clean:
-	@rm -f *.o *.mod test3d_cpu
+	@rm -f *.o *.mod
+
+clean_cpu:
+	@rm -f *.o *.mod test3d_cpu test3d_cpu
+
+clean_gpu:
+	@rm -f *.o *.mod test3d_gpu test3d_gpu
 
 cleanall:
-	@rm -f *.o *.mod test3d_cpu *.a
+	@rm -f *.o *.mod test3d_gpu test3d_gpu_r2c test3d_cpu test3d_cpu_r2c *.a
 
 # rules
 

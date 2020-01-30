@@ -3,7 +3,7 @@
  * GPU functions of HEFFT
  */
  /*
-     -- HEFFTE (version 0.1) --
+     -- HEFFTE (version 0.2) --
         Univ. of Tennessee, Knoxville
         @date
  */
@@ -34,14 +34,14 @@ __global__ void scale_ffts_kernel(int n, float *data, float fnorm);
 template <class T>
 void scale_ffts_gpu(int n, T *data, T fnorm)
 {
-#if defined(FFT_CUFFTW) || defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
+#if defined(FFT_CUFFTW) || defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
     int  nthreads = 512;
     int  nTB = fft_ceildiv(n, nthreads);
     dim3 grid(nTB);
     dim3 threads(nthreads);
     cudaDeviceSynchronize();
     scale_ffts_kernel<<<grid, threads>>>(n, data, fnorm);
-    magma_check_cuda_error();
+    heffte_check_cuda_error();
     cudaDeviceSynchronize();
 #else
     exit(-1);

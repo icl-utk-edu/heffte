@@ -3,7 +3,7 @@
  * CPU functions of HEFFT
  */
  /*
-     -- HEFFTE (version 0.1) --
+     -- HEFFTE (version 0.2) --
         Univ. of Tennessee, Knoxville
         @date
  */
@@ -209,10 +209,8 @@ void Reshape3d<U>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
     memory->smalloc(nprocs*sizeof(struct extent_3d),HEFFTE_MEM_CPU_ALIGN);
   if (!outarray) error->one("Could not allocate outarray");
 
-
   MPI_Allgather(&out,sizeof(struct extent_3d),MPI_BYTE,
                 outarray,sizeof(struct extent_3d),MPI_BYTE,world);
-
 
   // count send collides, including self
 
@@ -268,7 +266,6 @@ void Reshape3d<U>::setup(int in_ilo, int in_ihi, int in_jlo, int in_jhi,
   if (nsend && send_proc[nsend-1] == me && !collective) nsend--;
 
   // combine input extents across all procs
-
   MPI_Allgather(&in,sizeof(struct extent_3d),MPI_BYTE,
                 inarray,sizeof(struct extent_3d),MPI_BYTE,world);
 
@@ -683,10 +680,9 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
       snprintf(func_message, sizeof(func_message), "P2P_pack_n%d_s%d",send_proc[isend],send_size[isend]);
       trace_cpu_start( thread_id, func_name, func_message );
 
-      t -= MPI_Wtime();
+      t = MPI_Wtime();
       pack(&in[send_offset[isend]],sendbuf,&packplan[isend]);
-      t += MPI_Wtime();
-      // timing_array[5] += t;
+      timing_array[2] +=  MPI_Wtime() - t;
 
       trace_cpu_end( thread_id);
       snprintf(func_name, sizeof(func_name), "P2P_send");
@@ -709,8 +705,7 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
       t = MPI_Wtime();
       pack(&in[send_offset[isend]],&recvbuf[recv_bufloc[nrecv]],
            &packplan[isend]);
-      t = MPI_Wtime() - t;
-      // timing_array[5] += t;
+      timing_array[2] +=  MPI_Wtime() - t;
       trace_cpu_end( thread_id);
 
       snprintf(func_name, sizeof(func_name), "P2P_selfunpack");
@@ -720,8 +715,7 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
       t = MPI_Wtime();
       unpack(&recvbuf[recv_bufloc[nrecv]],&out[recv_offset[nrecv]],
              &unpackplan[nrecv]);
-      t = MPI_Wtime() - t;
-      // timing_array[6] += t;
+      timing_array[3] += MPI_Wtime() - t;
       trace_cpu_end( thread_id);
     }
 
@@ -741,8 +735,7 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
       t = MPI_Wtime();
       unpack(&recvbuf[recv_bufloc[irecv]],&out[recv_offset[irecv]],
              &unpackplan[irecv]);
-      t = MPI_Wtime() - t;
-      // timing_array[6] += t;
+      timing_array[3] += MPI_Wtime() - t;
 
       trace_cpu_end( thread_id);
     }
@@ -765,44 +758,47 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
 
         t = MPI_Wtime();
         pack(&in[send_offset[isend]],&sendbuf[offset],&packplan[isend]);
-        t = MPI_Wtime() - t;
-        // timing_array[5] += t;
+        timing_array[2] += MPI_Wtime() - t;
 
         offset += send_size[isend];
       }
     }
     trace_cpu_end( thread_id);
 
-// perform All2All
-    t = MPI_Wtime();
+// Choose algorithm for all-to-all communication
+enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
 
     if (newcomm != MPI_COMM_NULL) {
 
-      double avg_snd_siz = 0;
-      for (int i = 0; i < ngroup; i++) {
-        avg_snd_siz += (sendcnts[i]/1000);
-      }
-      avg_snd_siz=avg_snd_siz/ngroup;
-      snprintf(func_name, sizeof(func_name), "A2A_MPI");
-      snprintf(func_message, sizeof(func_message), "A2A_MPI_s%lfk",avg_snd_siz);
-      trace_cpu_start( thread_id, func_name, func_message );
+      #if defined(DTRACING_HEFFTE)
+        double avg_snd_siz = 0;
+        for (int i = 0; i < ngroup; i++) {
+          avg_snd_siz += (sendcnts[i]/1000);
+        }
+        avg_snd_siz=avg_snd_siz/ngroup;
+        snprintf(func_name, sizeof(func_name), "A2A_MPI");
+        snprintf(func_message, sizeof(func_message), "A2A_MPI_s%lfk",avg_snd_siz);
+        trace_cpu_start( thread_id, func_name, func_message );
+      #endif
 
-      // Non blocking send and receive, using cudaMemcpy for selfcopy
-      enum algo_magma_a2av_type_t MAGMA_A2AV_algo;
-      MAGMA_A2AV_algo = ALL2ALLV;
+      t = MPI_Wtime();
 
       if(sizeof(T)==4)
-      magma_Alltoallv(sendbuf,sendcnts,senddispls,MPI_FLOAT,
+      heffte_Alltoallv(sendbuf,sendcnts,senddispls,MPI_FLOAT,
                       recvbuf,recvcnts,recvdispls,MPI_FLOAT,
-                      newcomm, MAGMA_A2AV_algo);
+                      newcomm, HEFFTE_A2AV_algo);
       if(sizeof(T)==8)
-      magma_Alltoallv(sendbuf,sendcnts,senddispls,MPI_DOUBLE,
+      heffte_Alltoallv(sendbuf,sendcnts,senddispls,MPI_DOUBLE,
                       recvbuf,recvcnts,recvdispls,MPI_DOUBLE,
-                      newcomm, MAGMA_A2AV_algo);
-      trace_cpu_end( thread_id);
+                      newcomm, HEFFTE_A2AV_algo);
+
+      timing_array[5] += MPI_Wtime() - t;
+
+      #if defined(DTRACING_HEFFTE)
+        trace_cpu_end( thread_id);
+      #endif
     }
-    t = MPI_Wtime() - t;
-    // timing_array[8] += t;
+
 
     // unpack the data from recvbuf into out
     snprintf(func_name, sizeof(func_name), "A2A_unpack");
@@ -815,8 +811,7 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
 
         t = MPI_Wtime();
         unpack(&recvbuf[offset],&out[recv_offset[irecv]],&unpackplan[irecv]);
-        t = MPI_Wtime() - t;
-        // timing_array[6] += t;
+        timing_array[3] += MPI_Wtime() - t;
 
         offset += recv_size[irecv];
       }

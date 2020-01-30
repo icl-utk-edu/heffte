@@ -3,7 +3,7 @@
  * Tool for profiling HEFFTE
  */
  /*
-     -- HEFFTE (version 0.1) --
+     -- HEFFTE (version 0.2) --
         Univ. of Tennessee, Knoxville
         @date
  */
@@ -35,7 +35,7 @@
 
 // ----------------------------------------
 const int MAX_CORES       = 192;                 // CPU cores
-const int MAX_GPU_STREAMS = MagmaMaxGPUs * 4;  // #devices * #streams per device
+const int MAX_GPU_STREAMS = heffteMaxGPUs * 4;  // #devices * #streams per device
 const int MAX_EVENTS      = 20000;
 const int MAX_LABEL_LEN   = 16;
 
@@ -47,7 +47,7 @@ const int MAX_LABEL_LEN   = 16;
  */
 extern "C"
 size_t
-magma_strlcpy(char *dst, const char *src, size_t siz)
+heffte_strlcpy(char *dst, const char *src, size_t siz)
 {
     char *d = dst;
     const char *s = src;
@@ -85,15 +85,15 @@ struct event_log
 
     int          ngpu;
     int          nstream;
-    magma_queue_t streams  [ MAX_GPU_STREAMS ];
+    heffte_queue_t streams  [ MAX_GPU_STREAMS ];
     int          gpu_id   [ MAX_GPU_STREAMS ];
-    magma_event_t  gpu_first[ MAX_GPU_STREAMS ];
+    heffte_event_t  gpu_first[ MAX_GPU_STREAMS ];
 #if TRACE_METHOD == 2
     double       gpu_start[ MAX_GPU_STREAMS ][ MAX_EVENTS ];
 #else
-    magma_event_t  gpu_start[ MAX_GPU_STREAMS ][ MAX_EVENTS ];
+    heffte_event_t  gpu_start[ MAX_GPU_STREAMS ][ MAX_EVENTS ];
 #endif
-    magma_event_t  gpu_end  [ MAX_GPU_STREAMS ][ MAX_EVENTS ];
+    heffte_event_t  gpu_end  [ MAX_GPU_STREAMS ][ MAX_EVENTS ];
     char         gpu_tag  [ MAX_GPU_STREAMS ][ MAX_EVENTS ][ MAX_LABEL_LEN ];
     char         gpu_label[ MAX_GPU_STREAMS ][ MAX_EVENTS ][ MAX_LABEL_LEN ];
 };
@@ -104,7 +104,7 @@ struct event_log glog;
 
 // ----------------------------------------
 extern "C"
-void trace_init( int ncore, int ngpu, int nstream, magma_queue_t* streams)
+void trace_init( int ncore, int ngpu, int nstream, heffte_queue_t* streams)
 {
     if ( ncore > MAX_CORES ) {
         fprintf( stderr, "Error in trace_init: ncore %d > MAX_CORES %d\n",
@@ -139,29 +139,29 @@ void trace_init( int ncore, int ngpu, int nstream, magma_queue_t* streams)
             glog.gpu_id[t] = 0;
             glog.streams[t] = streams[t];
         }
-        magma_setdevice( dev );
-        magma_device_sync();
+        heffte_setdevice( dev );
+        heffte_device_sync();
 
     }
     // now that all GPUs are sync'd, record start time
     for( int dev = 0; dev < ngpu; ++dev ) {
-        magma_setdevice( dev );
+        heffte_setdevice( dev );
         for( int s = 0; s < nstream; ++s ) {
             int t = dev*glog.nstream + s;
-            magma_event_create( &glog.gpu_first[t] );
-            magma_event_record(  glog.gpu_first[t], glog.streams[t] );
+            heffte_event_create( &glog.gpu_first[t] );
+            heffte_event_record(  glog.gpu_first[t], glog.streams[t] );
         }
     }
     // sync again
     for( int dev = 0; dev < ngpu; ++dev ) {
-        magma_setdevice( dev );
-        magma_device_sync();
+        heffte_setdevice( dev );
+        heffte_device_sync();
     }
-    glog.cpu_first = magma_wtime();
+    glog.cpu_first = heffte_wtime();
 
 #ifdef TRACING_MPI
     MPI_Barrier(MPI_COMM_WORLD);
-    glog.cpu_first = magma_wtime();
+    glog.cpu_first = heffte_wtime();
 #endif
 
 }
@@ -178,9 +178,9 @@ extern "C"
 void trace_cpu_start( int core, const char* tag, const char* lbl )
 {
     int id = glog.cpu_id[core];
-    glog.cpu_start[core][id] = magma_wtime();
-    magma_strlcpy( glog.cpu_tag  [core][id], tag, MAX_LABEL_LEN );
-    magma_strlcpy( glog.cpu_label[core][id], lbl, MAX_LABEL_LEN );
+    glog.cpu_start[core][id] = heffte_wtime();
+    heffte_strlcpy( glog.cpu_tag  [core][id], tag, MAX_LABEL_LEN );
+    heffte_strlcpy( glog.cpu_label[core][id], lbl, MAX_LABEL_LEN );
 }
 
 // ----------------------------------------
@@ -202,7 +202,7 @@ extern "C"
 void trace_cpu_end( int core )
 {
     int id = glog.cpu_id[core];
-    glog.cpu_end[core][id] = magma_wtime();
+    glog.cpu_end[core][id] = heffte_wtime();
     if ( id+1 < MAX_EVENTS ) {
         glog.cpu_id[core] = id+1;
     }
@@ -222,13 +222,13 @@ void trace_gpu_start( int dev, int s, const char* tag, const char* lbl )
     int t = dev*glog.nstream + s;
     int id = glog.gpu_id[t];
 #if TRACE_METHOD == 2
-    glog.gpu_start[t][id] = magma_wtime();
+    glog.gpu_start[t][id] = heffte_wtime();
 #else
-    magma_event_create( &glog.gpu_start[t][id] );
-    magma_event_record(  glog.gpu_start[t][id], glog.streams[t] );
+    heffte_event_create( &glog.gpu_start[t][id] );
+    heffte_event_record(  glog.gpu_start[t][id], glog.streams[t] );
 #endif
-    magma_strlcpy( glog.gpu_tag  [t][id], tag, MAX_LABEL_LEN );
-    magma_strlcpy( glog.gpu_label[t][id], lbl, MAX_LABEL_LEN );
+    heffte_strlcpy( glog.gpu_tag  [t][id], tag, MAX_LABEL_LEN );
+    heffte_strlcpy( glog.gpu_label[t][id], lbl, MAX_LABEL_LEN );
 }
 
 
@@ -244,8 +244,8 @@ void trace_gpu_end( int dev, int s )
 {
     int t = dev*glog.nstream + s;
     int id = glog.gpu_id[t];
-    magma_event_create( &glog.gpu_end[t][id] );
-    magma_event_record(  glog.gpu_end[t][id], glog.streams[t] );
+    heffte_event_create( &glog.gpu_end[t][id] );
+    heffte_event_record(  glog.gpu_end[t][id], glog.streams[t] );
     if ( id+1 < MAX_EVENTS ) {
         glog.gpu_id[t] = id+1;
     }
@@ -270,10 +270,10 @@ void trace_finalize( const char* filename, const char* cssfile, double nops )
 
     // sync devices
     for( int dev = 0; dev < glog.ngpu; ++dev ) {
-        magma_setdevice( dev );
-        magma_device_sync();
+        heffte_setdevice( dev );
+        heffte_device_sync();
     }
-    double mytime  = magma_wtime() - glog.cpu_first;
+    double mytime  = heffte_wtime() - glog.cpu_first;
     double max_time = mytime;
 
     int mpisize = 1;

@@ -1,17 +1,23 @@
+/*
+    -- HEFFTE (version 0.2) --
+       Univ. of Tennessee, Knoxville
+       @date
+*/
+
 #ifndef HEFFTE_TRACE_H
 #define HEFFTE_TRACE_H
 
 #include "heffte_common.h"
-#define MagmaMaxGPUs                        1
+#define heffteMaxGPUs                        1
 
-#define magma_queue_t                       int
-#define magma_event_t                       int
-#define magma_setdevice(i_)                 ((void)(0))
-#define magma_device_sync()                 ((void)(0))
-#define magma_wtime                         MPI_Wtime
-#define magma_event_create(i_)              ((void)(0))
-#define magma_event_record(i_,j_)           ((void)(0))
-#define magma_event_elapsedtime(i_,j_,k_)   ((void)(0))
+#define heffte_queue_t                       int
+#define heffte_event_t                       int
+#define heffte_setdevice(i_)                 ((void)(0))
+#define heffte_device_sync()                 ((void)(0))
+#define heffte_wtime                         MPI_Wtime
+#define heffte_event_create(i_)              ((void)(0))
+#define heffte_event_record(i_,j_)           ((void)(0))
+#define heffte_event_elapsedtime(i_,j_,k_)   ((void)(0))
 
 
 #ifdef __cplusplus
@@ -20,7 +26,7 @@ extern "C" {
 
 // ----------------------------------------
 #ifdef TRACING_MPI
-void trace_init     ( int nthreads, int ngpus, int nstream, magma_queue_t *streams );
+void trace_init     ( int nthreads, int ngpus, int nstream, heffte_queue_t *streams );
 void trace_cpu_start( int core, const char* tag, const char* label );
 void trace_op_count  ( int core, double ops );
 void trace_cpu_end  ( int core );

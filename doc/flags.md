@@ -14,16 +14,18 @@ HEFFTE Flags
           ptr = pointer based
           memcpy = memcpy based
 
-4. tflag: print split timing of routines (default = deactivated)
+4. sflag: scales FFT after forward computation
 
-5. rflag: call HEFFTE to compute only data reshapes without computation (default = deactivated)
+5. tflag: print split timing of routines (default = deactivated)
 
-6. oflag: print full array before/after computation (default = deactivated)
+6. rflag: call HEFFTE to compute only data reshapes without computation (default = deactivated)
 
-7. mode : FFT computation requirement for the test, can be set to (default = 0):
+7. oflag: print full array before/after computation (default = deactivated)
+
+8. mode : FFT computation requirement for the test, can be set to (default = 0):
           0 = computes a forward and backward FFT.
           1 = computes only a forward FFT.
 
-8. vflag: Check correctness of FFT computation (default = deactivated)
+9. vflag: Check correctness of FFT computation (default = deactivated)
 
-9. verb : Verbosity flag, prints hardware and extra information (default = deactivated)
+10. verb : Verbosity flag, prints hardware and extra information (default = deactivated)

@@ -1,5 +1,5 @@
 /*
-    -- HEFFTE (version 0.1) --
+    -- HEFFTE (version 0.2) --
        Univ. of Tennessee, Knoxville
        @date
 */
@@ -10,19 +10,20 @@
 #include <mpi.h>
 #include <stdint.h>
 #include <math.h>
-#include "heffte_fft3d.h"
+#include <string.h>
 
+
+#include "heffte_fft3d.h"
+#include "heffte_common.h"
 
 #if !defined(FFT_MEMALIGN)
 #define FFT_MEMALIGN 64
 #endif
 
-#define NTIMING_VARIABLES 10
-extern double timing_array[NTIMING_VARIABLES];
 
-
-// Parameters
-enum{FORWARD,BACKWARD};
+// Enumerating options for flags
+enum{FORWARD, BACKWARD};
+enum{HEFFTE_REAL_DATA, HEFFTE_COMPLEX_DATA};
 
 using namespace HEFFTE_NS;
 
@@ -37,18 +38,16 @@ double random_init(int &seed);
 void error_all(const char *str);
 void error_one(const char *str);
 
-// Initialisation and validation
-
 int heffte_init();
 
 template <class T>
-void heffte_initialize_host(T *work, int n, int seed);
+void heffte_initialize_host(T *work, int n, int seed, int data_type);
 
 template <class T>
-void heffte_allocate(int mem_type, T **work, int fftsize, int64_t &nbytes);
+void heffte_allocate(heffte_memory_type_t mem, T **work, int fftsize, int64_t &nbytes);
 
 template <class T>
-void heffte_deallocate(int mem_type, T *ptr);
+void heffte_deallocate(heffte_memory_type_t mem, T *ptr);
 
 template <class T>
 void heffte_set(FFT3d<T> *, const char *, int);
@@ -63,22 +62,22 @@ void heffte_cleanup();
 template <class T>
 void heffte_validate(T* work, int n, int seed, double &epsmax, MPI_Comm world);
 
-// FFT computation
-// void fft_create(MPI_Comm communicator, int precision, void **ptr)
-// {
-//   FFT3d *fft = new FFT3d(communicator,precision);
-//   *ptr = (void *) fft;
-// }
-
 template <class T>
 void heffte_plan_create(T *work, FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
-                        int permute, int *fftsize_caller, int *sendsize_caller, int *recvsize_caller);
+                        int permute, int *workspace);
+
+template <class T>
+void heffte_plan_r2c_create(T *work, FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+                            int *workspace);
 
 template <class T>
 void heffte_setup_memory(FFT3d<T> *fft, T *sendbuf, T *recvbuf);
 
 template <class T>
 void heffte_execute(FFT3d<T> *fft, T *data_in, T *data_out, int flag);
+
+template <class T>
+void heffte_execute_r2c(FFT3d<T> *fft, T *data_in, T *data_out);
 
 template <class T>
 void heffte_only_1d_ffts(FFT3d<T> *fft, T *in, int flag);

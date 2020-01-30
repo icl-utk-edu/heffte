@@ -1,10 +1,9 @@
 /*
-    -- HEFFTE (version 0.1) --
+    -- HEFFTE (version 0.2) --
        Univ. of Tennessee, Knoxville
        @date
 */
 
-#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "heffte.h"
@@ -18,7 +17,7 @@ using namespace HEFFTE_NS;
 
 
 /* ----------------------------------------------------------------------
-   set an internal flag, before setup() or compute()
+   Set an internal flag, before setup() or compute()
 ------------------------------------------------------------------------- */
 
 template <class T>
@@ -27,9 +26,9 @@ void heffte_set(FFT3d<T> *fft, const char *keyword, int value)
   if (strcmp(keyword,"collective") == 0) fft->collective = value;
   else if (strcmp(keyword,"exchange") == 0) fft->exchange = value;
   else if (strcmp(keyword,"pack") == 0) fft->packflag = value;
-  else if (strcmp(keyword,"memory") == 0) fft->memoryflag = value;
-  else if (strcmp(keyword,"scale") == 0) fft->scaled = value;
+  else if (strcmp(keyword,"memflag") == 0) fft->memoryflag = value;
   else if (strcmp(keyword,"reshapeonly") == 0) fft->reshapeonly = value;
+  else if (strcmp(keyword,"scale") == 0) fft->scaled = value;
 }
 
 template
@@ -38,7 +37,7 @@ template
 void heffte_set(FFT3d<float> *fft, const char *keyword, int value);
 
 /* ----------------------------------------------------------------------
-   get value of an internal value, return as pointer to value(s)
+   Get value of an internal value, return as pointer to value(s)
    caller must cast the pointer correctly to access the value(s)
 ------------------------------------------------------------------------- */
 
@@ -86,34 +85,58 @@ void *heffte_get(FFT3d<float> *fft, const char *keyword);
 
 
 /* ----------------------------------------------------------------------
-   create plan for performing a 3d FFT
+   Create plan for performing a Complex-to-Complex 3D FFT
 ------------------------------------------------------------------------- */
-
 template <class T>
 void heffte_plan_create(T *work, FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
-                        int permute, int *fftsize_caller, int *sendsize_caller, int *recvsize_caller)
+                        int permute, int *workspace)
 {
   int fftsize,sendsize,recvsize;
 
   fft->setup(work, N, i_lo, i_hi, o_lo, o_hi,
              permute, fftsize, sendsize, recvsize);
 
-  *fftsize_caller = fftsize;
-  *sendsize_caller = sendsize;
-  *recvsize_caller = recvsize;
+  workspace[0] = fftsize;
+  workspace[1] = sendsize;
+  workspace[2] = recvsize;
 }
 
 template
 void heffte_plan_create(double *work, FFT3d<double> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
-                        int permute, int *fftsize_caller, int *sendsize_caller, int *recvsize_caller);
+                        int permute, int *workspace);
 template
 void heffte_plan_create(float *work, FFT3d<float> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
-                        int permute, int *fftsize_caller, int *sendsize_caller, int *recvsize_caller);
+                        int permute, int *workspace);
+
+
+/* ----------------------------------------------------------------------
+   Create plan for performing a Real-to-Complex 3D FFT
+------------------------------------------------------------------------- */
+template <class T>
+void heffte_plan_r2c_create(T *work, FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+                            int *workspace)
+{
+  int fftsize,sendsize,recvsize;
+
+  fft->setup_r2c(work, N, i_lo, i_hi, o_lo, o_hi,
+                fftsize, sendsize, recvsize);
+
+  workspace[0] = fftsize;
+  workspace[1] = sendsize;
+  workspace[2] = recvsize;
+}
+
+template
+void heffte_plan_r2c_create(double *work, FFT3d<double> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+                            int *workspace);
+template
+void heffte_plan_r2c_create(float *work, FFT3d<float> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+                            int *workspace);
 
 
 
 /* ----------------------------------------------------------------------
-   pass in user memory for a 3d reshape send/recv
+   Pass in user memory for a 3d reshape send/recv
 ------------------------------------------------------------------------- */
 
 template <class T>
@@ -128,7 +151,7 @@ template
 void heffte_setup_memory(FFT3d<float> *fft, float *sendbuf, float *recvbuf);
 
 /* ----------------------------------------------------------------------
-   Execute FFT
+   Execute C2C FFT
 ------------------------------------------------------------------------- */
 template <class T>
 void heffte_execute(FFT3d<T> *fft, T *data_in, T *data_out, int flag)
@@ -148,7 +171,23 @@ void heffte_execute(FFT3d<float> *fft, float *data_in, float *data_out, int flag
 
 
 /* ----------------------------------------------------------------------
-   perform just the 1d FFTs needed by a 3d FFT, no data movement
+   Execute R2C FFT
+------------------------------------------------------------------------- */
+template <class T>
+void heffte_execute_r2c(FFT3d<T> *fft, T *data_in, T *data_out)
+{
+  fft->compute_r2c(data_in, data_out);
+}
+
+template
+void heffte_execute_r2c(FFT3d<double> *fft, double *data_in, double *data_out);
+template
+void heffte_execute_r2c(FFT3d<float> *fft, float *data_in, float *data_out);
+
+
+
+/* ----------------------------------------------------------------------
+   Perform just the 1d FFTs needed by a 3d FFT, no data movement
 ------------------------------------------------------------------------- */
 
 template <class T>
@@ -164,7 +203,7 @@ void heffte_only_1d_ffts(FFT3d<float> *fft, float *in, int flag);
 
 
 /* ----------------------------------------------------------------------
-   perform all the reshapes in a 3d FFT, but no 1d FFTs
+   Perform all the reshapes in a 3d FFT, but no 1d FFTs
 ------------------------------------------------------------------------- */
 template <class T>
 void heffte_only_reshapes(FFT3d<T> *fft, T *in, T *out, int flag)
@@ -179,7 +218,7 @@ void heffte_only_reshapes(FFT3d<float> *fft, float *in, float *out, int flag);
 
 
 /* ----------------------------------------------------------------------
-   perform just a single 3d reshape operation
+   Perform just a single 3d reshape operation
 ------------------------------------------------------------------------- */
 template <class T>
 void heffte_only_one_reshape(FFT3d<T> *fft, T *in, T *out, int flag, int which)
@@ -209,17 +248,26 @@ double random_init(int &seed)
 }
 
 template <class T>
-void heffte_initialize_host(T *work, int n, int seed)
+void heffte_initialize_host(T *work, int n, int seed, int data_type)
 {
-  // Complex case
-    for (int i = 0; i < 2*n; i++)
+    for (int i = 0; i < 2*n; i++){
       work[i] = random_init(seed);
+      if ( data_type == 0 && i >= n)
+        work[i] = 0;
+    }
+
+    if( (data_type != 0) && (data_type != 1)) error_all("Not valid initialization!");
 }
 
 template
-void heffte_initialize_host(double *work, int n, int seed);
+void heffte_initialize_host(double *work, int n, int seed, int data_type);
 template
-void heffte_initialize_host(float *work, int n, int seed);
+void heffte_initialize_host(float *work, int n, int seed, int data_type);
+
+
+/* ----------------------------------------------------------------------
+   Error validation function
+------------------------------------------------------------------------- */
 
 template <class T>
 void heffte_validate(T* work, int n, int seed, double &epsmax, MPI_Comm world)
@@ -241,7 +289,6 @@ void heffte_validate(double* work, int n, int seed, double &epsmax, MPI_Comm wor
 template
 void heffte_validate(float* work, int n, int seed, double &epsmax, MPI_Comm world);
 
-// Extra functions
 // TODO: update error handlers
 void error_all(const char *str)
 {
@@ -264,7 +311,7 @@ void error_one(const char *str)
 
 // Grid processor
 /* ----------------------------------------------------------------------
-   partition FFT grid
+   Partition FFT grid
    once for input grid, once for output grid
    use Px,Py,Pz for in/out
 ------------------------------------------------------------------------- */
@@ -291,7 +338,7 @@ void heffte_grid_setup(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
 
   nfft_in = (i_hi[0]-i_lo[0]+1) * (i_hi[1]-i_lo[1]+1) * (i_hi[2]-i_lo[2]+1);
 
-// printf("in %d,%d,r%d,%d,%d \n", i_lo[0], i_hi[0], i_lo[1], i_hi[1], i_lo[2], i_hi[2]);
+// printf("in %d,%d,%d,%d,%d, %d\n", i_lo[0], i_hi[0], i_lo[1], i_hi[1], i_lo[2], i_hi[2]);
 
   // ipx,ipy,ipz = my position in output 3d grid of procs
 
@@ -310,7 +357,7 @@ void heffte_grid_setup(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
   o_lo[2] = static_cast<int> (1.0 * ipz * N[2] / proc_o[2]);
   o_hi[2] = static_cast<int> (1.0 * (ipz+1) * N[2] / proc_o[2]) - 1;
 
-  // printf("out %d,%d,%d,%d,%d \n", o_lo[0], o_hi[0], o_lo[1], o_hi[1], o_lo[2], o_hi[2]);
+  // printf("out %d,%d,%d,%d,%d, %d\n", o_lo[0], o_hi[0], o_lo[1], o_hi[1], o_lo[2], o_hi[2]);
 
   nfft_out = (o_hi[0]-o_lo[0]+1) * (o_hi[1]-o_lo[1]+1) * (o_hi[2]-o_lo[2]+1);
 }
@@ -323,6 +370,9 @@ void heffte_proc_setup(int *N, int *proc_grid, int nprocs)
     if (proc_grid[0] != 0 || proc_grid[1] != 0 || proc_grid[2] != 0) return;
       heffte_proc3d(N,proc_grid[0],proc_grid[1],proc_grid[2],nprocs);
 }
+
+
+
 
 void heffte_proc3d(int *N, int &px, int &py, int &pz, int nprocs)
 {
@@ -365,23 +415,18 @@ void heffte_proc3d(int *N, int &px, int &py, int &pz, int nprocs)
 
 // Memory allocation
 template <class T>
-void heffte_allocate(int mem_type, T **work, int fftsize, int64_t &nbytes)
+void heffte_allocate(heffte_memory_type_t mem, T **work, int fftsize, int64_t &nbytes)
 {
-  enum heffte_memory_type_t mem_type_global;
+  heffte_memory_type_t mem_type(mem);
 
-  if(mem_type == 0)
-    mem_type_global = HEFFTE_MEM_CPU_ALIGN ;
-  if(mem_type == 1)
-    mem_type_global = HEFFTE_MEM_GPU ;
-
-  if ((1 << mem_type_global) & mem_aligned)
+  if ((1 << mem_type) & mem_aligned)
     nbytes = ((bigint) sizeof(T)) * (2*fftsize + FFT_MEMALIGN);
   else
     nbytes = ((bigint) sizeof(T)) * 2*fftsize;
 
   class Memory *memory;
   memory = new Memory();
-  *work = (T *) memory->smalloc(nbytes, mem_type_global);
+  *work = (T *) memory->smalloc(nbytes, mem_type);
   delete memory;
 
   if (nbytes && work == NULL) error_one("Failed malloc for FFT grid");
@@ -389,33 +434,27 @@ void heffte_allocate(int mem_type, T **work, int fftsize, int64_t &nbytes)
 }
 
 template
-void heffte_allocate(int mem_type, double **work, int fftsize, int64_t &nbytes);
+void heffte_allocate(heffte_memory_type_t mem, double **work, int fftsize, int64_t &nbytes);
 template
-void heffte_allocate(int mem_type, float **work, int fftsize, int64_t &nbytes);
+void heffte_allocate(heffte_memory_type_t mem, float **work, int fftsize, int64_t &nbytes);
 
 
 // Memory deallocation
 template <class T>
-void heffte_deallocate(int mem_type, T *ptr)
+void heffte_deallocate(heffte_memory_type_t mem, T *ptr)
 {
-  enum heffte_memory_type_t mem_type_global;
-
-  if(mem_type == 0)
-    mem_type_global = HEFFTE_MEM_CPU ;
-  if(mem_type == 1)
-    mem_type_global = HEFFTE_MEM_GPU ;
+  heffte_memory_type_t mem_type(mem);
 
   class Memory *memory;
   memory = new Memory();
-      memory->sfree(ptr, mem_type_global);
+      memory->sfree(ptr, mem_type);
   delete memory;
 }
 
 template
-void heffte_deallocate(int mem_type, double *ptr);
+void heffte_deallocate(heffte_memory_type_t mem, double *ptr);
 template
-void heffte_deallocate(int mem_type, float *ptr);
-
+void heffte_deallocate(heffte_memory_type_t mem, float *ptr);
 
 
 

@@ -1,3 +1,10 @@
+/** @class */
+/*
+    -- HEFFTE (version 0.2) --
+       Univ. of Tennessee, Knoxville
+       @date
+*/
+
 #ifndef FFT_COMMON_H
 #define FFT_COMMON_H
 
@@ -7,10 +14,11 @@
 #include "mpi.h"
 #include "heffte_utils.h"
 
-// Magma  ALL2ALL options
-enum algo_magma_a2av_type_t{
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// HEFFTE  ALL2ALL options
+enum algo_heffte_a2av_type_t{
 ALL2ALLV  = 0,                   // MPI_Alltoallv (Default)
-MAGMA_A2AV  = 1,                 // MPI_Isend + MPI_Irecv + selfcopy
+HEFFTE_A2AV  = 1,                 // MPI_Isend + MPI_Irecv + selfcopy
 ALL2ALLV_SC = 2,                 // MPI_Alltoallv + self cudaMemcpy
 IA2AV = 3,                       // MPI_Ialltoallv
 SCATTER_GATHER = 4,              // MPI_Scatterv + MPI_Gatherv
@@ -18,11 +26,24 @@ SCATTER_GATHER_SC = 5,           // MPI_Scatterv + MPI_Gatherv
 IPC_VERSION = 6,                 // Optimization via IPC communication
 };
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// HEFFTE memory options
+enum heffte_memory_type_t{
+HEFFTE_MEM_CPU = 0,
+HEFFTE_MEM_CPU_ALIGN = 1,
+HEFFTE_MEM_REG = 2,
+HEFFTE_MEM_REG_ALIGN = 3,
+HEFFTE_MEM_MANAGED = 4,
+HEFFTE_MEM_MANAGED_ALIGN = 5,
+HEFFTE_MEM_GPU = 6,
+HEFFTE_MEM_PIN = 7,
+};
+
 template <class T>
-void magma_Alltoallv(T *sendbuf, const int *sendcounts,
+void heffte_Alltoallv(T *sendbuf, const int *sendcounts,
                      const int *sdispls, MPI_Datatype sendtype, T *recvbuf,
                      const int *recvcounts, const int *rdispls, MPI_Datatype recvtype,
-                     MPI_Comm comm, algo_magma_a2av_type_t algo);
+                     MPI_Comm comm, algo_heffte_a2av_type_t algo);
 
 // Memory
 static const unsigned mem_aligned = (1 << HEFFTE_MEM_CPU_ALIGN) | (1 << HEFFTE_MEM_REG_ALIGN) | (1 << HEFFTE_MEM_MANAGED_ALIGN);

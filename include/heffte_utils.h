@@ -1,3 +1,9 @@
+/*
+    -- HEFFTE (version 0.2) --
+       Univ. of Tennessee, Knoxville
+       @date
+*/
+
 #ifndef HEFFTE_UTILS_H
 #define HEFFTE_UTILS_H
 
@@ -19,11 +25,15 @@
 #elif defined(FFT_CUFFTW)
   #include "cufftw.h"
 
-#elif defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
+#elif defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
   #include <cufft.h>
 #else // By default we include FFTW3
   #include "fftw3.h"
 #endif
+
+// Timing vector
+#define NTIMING_VARIABLES 10
+extern double timing_array[NTIMING_VARIABLES];
 
 // ==============================================================================
 
@@ -62,7 +72,7 @@ void scalapack_pdplghe( double *A,
                         int seed );
 
 // Tools for error handling
-#if defined(FFT_CUFFTW) || defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
+#if defined(FFT_CUFFTW) || defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
 #include <cuda_runtime_api.h>
 #include <cuda.h>
 
@@ -74,7 +84,7 @@ void scalapack_pdplghe( double *A,
   } \
 } while(0)
 
-#define magma_check_cuda_error() do { \
+#define heffte_check_cuda_error() do { \
  cudaError_t e=cudaGetLastError(); \
  if(e!=cudaSuccess) { \
    printf("Cuda failure %s:%d: '%s'\n",__FILE__,__LINE__,cudaGetErrorString(e)); \
@@ -112,7 +122,7 @@ static inline int fft_roundup( int x, int y )
 {
     return fft_ceildiv( x, y ) * y;
 }
-#define magma_check_cuda_error(){}
+#define heffte_check_cuda_error(){}
 #define cudaMalloc(x, y){}
 #define cudaMallocManaged(x, y){}
 #define cudaMallocHost(x, y){}
@@ -124,18 +134,5 @@ static inline int fft_roundup( int x, int y )
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #endif
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Add memory options
-enum heffte_memory_type_t{
-HEFFTE_MEM_CPU = 0,
-HEFFTE_MEM_CPU_ALIGN = 1,
-HEFFTE_MEM_REG = 2,
-HEFFTE_MEM_REG_ALIGN = 3,
-HEFFTE_MEM_MANAGED = 4,
-HEFFTE_MEM_MANAGED_ALIGN = 5,
-HEFFTE_MEM_GPU = 6,
-HEFFTE_MEM_PIN = 7,
-};
 
 #endif /* HEFFTE_UTILS_H */

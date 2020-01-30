@@ -3,7 +3,7 @@
  * Pack3d defines the plans for packing/unpacking data to be send/received between processors
  */
 /*
-    -- HEFFTE (version 0.1) --
+    -- HEFFTE (version 0.2) --
        Univ. of Tennessee, Knoxville
        @date
 */
@@ -652,7 +652,7 @@ void unpack_3d_permute2_n_pointer(float *buf, float *data,
  * @param plan Pack plan for data packing
 */
 
-#if defined(FFT_CUFFTW) || defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
+#if defined(FFT_CUFFTW) || defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
 
   template <class T>
   __global__ void pack_3d_memcpy_kernel(T *data, T *buf,
@@ -688,7 +688,7 @@ void unpack_3d_permute2_n_pointer(float *buf, float *data,
     dim3 grid(nslow, nmid);
     dim3 threads(512);
     pack_3d_memcpy_kernel<<<grid, threads>>>(data, buf, nfast, nstride_plane, nstride_line);
-    magma_check_cuda_error();
+    heffte_check_cuda_error();
     cudaDeviceSynchronize();
   }
 
@@ -740,7 +740,7 @@ void pack_3d_memcpy(float *data, float *buf,
  * @param plan Pack plan for data packing
 */
 
-#if defined(FFT_CUFFTW) || defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
+#if defined(FFT_CUFFTW) || defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
 
   template <class T>
   __global__ void unpack_3d_memcpy_kernel(T *data, T *buf,
@@ -775,7 +775,7 @@ void pack_3d_memcpy(float *data, float *buf,
     dim3 grid(nslow, nmid);
     dim3 threads(512);
     unpack_3d_memcpy_kernel<<<grid, threads>>>(data, buf, nfast, nstride_plane, nstride_line);
-    magma_check_cuda_error();
+    heffte_check_cuda_error();
     cudaDeviceSynchronize();
   }
 
@@ -857,7 +857,7 @@ void unpack_3d_permute1_1_memcpy(float *buf, float *data,
    unpack from buf -> data, one axis permutation, 2 values/element
 ------------------------------------------------------------------------- */
 
-#if defined(FFT_CUFFTW) || defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
+#if defined(FFT_CUFFTW) || defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
 
   template <class T>
   __global__ void unpack_3d_permute1_2_memcpy_kernel(T *data, T *buf,
@@ -893,7 +893,7 @@ void unpack_3d_permute1_1_memcpy(float *buf, float *data,
     dim3 grid(nslow, fft_ceildiv(nmid, NX), fft_ceildiv(nfast, NY));
     dim3 threads(2*NX, NY);
     unpack_3d_permute1_2_memcpy_kernel<<<grid, threads>>>(data, buf, nmid, nfast, nstride_plane, nstride_line);
-    magma_check_cuda_error();
+    heffte_check_cuda_error();
     cudaDeviceSynchronize();
   }
 

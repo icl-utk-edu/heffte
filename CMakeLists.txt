@@ -1,8 +1,7 @@
-# require cmake 2.8.0 for findCUDA.cmake
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5 FATAL_ERROR)
 
 ##################
-project("heffte" VERSION 0.1)
+project("heffte" VERSION 0.2)
 # The version number.
 set (heffte_VERSION_MAJOR 0)
 set (heffte_VERSION_MINOR 1)
@@ -127,14 +126,14 @@ if(BUILD_GPU)
 
   # GPU libheffte_gpu
   if(BUILD_SHARED_LIBS)
-    cuda_add_library(heffte_gpu SHARED ${libheffte_gpu_SRCS} OPTIONS "-DFFT_CUFFT_A")
+    cuda_add_library(heffte_gpu SHARED ${libheffte_gpu_SRCS} OPTIONS "-DFFT_CUFFT")
   else(BUILD_SHARED_LIBS)
-    cuda_add_library(heffte_gpu STATIC ${libheffte_gpu_SRCS} OPTIONS "-DFFT_CUFFT_A")
+    cuda_add_library(heffte_gpu STATIC ${libheffte_gpu_SRCS} OPTIONS "-DFFT_CUFFT")
   endif(BUILD_SHARED_LIBS)
 
   # the following is necessary so that .cpp sources files passed to
   # cuda_add_library get the right compile flags
-  set_target_properties(heffte_gpu PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT_A")
+  set_target_properties(heffte_gpu PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT")
 
   # install
   install(TARGETS heffte_gpu EXPORT HEFFTE_Targets DESTINATION lib)

@@ -3,7 +3,7 @@
  * CPU functions of HEFFT
  */
  /*
-     -- HEFFTE (version 0.1) --
+     -- HEFFTE (version 0.2) --
         Univ. of Tennessee, Knoxville
         @date
  */
@@ -13,12 +13,16 @@
 #include <assert.h>
 #include "heffte_common.h"
 
+
+/***************************************************************************//**
+ *  For Intel compiler
+ */
 #if defined(__INTEL_COMPILER)
-#if defined(FFT_USE_TBB_ALLOCATOR)
-#include "tbb/scalable_allocator.h"
-#else
-#include <malloc.h>
-#endif
+  #if defined(FFT_USE_TBB_ALLOCATOR)
+    #include "tbb/scalable_allocator.h"
+  #else
+    #include <malloc.h>
+  #endif
 #endif
 
 // #define FFT_PRINTF printf
@@ -38,12 +42,12 @@ typedef uint16_t offset_t;
 
 using namespace HEFFTE_NS;
 
-// Magma ALL2ALL  functions
+// HEFFTE ALL2ALL  functions
 template <class T>
-void magma_Alltoallv(T *sendbuf, const int *sendcounts,
+void heffte_Alltoallv(T *sendbuf, const int *sendcounts,
                      const int *sdispls, MPI_Datatype sendtype, T *recvbuf,
                      const int *recvcounts, const int *rdispls, MPI_Datatype recvtype,
-                     MPI_Comm comm, algo_magma_a2av_type_t algo)
+                     MPI_Comm comm, algo_heffte_a2av_type_t algo)
 {
  int me, nprocs, j=0;
  MPI_Comm_rank(comm,&me);
@@ -55,7 +59,7 @@ void magma_Alltoallv(T *sendbuf, const int *sendcounts,
           break;
         }
 
-     case MAGMA_A2AV:{
+     case HEFFTE_A2AV:{
           MPI_Request request[2*nprocs];
           for(int neighbor=0; neighbor<nprocs; neighbor++){
                 if(me!=neighbor){
@@ -70,7 +74,7 @@ void magma_Alltoallv(T *sendbuf, const int *sendcounts,
                   j++;
                 }
                 else{
-                  #ifdef FFT_CUFFT_A
+                  #ifdef FFT_CUFFT
                   cudaMemcpy(recvbuf + rdispls[me], sendbuf + sdispls[me],  sendcounts[me]*sizeof(sendtype),  cudaMemcpyDeviceToDevice);
                   #else
                   memcpy(recvbuf + rdispls[me], sendbuf + sdispls[me],  sendcounts[me]*sizeof(sendtype));
@@ -85,7 +89,7 @@ void magma_Alltoallv(T *sendbuf, const int *sendcounts,
      case ALL2ALLV_SC:{
            for(int neighbor=0; neighbor<nprocs; neighbor++){
                  if(me==neighbor){
-                   #ifdef FFT_CUFFT_A
+                   #ifdef FFT_CUFFT
                    cudaMemcpy(recvbuf + rdispls[me], sendbuf + sdispls[me],  sendcounts[me]*sizeof(sendtype),  cudaMemcpyDeviceToDevice);
                    #else
                    memcpy(recvbuf + rdispls[me], sendbuf + sdispls[me],  sendcounts[me]*sizeof(sendtype));
@@ -120,7 +124,7 @@ void magma_Alltoallv(T *sendbuf, const int *sendcounts,
     case SCATTER_GATHER_SC:{
           for(int neighbor=0; neighbor<nprocs; neighbor++)
                 if(me==neighbor){
-                  #ifdef FFT_CUFFT_A
+                  #ifdef FFT_CUFFT
                   cudaMemcpy(recvbuf + rdispls[me], sendbuf + sdispls[me],  sendcounts[me]*sizeof(sendtype),  cudaMemcpyDeviceToDevice);
                   #else
                   memcpy(recvbuf + rdispls[me], sendbuf + sdispls[me],  sendcounts[me]*sizeof(sendtype));
@@ -137,7 +141,7 @@ void magma_Alltoallv(T *sendbuf, const int *sendcounts,
 
 
     case IPC_VERSION:{
-          #ifdef FFT_CUFFT_A
+          #ifdef FFT_CUFFT
           cudaIpcMemHandle_t *memHandles = new cudaIpcMemHandle_t[nprocs];
           cudaIpcGetMemHandle(memHandles + me, sendbuf);
 
@@ -163,7 +167,7 @@ void magma_Alltoallv(T *sendbuf, const int *sendcounts,
 
           delete [] memHandles;
           #else
-                  printf("Error, routine magma_Alltoallv with IPC communicaton is unavailable for CPU data\n");
+                  printf("Error, routine heffte_Alltoallv with IPC communicaton is unavailable for CPU data\n");
                   exit(EXIT_FAILURE);
           #endif
           break;
@@ -177,15 +181,15 @@ void magma_Alltoallv(T *sendbuf, const int *sendcounts,
 }
 
 template
-void magma_Alltoallv(double *sendbuf, const int *sendcounts,
+void heffte_Alltoallv(double *sendbuf, const int *sendcounts,
                      const int *sdispls, MPI_Datatype sendtype, double *recvbuf,
                      const int *recvcounts, const int *rdispls, MPI_Datatype recvtype,
-                     MPI_Comm comm, algo_magma_a2av_type_t algo);
+                     MPI_Comm comm, algo_heffte_a2av_type_t algo);
 template
-void magma_Alltoallv(float *sendbuf, const int *sendcounts,
+void heffte_Alltoallv(float *sendbuf, const int *sendcounts,
                      const int *sdispls, MPI_Datatype sendtype, float *recvbuf,
                      const int *recvcounts, const int *rdispls, MPI_Datatype recvtype,
-                     MPI_Comm comm, algo_magma_a2av_type_t algo);
+                     MPI_Comm comm, algo_heffte_a2av_type_t algo);
 
 // Memory functions
 
@@ -198,19 +202,19 @@ void * aligned_cuda_malloc(size_t align, size_t size)
 
     if(align && size)
     {
-        /*
-         * We know we have to fit an offset value
-         * We also allocate extra bytes to ensure we can meet the alignment
-         */
-        uint32_t hdr_size = PTR_OFFSET_SZ + (align - 1);
-        //void * p = malloc(size + hdr_size);
-        void *p=NULL;
-        #if defined(FFT_CUFFT_A)
-        //cudaMalloc( (void**)&p, size + hdr_size); DO NOT WORK SEE SMALLOC FOR COMMENTS
-        #elif defined(FFT_CUFFT_M)
-        cudaMallocManaged( (void**)&p, size + hdr_size);
-	magma_check_cuda_error();
-        #endif
+      /*
+       * We know we have to fit an offset value
+       * We also allocate extra bytes to ensure we can meet the alignment
+       */
+      uint32_t hdr_size = PTR_OFFSET_SZ + (align - 1);
+      //void * p = malloc(size + hdr_size);
+      void *p=NULL;
+      #if defined(FFT_CUFFT)
+      //cudaMalloc( (void**)&p, size + hdr_size); DO NOT WORK SEE SMALLOC FOR COMMENTS
+      #elif defined(FFT_CUFFT_M)
+      cudaMallocManaged( (void**)&p, size + hdr_size);
+      heffte_check_cuda_error();
+      #endif
 
         if(p)
         {
@@ -243,7 +247,7 @@ void aligned_cuda_free(void * ptr)
     * Once we have the offset, we can get our original pointer and call free
     */
     void * p = (void *)((uint8_t *)ptr - offset);
-    #if defined(FFT_CUFFT_A)
+    #if defined(FFT_CUFFT)
     //cudaFree(p); DO NOT WORK SEE SMALLOC FOR COMMENTS
     #elif defined(FFT_CUFFT_M)
     cudaFree(p);
@@ -265,31 +269,31 @@ void *Memory::smalloc(int64_t nbytes, heffte_memory_type_t memory_type)
     switch (memory_type) {
         case HEFFTE_MEM_GPU:
             cudaMalloc((void**)&ptr, nbytes);
-            magma_check_cuda_error();
+            heffte_check_cuda_error();
             if (ptr == NULL) printf("null ------------------ \n");
 
-            FFT_PRINTF("FFT_CUFFT_A::: Called allocation called from %s \n", __func__);
+            FFT_PRINTF("FFT_CUFFT::: Called allocation called from %s \n", __func__);
             break;
 
         case HEFFTE_MEM_MANAGED_ALIGN:
             ptr = aligned_cuda_malloc(FFT_MEMALIGN, nbytes);
-            magma_check_cuda_error();
+            heffte_check_cuda_error();
             FFT_PRINTF("FFT_CUFFT_M::: Called allocation called from %s \n", __func__);
             break;
         case HEFFTE_MEM_MANAGED:
             cudaMallocManaged((void**)&ptr, nbytes);
-            magma_check_cuda_error();
+            heffte_check_cuda_error();
             break;
 
         case HEFFTE_MEM_REG_ALIGN:
             retval = posix_memalign(&ptr,FFT_MEMALIGN,nbytes);
             if (retval) ptr = NULL;
-            if (ptr) { cudaHostRegister(ptr,nbytes,0); magma_check_cuda_error();}
+            if (ptr) { cudaHostRegister(ptr,nbytes,0); heffte_check_cuda_error();}
             FFT_PRINTF("FFT_CUFFT_R/USE_CUFFTW::: Called cudaHostRegister allocation called from %s \n", __func__);
             break;
         case HEFFTE_MEM_REG:
             ptr = malloc(nbytes);
-            if (ptr) { cudaHostRegister(ptr,nbytes,0); magma_check_cuda_error();}
+            if (ptr) { cudaHostRegister(ptr,nbytes,0); heffte_check_cuda_error();}
             FFT_PRINTF("HEFFTE_MEM_REG::: Called allocation called from %s \n", __func__);
             break;
 
@@ -310,7 +314,7 @@ void *Memory::smalloc(int64_t nbytes, heffte_memory_type_t memory_type)
 
         case HEFFTE_MEM_PIN:
             cudaMallocHost((void**)&ptr, nbytes);
-            magma_check_cuda_error();
+            heffte_check_cuda_error();
             FFT_PRINTF("HEFFTE_MEM_PIN::: Called allocation called from %s \n", __func__);
             break;
 
@@ -341,22 +345,22 @@ void *Memory::srealloc(void *ptr, int64_t nbytes, heffte_memory_type_t memory_ty
   switch (memory_type) {
       case HEFFTE_MEM_GPU:
           cudaMalloc((void**)&ptr, nbytes);
-          magma_check_cuda_error();
+          heffte_check_cuda_error();
           if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
           cudaFree(ptr);
-          FFT_PRINTF("Realloc FFT_CUFFT_A %s \n",__func__);
+          FFT_PRINTF("Realloc FFT_CUFFT %s \n",__func__);
           break;
 
       case HEFFTE_MEM_MANAGED_ALIGN:
           ptr = aligned_cuda_malloc(FFT_MEMALIGN, nbytes);
-          magma_check_cuda_error();
+          heffte_check_cuda_error();
           if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
           aligned_cuda_free(old_ptr);
           FFT_PRINTF("Realloc FFT_CUFFT_M %s \n",__func__);
           break;
       case HEFFTE_MEM_MANAGED:
           cudaMallocManaged((void**)&ptr, nbytes);
-          magma_check_cuda_error();
+          heffte_check_cuda_error();
           if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
           cudaFree(ptr);
           break;
@@ -416,7 +420,7 @@ void Memory::sfree(void *ptr, heffte_memory_type_t memory_type)
     switch (memory_type) {
         case HEFFTE_MEM_GPU:
             cudaFree(ptr);
-            magma_check_cuda_error();
+            heffte_check_cuda_error();
             break;
 
         case HEFFTE_MEM_MANAGED_ALIGN:
@@ -424,7 +428,7 @@ void Memory::sfree(void *ptr, heffte_memory_type_t memory_type)
             break;
         case HEFFTE_MEM_MANAGED:
             cudaFree(ptr);
-            magma_check_cuda_error();
+            heffte_check_cuda_error();
             break;
 
         case HEFFTE_MEM_REG_ALIGN:
@@ -449,7 +453,7 @@ void Memory::sfree(void *ptr, heffte_memory_type_t memory_type)
 
         case HEFFTE_MEM_PIN:
             cudaFreeHost(ptr);
-            magma_check_cuda_error();
+            heffte_check_cuda_error();
             break;
 
         default:

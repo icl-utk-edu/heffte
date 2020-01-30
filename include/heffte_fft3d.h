@@ -1,10 +1,10 @@
 /** @class */
 /*
-    -- HEFFTE (version 0.1) --
+    -- HEFFTE (version 0.2) --
        Univ. of Tennessee, Knoxville
        @date
 */
-// FFT3d class
+
 #ifndef FFT_FFT3D_H
 #define FFT_FFT3D_H
 
@@ -30,7 +30,7 @@ namespace HEFFTE_NS {
 
 
  // Traits to lookup CUFFT data type. Default is cufftDoubleComplex
- #if defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
+ #if defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
 
    template <typename T>
    struct cufft_traits
@@ -79,6 +79,7 @@ class FFT3d {
   int npfast1, npfast2, npfast3;      // size of pencil decomp in fast dim
   int npmid1, npmid2, npmid3;         // ditto for mid dim
   int npslow1, npslow2, npslow3;      // ditto for slow dim
+  int npslow1_r2c, npslow2_r2c, npslow3_r2c;      // ditto for slow for r2c fft
   int npbrick1, npbrick2, npbrick3;   // size of brick decomp in 3 dims
 
   int ntrial;                            // # of tuning trial runs
@@ -103,8 +104,13 @@ class FFT3d {
   template <class T>
   void setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi, int user_permute, int &user_fftsize, int &user_sendsize, int &user_recvsize);
 
+  template <class T>
+  void setup_r2c(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi, int &user_fftsize, int &user_sendsize, int &user_recvsize);
+
+
   template <class T> void setup_memory(T *, T *);
   template <class T> void compute(T *in, T *out, int flag);
+  template <class T> void compute_r2c(T *in, T *out);
   template <class T> void only_1d_ffts(T *, int);
   template <class T> void only_reshapes(T *, T *, int);
   template <class T> void only_one_reshape(T *, T *, int, int);
@@ -113,7 +119,7 @@ class FFT3d {
 
  private:
   int me,nprocs;
-  int setupflag, setup_memory_flag;
+  int setupflag, setupflag_r2c, setup_memory_flag;
 
   class Memory *memory;
   class Error *error;
@@ -125,17 +131,20 @@ class FFT3d {
   int *primes,*factors;
 
   int nfast,nmid,nslow;
+  int nfast_h; // for R2C transform, ~ half the size of fast direction
 
   int in_ilo, in_ihi, in_jlo, in_jhi, in_klo, in_khi;
   int out_ilo, out_ihi, out_jlo, out_jhi, out_klo, out_khi;
   int fast_ilo, fast_ihi, fast_jlo, fast_jhi, fast_klo, fast_khi;
   int mid_ilo, mid_ihi, mid_jlo, mid_jhi, mid_klo, mid_khi;
   int slow_ilo, slow_ihi, slow_jlo, slow_jhi, slow_klo, slow_khi;
+  int slow_ilo_r2c, slow_ihi_r2c, slow_jlo_r2c, slow_jhi_r2c, slow_klo_r2c, slow_khi_r2c; // needed for r2c fft
   int brick_ilo, brick_ihi, brick_jlo, brick_jhi, brick_klo, brick_khi;
 
   int ipfast1, ipfast2, ipfast3;      // my loc in pencil decomp in fast dim
   int ipmid1, ipmid2, ipmid3;         // ditto for mid dim
   int ipslow1, ipslow2, ipslow3;      // diito for slow dim
+  int ipslow1_r2c, ipslow2_r2c, ipslow3_r2c;      // diito for slow for r2c transform
   int ipbrick1, ipbrick2, ipbrick3;   // my loc in brick decomp in 3 dims
 
   int insize, outsize;
@@ -160,47 +169,55 @@ class FFT3d {
   template <class T> void reshape(T *, T *, Reshape *);
   void reshape_forward_create(int &, int &);
   void reshape_inverse_create(int &, int &);
+  void reshape_r2c_create(int &, int &);
+
+
   void deallocate_reshape(Reshape *);
   template <class T> void scale_ffts(T &fft_norm, T *data);
 
-
-#if defined(FFT_MKL) || defined(FFT_MKL_OMP)
-  struct FFT1d {
-    int n, length, total;
-    DFTI_DESCRIPTOR_HANDLE handle;
-  };
-#elif defined(FFT_FFTW2)
-  struct FFT1d {
-    int n, length, total;
-    fftw_plan plan_forward;
-    fftw_plan plan_backward;
-  };
-#elif defined(FFT_CUFFT_A) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
-  struct FFT1d {
-    int n, length, total;
-    cufftHandle plan_unique;
-  };
-#else
-
+  #if defined(FFT_MKL) || defined(FFT_MKL_OMP)
     struct FFT1d {
-        int n, length, total;
-        typename fftw_traits<U>::plan_type plan_forward;
-        typename fftw_traits<U>::plan_type plan_backward;
+      int n, length, total;
+      DFTI_DESCRIPTOR_HANDLE handle;
     };
+  #elif defined(FFT_FFTW2)
+    struct FFT1d {
+      int n, length, total;
+      fftw_plan plan_forward;
+      fftw_plan plan_backward;
+    };
+  #elif defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
+    struct FFT1d {
+      int n, length, total;
+      cufftHandle plan_unique;
+    };
+  #else
 
-#endif
+      struct FFT1d {
+          int n, length, total;
+          typename fftw_traits<U>::plan_type plan_forward;
+          typename fftw_traits<U>::plan_type plan_backward;
+      };
 
-  // class FFT1d<fftw_plan> *fft_fast,*fft_mid,*fft_slow;
+  #endif
+
   struct FFT1d *fft_fast, *fft_mid, *fft_slow;
 
-  // private methods
+// general methods
+  void perform_ffts(U *, int, FFT1d *);
+  void perform_ffts_r2c(U *, U *, FFT1d *);
+
   void deallocate_setup();
+  void deallocate_setup_r2c();
+
   void deallocate_setup_memory();
   int64_t reshape_memory();
 
   void setup_ffts();
-  void perform_ffts(U *, int, FFT1d *);
+  void setup_ffts_r2c();
+
   void deallocate_ffts();
+  void deallocate_ffts_r2c();
   int prime_factorable(int);
   void factor(int);
   void procfactors(int, int, int, int &, int &, int &, int &, int &, int &);

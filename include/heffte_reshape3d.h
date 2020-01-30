@@ -1,5 +1,5 @@
 /*
-    -- HEFFTE (version 0.1) --
+    -- HEFFTE (version 0.2) --
        Univ. of Tennessee, Knoxville
        @date
 */
@@ -12,6 +12,7 @@
 
 #include <mpi.h>
 #include "heffte_utils.h"
+#include "heffte_common.h"
 
 namespace HEFFTE_NS {
 

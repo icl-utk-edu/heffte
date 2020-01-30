@@ -2,7 +2,7 @@
     -- heFFTe (version 0.2) --
        Univ. of Tennessee, Knoxville
        @date
-       Testing inplace C2C Fast Fourier Transform on distributed GPUs
+       Testing R2C Fast Fourier Transform on distributed CPUs
        @author Alan Ayala
 */
 
@@ -11,7 +11,7 @@
 using namespace HEFFTE_NS;
 
 /* ////////////////////////////////////////////////////////////////////////////
-   -- Testing C2C 3D FFT
+   -- Testing R2C 3D FFT
 */
 int main(int argc, char *argv[]) {
 
@@ -25,17 +25,14 @@ int main(int argc, char *argv[]) {
   heffte_init();
 
   // Select your type of data, input and output
-  float *work;   // on host
-  float *dwork; // on device
-  // double *work;   // on host
-  // double *dwork; // on device
-
+  float *work_in, *work_out;
+  // double *work_in, *work_out;
 
   // Create fft object according to your data type
   FFT3d<float> *fft = new FFT3d<float>(fft_comm);
   // FFT3d <double> *fft = new FFT3d<double>(fft_comm);
 
-  fft->mem_type = HEFFTE_MEM_GPU;  // setting internal memory type
+  fft->mem_type = HEFFTE_MEM_CPU;  // setting internal memory type
 
   // Read from command line
   heffte_opts opts(fft_comm);
@@ -61,69 +58,46 @@ int main(int argc, char *argv[]) {
   heffte_grid_setup(opts.N, i_lo, i_hi, o_lo, o_hi,
                     opts.proc_i, opts.proc_o, me, nfft_in, nfft_out);
 
-  // Create C2C plan
+  // Create R2C plan
   opts.timeplan -= MPI_Wtime();
-    heffte_plan_create(work, fft, opts.N, i_lo, i_hi, o_lo, o_hi, opts.permute, opts.workspace);
+    heffte_plan_r2c_create(work_in, fft, opts.N, i_lo, i_hi, o_lo, o_hi, opts.workspace);
   opts.timeplan += MPI_Wtime();
 
   MPI_Barrier(fft_comm);
   opts.timeinit += MPI_Wtime();  // End initialization timing
 
+  // Allocate input and output arrays, FFT is always out-of-place for R2C case
+  heffte_allocate(HEFFTE_MEM_CPU, &work_in,  opts.workspace[0], opts.nbytes);     // input 3D-real array
+  heffte_allocate(HEFFTE_MEM_CPU, &work_out, opts.workspace[0], opts.nbytes);    // output 3D-complex array
 
-  // Allocate input and output arrays, FFT is always out-of-place for C2C case
-  heffte_allocate(HEFFTE_MEM_CPU, &work,  opts.workspace[0], opts.nbytes);     // input/output 3D array, on host
-  heffte_allocate(HEFFTE_MEM_GPU, &dwork, opts.workspace[0], opts.nbytes); // input/output 3D array, on device
 
   // Warming up runnings
-  if (opts.mode == 0) {
-    for (int i = 0; i < opts.nloop; i++) {
-      heffte_execute(fft, dwork, dwork, FORWARD);
-      heffte_execute(fft, dwork, dwork, BACKWARD);
-    }
-  } else if (opts.mode == 1) {
-      for (int i = 0; i < opts.nloop; i++)
-        heffte_execute(fft, dwork, dwork, FORWARD);
-  }
+  heffte_execute_r2c(fft, work_in, work_out);  // R2C FFT computation
 
-  // Initialize data as random numbers
-  heffte_initialize_host(work, nfft_in, opts.seed, HEFFTE_COMPLEX_DATA);
-  if (opts.oflag) opts.heffte_print_grid(0, "Input data", work, nfft_in, i_lo, i_hi, o_lo, o_hi);
 
-  cudaMemcpy(dwork, work, opts.nbytes, cudaMemcpyHostToDevice);
-
+  // Initialize data as random real numbers
+  heffte_initialize_host(work_in, nfft_in, opts.seed, HEFFTE_REAL_DATA);
+  if (opts.oflag) opts.heffte_print_grid(0, "Input data", work_in, nfft_in, i_lo, i_hi, o_lo, o_hi);
 
   // Set FFT timing vector to zero
   memset(timing_array, 0, NTIMING_VARIABLES * sizeof(double));
 
   // heffte_tracing_init(); // To obtain traces you must compile sources and test defining -DTRACING_HEFFTE
   opts.timefft -= MPI_Wtime();
-  if (opts.mode == 0) {
-    for (int i = 0; i < opts.nloop; i++) {
-      heffte_execute(fft, dwork, dwork, FORWARD);   // Forward C2C FFT computation
-      heffte_execute(fft, dwork, dwork, BACKWARD);  // Backward C2C FFT computation
-    }
-  } else if (opts.mode == 1) {
-      for (int i = 0; i < opts.nloop; i++)
-        heffte_execute(fft, dwork, dwork, FORWARD);  // Forward C2C FFT computation
-  }
+    for (int i = 0; i < opts.nloop; i++)
+      heffte_execute_r2c(fft, work_in, work_out);  // R2C FFT computation
   opts.timefft += MPI_Wtime();
   // heffte_tracing_finalize();
 
-
-  // Copy output back to the CPU
-  cudaDeviceSynchronize();
-  cudaMemcpy(work, dwork, opts.nbytes, cudaMemcpyDeviceToHost);
-
-  if (opts.oflag) opts.heffte_print_grid(1, "Computed C2C FFT", work, nfft_in, i_lo, i_hi, o_lo, o_hi);
-  if (opts.vflag) heffte_validate(work, nfft_in, opts.seed, opts.epsmax, fft_comm);  // Error validation
+  if (opts.oflag) opts.heffte_print_grid(1, "Computed R2C FFT", work_out, nfft_in, i_lo, i_hi, o_lo, o_hi);
 
   // Print results and timing
   opts.heffte_timing(fft);
 
   // Free memory
   delete fft;
-  heffte_deallocate(HEFFTE_MEM_CPU, work);
-  heffte_deallocate(HEFFTE_MEM_GPU, dwork);
+  heffte_deallocate(HEFFTE_MEM_CPU, work_in);
+  heffte_deallocate(HEFFTE_MEM_CPU, work_out);
   MPI_Finalize();
 
 }
