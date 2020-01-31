@@ -133,6 +133,12 @@ fft     		= FFTW3
 FFT     		= $(shell echo $(fft) | tr a-z A-Z)
 FFT_INC 		= -I../include -DFFT_$(FFT)
 
+ifneq ($(timing),)
+	FFT_INC  += -DHEFFTE_TIME_DETAILED
+endif
+
+
+
 ifneq (,$(filter CUFFTW CUFFT CUFFT_M CUFFT_R,$(FFT)))
 FFT_INC		 += -I$(CUDADIR)/include/  -L$(CUDADIR)/lib64/ -lcufft -lcudart -lnvToolsExt
 endif

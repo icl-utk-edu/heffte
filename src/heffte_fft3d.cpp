@@ -919,7 +919,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
     }
   }
 
-  timing_array[0] += MPI_Wtime() - t;
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[0] += MPI_Wtime() - t;
+  #endif
 }
 
 template
@@ -1032,7 +1034,9 @@ void FFT3d<U>::compute_r2c(T *in, T *out)
   //   trace_cpu_end( thread_id);
   // }
 
-  timing_array[0] += MPI_Wtime() - t;
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[0] += MPI_Wtime() - t;
+  #endif
 
 }
 
@@ -1749,7 +1753,9 @@ void FFT3d<U>::perform_ffts(U *data, int flag, FFT1d *plan)
   DftiComputeBackward(plan->handle,data_mkl);
   trace_cpu_end( thread_id);
   }
-  timing_array[1] += MPI_Wtime() - t;
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[1] += MPI_Wtime() - t;
+  #endif
 }
 
 template <class U>
@@ -1838,7 +1844,9 @@ void FFT3d<U>::perform_ffts(U *data, int flag, FFT1d *plan)
     fftw(plan->plan_backward,plan->n,data_fftw2, 1,plan->length,NULL,0,0);
     trace_cpu_end( thread_id);
   }
-  timing_array[1] += MPI_Wtime() - t;
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[1] += MPI_Wtime() - t;
+  #endif
 }
 
 template <class U>
@@ -1969,7 +1977,9 @@ void FFT3d<U>::perform_ffts(U *data, int flag, FFT1d *plan)
   heffte_check_cuda_error();
   trace_cpu_end( thread_id);
   }
-  timing_array[1]  += MPI_Wtime() - t;
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[1]  += MPI_Wtime() - t;
+  #endif
 }
 
 
@@ -2045,7 +2055,9 @@ void FFT3d<U>::perform_ffts_r2c(U *data, U *data_out, FFT1d *plan)
  cudaDeviceSynchronize();
  heffte_check_cuda_error();
  trace_cpu_end( thread_id);
- timing_array[1] += MPI_Wtime() - t;
+ #if defined(HEFFTE_TIME_DETAILED)
+  timing_array[1] += MPI_Wtime() - t;
+ #endif
 }
 
 
@@ -2070,7 +2082,9 @@ void FFT3d<U>::scale_ffts(T &fft_norm, T *data)
   double t;
   t = MPI_Wtime();
   scale_ffts_gpu(2*normnum, data_ptr, norm);
-  timing_array[4] += MPI_Wtime() - t;
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[4] += MPI_Wtime() - t;
+  #endif
   trace_cpu_end( thread_id);
 }
 
@@ -2188,7 +2202,9 @@ void FFT3d<U>::perform_ffts(U *data, int flag, FFT1d *plan)
   fftw_execute_wrapper(plan->plan_backward, fftw3_data, fftw3_data);
   trace_cpu_end( thread_id);
   }
-  timing_array[1] += MPI_Wtime() - t;
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[1] += MPI_Wtime() - t;
+  #endif
 }
 
 
@@ -2269,7 +2285,9 @@ void FFT3d<U>::perform_ffts_r2c(U *data, U *data_out, FFT1d *plan)
   trace_cpu_start( thread_id, func_name, func_message );
     fftw_execute_wrapper_r2c(plan->plan_forward, data, fftw3_data);
   trace_cpu_end( thread_id);
-  timing_array[1] += MPI_Wtime() - t;
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[1] += MPI_Wtime() - t;
+  #endif
 }
 
 
@@ -2294,7 +2312,9 @@ void FFT3d<U>::scale_ffts(T &fft_norm, T *data)
     *(data_ptr++) *= fft_norm;
     *(data_ptr++) *= fft_norm;
   }
-  timing_array[4] += MPI_Wtime() - t;
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[4] += MPI_Wtime() - t;
+  #endif
   trace_cpu_end( thread_id);
 }
 

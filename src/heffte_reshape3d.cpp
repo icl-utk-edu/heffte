@@ -682,7 +682,9 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
 
       t = MPI_Wtime();
       pack(&in[send_offset[isend]],sendbuf,&packplan[isend]);
-      timing_array[2] +=  MPI_Wtime() - t;
+      #if defined(HEFFTE_TIME_DETAILED)
+        timing_array[2] +=  MPI_Wtime() - t;
+      #endif
 
       trace_cpu_end( thread_id);
       snprintf(func_name, sizeof(func_name), "P2P_send");
@@ -705,7 +707,9 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
       t = MPI_Wtime();
       pack(&in[send_offset[isend]],&recvbuf[recv_bufloc[nrecv]],
            &packplan[isend]);
-      timing_array[2] +=  MPI_Wtime() - t;
+      #if defined(HEFFTE_TIME_DETAILED)
+        timing_array[2] +=  MPI_Wtime() - t;
+      #endif
       trace_cpu_end( thread_id);
 
       snprintf(func_name, sizeof(func_name), "P2P_selfunpack");
@@ -715,7 +719,9 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
       t = MPI_Wtime();
       unpack(&recvbuf[recv_bufloc[nrecv]],&out[recv_offset[nrecv]],
              &unpackplan[nrecv]);
-      timing_array[3] += MPI_Wtime() - t;
+      #if defined(HEFFTE_TIME_DETAILED)
+        timing_array[3] += MPI_Wtime() - t;
+      #endif
       trace_cpu_end( thread_id);
     }
 
@@ -735,7 +741,9 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
       t = MPI_Wtime();
       unpack(&recvbuf[recv_bufloc[irecv]],&out[recv_offset[irecv]],
              &unpackplan[irecv]);
-      timing_array[3] += MPI_Wtime() - t;
+      #if defined(HEFFTE_TIME_DETAILED)
+        timing_array[3] += MPI_Wtime() - t;
+      #endif
 
       trace_cpu_end( thread_id);
     }
@@ -758,7 +766,9 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
 
         t = MPI_Wtime();
         pack(&in[send_offset[isend]],&sendbuf[offset],&packplan[isend]);
-        timing_array[2] += MPI_Wtime() - t;
+        #if defined(HEFFTE_TIME_DETAILED)
+          timing_array[2] += MPI_Wtime() - t;
+        #endif
 
         offset += send_size[isend];
       }
@@ -792,7 +802,9 @@ enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
                       recvbuf,recvcnts,recvdispls,MPI_DOUBLE,
                       newcomm, HEFFTE_A2AV_algo);
 
-      timing_array[5] += MPI_Wtime() - t;
+      #if defined(HEFFTE_TIME_DETAILED)
+        timing_array[5] += MPI_Wtime() - t;
+      #endif
 
       #if defined(DTRACING_HEFFTE)
         trace_cpu_end( thread_id);
@@ -811,7 +823,9 @@ enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
 
         t = MPI_Wtime();
         unpack(&recvbuf[offset],&out[recv_offset[irecv]],&unpackplan[irecv]);
-        timing_array[3] += MPI_Wtime() - t;
+        #if defined(HEFFTE_TIME_DETAILED)
+          timing_array[3] += MPI_Wtime() - t;
+        #endif
 
         offset += recv_size[irecv];
       }

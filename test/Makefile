@@ -47,6 +47,10 @@ ifneq (,$(filter CUFFTW CUFFT CUFFT_M CUFFT_R,$(FFT)))
 FFT_INC		+=   -I$(CUDADIR)/include/
 endif
 
+ifneq ($(timing),)
+	FFT_INC  += -DHEFFTE_TIME_DETAILED
+endif
+
 # -----------------------------------------------------------------------------------
 # targets
 

@@ -18,11 +18,13 @@ build/
     make -j
 ~~~
 
+Note that adding `-DHEFFTE_TIME_DETAILED=true` to CMAKE options, will provide you an array of
+runtime spent per kernel, see `timing.md ` for details.
+
 ## Install HEFFTE without GPU functionality
 
 This will need to specify the 1DFFT library which by default is FFTW3, simply add the paths to the
-library or load the library, e.g. "`module load fftw3`". If not module is available, you can add it
-manually with `-DFFTW_ROOT` option.
+library or load the library, e.g. "`module load fftw3`".
 
 ~~~
 build/
