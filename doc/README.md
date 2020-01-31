@@ -15,17 +15,19 @@ library, and executables.
 mkdir build; cd $_
 build/
     cmake -DBUILD_GPU=true -DCXX_FLAGS="-O3" -DBUILD_SHARED=false ..
-    make
+    make -j
 ~~~
 
 ## Install HEFFTE without GPU functionality
 
 This will need to specify the 1DFFT library which by default is FFTW3, simply add the paths to the
-library or load the library, e.g. "`module load fftw3`".
+library or load the library, e.g. "`module load fftw3`". If not module is available, you can add it
+manually with `-DFFTW_ROOT` option.
 
 ~~~
 build/
     cmake -DFFTW_ROOT="/ccs/home/aayala/fftw-3.3.8" -DBUILD_GPU=false -DCXX_FLAGS="-O3" -DBUILD_SHARED=false ..
+    make -j
 ~~~
 
 
@@ -41,49 +43,54 @@ and GPU, versions of HEFFTE. You may also obtain only one of them.
 ~~~
 cd heffte/src
 src/
-    make fft=CUFFT_A
+    make -j fft=CUFFT
     make install
-mv libheffte.a libheffte_gpu.a
 ~~~
+
+Lines above will produce library `libheffte_gpu.a`.
 
 ## Install HEFFTE without GPU functionality
 
 ~~~
 cd heffte/src
 src/
-    make && make install
+    make -j fft=FFTW3
+    make install
 ~~~
+
+Lines above will produce library `libheffte.a`.
 
 * * *
 
 Running tests
 =============
 
-If the installation was performed using CMAKE, then two executables `test3d_cpu` and `test3d_gpu`
-are available in `heffte/build/test/`. If installation was done with Makefiles, then do as follows:
+If the installation was performed using CMAKE, then `heffte/build/test/` will contain two
+executables for C2C FFTs, `test3d_cpu` and `test3d_gpu`, and two for R2C FFTs, `test3d_cpu_r2c` and
+`test3d_gpu_r2c`. If you prefer to get this executables via standard Makefile, then do as follows:
 
 ~~~
 cd heffte/test
 test/
-    make test3d_cpu
-    make fft=CUFFT_A test3d_gpu
+    make -j fft=FFTW3 tests_cpu
+    make -j fft=CUFFT tests_gpu
 ~~~
 
 To run these tests on an MPI supported cluster, follow the examples:
 
 ~~~
 mpirun -n12 ./test3d_cpu -g 512 256 512 -v -i 82783 -c point
-mpirun -n12 ./test3d_cpu -g 512 256 512 -v -i 82783 -c all -pin 1 3 4 -pout 3 4 1
+mpirun -n12 ./test3d_cpu_r2c -g 512 256 512 -v -i 82783 -c all -pin 1 3 4 -pout 3 4 1
 mpirun -n12 ./test3d_cpu -g 512 256 512 -v -i 82783 -c point -pin 1 3 4
 mpirun -n12 ./test3d_cpu -g 512 256 512 -v -i 82783 -c all -pout 3 4 1
 mpirun -n2  ./test3d_gpu -g 512 256 512 -v -i 82783 -c point -verb
+mpirun -n1  ./test3d_gpu_r2c -g 512 256 512 -v -i 82783 -c all
 ~~~
 
-To run on Summit supercomputer, we need to use a script to set the available GPUs, we provide this
-on `heffte/test/gpu_setter_summit.sh`, follow the examples:
+To run on Summit supercomputer,follow the examples:
 
 ~~~
-jsrun --smpiargs="-gpu" -n192 -a1 -c1 -g1 -r6 ./gpu_setter_summit.sh ./test3d_gpu -g 1024 1024 1024 -i 82783 -v -c point
+jsrun --smpiargs="-gpu" -n192 -a1 -c1 -g1 -r6 ./test3d_gpu -g 1024 1024 1024 -i 82783 -v -c point
 jsrun  -n2560 -a1 -c1 -r40 ./test3d_cpu -g 1024 1024 1024 -i 82783 -v -c all
 ~~~
 
