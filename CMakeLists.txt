@@ -4,7 +4,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.5 FATAL_ERROR)
 project("heffte" VERSION 0.2)
 # The version number.
 set (heffte_VERSION_MAJOR 0)
-set (heffte_VERSION_MINOR 1)
+set (heffte_VERSION_MINOR 2)
 ##################
 
 # guard against in-source builds
