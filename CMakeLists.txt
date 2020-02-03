@@ -36,10 +36,10 @@ INCLUDE_DIRECTORIES (
 # FOR PGI COMPILER
 #set(OpenMP_C_FLAGS "-lpthread")
 #set(OpenMP_CXX_FLAGS "-lpthread")
-# set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3  ${OpenMP_C_FLAGS} -I${FFTW_INCLUDES}" )
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3  -I${FFTW_INCLUDES}" )
-# set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 ${OpenMP_CXX_FLAGS} -I${FFTW_INCLUDES}" )
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3  -I${FFTW_INCLUDES}" )
+# set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3  ${OpenMP_C_FLAGS}" )
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3" )
+# set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 ${OpenMP_CXX_FLAGS} " )
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3" )
 
 # some default behavior
 if(BUILD_SHARED)
@@ -97,7 +97,7 @@ install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
   PATTERN "*.cu*" EXCLUDE
   PATTERN "*_cuda*" EXCLUDE
   )
-target_include_directories(heffte PUBLIC $<INSTALL_INTERFACE:include>)
+target_include_directories(heffte PUBLIC $<INSTALL_INTERFACE:include> ${FFTW_INCLUDES})
 
 
 # ##########

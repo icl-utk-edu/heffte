@@ -1,152 +1,56 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.5 FATAL_ERROR)
+# include dirs
+include_directories(${FFTW_INCLUDE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-##################
-project("heffte" VERSION 0.2)
-# The version number.
-set (heffte_VERSION_MAJOR 0)
-set (heffte_VERSION_MINOR 1)
-##################
-
-# guard against in-source builds
-if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-  message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
-endif()
-
-# Set default install path t o build
-if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set (CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "default install path" FORCE )
-endif()
-
-# allow cmake to use custom modules (e.g. FindFFTW)
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-
-
-find_package(FFTW REQUIRED)
-find_package(MPI REQUIRED)
-# find_package(OpenMP REQUIRED)
-# Make the include path visible to all targets
-INCLUDE_DIRECTORIES (
-  ${heffte_SOURCE_DIR}/include
-  ${heffte_BINARY_DIR}/include
-  )
-
-
-
-# Add OpenMP and FFTW cxx flags to all targets
-# FOR PGI COMPILER
-#set(OpenMP_C_FLAGS "-lpthread")
-#set(OpenMP_CXX_FLAGS "-lpthread")
-# set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3  ${OpenMP_C_FLAGS} -I${FFTW_INCLUDES}" )
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3  -I${FFTW_INCLUDES}" )
-# set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 ${OpenMP_CXX_FLAGS} -I${FFTW_INCLUDES}" )
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3  -I${FFTW_INCLUDES}" )
-
-# some default behavior
-if(BUILD_SHARED)
-  set(BUILD_SHARED_LIBS ON)
-else()
-  set(BUILD_SHARED_LIBS OFF)
-endif(BUILD_SHARED)
-
-# #########
-# CPU BUILD
-# #########
-include(FindMPI)
-
-# set cmake compiler to mpi compiler wrapper found by FindMPI (usually mpicxx)
-set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
-
-#include_directories(SYSTEM ${MPI_INCLUDE_PATH})
-
-# libheffte source files list
-set(libheffte_SRCS
-  src/heffte_common.cpp
-  src/heffte.cpp
-  src/heffte_fft3d.cpp
-  src/heffte_pack3d.cpp
-  src/heffte_reshape3d.cpp
-  src/heffte_trace.cpp
-  )
+#
+# CPU executable double precision
+#
+# source files list
+set (test3d_cpu_src test3d_cpu.cpp)
+set (test3d_cpu_r2c_src test3d_cpu_r2c.cpp)
 
 add_definitions(-DFFT_FFTW3)
 
-if(HEFFTE_TIME_DETAILED)
-  add_definitions(-DHEFFTE_TIME_DETAILED)
-endif(HEFFTE_TIME_DETAILED)
+add_executable(test3d_cpu ${test3d_cpu_src})
+add_executable(test3d_cpu_r2c ${test3d_cpu_src})
+
+# set_target_properties(test3d_cpu PROPERTIES COMPILE_FLAGS "-DFFT_FFTW3")
+target_link_libraries(test3d_cpu
+  heffte
+  ${FFTW_THREADS_LIB}
+  ${FFTW_LIB}
+  ${FFTWF_THREADS_LIB}
+  ${FFTWF_LIB}
+)
+
+target_link_libraries(test3d_cpu_r2c
+  heffte
+  ${FFTW_THREADS_LIB}
+  ${FFTW_LIB}
+  ${FFTWF_THREADS_LIB}
+  ${FFTWF_LIB}
+)
 
 
-# build CPU libheffte (shared or static ?)
-if(BUILD_SHARED_LIBS)
-  add_library(heffte SHARED ${libheffte_SRCS})
-else(BUILD_SHARED_LIBS)
-  add_library(heffte STATIC ${libheffte_SRCS})
-endif(BUILD_SHARED_LIBS)
-target_link_libraries(heffte ${FFTW_LIB} ${FFTWF_LIB})
-
-# install
-install(TARGETS heffte EXPORT HEFFTE_Targets DESTINATION lib)
-install(EXPORT HEFFTE_Targets FILE HEFFTE_Targets.cmake NAMESPACE HEFFTE:: DESTINATION lib/cmake/HEFFTE)
-include(CMakePackageConfigHelpers)
-write_basic_package_version_file("HEFFTEConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY ExactVersion)
-install(FILES "HEFFTEConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfigVersion.cmake" DESTINATION lib/cmake/HEFFTE)
-#install(DIRECTORY heffte DESTINATION include FILES_MATCHING PATTERN "include/*.h")
-install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
-  PATTERN "**~" EXCLUDE
-  PATTERN "*_gpu*" EXCLUDE
-  PATTERN "*.cu*" EXCLUDE
-  PATTERN "*_cuda*" EXCLUDE
-  )
-target_include_directories(heffte PUBLIC $<INSTALL_INTERFACE:include>)
-
-
-# ##########
-# GPU BUILD
-# ##########
 if(BUILD_GPU)
+  #
+  # GPU executable double precision
+  #
+  set(test3d_gpu_src test3d_gpu.cpp)
+  set(test3d_gpu_r2c_src test3d_gpu_r2c.cpp)
+
   remove_definitions(-DFFT_FFTW3)
-  find_package(CUDA REQUIRED)
 
-  if(NOT CUDA_NVCC_FLAGS)
-    list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_35,code=sm_35)
-    list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_50,code=sm_50)
-    list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_60,code=sm_60)
-    list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_70,code=sm_70)
-    list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_75,code=sm_75)
-  endif()
+  cuda_add_executable(test3d_gpu ${test3d_gpu_src})
+  cuda_add_executable(test3d_gpu_r2c ${test3d_gpu_r2c_src})
 
-  list(APPEND CUDA_NVCC_FLAGS --compiler-options -fno-strict-aliasing -lineinfo)
+  set_target_properties(test3d_gpu     PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT")
+  target_link_libraries(test3d_gpu heffte_gpu ${CUDA_LIBRARIES})
 
-  # libheffte_gpu source files list
-  set(libheffte_gpu_SRCS
-    src/heffte.cpp
-    src/heffte_common.cpp
-    src/heffte_fft3d.cpp
-    src/heffte_pack3d.cu
-    src/heffte_scale.cu
-    src/heffte_reshape3d.cpp
-    src/heffte_trace.cpp
-    )
+  set_target_properties(test3d_gpu_r2c PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT")
+  target_link_libraries(test3d_gpu_r2c heffte_gpu ${CUDA_LIBRARIES})
 
-
-  # GPU libheffte_gpu
-  if(BUILD_SHARED_LIBS)
-    cuda_add_library(heffte_gpu SHARED ${libheffte_gpu_SRCS} OPTIONS "-DFFT_CUFFT")
-  else(BUILD_SHARED_LIBS)
-    cuda_add_library(heffte_gpu STATIC ${libheffte_gpu_SRCS} OPTIONS "-DFFT_CUFFT")
-  endif(BUILD_SHARED_LIBS)
-
-  # the following is necessary so that .cpp sources files passed to
-  # cuda_add_library get the right compile flags
-  set_target_properties(heffte_gpu PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT")
-
-  # install
-  install(TARGETS heffte_gpu EXPORT HEFFTE_Targets DESTINATION lib)
-  install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
+  cuda_add_cufft_to_target(test3d_gpu)
+  cuda_add_cufft_to_target(test3d_gpu_r2c)
 
 endif(BUILD_GPU)
-
-####################
-# EXAMPLES / TESTS #
-####################
-add_subdirectory(test)
