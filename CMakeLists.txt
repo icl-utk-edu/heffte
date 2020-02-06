@@ -41,12 +41,6 @@ set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3" )
 # set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 ${OpenMP_CXX_FLAGS} " )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3" )
 
-# some default behavior
-if(BUILD_SHARED)
-  set(BUILD_SHARED_LIBS ON)
-else()
-  set(BUILD_SHARED_LIBS OFF)
-endif(BUILD_SHARED)
 
 # #########
 # CPU BUILD
@@ -76,12 +70,8 @@ if(HEFFTE_TIME_DETAILED)
 endif(HEFFTE_TIME_DETAILED)
 
 
-# build CPU libheffte (shared or static ?)
-if(BUILD_SHARED_LIBS)
-  add_library(heffte SHARED ${libheffte_SRCS})
-else(BUILD_SHARED_LIBS)
-  add_library(heffte STATIC ${libheffte_SRCS})
-endif(BUILD_SHARED_LIBS)
+# build CPU libheffte
+add_library(heffte ${libheffte_SRCS})
 target_link_libraries(heffte HEFFTE::FFTW)
 
 # install
@@ -131,11 +121,7 @@ if(BUILD_GPU)
 
 
   # GPU libheffte_gpu
-  if(BUILD_SHARED_LIBS)
-    cuda_add_library(heffte_gpu SHARED ${libheffte_gpu_SRCS} OPTIONS "-DFFT_CUFFT")
-  else(BUILD_SHARED_LIBS)
-    cuda_add_library(heffte_gpu STATIC ${libheffte_gpu_SRCS} OPTIONS "-DFFT_CUFFT")
-  endif(BUILD_SHARED_LIBS)
+  cuda_add_library(heffte_gpu ${libheffte_gpu_SRCS} OPTIONS "-DFFT_CUFFT")
 
   # the following is necessary so that .cpp sources files passed to
   # cuda_add_library get the right compile flags
