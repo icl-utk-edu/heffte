@@ -82,14 +82,15 @@ if(BUILD_SHARED_LIBS)
 else(BUILD_SHARED_LIBS)
   add_library(heffte STATIC ${libheffte_SRCS})
 endif(BUILD_SHARED_LIBS)
-target_link_libraries(heffte ${FFTW_LIB} ${FFTWF_LIB})
+target_link_libraries(heffte HEFFTE::FFTW)
 
 # install
 install(TARGETS heffte EXPORT HEFFTE_Targets DESTINATION lib)
 install(EXPORT HEFFTE_Targets FILE HEFFTE_Targets.cmake NAMESPACE HEFFTE:: DESTINATION lib/cmake/HEFFTE)
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file("HEFFTEConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY ExactVersion)
-install(FILES "HEFFTEConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfigVersion.cmake" DESTINATION lib/cmake/HEFFTE)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/HEFFTEConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfig.cmake" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfigVersion.cmake" DESTINATION lib/cmake/HEFFTE)
 #install(DIRECTORY heffte DESTINATION include FILES_MATCHING PATTERN "include/*.h")
 install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
   PATTERN "**~" EXCLUDE
@@ -97,7 +98,7 @@ install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
   PATTERN "*.cu*" EXCLUDE
   PATTERN "*_cuda*" EXCLUDE
   )
-target_include_directories(heffte PUBLIC $<INSTALL_INTERFACE:include> ${FFTW_INCLUDES})
+target_include_directories(heffte PUBLIC $<INSTALL_INTERFACE:include>)
 
 
 # ##########
