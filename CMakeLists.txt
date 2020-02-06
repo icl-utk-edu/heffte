@@ -141,6 +141,8 @@ if(BUILD_GPU)
   # cuda_add_library get the right compile flags
   set_target_properties(heffte_gpu PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT")
 
+  target_link_libraries(heffte_gpu HEFFTE::FFTW)
+
   # install
   install(TARGETS heffte_gpu EXPORT HEFFTE_Targets DESTINATION lib)
   install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
