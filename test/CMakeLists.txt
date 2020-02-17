@@ -1,5 +1,4 @@
 # include dirs
-include_directories(${FFTW_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 #
@@ -15,21 +14,8 @@ add_executable(test3d_cpu ${test3d_cpu_src})
 add_executable(test3d_cpu_r2c ${test3d_cpu_src})
 
 # set_target_properties(test3d_cpu PROPERTIES COMPILE_FLAGS "-DFFT_FFTW3")
-target_link_libraries(test3d_cpu
-  heffte
-  ${FFTW_THREADS_LIB}
-  ${FFTW_LIB}
-  ${FFTWF_THREADS_LIB}
-  ${FFTWF_LIB}
-)
-
-target_link_libraries(test3d_cpu_r2c
-  heffte
-  ${FFTW_THREADS_LIB}
-  ${FFTW_LIB}
-  ${FFTWF_THREADS_LIB}
-  ${FFTWF_LIB}
-)
+target_link_libraries(test3d_cpu     heffte)
+target_link_libraries(test3d_cpu_r2c heffte)
 
 
 if(BUILD_GPU)

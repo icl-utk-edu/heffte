@@ -1,11 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-##################
-project("heffte" VERSION 0.2)
-# The version number.
-set (heffte_VERSION_MAJOR 0)
-set (heffte_VERSION_MINOR 2)
-##################
+project("heffte" VERSION 0.2.0 LANGUAGES CXX)
 
 # guard against in-source builds
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
@@ -34,10 +29,7 @@ INCLUDE_DIRECTORIES (
 
 # Add OpenMP and FFTW cxx flags to all targets
 # FOR PGI COMPILER
-#set(OpenMP_C_FLAGS "-lpthread")
 #set(OpenMP_CXX_FLAGS "-lpthread")
-# set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3  ${OpenMP_C_FLAGS}" )
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3" )
 # set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 ${OpenMP_CXX_FLAGS} " )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3" )
 
@@ -127,7 +119,6 @@ if(BUILD_GPU)
 
   # install
   install(TARGETS heffte_gpu EXPORT HEFFTE_Targets DESTINATION lib)
-  install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
 
 endif(BUILD_GPU)
 
