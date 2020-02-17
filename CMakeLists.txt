@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.5 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10)
 
 ##################
 project("heffte" VERSION 0.2)
@@ -45,10 +45,6 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3" )
 # #########
 # CPU BUILD
 # #########
-include(FindMPI)
-
-# set cmake compiler to mpi compiler wrapper found by FindMPI (usually mpicxx)
-set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
 
 #include_directories(SYSTEM ${MPI_INCLUDE_PATH})
@@ -72,7 +68,7 @@ endif(HEFFTE_TIME_DETAILED)
 
 # build CPU libheffte
 add_library(heffte ${libheffte_SRCS})
-target_link_libraries(heffte HEFFTE::FFTW)
+target_link_libraries(heffte HEFFTE::FFTW MPI::MPI_CXX)
 
 # install
 install(TARGETS heffte EXPORT HEFFTE_Targets DESTINATION lib)
@@ -127,7 +123,7 @@ if(BUILD_GPU)
   # cuda_add_library get the right compile flags
   set_target_properties(heffte_gpu PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT")
 
-  target_link_libraries(heffte_gpu HEFFTE::FFTW)
+  target_link_libraries(heffte_gpu MPI::MPI_CXX)
 
   # install
   install(TARGETS heffte_gpu EXPORT HEFFTE_Targets DESTINATION lib)
