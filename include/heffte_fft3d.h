@@ -125,8 +125,7 @@ class FFT3d {
   int normnum;                      // # of values to rescale
   U norm;                      // normalization factor for rescaling
 
-  int nprime,nfactor;
-  int *primes,*factors;
+  std::vector<int> primes, factors;
 
   int nfast,nmid,nslow;
   int nfast_h; // for R2C transform, ~ half the size of fast direction

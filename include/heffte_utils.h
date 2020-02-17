@@ -8,6 +8,7 @@
 #define HEFFTE_UTILS_H
 
 #include <algorithm>
+#include <vector>
 #include <stdio.h>
 
 // Chosing library for 1D FFTs

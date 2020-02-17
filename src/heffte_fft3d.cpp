@@ -21,7 +21,6 @@
 
 using namespace HEFFTE_NS;
 
-#define NFACTOR 50
 #define BIG 1.0e20
 
 typedef int64_t bigint;
@@ -66,16 +65,9 @@ FFT3d<U>::FFT3d(MPI_Comm user_comm)
 
   // allowed prime factors for each FFT grid dimension
 
-  nprime = 3;
-  primes = new int[nprime];
-  primes[0] = 2;
-  primes[1] = 3;
-  primes[2] = 5;
+  primes = {2, 3, 5};
 
   // initialize memory allocations
-
-  factors = new int[NFACTOR];
-  nfactor = 0;
 
   reshape_prefast = reshape_fastmid = reshape_midslow = reshape_postslow = NULL;
   reshape_preslow = reshape_slowmid = reshape_midfast = reshape_postfast = NULL;
@@ -101,9 +93,6 @@ FFT3d<U>::~FFT3d()
 {
   delete memory;
   delete error;
-
-  delete [] primes;
-  delete [] factors;
 
   if (setupflag) deallocate_setup();
   if (setupflag_r2c) deallocate_setup_r2c();
@@ -194,7 +183,6 @@ void FFT3d<U>::setup(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
   // ip = my location in each dimension
 
   factor(nprocs);
-  if (nfactor > NFACTOR) error->all("Nprocs is too large to factor");
 
   procfactors(1, nmid, nslow,
               npfast1, npfast2, npfast3, ipfast1, ipfast2, ipfast3);
@@ -458,7 +446,6 @@ void FFT3d<U>::setup_r2c(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
   // compute partitioning of FFT grid across procs for each pencil layout
 
   factor(nprocs);
-  if (nfactor > NFACTOR) error->all("Nprocs is too large to factor");
 
   // get grid for fast direction
   procfactors(1, nmid, nslow,
@@ -2366,13 +2353,13 @@ int FFT3d<U>::prime_factorable(int n)
   int i;
 
   while (n > 1) {
-    for (i = 0; i < nprime; i++) {
+    for (i = 0; i < primes.size(); i++) {
       if (n % primes[i] == 0) {
         n /= primes[i];
         break;
       }
     }
-    if (i == nprime) return 0;
+    if (i == primes.size()) return 0;
   }
 
   return 1;
@@ -2394,10 +2381,10 @@ void FFT3d<U>::factor(int n)
   int sqroot = (int) sqrt(n) + 1;
   if (sqroot*sqroot > n) sqroot--;
 
-  nfactor = 0;
+  factors.clear();
   for (int i = 1; i <= sqroot; i++) {
     if (n % i) continue;
-    if (nfactor < NFACTOR) factors[nfactor++] = i;
+    factors.push_back(i);
   }
 }
 
@@ -2433,10 +2420,10 @@ void FFT3d<U>::procfactors(int nx, int ny, int nz,
   // where ifac <= jfac and jfac <= kfac
   // then do surface-area test of all 6 permutations of (ifac, jfac, kfac)
 
-  for (i = 0; i < nfactor; i++) {
+  for (i = 0; i < factors.size(); i++) {
     ifac = factors[i];
     jk = nprocs/ifac;
-    for (j = i; j < nfactor; j++) {
+    for (j = i; j < factors.size(); j++) {
       jfac = factors[j];
       kfac = jk/jfac;
       if (ifac*jfac*kfac != nprocs) continue;
