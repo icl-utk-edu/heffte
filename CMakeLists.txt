@@ -116,6 +116,7 @@ if(BUILD_GPU)
   # the following is necessary so that .cpp sources files passed to
   # cuda_add_library get the right compile flags
   set_target_properties(heffte_gpu PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT")
+  target_include_directories(heffte_gpu PUBLIC $<INSTALL_INTERFACE:include>)
 
   target_link_libraries(heffte_gpu MPI::MPI_CXX)
 

@@ -36,7 +36,4 @@ if(BUILD_GPU)
   set_target_properties(test3d_gpu_r2c PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT")
   target_link_libraries(test3d_gpu_r2c heffte_gpu ${CUDA_LIBRARIES})
 
-  cuda_add_cufft_to_target(test3d_gpu)
-  cuda_add_cufft_to_target(test3d_gpu_r2c)
-
 endif(BUILD_GPU)
