@@ -88,12 +88,12 @@ void *heffte_get(FFT3d<float> *fft, const char *keyword);
    Create plan for performing a Complex-to-Complex 3D FFT
 ------------------------------------------------------------------------- */
 template <class T>
-void heffte_plan_create(T *work, FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+void heffte_plan_create(FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
                         int permute, int *workspace)
 {
   int fftsize,sendsize,recvsize;
 
-  fft->setup(work, N, i_lo, i_hi, o_lo, o_hi,
+  fft->setup(N, i_lo, i_hi, o_lo, o_hi,
              permute, fftsize, sendsize, recvsize);
 
   workspace[0] = fftsize;
@@ -102,10 +102,10 @@ void heffte_plan_create(T *work, FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, in
 }
 
 template
-void heffte_plan_create(double *work, FFT3d<double> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+void heffte_plan_create(FFT3d<double> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
                         int permute, int *workspace);
 template
-void heffte_plan_create(float *work, FFT3d<float> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+void heffte_plan_create(FFT3d<float> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
                         int permute, int *workspace);
 
 
@@ -113,12 +113,12 @@ void heffte_plan_create(float *work, FFT3d<float> *fft, int *N, int *i_lo, int *
    Create plan for performing a Real-to-Complex 3D FFT
 ------------------------------------------------------------------------- */
 template <class T>
-void heffte_plan_r2c_create(T *work, FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+void heffte_plan_r2c_create(FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
                             int *workspace)
 {
   int fftsize,sendsize,recvsize;
 
-  fft->setup_r2c(work, N, i_lo, i_hi, o_lo, o_hi,
+  fft->setup_r2c(N, i_lo, i_hi, o_lo, o_hi,
                 fftsize, sendsize, recvsize);
 
   workspace[0] = fftsize;
@@ -127,10 +127,10 @@ void heffte_plan_r2c_create(T *work, FFT3d<T> *fft, int *N, int *i_lo, int *i_hi
 }
 
 template
-void heffte_plan_r2c_create(double *work, FFT3d<double> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+void heffte_plan_r2c_create(FFT3d<double> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
                             int *workspace);
 template
-void heffte_plan_r2c_create(float *work, FFT3d<float> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+void heffte_plan_r2c_create(FFT3d<float> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
                             int *workspace);
 
 

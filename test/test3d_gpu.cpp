@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 
   // Create C2C plan
   opts.timeplan -= MPI_Wtime();
-    heffte_plan_create(work, fft, opts.N, i_lo, i_hi, o_lo, o_hi, opts.permute, opts.workspace);
+    heffte_plan_create(fft, opts.N, i_lo, i_hi, o_lo, o_hi, opts.permute, opts.workspace);
   opts.timeplan += MPI_Wtime();
 
   MPI_Barrier(fft_comm);

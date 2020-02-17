@@ -101,11 +101,9 @@ class FFT3d {
   FFT3d(MPI_Comm);
   ~FFT3d();
 
-  template <class T>
-  void setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi, int user_permute, int &user_fftsize, int &user_sendsize, int &user_recvsize);
+  void setup(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi, int user_permute, int &user_fftsize, int &user_sendsize, int &user_recvsize);
 
-  template <class T>
-  void setup_r2c(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi, int &user_fftsize, int &user_sendsize, int &user_recvsize);
+  void setup_r2c(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi, int &user_fftsize, int &user_sendsize, int &user_recvsize);
 
 
   template <class T> void setup_memory(T *, T *);

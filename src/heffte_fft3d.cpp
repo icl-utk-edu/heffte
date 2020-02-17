@@ -132,8 +132,7 @@ FFT3d<float>::~FFT3d();
  */
 
 template <class U>
-template <class T>
-void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
+void FFT3d<U>::setup(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
                   int user_permute, int &user_fftsize, int &user_sendsize, int &user_recvsize)
 {
   int flag,allflag;
@@ -381,11 +380,11 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
   if (memoryflag) {
     setup_memory_flag = 1;
     if (sendsize) {
-      sendbuf = (T *) memory->smalloc(sendsize*sizeof(T), mem_type);
+      sendbuf = (U *) memory->smalloc(sendsize*sizeof(U), mem_type);
       if (!sendbuf) error->one("Could not allocate sendbuf array");
     }
     if (recvsize) {
-      recvbuf = (T *) memory->smalloc(recvsize*sizeof(T), mem_type);
+      recvbuf = (U *) memory->smalloc(recvsize*sizeof(U), mem_type);
       if (!recvbuf) error->one("Could not allocate recvbuf array");
     }
   }
@@ -401,8 +400,8 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
   memusage = 0;
 
   if (memoryflag) {
-    memusage += (int64_t) sendsize * sizeof(T);
-    memusage += (int64_t) recvsize * sizeof(T);
+    memusage += (int64_t) sendsize * sizeof(U);
+    memusage += (int64_t) recvsize * sizeof(U);
   }
 
   memusage += reshape_memory();
@@ -410,10 +409,10 @@ void FFT3d<U>::setup(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi
 }
 
 template
-void FFT3d<double>::setup(double* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
+void FFT3d<double>::setup(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
                   int user_permute, int &user_fftsize, int &user_sendsize, int &user_recvsize);
 template
-void FFT3d<float>::setup(float* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
+void FFT3d<float>::setup(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
                   int user_permute, int &user_fftsize, int &user_sendsize, int &user_recvsize);
 
 
@@ -422,8 +421,7 @@ void FFT3d<float>::setup(float* work, int* N, int* i_lo, int* i_hi, int* o_lo, i
   Real to Complex FFT, setting up function
 ------------------------------------------------------------------------- */
 template <class U>
-template <class T>
-void FFT3d<U>::setup_r2c(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
+void FFT3d<U>::setup_r2c(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
                    int &user_fftsize, int &user_sendsize, int &user_recvsize)
 {
   int flag,allflag;
@@ -597,11 +595,11 @@ void FFT3d<U>::setup_r2c(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* 
   if (memoryflag) {
     setup_memory_flag = 1;
     if (sendsize) {
-      sendbuf = (T *) memory->smalloc(sendsize*sizeof(T), mem_type);
+      sendbuf = (U *) memory->smalloc(sendsize*sizeof(U), mem_type);
       if (!sendbuf) error->one("Could not allocate sendbuf array");
     }
     if (recvsize) {
-      recvbuf = (T *) memory->smalloc(recvsize*sizeof(T), mem_type);
+      recvbuf = (U *) memory->smalloc(recvsize*sizeof(U), mem_type);
       if (!recvbuf) error->one("Could not allocate recvbuf array");
     }
   }
@@ -617,8 +615,8 @@ void FFT3d<U>::setup_r2c(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* 
   memusage = 0;
 
   if (memoryflag) {
-    memusage += (int64_t) sendsize * sizeof(T);
-    memusage += (int64_t) recvsize * sizeof(T);
+    memusage += (int64_t) sendsize * sizeof(U);
+    memusage += (int64_t) recvsize * sizeof(U);
   }
 
   memusage += reshape_memory();
@@ -626,10 +624,10 @@ void FFT3d<U>::setup_r2c(T* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* 
 }
 
 template
-void FFT3d<double>::setup_r2c(double* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
+void FFT3d<double>::setup_r2c(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
                               int &user_fftsize, int &user_sendsize, int &user_recvsize);
 template
-void FFT3d<float>::setup_r2c(float* work, int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
+void FFT3d<float>::setup_r2c(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
                               int &user_fftsize, int &user_sendsize, int &user_recvsize);
 
 

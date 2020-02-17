@@ -63,11 +63,11 @@ template <class T>
 void heffte_validate(T* work, int n, int seed, double &epsmax, MPI_Comm world);
 
 template <class T>
-void heffte_plan_create(T *work, FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+void heffte_plan_create(FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
                         int permute, int *workspace);
 
 template <class T>
-void heffte_plan_r2c_create(T *work, FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
+void heffte_plan_r2c_create(FFT3d<T> *fft, int *N, int *i_lo, int *i_hi, int *o_lo, int *o_hi,
                             int *workspace);
 
 template <class T>
