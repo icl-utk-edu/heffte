@@ -119,6 +119,7 @@ if(BUILD_GPU)
   target_include_directories(heffte_gpu PUBLIC $<INSTALL_INTERFACE:include>)
 
   target_link_libraries(heffte_gpu MPI::MPI_CXX)
+  cuda_add_cufft_to_target(heffte_gpu)
 
   # install
   install(TARGETS heffte_gpu EXPORT HEFFTE_Targets DESTINATION lib)
