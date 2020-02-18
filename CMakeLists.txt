@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.10)
 
 project("heffte" VERSION 0.2.0 LANGUAGES CXX)
 
+if (HEFFTE_ENABLE_DOXYGEN)
+    add_subdirectory(doxygen)
+endif()
+
 # guard against in-source builds
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")

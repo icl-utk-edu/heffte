@@ -1,4 +1,4 @@
-![HEFFTE banner](https://bitbucket.org/aayala32/logos/raw/35784b25fbec88f5cfbc39e0a1aa545fa644955c/logo_fft.png)
+![HEFFTE_banner](https://bitbucket.org/aayala32/logos/raw/35784b25fbec88f5cfbc39e0a1aa545fa644955c/logo_fft.png)
 
 **Highly Efficient FFT for Exascale**
 
