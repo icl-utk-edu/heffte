@@ -9,7 +9,6 @@
 #define FFT_FFT3D_H
 
 #include <mpi.h>
-#include <fftw3.h>
 #include "heffte_utils.h"
 #include "heffte_common.h"
 #include "heffte_reshape3d.h"

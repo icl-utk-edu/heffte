@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <fftw3.h>
 #include "heffte_fft3d.h"
 #include "heffte_scale.h"
 #include "heffte_trace.h"
