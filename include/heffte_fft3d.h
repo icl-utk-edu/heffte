@@ -221,4 +221,37 @@ class FFT3d {
 };
 
 }
+
+namespace heffte {
+
+template<typename scalar_type> struct fft_output{ using type = scalar_type; };
+template<> struct fft_output<float>{ using type = std::complex<float>; };
+template<> struct fft_output<double>{ using type = std::complex<double>; };
+
+//! \brief Work in progress, nothing set in stone.
+template<typename backend>
+class fft3d{
+public:
+    fft3d(box3d const inbox, box3d const outbox, MPI_Comm const);
+    fft3d(box3d const box, MPI_Comm const comm) : fft3d(box, box, comm){}
+
+    template<typename scalar_type>
+    void transform(scalar_type const input[], typename fft_output<scalar_type>::type output[]) const;
+
+    template<typename scalar_type>
+    std::vector<typename fft_output<scalar_type>::type> transform(std::vector<scalar_type> const &input) const;
+
+    template<typename scalar_type>
+    void inverse(typename fft_output<scalar_type>::type const output[], scalar_type input[]) const;
+
+    template<typename scalar_type>
+    std::vector<scalar_type> transform(std::vector<typename fft_output<scalar_type>::type> const &output) const;
+
+private:
+    std::unique_ptr<reshape3d_base> prefast, fastmid, midslow, slowpost;
+    std::unique_ptr<reshape3d_base> postslow, slowmid, midfast, fastpre;
+};
+
+}
+
 #endif

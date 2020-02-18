@@ -8,6 +8,8 @@
 #define HEFFTE_PACK3D_H
 
 #include <string.h>
+#include "heffte_utils.h"
+#include "heffte_common.h"
 
 namespace HEFFTE {
 
@@ -238,6 +240,67 @@ template <class T>
                                         struct pack_plan_3d *plan);
 
 /* ---------------------------------------------------------------------- */
+
+}
+
+namespace heffte {
+// identical to before, but in this namespace
+struct pack_plan_3d{
+    int nfast;                 // # of elements in fast index
+    int nmid;                  // # of elements in mid index
+    int nslow;                 // # of elements in slow index
+    int line_stride;           // stride between successive mid indices
+    int plane_stride;          // stride between successive slow indices
+};
+
+inline std::ostream & operator << (std::ostream &os, pack_plan_3d const &plan){
+    os << "nfast = " << plan.nfast << "\n";
+    os << "nmid  = " << plan.nmid << "\n";
+    os << "nslow = " << plan.nslow << "\n";
+    os << "line_stride = "  << plan.line_stride << "\n";
+    os << "plane_stride = " << plan.plane_stride << "\n";
+    os << "\n";
+    return os;
+}
+
+/*!
+ * Specializations indicating whether a backend uses the CPU or GPU will be made in each backend specific file.
+ */
+template<typename backend>
+struct packer_backend{
+    using mode = tag::cpu;
+};
+
+// typename struct packer_backend<cuda>{ using mode = tag::gpu; } // specialization can differentiate between gpu and cpu backends
+
+/*!
+ * \brief Defines the direct packer without implementation, use the specializations to get the CPU or GPU implementation.
+ */
+template<typename mode> struct direct_packer{};
+
+/*!
+ * \brief Simple packer that copies sub-boxes without transposing the order of the indexes.
+ */
+template<> struct direct_packer<tag::cpu>{
+    template<typename scalar_type>
+    void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        scalar_type* buffer_iterator = buffer;
+        for(int slow = 0; slow < plan.nslow; slow++){
+            for(int mid = 0; mid < plan.nmid; mid++){
+                buffer_iterator = std::copy_n(&data[slow * plan.plane_stride + mid * plan.line_stride], plan.nfast, buffer_iterator);
+            }
+        }
+    }
+    template<typename scalar_type>
+    void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
+        for(int slow = 0; slow < plan.nslow; slow++){
+            for(int mid = 0; mid < plan.nmid; mid++){
+                std::copy_n(&buffer[(slow * plan.nmid + mid) * plan.nfast],
+                            plan.nfast, &data[slow * plan.plane_stride + mid * plan.line_stride]);
+            }
+        }
+    }
+};
 
 }
 

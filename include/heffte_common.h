@@ -79,4 +79,34 @@ class Error {
 template <class T>
 void scale_ffts_gpu(int n, T *data, T fnorm);
 
+
+namespace heffte{
+
+namespace tag{
+/*
+ * Empty structs do not generate run-time code,
+ * but can be used in type checks and overload resolutions at compile time.
+ * Such empty classes are called "type-tags".
+ */
+
+/*!
+ * \brief Indicates the use of cpu backend and that all input/output data and arrays will be bound to the cpu.
+ *
+ * Examples of cpu backends are FFTW and MKL.
+ */
+struct cpu{};
+/*!
+ * \brief Indicates the use of gpu backend and that all input/output data and arrays will be bound to the gpu device.
+ *
+ * Example of gpu backend is cuFFT.
+ */
+struct gpu{};
+
+// The backends should sit in the main subspace or in a space called backend (or something).
+// Each backend will have a separate file indicating only the necessary methods to interact with the main code.
+struct fftw{};
+}
+
+}
+
 #endif   //  #ifndef HEFFTE_COMMON_H

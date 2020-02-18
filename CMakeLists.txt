@@ -67,6 +67,9 @@ endif(HEFFTE_TIME_DETAILED)
 add_library(heffte ${libheffte_SRCS})
 target_link_libraries(heffte HEFFTE::FFTW MPI::MPI_CXX)
 
+target_compile_features(heffte PUBLIC cxx_std_11)
+enable_testing()
+
 # install
 install(TARGETS heffte EXPORT HEFFTE_Targets DESTINATION lib)
 install(EXPORT HEFFTE_Targets FILE HEFFTE_Targets.cmake NAMESPACE HEFFTE:: DESTINATION lib/cmake/HEFFTE)

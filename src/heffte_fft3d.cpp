@@ -2547,3 +2547,15 @@ template
 void FFT3d<double>::deallocate_ffts();
 template
 void FFT3d<float>::deallocate_ffts();
+
+
+namespace heffte {
+
+template<typename backend>
+fft3d<backend>::fft3d(box3d const inbox, box3d const outbox, MPI_Comm comm){
+    // assemble the entire box layout first
+    // perform all analysis for all reshape operation without further communication
+    // create the reshape objects
+}
+
+}
