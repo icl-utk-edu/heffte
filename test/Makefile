@@ -13,8 +13,9 @@ MYFLAGS		 =
 
 MPICC     = mpicxx $(MYFLAGS)  #-pg # -fopenmp
 MPIF90    = mpif90
-CCFLAGS   =	-g -O3 -std=c++11 $(PRECISION)
-F90FLAGS  =	-g -O3 -cpp $(PRECISION)
+# MPIF90    = mpif90  -g -fcheck=all -Wall
+CCFLAGS   =	-g -O3 -std=c++11
+F90FLAGS  =	-g -O3 -cpp
 LINKFLAGS =	-g
 
 # ----------------------------------------
@@ -31,7 +32,7 @@ FFT     = $(shell echo $(fft) | tr a-z A-Z)
 # Provide fftw3 folders or (if available) use "module load fftw3"
 FFT1D_DIR 	= /home/aayalaob/fftw-3.3.8
 FFT1D_INC 	= -I$(FFT1D_DIR)/api/
-FFT1D_LIB 	= -L$(FFT1D_DIR)/lib/
+FFT1D_LIB 	= -L$(FFT1D_DIR)/lib/ -lfftw3 -lfftw3f
 
 # ----------------------------------------
 # Building test executables, no edit needed after this line.
@@ -55,20 +56,23 @@ endif
 # targets
 
 all: cleanall	test3d_cpu_r2c test3d_cpu test3d_gpu_r2c test3d_gpu
-tests_cpu:  clean_cpu test3d_cpu_r2c test3d_cpu
+tests_cpu:  clean_cpu test3d_cpu_r2c test3d_cpu test3d_cpu_fortran
 tests_gpu:  clean_gpu test3d_gpu_r2c test3d_gpu
 
 test3d_cpu_r2c:	test3d_cpu_r2c.o
-	$(MPICC) $(LINKFLAGS) $(FFT3D_LIB) test3d_cpu_r2c.o -lheffte $(FFT1D_LIB) -lfftw3 -lfftw3f -o test3d_cpu_r2c
+	$(MPICC) $(LINKFLAGS) $(FFT3D_LIB) test3d_cpu_r2c.o -lheffte $(FFT1D_LIB) -o test3d_cpu_r2c
 
 test3d_cpu:	test3d_cpu.o
-	$(MPICC) $(LINKFLAGS) $(FFT3D_LIB) test3d_cpu.o -lheffte $(FFT1D_LIB) -lfftw3 -lfftw3f -o test3d_cpu
+	$(MPICC) $(LINKFLAGS) $(FFT3D_LIB) test3d_cpu.o -lheffte $(FFT1D_LIB) -o test3d_cpu
 
 test3d_gpu_r2c:	test3d_gpu_r2c.o
 	$(MPICC) $(LINKFLAGS) $(FFT3D_LIB) test3d_gpu_r2c.o -lheffte $(FFT1D_LIB) -o test3d_gpu_r2c
 
 test3d_gpu:	test3d_gpu.o
 	$(MPICC) $(LINKFLAGS) $(FFT3D_LIB) test3d_gpu.o -lheffte $(FFT1D_LIB) -o test3d_gpu
+
+test3d_fortran:	heffte.o test3d_fortran.o
+	$(MPIF90) $(LINKFLAGS) $(FFT3D_LIB) test3d_fortran.o heffte.o -lheffte -lstdc++ $(FFT1D_LIB) -o test3d_fortran
 
 clean:
 	@rm -f *.o *.mod
@@ -80,9 +84,12 @@ clean_gpu:
 	@rm -f *.o *.mod test3d_gpu test3d_gpu
 
 cleanall:
-	@rm -f *.o *.mod test3d_gpu test3d_gpu_r2c test3d_cpu test3d_cpu_r2c *.a
+	@rm -f *.o *.mod test3d_gpu test3d_gpu_r2c test3d_cpu test3d_cpu_r2c test3d_fortran *.a
 
 # rules
 
 %.o:%.cpp
 	$(MPICC) $(CCFLAGS) $(MEM_INC) $(FFT_INC) $(FFT1D_INC) -c $<
+
+%.o:%.f90
+	$(MPIF90) $(F90FLAGS) $(MEM_INC) $(FFT_INC)  $(FFT1D_INC) -c $<

@@ -309,8 +309,8 @@ void heffte_opts::heffte_timing(FFT3d<T> *fft)
 
   double onetime = timefft/nfft;
   double nsize = 1.0 * N[0] * N[1] * N[2];
-  double logn = log(nsize);
-  double floprate = 5.0 * nsize * logn * 1e-9 / onetime;
+  double log2n = log(nsize)/log(2.0);
+  double floprate = 5.0 * nsize * log2n * 1e-9 / onetime;
 
   int64_t gridbytes;
   if(typeid(T) == typeid(double)){

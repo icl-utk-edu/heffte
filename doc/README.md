@@ -81,19 +81,19 @@ test/
 To run these tests on an MPI supported cluster, follow the examples:
 
 ~~~
-mpirun -n12 ./test3d_cpu -g 512 256 512 -v -i 82783 -c point
-mpirun -n12 ./test3d_cpu_r2c -g 512 256 512 -v -i 82783 -c all -pin 1 3 4 -pout 3 4 1
-mpirun -n12 ./test3d_cpu -g 512 256 512 -v -i 82783 -c point -pin 1 3 4
-mpirun -n12 ./test3d_cpu -g 512 256 512 -v -i 82783 -c all -pout 3 4 1
-mpirun -n2  ./test3d_gpu -g 512 256 512 -v -i 82783 -c point -verb
-mpirun -n1  ./test3d_gpu_r2c -g 512 256 512 -v -i 82783 -c all
+mpirun -n 12 ./test3d_cpu -g 512 256 512 -v -i 82783 -c point -s
+mpirun -n 12 ./test3d_cpu_r2c -g 512 256 512 -v -i 82783 -c all -pin 1 3 4 -pout 3 4 1 -s
+mpirun -n 12 ./test3d_cpu -g 512 256 512 -v -i 82783 -c point -pin 1 3 4 -s
+mpirun -n 12 ./test3d_cpu -g 512 256 512 -v -i 82783 -c all -pout 3 4 1 -s
+mpirun -n 2  ./test3d_gpu -g 512 256 512 -v -i 82783 -c point -verb -s
+mpirun -n 1  ./test3d_gpu_r2c -g 512 256 512 -v -i 82783 -c all -s
 ~~~
 
 To run on Summit supercomputer,follow the examples:
 
 ~~~
-jsrun --smpiargs="-gpu" -n192 -a1 -c1 -g1 -r6 ./test3d_gpu -g 1024 1024 1024 -i 82783 -v -c point
-jsrun  -n2560 -a1 -c1 -r40 ./test3d_cpu -g 1024 1024 1024 -i 82783 -v -c all
+jsrun --smpiargs="-gpu" -n192 -a1 -c1 -g1 -r6 ./test3d_gpu -g 1024 1024 1024 -i 82783 -v -c point -s
+jsrun  -n2560 -a1 -c1 -r40 ./test3d_cpu -g 1024 1024 1024 -i 82783 -v -c all -s
 ~~~
 
 * * *

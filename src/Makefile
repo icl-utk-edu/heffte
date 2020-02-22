@@ -158,14 +158,14 @@ MEM_INC   	=	-DFFT_MEMALIGN=64
 # Library build, no edit needed after this line.
 LIB3D      	= libheffte.a
 SHLIB3D    	= libheffte.so
-SRC3D_CPU   = heffte_common.cpp heffte_fft3d.cpp heffte_reshape3d.cpp heffte_trace.cpp heffte.cpp
+SRC3D_CPU   = heffte_common.cpp heffte_fft3d.cpp heffte_reshape3d.cpp heffte_trace.cpp heffte.cpp heffte_wrap.cpp
 ifneq (,$(filter CUFFTW CUFFT CUFFT_M CUFFT_R,$(FFT)))
 SRC3D_GPU   = heffte_pack3d.cu heffte_scale.cu
 else
 SRC3D_CPU  += heffte_pack3d.cpp
 endif
 
-INC3D       = heffte_common.h heffte_fft3d.h heffte_reshape3d.h heffte_trace.h heffte.h heffte_utils.h heffte_pack3d.h
+INC3D       = heffte_common.h heffte_fft3d.h heffte_reshape3d.h heffte_trace.h heffte.h heffte_utils.h heffte_pack3d.h heffte_wrap.h
 OBJ3D_CPU   = $(SRC3D_CPU:.cpp=.o)
 OBJ3D_GPU   = $(SRC3D_GPU:.cu=.o)
 OBJ3D 			= $(OBJ3D_CPU) $(OBJ3D_GPU)
@@ -226,6 +226,8 @@ heffte_common.o:heffte_common.cpp
 heffte.o:heffte.cpp
 	$(CC) $(CCFLAGS) $(SHFLAGS) $(MEM_INC) $(FFT_INC) $(FFT1D_INC) -c $<
 heffte_trace.o:heffte_trace.cpp
+	$(CC) $(CCFLAGS) $(SHFLAGS) $(MEM_INC) $(FFT_INC) $(FFT1D_INC) -c $<
+heffte_wrap.o:heffte_wrap.cpp
 	$(CC) $(CCFLAGS) $(SHFLAGS) $(MEM_INC) $(FFT_INC) $(FFT1D_INC) -c $<
 
 # Rules for CUDA compilation
