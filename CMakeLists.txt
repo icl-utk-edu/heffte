@@ -284,3 +284,9 @@ endif(BUILD_GPU)
 # EXAMPLES / TESTS #
 ####################
 add_subdirectory(test)
+
+enable_testing()
+add_test(heffte_test_cpu ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+${CMAKE_CURRENT_BINARY_DIR}/test/test3d_cpu ${MPIEXEC_POSTFLAGS}  -g 64 64 64 -v -i 82783 -c point -verb -s )
+add_test(heffte_test_gpu ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+${CMAKE_CURRENT_BINARY_DIR}/test/test3d_gpu ${MPIEXEC_POSTFLAGS}  -g 64 64 64 -v -i 82783 -c point -verb -s )
