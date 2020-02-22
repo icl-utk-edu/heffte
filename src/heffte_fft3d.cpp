@@ -18,7 +18,7 @@
 #include "heffte_scale.h"
 #include "heffte_trace.h"
 
-using namespace HEFFTE_NS;
+using namespace HEFFTE;
 
 #define BIG 1.0e20
 

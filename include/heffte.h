@@ -25,7 +25,7 @@
 enum{FORWARD, BACKWARD};
 enum{HEFFTE_REAL_DATA, HEFFTE_COMPLEX_DATA};
 
-using namespace HEFFTE_NS;
+using namespace HEFFTE;
 
 
 // Initialisation constants

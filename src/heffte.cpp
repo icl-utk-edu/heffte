@@ -13,7 +13,7 @@
 
 typedef int64_t bigint;
 
-using namespace HEFFTE_NS;
+using namespace HEFFTE;
 
 
 /* ----------------------------------------------------------------------

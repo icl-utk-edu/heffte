@@ -17,7 +17,7 @@
 #include "heffte_pack3d.h"
 #include "heffte_utils.h"
 
-namespace HEFFTE_NS {
+namespace HEFFTE {
 
   #define NX 16
   #define NY 16

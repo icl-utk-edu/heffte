@@ -40,7 +40,7 @@ typedef uint16_t offset_t;
     (((num) + ((align) - 1)) & ~((align) - 1))
 #endif
 
-using namespace HEFFTE_NS;
+using namespace HEFFTE;
 
 // HEFFTE ALL2ALL  functions
 template <class T>

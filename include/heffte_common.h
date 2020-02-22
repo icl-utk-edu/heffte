@@ -48,7 +48,7 @@ void heffte_Alltoallv(T *sendbuf, const int *sendcounts,
 // Memory
 static const unsigned mem_aligned = (1 << HEFFTE_MEM_CPU_ALIGN) | (1 << HEFFTE_MEM_REG_ALIGN) | (1 << HEFFTE_MEM_MANAGED_ALIGN);
 
-namespace HEFFTE_NS {
+namespace HEFFTE {
   class Memory {
     public:
       enum heffte_memory_type_t memory_type;
@@ -62,7 +62,7 @@ namespace HEFFTE_NS {
 
 // Error
 
-namespace HEFFTE_NS {
+namespace HEFFTE {
 class Error {
  public:
   Error(MPI_Comm);

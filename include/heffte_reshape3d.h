@@ -14,7 +14,7 @@
 #include "heffte_utils.h"
 #include "heffte_common.h"
 
-namespace HEFFTE_NS {
+namespace HEFFTE {
 
   /*!
    * The class Reshape3d is in charge of data reshape, starting from the input data to the first

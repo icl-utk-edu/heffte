@@ -21,7 +21,7 @@
 #include "heffte_trace.h"
 #include "heffte_utils.h"
 
-using namespace HEFFTE_NS;
+using namespace HEFFTE;
 
 /*! \fn
  * @param user_comm  MPI communicator for the P procs which own the data

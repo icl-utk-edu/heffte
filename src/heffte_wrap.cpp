@@ -11,7 +11,7 @@
 #include "heffte_wrap.h"
 #include "heffte_fft3d.h"
 
-using namespace HEFFTE_NS;
+using namespace HEFFTE;
 
 
 /* ----------------------------------------------------------------------

@@ -8,7 +8,7 @@
 
 #include "testing.h"
 
-using namespace HEFFTE_NS;
+using namespace HEFFTE;
 
 /* ////////////////////////////////////////////////////////////////////////////
    -- Testing R2C 3D FFT

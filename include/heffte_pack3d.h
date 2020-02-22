@@ -9,7 +9,7 @@
 
 #include <string.h>
 
-namespace HEFFTE_NS {
+namespace HEFFTE {
 
 struct pack_plan_3d {
   int nfast;                 // # of elements in fast index

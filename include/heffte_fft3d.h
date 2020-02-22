@@ -17,7 +17,7 @@
 #define FFT_FFTW3
 #endif
 
-namespace HEFFTE_NS {
+namespace HEFFTE {
 
   /*!
    * The class FFT3d is the main function of HEFFTE library, it is in charge of creating the plans for
