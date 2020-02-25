@@ -232,7 +232,7 @@ template<> struct fft_output<double>{ using type = std::complex<double>; };
 template<typename backend>
 class fft3d{
 public:
-    fft3d(box3d const inbox, box3d const outbox, MPI_Comm const);
+    fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm const);
     fft3d(box3d const box, MPI_Comm const comm) : fft3d(box, box, comm){}
 
     template<typename scalar_type>
@@ -248,6 +248,7 @@ public:
     std::vector<scalar_type> transform(std::vector<typename fft_output<scalar_type>::type> const &output) const;
 
 private:
+    box3d inbox, outbox;
     std::unique_ptr<reshape3d_base> prefast, fastmid, midslow, slowpost;
     std::unique_ptr<reshape3d_base> postslow, slowmid, midfast, fastpre;
 };

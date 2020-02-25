@@ -2552,10 +2552,13 @@ void FFT3d<float>::deallocate_ffts();
 namespace heffte {
 
 template<typename backend>
-fft3d<backend>::fft3d(box3d const inbox, box3d const outbox, MPI_Comm comm){
+fft3d<backend>::fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm comm) : inbox(cinbox), outbox(coutbox){
     // assemble the entire box layout first
     // perform all analysis for all reshape operation without further communication
     // create the reshape objects
+    ioboxes boxes = mpi::gather_boxes(inbox, outbox, comm);
+    box3d world = find_world(boxes);
+    assert( world_complete(boxes, world) );
 }
 
 }

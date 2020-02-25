@@ -14,6 +14,7 @@
 #include <numeric>
 #include <algorithm>
 #include <functional>
+#include <cassert>
 #include <stdio.h>
 #include <mpi.h>
 
