@@ -347,7 +347,7 @@ void *Memory::srealloc(void *ptr, int64_t nbytes, heffte_memory_type_t memory_ty
           cudaMalloc((void**)&ptr, nbytes);
           heffte_check_cuda_error();
           if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
-          cudaFree(ptr);
+          cudaFree(old_ptr);
           FFT_PRINTF("Realloc FFT_CUFFT %s \n",__func__);
           break;
 
@@ -362,7 +362,7 @@ void *Memory::srealloc(void *ptr, int64_t nbytes, heffte_memory_type_t memory_ty
           cudaMallocManaged((void**)&ptr, nbytes);
           heffte_check_cuda_error();
           if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
-          cudaFree(ptr);
+          cudaFree(old_ptr);
           break;
 
       case HEFFTE_MEM_REG_ALIGN:
@@ -389,6 +389,7 @@ void *Memory::srealloc(void *ptr, int64_t nbytes, heffte_memory_type_t memory_ty
           if (retval) ptr = NULL;
           if (ptr) memcpy(ptr, old_ptr, nbytes);
           FFT_PRINTF("%s FFT_CPU_MEMALIGN \n",__func__);
+          free(old_ptr);
           #endif
           break;
       case HEFFTE_MEM_CPU:

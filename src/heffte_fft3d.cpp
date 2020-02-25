@@ -76,6 +76,7 @@ FFT3d<U>::FFT3d(MPI_Comm user_comm)
   sendbuf = recvbuf = NULL;
 
   setupflag = 0;
+  setupflag_r2c = 0;
   setup_memory_flag = 0;
 }
 
