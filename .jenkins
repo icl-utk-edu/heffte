@@ -1,0 +1,28 @@
+pipeline {
+    agent none
+    stages {
+        stage('Automated testing') {
+            when {
+                not {
+                    branch 'master'
+                }
+            }
+            parallel {
+                stage('GCC-CPU') {
+                    agent {
+                        dockerfile {
+                            filename 'Dockerfile_fftw'
+                            dir 'docker'
+                            additionalBuildArgs '--pull'
+                            label 'docker'
+                        }
+                    }
+                    steps {
+                        sh 'echo "Hello World"'
+                        sh 'env'
+                    }
+                }
+            }
+        }
+    }
+}
