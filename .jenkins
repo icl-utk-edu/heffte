@@ -18,8 +18,18 @@ pipeline {
                         }
                     }
                     steps {
-                        sh 'echo "Hello World"'
-                        sh 'env'
+                        sh '''rm -rf build && mkdir -p build && cd build &&
+cmake \
+    -DMPIEXEC_PREFLAGS="--allow-run-as-root" \
+    .. &&
+make -j4 &&
+ctest -j4 -V --no-compress-output -T Test
+                        '''
+                    }
+                    post {
+                        always {
+                            xunit([CTest(deleteOutputFiles: true, failIfNotNew: true, pattern: 'build/Testing/**/Test.xml', skipNoTestFiles: false, stopProcessingIfError: true)])
+                        }
                     }
                 }
             }
