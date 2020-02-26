@@ -1,0 +1,38 @@
+pipeline {
+    agent none
+    stages {
+        stage('Automated testing') {
+            when {
+                not {
+                    branch 'master'
+                }
+            }
+            parallel {
+                stage('GCC-CPU') {
+                    agent {
+                        dockerfile {
+                            filename 'Dockerfile_fftw'
+                            dir 'docker'
+                            additionalBuildArgs '--pull'
+                            label 'docker'
+                        }
+                    }
+                    steps {
+                        sh '''rm -rf build && mkdir -p build && cd build &&
+cmake \
+    -DMPIEXEC_PREFLAGS="--allow-run-as-root" \
+    .. &&
+make -j4 &&
+ctest -j4 -V --no-compress-output -T Test
+                        '''
+                    }
+                    post {
+                        always {
+                            xunit([CTest(deleteOutputFiles: true, failIfNotNew: true, pattern: 'build/Testing/**/Test.xml', skipNoTestFiles: false, stopProcessingIfError: true)])
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
