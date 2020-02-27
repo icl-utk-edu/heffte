@@ -264,7 +264,7 @@ inline std::ostream & operator << (std::ostream &os, pack_plan_3d const &plan){
 }
 
 /*!
- * Specializations indicating whether a backend uses the CPU or GPU will be made in each backend specific file.
+ * \brief Specializations indicating whether a backend uses the CPU or GPU will be made in each backend specific file.
  */
 template<typename backend>
 struct packer_backend{

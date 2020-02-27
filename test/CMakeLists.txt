@@ -13,6 +13,11 @@ heffte_add_mpi_test(NAME heffte_reshape_cpu4  COMMAND test_reshape_cpu RANKS 4)
 heffte_add_mpi_test(NAME heffte_reshape_cpu7  COMMAND test_reshape_cpu RANKS 7)
 heffte_add_mpi_test(NAME heffte_reshape_cpu12 COMMAND test_reshape_cpu RANKS 12)
 
+add_executable(test_unit_nompi test_units_nompi.cpp)
+target_link_libraries(test_unit_nompi  heffte)
+
+add_test(unit_tests_nompi  test_unit_nompi)
+
 #
 # CPU executable double precision
 #

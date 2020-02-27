@@ -5,7 +5,6 @@
        @date
 */
 
-#include "cassert"
 #include "test_common.h"
 
 /*
@@ -61,22 +60,7 @@ std::vector<scalar_type> get_subdata(box3d const world, box3d const subbox){
 }
 
 // splits the world box into a set of boxes with gird given by proc_grid
-std::vector<box3d> split_world(box3d const world, std::array<int, 3> const proc_grid){
 
-    auto fast = [=](int i)->int{ return world.low[0] + i * (world.size[0] / proc_grid[0]) + std::min(i, (world.size[0] % proc_grid[0])); };
-    auto mid  = [=](int i)->int{ return world.low[1] + i * (world.size[1] / proc_grid[1]) + std::min(i, (world.size[1] % proc_grid[1])); };
-    auto slow = [=](int i)->int{ return world.low[2] + i * (world.size[2] / proc_grid[2]) + std::min(i, (world.size[2] % proc_grid[2])); };
-
-    std::vector<box3d> result;
-    for(int k = 0; k < proc_grid[2]; k++){
-        for(int j = 0; j < proc_grid[1]; j++){
-            for(int i = 0; i < proc_grid[0]; i++){
-                result.push_back({{fast(i), mid(j), slow(k)}, {fast(i+1)-1, mid(j+1)-1, slow(k+1)-1}});
-            }
-        }
-    }
-    return result;
-}
 
 template<int hfast, int hmid, int hslow, int pfast, int pmid, int pslow, typename scalar_type>
 void test(MPI_Comm const comm){
@@ -131,7 +115,7 @@ void test(MPI_Comm const comm){
 }
 
 void perform_tests(){
-    all_tests name("heffte reshape methods");
+    all_tests<> name("heffte reshape methods");
 
     MPI_Comm const comm = MPI_COMM_WORLD;
 

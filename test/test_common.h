@@ -21,6 +21,14 @@
                                   + heffte_test_name + " in file: " + __FILE__ + " line: " + std::to_string(__LINE__) );          \
     }
 
+#define sassert(_result_)          \
+    if (!(_result_)){              \
+        heffte_test_pass = false;  \
+        heffte_all_tests = false;  \
+        throw std::runtime_error( std::string("  test ") \
+                                  + heffte_test_name + " in file: " + __FILE__ + " line: " + std::to_string(__LINE__) );          \
+    }
+
 using namespace heffte;
 
 using std::cout;
@@ -37,9 +45,13 @@ constexpr int pad_large = 50;
 constexpr int pad_pass  = 18;
 constexpr int pad_all = pad_type + pad_large + pad_pass + 2;
 
+struct using_mpi{};
+struct using_nompi{};
+
+template<typename mpi_tag = using_mpi>
 struct all_tests{
     all_tests(char const *cname) : name(cname), separator(pad_all, '-'){
-        if (heffte::mpi::comm_rank(MPI_COMM_WORLD) == 0){
+        if (std::is_same<mpi_tag, using_nompi>::value or heffte::mpi::comm_rank(MPI_COMM_WORLD) == 0){
             int const pad = pad_all / 2 + name.size() / 2;
             cout << "\n" << separator << "\n";
             cout << setw(pad) << name << "\n";
@@ -47,7 +59,7 @@ struct all_tests{
         }
     }
     ~all_tests(){
-        if (heffte::mpi::comm_rank(MPI_COMM_WORLD) == 0){
+        if (std::is_same<mpi_tag, using_nompi>::value or heffte::mpi::comm_rank(MPI_COMM_WORLD) == 0){
             int const pad = pad_all / 2 + name.size() / 2 + 3;
             cout << "\n" << separator << "\n";
             cout << setw(pad) << name  + "  " + ((heffte_all_tests) ? "pass" : "fail") << "\n";
@@ -64,20 +76,26 @@ template<> std::string get_variant<double>(){ return "double"; }
 template<> std::string get_variant<std::complex<float>>(){ return "fcomplex"; }
 template<> std::string get_variant<std::complex<double>>(){ return "dcomplex"; }
 
-template<typename scalar_variant = int>
+template<typename scalar_variant = int, typename mpi_tag = using_mpi>
 struct current_test{
     current_test(std::string const &name, MPI_Comm const comm) : test_comm(comm){
+        static_assert(std::is_same<mpi_tag, using_mpi>::value, "current_test cannot take a comm when using nompi mode");
         heffte_test_name = name;
         heffte_test_pass = true;
-        MPI_Barrier(test_comm);
+        if (std::is_same<mpi_tag, using_mpi>::value) MPI_Barrier(test_comm);
+    };
+    current_test(std::string const &name) : test_comm(MPI_COMM_NULL){
+        static_assert(std::is_same<mpi_tag, using_nompi>::value, "current_test requires a comm when working in mpi mode");
+        heffte_test_name = name;
+        heffte_test_pass = true;
     };
     ~current_test(){
-        if (heffte::mpi::comm_rank(MPI_COMM_WORLD) == 0){
+        if (std::is_same<mpi_tag, using_nompi>::value or heffte::mpi::comm_rank(MPI_COMM_WORLD) == 0){
             cout << setw(pad_type)  << get_variant<scalar_variant>()
                  << setw(pad_large) << heffte_test_name
                  << setw(pad_pass)  << ((heffte_test_pass) ? "pass" : "fail") << endl;
         }
-        MPI_Barrier(test_comm);
+        if (std::is_same<mpi_tag, using_mpi>::value) MPI_Barrier(test_comm);
     };
     MPI_Comm const test_comm;
 };

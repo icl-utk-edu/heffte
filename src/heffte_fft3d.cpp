@@ -2559,6 +2559,16 @@ fft3d<backend>::fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm comm) : 
     ioboxes boxes = mpi::gather_boxes(inbox, outbox, comm);
     box3d world = find_world(boxes);
     assert( world_complete(boxes, world) );
+
+    std::array<int, 2> proc_grid = make_procgrid(mpi::comm_size(comm));
+
+    // must analyze here which direction to do first
+    // but the grid will always be proc_grid[0] by proc_grid[1] and have 1 in another direction
+
+
+    // must check whether the initial input consists of pencils or slabs
+    // for now, assume the input is random (i.e., bricks)
+
 }
 
 }
