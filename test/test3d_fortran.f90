@@ -166,6 +166,6 @@ if (me == 0)   write(6,*) 'error  =', alldiff
 ! ----------------------------------------
 deallocate(work)
 call heffte_destroy_s(fft)
-call MPI_Finalize()
+call MPI_Finalize(ierr)
 
 end program test_fortran

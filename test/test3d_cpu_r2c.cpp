@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
 
   // Create R2C plan
   opts.timeplan -= MPI_Wtime();
-    heffte_plan_r2c_create(work_in, fft, opts.N, i_lo, i_hi, o_lo, o_hi, opts.workspace);
+    heffte_plan_r2c_create(fft, opts.N, i_lo, i_hi, o_lo, o_hi, opts.workspace);
   opts.timeplan += MPI_Wtime();
 
   MPI_Barrier(fft_comm);
