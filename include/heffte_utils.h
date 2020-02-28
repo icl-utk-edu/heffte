@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <mpi.h>
 
+#include "heffte_config.h"
+
 // Chosing library for 1D FFTs
 #if defined(FFT_MKL) || defined(FFT_MKL_OMP)
   #include "mkl_dfti.h"
@@ -36,7 +38,8 @@
 #elif defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
   #include <cufft.h>
 #else // By default we include FFTW3
-  #include "fftw3.h"
+  //#define FFT_FFTW3
+  //#include "fftw3.h"
 #endif
 
 // Timing vector

@@ -8,7 +8,6 @@
 #define HEFFTE_PACK3D_H
 
 #include <string.h>
-#include "heffte_utils.h"
 #include "heffte_common.h"
 
 namespace HEFFTE {
@@ -264,12 +263,13 @@ inline std::ostream & operator << (std::ostream &os, pack_plan_3d const &plan){
 }
 
 /*!
- * \brief Specializations indicating whether a backend uses the CPU or GPU will be made in each backend specific file.
+ * \brief The packer needs to know whether the data will be on the CPU or GPU devices.
+ *
+ * Specializations of this template will define the type alias \b mode
+ * that will be set to either the tag::cpu or tag::gpu.
  */
 template<typename backend>
-struct packer_backend{
-    using mode = tag::cpu;
-};
+struct packer_backend{};
 
 // typename struct packer_backend<cuda>{ using mode = tag::gpu; } // specialization can differentiate between gpu and cpu backends
 

@@ -2551,8 +2551,10 @@ void FFT3d<float>::deallocate_ffts();
 
 namespace heffte {
 
-template<typename backend>
-fft3d<backend>::fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm comm) : inbox(cinbox), outbox(coutbox){
+template<typename backend_tag>
+fft3d<backend_tag>::fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm comm) : inbox(cinbox), outbox(coutbox){
+    static_assert(backend::is_enabled<backend_tag>::value, "Requested backend is invalid or has not been enabled.");
+
     // assemble the entire box layout first
     // perform all analysis for all reshape operation without further communication
     // create the reshape objects
@@ -2565,10 +2567,25 @@ fft3d<backend>::fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm comm) : 
     // must analyze here which direction to do first
     // but the grid will always be proc_grid[0] by proc_grid[1] and have 1 in another direction
 
-
     // must check whether the initial input consists of pencils or slabs
     // for now, assume the input is random (i.e., bricks)
+    std::vector<box3d> shape0 = make_pencils(world, proc_grid, 0, boxes.in);
+    std::vector<box3d> shape1 = make_pencils(world, proc_grid, 1, shape0);
+    std::vector<box3d> shape2 = make_pencils(world, proc_grid, 2, shape1);
 
+    forward0 = make_reshape3d_alltoallv<backend_tag>(boxes.in, shape0, comm);
+    forward1 = make_reshape3d_alltoallv<backend_tag>(shape0, shape1, comm);
+    forward2 = make_reshape3d_alltoallv<backend_tag>(shape1, shape2, comm);
+    forward3 = make_reshape3d_alltoallv<backend_tag>(shape2, boxes.out, comm);
+
+    inverse0 = make_reshape3d_alltoallv<backend_tag>(boxes.out, shape2, comm);
+    inverse1 = make_reshape3d_alltoallv<backend_tag>(shape2, shape1, comm);
+    inverse2 = make_reshape3d_alltoallv<backend_tag>(shape1, shape0, comm);
+    inverse3 = make_reshape3d_alltoallv<backend_tag>(shape0, boxes.in, comm);
 }
+
+#ifdef Heffte_ENABLE_FFTW
+template class fft3d<backend::fftw>;
+#endif
 
 }

@@ -80,14 +80,16 @@ template <class T>
 void scale_ffts_gpu(int n, T *data, T fnorm);
 
 
-namespace heffte{
+namespace heffte {
 
-namespace tag{
-/*
+/*!
+ * \brief Contains internal type-tags.
+ *
  * Empty structs do not generate run-time code,
  * but can be used in type checks and overload resolutions at compile time.
  * Such empty classes are called "type-tags".
  */
+namespace tag {
 
 /*!
  * \brief Indicates the use of cpu backend and that all input/output data and arrays will be bound to the cpu.
@@ -102,10 +104,34 @@ struct cpu{};
  */
 struct gpu{};
 
-// The backends should sit in the main subspace or in a space called backend (or something).
-// Each backend will have a separate file indicating only the necessary methods to interact with the main code.
-struct fftw{};
 }
+
+/*!
+ * \brief Contains type tags and templates metadata for the various backends.
+ */
+namespace backend {
+
+    /*!
+     * \brief Allows to define whether a specific backend interface has been enabled.
+     *
+     * Defaults to std::false_type, but specializations for each enabled backend
+     * will overwrite this to the std::true_type, i.e., define const static bool value
+     * which is set to true.
+     */
+    template<typename tag>
+    struct is_enabled : std::false_type{};
+
+}
+
+/*!
+ * \brief Indicates the direction of the FFT.
+ */
+enum class direction {
+    //! \brief Forward DFT transform.
+    forward,
+    //! \brief Inverse DFT transform.
+    backward
+};
 
 }
 

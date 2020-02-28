@@ -7,6 +7,10 @@
 
 #include "test_common.h"
 
+#ifdef Heffte_ENABLE_FFTW
+using default_cpu_backend = heffte::backend::fftw;
+#endif
+
 /*
  * Simple unit test that checks the operation that gathers boxes across an mpi comm.
  */
@@ -91,7 +95,7 @@ void test(MPI_Comm const comm){
     }
 
     // create caches for a reshape algorithm, including creating a new mpi comm
-    auto reshape = make_reshape3d_alltoallv<tag::fftw>(boxes, rotate_boxes, comm);
+    auto reshape = make_reshape3d_alltoallv<default_cpu_backend>(boxes, rotate_boxes, comm);
 
     auto input_data     = get_subdata<scalar_type>(world, boxes[me]);
     auto reference_data = get_subdata<scalar_type>(world, rotate_boxes[me]);

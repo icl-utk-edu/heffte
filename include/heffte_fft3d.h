@@ -13,9 +13,11 @@
 #include "heffte_common.h"
 #include "heffte_reshape3d.h"
 
-#ifdef FFT_FFTW
-#define FFT_FFTW3
-#endif
+//#include "heffte_backend_fftw.h"
+
+//#ifdef FFT_FFTW
+//#define FFT_FFTW3
+//#endif
 
 namespace HEFFTE {
 
@@ -229,28 +231,22 @@ template<> struct fft_output<float>{ using type = std::complex<float>; };
 template<> struct fft_output<double>{ using type = std::complex<double>; };
 
 //! \brief Work in progress, nothing set in stone.
-template<typename backend>
+template<typename backend_tag>
 class fft3d{
 public:
     fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm const);
     fft3d(box3d const box, MPI_Comm const comm) : fft3d(box, box, comm){}
 
     template<typename scalar_type>
-    void transform(scalar_type const input[], typename fft_output<scalar_type>::type output[]) const;
-
-    template<typename scalar_type>
-    std::vector<typename fft_output<scalar_type>::type> transform(std::vector<scalar_type> const &input) const;
+    void forward(scalar_type const input[], typename fft_output<scalar_type>::type output[]) const;
 
     template<typename scalar_type>
     void inverse(typename fft_output<scalar_type>::type const output[], scalar_type input[]) const;
 
-    template<typename scalar_type>
-    std::vector<scalar_type> transform(std::vector<typename fft_output<scalar_type>::type> const &output) const;
-
 private:
     box3d inbox, outbox;
-    std::unique_ptr<reshape3d_base> prefast, fastmid, midslow, slowpost;
-    std::unique_ptr<reshape3d_base> postslow, slowmid, midfast, fastpre;
+    std::unique_ptr<reshape3d_base> forward0, forward1, forward2, forward3;
+    std::unique_ptr<reshape3d_base> inverse0, inverse1, inverse2, inverse3;
 };
 
 }

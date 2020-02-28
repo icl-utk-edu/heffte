@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
-project("heffte" VERSION 0.2.0 LANGUAGES CXX)
+set(Heffte_version_string 0.2.0)
+project("Heffte" VERSION ${Heffte_version_string} LANGUAGES CXX)
 
-if (HEFFTE_ENABLE_DOXYGEN)
+option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"   ON) # must change to OFF later
+option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation" OFF)
+
+if (Heffte_ENABLE_DOXYGEN)
     add_subdirectory(doxygen)
 endif()
 
@@ -16,6 +20,9 @@ if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set (CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "default install path" FORCE )
 endif()
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/heffte_config.cmake.h"
+               "${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h")
+
 # allow cmake to use custom modules (e.g. FindFFTW)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
@@ -25,8 +32,8 @@ find_package(MPI REQUIRED)
 # find_package(OpenMP REQUIRED)
 # Make the include path visible to all targets
 INCLUDE_DIRECTORIES (
-  ${heffte_SOURCE_DIR}/include
-  ${heffte_BINARY_DIR}/include
+  ${Heffte_SOURCE_DIR}/include
+  ${Heffte_BINARY_DIR}/include
   )
 
 
@@ -56,42 +63,50 @@ set(libheffte_SRCS
   src/heffte_wrap.cpp
   )
 
-add_definitions(-DFFT_FFTW3)
-
 if(HEFFTE_TIME_DETAILED)
   add_definitions(-DHEFFTE_TIME_DETAILED)
 endif(HEFFTE_TIME_DETAILED)
 
 
 # build CPU libheffte
-add_library(heffte ${libheffte_SRCS})
-target_link_libraries(heffte HEFFTE::FFTW MPI::MPI_CXX)
+add_library(Heffte ${libheffte_SRCS})
+target_link_libraries(Heffte HEFFTE::FFTW MPI::MPI_CXX)
 
-target_compile_features(heffte PUBLIC cxx_std_11)
+target_compile_features(Heffte PUBLIC cxx_std_11)
+set_target_properties(Heffte PROPERTIES OUTPUT_NAME "heffte"
+                                        INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"
+                                        CXX_EXTENSIONS OFF
+                                        SOVERSION ${Heffte_VERSION_MAJOR}
+                                        VERSION   ${Heffte_version_string})
+
+target_include_directories(Heffte PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
+target_include_directories(Heffte PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/>)
+target_include_directories(Heffte PUBLIC $<INSTALL_INTERFACE:include>)
+
 enable_testing()
 
 # install
-install(TARGETS heffte EXPORT HEFFTE_Targets DESTINATION lib)
-install(EXPORT HEFFTE_Targets FILE HEFFTE_Targets.cmake NAMESPACE HEFFTE:: DESTINATION lib/cmake/HEFFTE)
+install(TARGETS Heffte EXPORT HEFFTE_Targets DESTINATION lib)
+install(EXPORT HEFFTE_Targets FILE HEFFTE_Targets.cmake NAMESPACE HEFFTE:: DESTINATION lib/cmake/Heffte)
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file("HEFFTEConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY ExactVersion)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/HEFFTEConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfig.cmake" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfigVersion.cmake" DESTINATION lib/cmake/HEFFTE)
-#install(DIRECTORY heffte DESTINATION include FILES_MATCHING PATTERN "include/*.h")
+#install(DIRECTORY Heffte DESTINATION include FILES_MATCHING PATTERN "include/*.h")
 install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
   PATTERN "**~" EXCLUDE
   PATTERN "*_gpu*" EXCLUDE
   PATTERN "*.cu*" EXCLUDE
   PATTERN "*_cuda*" EXCLUDE
   )
-target_include_directories(heffte PUBLIC $<INSTALL_INTERFACE:include>)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h DESTINATION include/)
+
 
 
 # ##########
 # GPU BUILD
 # ##########
 if(BUILD_GPU)
-  remove_definitions(-DFFT_FFTW3)
   find_package(CUDA REQUIRED)
 
   set( GPU_TARGET "Kepler Maxwell Pascal" CACHE STRING "CUDA architectures to compile for; one or more of Fermi, Kepler, Maxwell, Pascal, Volta, or valid sm_[0-9][0-9]" )

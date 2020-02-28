@@ -63,6 +63,106 @@ void test_split_pencils(){
     sassert(match(result2, reference2));
 }
 
+template<typename scalar_type>
+std::vector<scalar_type> make_input(){
+    std::vector<scalar_type> result(24);
+    for(int i=0; i<24; i++) result[i] = static_cast<scalar_type>(i + 1);
+    return result;
+}
+
+template<typename scalar_type>
+std::vector<typename fft_output<scalar_type>::type> make_fft0(){
+    std::vector<typename fft_output<scalar_type>::type> result(24);
+    for(size_t i=0; i<result.size(); i+=2){
+        result[i]   = static_cast<typename fft_output<scalar_type>::type>(3 + 2 * i);
+        result[i+1] = static_cast<typename fft_output<scalar_type>::type>(-1.0);
+    }
+    return result;
+}
+template<typename scalar_type>
+std::vector<typename fft_output<scalar_type>::type> make_fft1(){
+    std::vector<typename fft_output<scalar_type>::type> result(24);
+    for(int j=0; j<4; j++){
+        for(int i=0; i<2; i++){
+            result[6 * j + i]     = typename fft_output<scalar_type>::type((2*j + i+1) * 9.0 - i * 6.0);
+            result[6 * j + i + 2] = typename fft_output<scalar_type>::type(-3.0,  1.73205080756888);
+            result[6 * j + i + 4] = typename fft_output<scalar_type>::type(-3.0, -1.73205080756888);
+        }
+    }
+    return result;
+}
+template<typename scalar_type>
+std::vector<typename fft_output<scalar_type>::type> make_fft2(){
+    std::vector<typename fft_output<scalar_type>::type> result(24);
+    for(size_t i=0; i<6; i++){
+        result[i]    = typename fft_output<scalar_type>::type(40.0 + 4 * i);
+        result[i+ 6] = typename fft_output<scalar_type>::type(-12.0, 12.0);
+        result[i+12] = typename fft_output<scalar_type>::type(-12.0);
+        result[i+18] = typename fft_output<scalar_type>::type(-12.0, -12.0);
+    }
+    return result;
+}
+
+#ifdef Heffte_ENABLE_FFTW
+template<typename scalar_type>
+void test_fftw_1d_complex(){
+    current_test<scalar_type, using_nompi> name("fftw3 one-dimension");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::fftw_executor fft(box, i);
+
+        std::vector<scalar_type> result = input;
+        fft.forward(result.data());
+        sassert(approx(result, reference[i]));
+
+        fft.backward(result.data());
+        for(auto &r : result) r /= (2.0 + i);
+        sassert(approx(result, input));
+    }
+}
+
+template<typename scalar_type>
+void test_fftw_1d_real(){
+    current_test<scalar_type, using_nompi> name("fftw3 one-dimension");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::fftw_executor fft(box, i);
+
+        std::vector<typename fft_output<scalar_type>::type> result(input.size());
+        fft.forward(input.data(), result.data());
+        sassert(approx(result, reference[i]));
+
+        std::vector<scalar_type> back_result(result.size());
+        fft.backward(result.data(), back_result.data());
+        for(auto &r : back_result) r /= (2.0 + i);
+        sassert(approx(back_result, input));
+    }
+}
+
+// tests for the 1D fft
+void test_fftw(){
+    test_fftw_1d_real<float>();
+    test_fftw_1d_real<double>();
+    test_fftw_1d_complex<std::complex<float>>();
+    test_fftw_1d_complex<std::complex<double>>();
+}
+#else
+void test_fftw(){}
+#endif
 
 int main(int argc, char *argv[]){
 
@@ -71,6 +171,8 @@ int main(int argc, char *argv[]){
     test_factorize();
     test_process_grid();
     test_split_pencils();
+
+    test_fftw();
 
     return 0;
 }

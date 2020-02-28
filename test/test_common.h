@@ -108,4 +108,18 @@ inline bool match(std::vector<T> const &a, std::vector<T> const &b){
     return true;
 }
 
+template<typename T> struct precision{};
+template<> struct precision<float>{ static constexpr float tolerance = 1.E-6; };
+template<> struct precision<double>{ static constexpr double tolerance = 1.E-11; };
+template<> struct precision<std::complex<float>>{ static constexpr float tolerance = 1.E-6; };
+template<> struct precision<std::complex<double>>{ static constexpr double tolerance = 1.E-11; };
+
+template<typename T>
+inline bool approx(std::vector<T> const &a, std::vector<T> const &b){
+    if (a.size() != b.size()) return false;
+    for(size_t i=0; i<a.size(); i++)
+        if (std::abs(a[i] - b[i]) > precision<T>::tolerance) return false;
+    return true;
+}
+
 #endif
