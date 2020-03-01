@@ -121,6 +121,27 @@ namespace backend {
     template<typename tag>
     struct is_enabled : std::false_type{};
 
+
+    /*!
+     * \brief Defines the container for the temporary buffers.
+     *
+     * Specialization for each backend will define whether the raw-arrays are associated
+     * with the CPU or GPU devices and the type of the container that will hold temporary
+     * buffers.
+     */
+    template<typename backend_tag>
+    struct buffer_traits{
+        //! \brief Tags the raw-array location tag::cpu or tag::gpu, used by the packers.
+        using location = tag::cpu;
+        //! \brief Defines the container template to use for the temporary buffers in heffte::fft3d.
+        template<typename T> using container = std::vector<T>;
+    };
+
+    /*!
+     * \brief Returns the human readable name of the backend.
+     */
+    template<typename backend_tag>
+    inline std::string name(){ return "unknown"; }
 }
 
 /*!
@@ -132,6 +153,11 @@ enum class direction {
     //! \brief Inverse DFT transform.
     backward
 };
+
+/*!
+ * \brief Indicates the structure that will be used by the fft backend.
+ */
+template<typename> struct one_dim_backend{};
 
 }
 

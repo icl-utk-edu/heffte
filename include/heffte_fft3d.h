@@ -234,19 +234,98 @@ template<> struct fft_output<double>{ using type = std::complex<double>; };
 template<typename backend_tag>
 class fft3d{
 public:
+    using backend_executor = typename one_dim_backend<backend_tag>::type;
+    template<typename T> using buffer_container = typename backend::buffer_traits<backend_tag>::template container<T>;
+
     fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm const);
     fft3d(box3d const box, MPI_Comm const comm) : fft3d(box, box, comm){}
 
-    template<typename scalar_type>
-    void forward(scalar_type const input[], typename fft_output<scalar_type>::type output[]) const;
+    int size_inbox() const{ return inbox.count(); }
+    int size_outbox() const{ return outbox.count(); }
+
+    template<typename input_type, typename output_type>
+    void forward(input_type const input[], output_type output[]) const{
+        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
+                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value)
+                   or (is_ccomplex<input_type>::value and is_ccomplex<output_type>::value)
+                   or (is_zcomplex<input_type>::value and is_zcomplex<output_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        standard_transform(convert_to_standart(input), convert_to_standart(output), forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward);
+    }
+
+    template<typename input_type, typename output_type>
+    void backward(input_type const input[], output_type output[]) const{
+        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
+                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value)
+                   or (is_ccomplex<output_type>::value and is_ccomplex<input_type>::value)
+                   or (is_zcomplex<output_type>::value and is_zcomplex<input_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        standard_transform(convert_to_standart(input), convert_to_standart(output), backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward);
+    }
+
+    template<typename input_type>
+    std::vector<typename fft_output<input_type>::type> forward(std::vector<input_type> const &input){
+        static_assert(std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::cpu>::value,
+                      "The std::vector variants of fotward() and backward() fft can be called only with a cpu backend.");
+        if (input.size() < size_inbox())
+            throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
+        std::vector<typename fft_output<input_type>::type> output(size_outbox());
+        forward(input.data(), output.data());
+        return output;
+    }
 
     template<typename scalar_type>
-    void inverse(typename fft_output<scalar_type>::type const output[], scalar_type input[]) const;
+    std::vector<scalar_type> backward(std::vector<scalar_type> const &input){
+        static_assert(std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::cpu>::value,
+                      "The std::vector variants of fotward() and backward() fft can be called only with a cpu backend.");
+        static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
+                      "Either calling backward() with non-complex input or using an unknown complex type.");
+        if (input.size() < size_outbox())
+            throw std::invalid_argument("The input vector is smaller than size_outbox(), i.e., not enough entries provided to fill the outbox.");
+        std::vector<scalar_type> result(size_inbox());
+        backward(input.data(), result.data());
+        return result;
+    }
+
+    template<typename scalar_type>
+    std::vector<typename define_standard_type<scalar_type>::type::value_type> backward_real(std::vector<scalar_type> const &input){
+        static_assert(std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::cpu>::value,
+                      "The std::vector variants of fotward() and backward() fft can be called only with a cpu backend.");
+        static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
+                      "Either calling backward() with non-complex input or using an unknown complex type.");
+        std::vector<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());
+        backward(input.data(), result.data());
+        return result;
+    }
 
 private:
+    template<typename scalar_type>
+    void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
+                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<backend_executor*, 3> const executor, direction dir) const; // complex to complex
+    template<typename scalar_type>
+    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
+                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<backend_executor*, 3> const executor, direction dir) const; // real to complex
+    template<typename scalar_type>
+    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
+                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<backend_executor*, 3> const executor, direction dir) const; // complex to real
+
+    template<typename scalar_type>
+    void reshape_stage(std::unique_ptr<reshape3d_base> const &reshape, scalar_type *&src, scalar_type *&dest) const{
+        if (not reshape) return;
+        reshape->apply(src, dest);
+        std::swap(src, dest);
+    }
+
     box3d inbox, outbox;
-    std::unique_ptr<reshape3d_base> forward0, forward1, forward2, forward3;
-    std::unique_ptr<reshape3d_base> inverse0, inverse1, inverse2, inverse3;
+    std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
+    std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
+
+    std::unique_ptr<backend_executor> fft0, fft1, fft2;
 };
 
 }

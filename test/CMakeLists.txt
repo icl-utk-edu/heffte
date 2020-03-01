@@ -18,6 +18,12 @@ target_link_libraries(test_unit_nompi  Heffte)
 
 add_test(unit_tests_nompi  test_unit_nompi)
 
+add_executable(test_fft3d  test_fft3d.h test_fft3d.cpp)
+target_link_libraries(test_fft3d  Heffte)
+
+heffte_add_mpi_test(NAME heffte_fft3d_np2  COMMAND test_fft3d RANKS 2)
+
+
 #
 # CPU executable double precision
 #

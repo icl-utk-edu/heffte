@@ -979,11 +979,13 @@ void compute_overlap_map(int me, int nprocs, box3d const source, std::vector<box
 
 template<typename backend_tag, template<typename device> class packer>
 reshape3d_alltoallv<backend_tag, packer>::reshape3d_alltoallv(
+                        int input_size, int output_size,
                         MPI_Comm master_comm, std::vector<int> const &pgroup,
                         std::vector<int> &&csend_offset, std::vector<int> &&csend_size, std::vector<int> const &send_proc,
                         std::vector<int> &&crecv_offset, std::vector<int> &&crecv_size, std::vector<int> const &recv_proc,
                         std::vector<pack_plan_3d> &&cpackplan, std::vector<pack_plan_3d> &&cunpackplan
                                                                 ) :
+    reshape3d_base(input_size, output_size),
     comm(mpi::new_comm_form_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
@@ -1001,7 +1003,7 @@ void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const sour
     std::vector<scalar_type> send_buffer(send_total);
     std::vector<scalar_type> recv_buffer(recv_total);
 
-    packer<typename packer_backend<backend_tag>::mode> packit;
+    packer<typename backend::buffer_traits<backend_tag>::location> packit;
 
     int offset = 0;
     for(auto isend : send.map){
@@ -1056,6 +1058,7 @@ make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
         compute_overlap_map(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
 
     return std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>(new reshape3d_alltoallv<backend_tag, packer>(
+        inbox.count(), outbox.count(),
         comm, a2a_group(send_proc, recv_proc, input_boxes, output_boxes),
         std::move(send_offset), std::move(send_size), send_proc,
         std::move(recv_offset), std::move(recv_size), recv_proc,

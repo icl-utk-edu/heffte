@@ -22,15 +22,28 @@ namespace backend{
 
     //! \brief Indicate that the FFTW backend has been enabled.
     template<> struct is_enabled<fftw> : std::true_type{};
+
+// Specialization is not necessary since the default behavior assumes CPU parameters.
+//     template<>
+//     struct buffer_traits<fftw>{
+//         using location = tag::cpu;
+//         template<typename T> using container = std::vector<T>;
+//     };
+
+    /*!
+     * \brief Returns the human readable name of the FFTW backend.
+     */
+    template<> inline std::string name<fftw>(){ return "fftw"; }
 }
 
 /*!
- * \brief Define the location of the pack/unpack data for the fftw backend (cpu).
+ * \brief Recognize the FFTW single precision complex type.
  */
-template<> struct packer_backend<backend::fftw>{
-    //! \brief Affirm that the fftw backend is using data on the CPU.
-    using mode = tag::cpu;
-};
+template<> struct is_ccomplex<fftwf_complex> : std::true_type{};
+/*!
+ * \brief Recognize the FFTW double precision complex type.
+ */
+template<> struct is_zcomplex<fftw_complex> : std::true_type{};
 
 /*!
  * \brief Base plan for fftw, using only the specialization for float and double complex.
@@ -157,6 +170,8 @@ public:
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
 
+    int box_size() const{ return total_size; }
+
 private:
     template<typename scalar_type, direction dir>
     void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
@@ -168,7 +183,14 @@ private:
     mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::backward>> cbackward;
     mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::forward>> zforward;
     mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::backward>> zbackward;
+};
 
+template<> struct one_dim_backend<backend::fftw>{
+    using type = fftw_executor;
+
+    static std::unique_ptr<fftw_executor> make(box3d const box, int dimension){
+        return std::unique_ptr<fftw_executor>(new fftw_executor(box, dimension));
+    }
 };
 
 }

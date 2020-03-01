@@ -263,6 +263,43 @@ template<> inline MPI_Datatype type_from<std::complex<double>>(){ return MPI_C_D
 
 }
 
+// Type conversion templates
+
+template<typename scalar_type> struct is_ccomplex : std::false_type{};
+template<typename scalar_type> struct is_zcomplex : std::false_type{};
+
+template<> struct is_ccomplex<std::complex<float>> : std::true_type{};
+template<> struct is_zcomplex<std::complex<double>> : std::true_type{};
+
+/*!
+ * \brief Struct to specialize that returns the C++ equivalent of each type.
+ */
+template<typename, typename = void> struct define_standard_type{};
+
+template<> struct define_standard_type<float, void>{
+    using type = float;
+};
+template<> struct define_standard_type<double, void>{
+    using type = double;
+};
+
+template<typename scalar_type> struct define_standard_type<scalar_type, typename std::enable_if<is_ccomplex<scalar_type>::value>::type>{
+    using type =  std::complex<float>;
+};
+
+template<typename scalar_type> struct define_standard_type<scalar_type, typename std::enable_if<is_zcomplex<scalar_type>::value>::type>{
+    using type =  std::complex<double>;
+};
+
+template<typename scalar_type>
+typename define_standard_type<scalar_type>::type* convert_to_standart(scalar_type input[]){
+    return reinterpret_cast<typename define_standard_type<scalar_type>::type*>(input);
+}
+template<typename scalar_type>
+typename define_standard_type<scalar_type>::type const* convert_to_standart(scalar_type const input[]){
+    return reinterpret_cast<typename define_standard_type<scalar_type>::type const*>(input);
+}
+
 }
 
 

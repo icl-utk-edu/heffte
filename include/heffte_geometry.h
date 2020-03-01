@@ -31,6 +31,10 @@ struct box3d{
         return box3d({std::max(low[0], other.low[0]), std::max(low[1], other.low[1]), std::max(low[2], other.low[2])},
                      {std::min(high[0], other.high[0]), std::min(high[1], other.high[1]), std::min(high[2], other.high[2])});
     }
+    //! \brief Compares two boxes, returns \b true if all sizes and boundaries match.
+    bool operator == (box3d const &other) const{
+        return not (*this != other);
+    }
     //! \brief Compares two boxes, returns \b true if either of the box boundaries do not match.
     bool operator != (box3d const &other) const{
         for(int i=0; i<3; i++)
@@ -65,7 +69,7 @@ inline box3d find_world(ioboxes const &world){
         for(int i=0; i<3; i++)
             low[i] = std::min(low[i], b.low[i]);
         for(int i=0; i<3; i++)
-            high[i] = std::max(low[i], b.low[i]);
+            high[i] = std::max(high[i], b.high[i]);
     }
     return {low, high};
 }
@@ -92,7 +96,7 @@ inline bool world_complete(ioboxes const &boxes, box3d const world){
 
     for(size_t i=0; i<boxes.in.size(); i++)
         for(size_t j=0; j<boxes.in.size(); j++)
-            if (!boxes.in[i].collide(boxes.in[j]).empty())
+            if (i != j and not boxes.in[i].collide(boxes.in[j]).empty())
                 throw std::invalid_argument("Input boxes cannot overlap!");
 
     return true;
@@ -116,7 +120,7 @@ inline bool world_complete(ioboxes const &boxes, box3d const world){
  */
 inline std::vector<std::array<int, 2>> get_factors(int const n){
     std::vector<std::array<int, 2>> result;
-    for(int i=1; i< n/2; i++){
+    for(int i=1; i<=n/2; i++){
         if (n % i == 0)
             result.push_back({i, n / i});
     }

@@ -119,6 +119,8 @@ namespace heffte {
  */
 class reshape3d_base{
 public:
+    //! \brief Constructor that sets the input and output sizes.
+    reshape3d_base(int cinput_size, int coutput_size) : input_size(cinput_size), output_size(coutput_size){};
     //! \brief Default virtual destructor.
     virtual ~reshape3d_base() = default;
     //! \brief Apply the reshape, single precision.
@@ -129,6 +131,14 @@ public:
     virtual void apply(std::complex<float> const source[], std::complex<float> destination[]) const = 0;
     //! \brief Apply the reshape, double precision complex.
     virtual void apply(std::complex<double> const source[], std::complex<double> destination[]) const = 0;
+
+    //! \brief Returns the input size.
+    int size_intput() const{ return input_size; }
+    //! \brief Returns the output size.
+    int size_output() const{ return output_size; }
+
+protected:
+    int const input_size, output_size;
 };
 
 /*!
@@ -167,11 +177,14 @@ public:
     template<typename scalar_type>
     void apply_base(scalar_type const source[], scalar_type destination[]) const;
 
+
+
 private:
     /*!
      * \brief Private constructor that accepts a set of arrays that have been pre-computed by the factory.
      */
-    reshape3d_alltoallv(MPI_Comm master_comm, std::vector<int> const &pgroup,
+    reshape3d_alltoallv(int input_size, int output_size,
+                        MPI_Comm master_comm, std::vector<int> const &pgroup,
                         std::vector<int> &&send_offset, std::vector<int> &&send_size, std::vector<int> const &send_proc,
                         std::vector<int> &&recv_offset, std::vector<int> &&recv_size, std::vector<int> const &recv_proc,
                         std::vector<pack_plan_3d> &&packplan, std::vector<pack_plan_3d> &&unpackplan);

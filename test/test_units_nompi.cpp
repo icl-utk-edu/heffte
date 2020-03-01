@@ -49,7 +49,7 @@ void test_split_pencils(){
     using namespace heffte;
     current_test<int, using_nompi> name("split pencils");
 
-    box3d world = {{0, 0, 0}, {1, 3, 5}};
+    box3d const world = {{0, 0, 0}, {1, 3, 5}};
     std::vector<box3d> reference = {{{0, 0, 0}, {0, 1, 5}}, {{0, 2, 0}, {0, 3, 5}},
                                     {{1, 0, 0}, {1, 1, 5}}, {{1, 2, 0}, {1, 3, 5}}};
     // note that the order of the boxes moves fastest in the mid-dimension
@@ -61,6 +61,9 @@ void test_split_pencils(){
                                      {{0, 0, 3}, {1, 1, 5}}, {{0, 2, 3}, {1, 3, 5}}};
     std::vector<box3d> result2 = make_pencils(world, {2, 2}, 0, reference);
     sassert(match(result2, reference2));
+
+    box3d const reconstructed_world = find_world({result, result});
+    sassert(reconstructed_world == world);
 }
 
 template<typename scalar_type>

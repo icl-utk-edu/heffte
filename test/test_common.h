@@ -76,7 +76,7 @@ template<> std::string get_variant<double>(){ return "double"; }
 template<> std::string get_variant<std::complex<float>>(){ return "fcomplex"; }
 template<> std::string get_variant<std::complex<double>>(){ return "dcomplex"; }
 
-template<typename scalar_variant = int, typename mpi_tag = using_mpi>
+template<typename scalar_variant = int, typename mpi_tag = using_mpi, typename backend_tag = void>
 struct current_test{
     current_test(std::string const &name, MPI_Comm const comm) : test_comm(comm){
         static_assert(std::is_same<mpi_tag, using_mpi>::value, "current_test cannot take a comm when using nompi mode");
@@ -91,9 +91,13 @@ struct current_test{
     };
     ~current_test(){
         if (std::is_same<mpi_tag, using_nompi>::value or heffte::mpi::comm_rank(MPI_COMM_WORLD) == 0){
-            cout << setw(pad_type)  << get_variant<scalar_variant>()
-                 << setw(pad_large) << heffte_test_name
-                 << setw(pad_pass)  << ((heffte_test_pass) ? "pass" : "fail") << endl;
+            cout << setw(pad_type)  << get_variant<scalar_variant>();
+            if (std::is_same<backend_tag, void>::value){
+                cout << setw(pad_large) << heffte_test_name;
+            }else{
+                 cout << setw(pad_large) << heffte_test_name + "<" + heffte::backend::name<backend_tag>() + ">";
+            }
+            cout << setw(pad_pass)  << ((heffte_test_pass) ? "pass" : "fail") << endl;
         }
         if (std::is_same<mpi_tag, using_mpi>::value) MPI_Barrier(test_comm);
     };

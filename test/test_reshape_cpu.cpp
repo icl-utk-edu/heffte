@@ -64,8 +64,6 @@ std::vector<scalar_type> get_subdata(box3d const world, box3d const subbox){
 }
 
 // splits the world box into a set of boxes with gird given by proc_grid
-
-
 template<int hfast, int hmid, int hslow, int pfast, int pmid, int pslow, typename scalar_type>
 void test(MPI_Comm const comm){
     /*
