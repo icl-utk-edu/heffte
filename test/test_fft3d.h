@@ -110,5 +110,48 @@ void test_fft3d_rank2(MPI_Comm comm){
     }
 }
 
+template<typename backend_tag, typename scalar_type>
+void test_fft3d_rank6(MPI_Comm comm){ // rank 6 is using the vector API, test both the complex and real versions
+    assert(mpi::comm_size(comm) == 6);
+    current_test<scalar_type, using_mpi, backend_tag> name("-np 6 test heffte::fft3d", comm);
+    using output_type = typename fft_output<scalar_type>::type;
+    int const me = mpi::comm_rank(comm);
+    box3d const world = {{0, 0, 0}, {11, 11, 22}};
+    auto world_input = make_data<scalar_type>(world);
+    std::vector<output_type> world_complex(world_input.size());
+    for(size_t i=0; i<world_complex.size(); i++) world_complex[i] = world_input[i];
+    std::vector<decltype(std::real(world_complex[0]))> world_real(world_input.size());
+    for(size_t i=0; i<world_real.size(); i++) world_real[i] = std::real(world_input[i]);
+    auto world_fft = compute_fft(world, world_input);
+
+    for(int i=0; i<1; i++){
+        std::array<int, 3> split = {1, 1, 1};
+        split[i] = 2;
+        split[(i+1) % 3] = 3;
+        std::vector<box3d> boxes = heffte::split_world(world, split);
+        assert(boxes.size() == 6);
+        box3d const inbox  = boxes[(me+2) % 6]; // get a semi-random inbox and outbox
+        box3d const outbox = boxes[(me+3) % 6];
+
+        auto local_input = get_subbox(world, inbox, world_input);
+        auto local_complex_input = get_subbox(world, inbox, world_complex);
+        auto local_real_input = get_subbox(world, inbox, world_real);
+        auto reference_fft = get_subbox(world, outbox, world_fft);
+
+        heffte::fft3d<backend_tag> fft(inbox, outbox, comm);
+
+        auto result = fft.forward(local_input);
+        tassert(approx(result, reference_fft));
+
+        auto backward_complex_result = fft.backward(result);
+        for(auto &b : backward_complex_result) b /= static_cast<output_type>(world.count());
+        tassert(approx(backward_complex_result, local_complex_input));
+
+        auto backward_result = fft.backward_real(result);
+        for(auto &b : backward_result) b /= static_cast<decltype(std::real(world_complex[0]))>(world.count());
+        tassert(approx(backward_result, local_real_input));
+    }
+}
+
 
 #endif

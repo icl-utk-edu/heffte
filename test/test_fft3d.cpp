@@ -21,6 +21,14 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_rank2<backend::fftw, std::complex<double>>(comm);
             #endif
             break;
+        case 6:
+            #ifdef Heffte_ENABLE_FFTW
+            test_fft3d_rank6<backend::fftw, float>(comm);
+            test_fft3d_rank6<backend::fftw, double>(comm);
+            test_fft3d_rank6<backend::fftw, std::complex<float>>(comm);
+            test_fft3d_rank6<backend::fftw, std::complex<double>>(comm);
+            #endif
+            break;
         default: break;
     };
 }
