@@ -83,7 +83,6 @@ install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
   )
 target_include_directories(heffte PUBLIC $<INSTALL_INTERFACE:include>)
 
-message("Test CI - Alan")
 
 # ##########
 # GPU BUILD
