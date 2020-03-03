@@ -73,8 +73,8 @@ struct all_tests{
 template<typename scalar_variant> std::string get_variant(){ return ""; }
 template<> std::string get_variant<float>(){ return "float"; }
 template<> std::string get_variant<double>(){ return "double"; }
-template<> std::string get_variant<std::complex<float>>(){ return "fcomplex"; }
-template<> std::string get_variant<std::complex<double>>(){ return "dcomplex"; }
+template<> std::string get_variant<std::complex<float>>(){ return "ccomplex"; }
+template<> std::string get_variant<std::complex<double>>(){ return "zcomplex"; }
 
 template<typename scalar_variant = int, typename mpi_tag = using_mpi, typename backend_tag = void>
 struct current_test{

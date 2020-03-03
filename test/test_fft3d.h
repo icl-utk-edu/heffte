@@ -78,21 +78,28 @@ void test_fft3d_const_dest2(MPI_Comm comm){
     heffte::fft3d<backend_tag> fft(boxes[me], boxes[me], comm);
 }
 
-template<typename backend_tag, typename scalar_type>
-void test_fft3d_rank2(MPI_Comm comm){
-    assert(mpi::comm_size(comm) == 2);
-    current_test<scalar_type, using_mpi, backend_tag> name("-np 2 test heffte::fft3d", comm);
+template<typename backend_tag, typename scalar_type, int h0, int h1, int h2>
+void test_fft3d_arrays(MPI_Comm comm){
+    // works with ranks 2 and 12 only
+    int const num_ranks = mpi::comm_size(comm);
+    assert(num_ranks == 2 or num_ranks == 12);
+    current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d", comm);
     using output_type = typename fft_output<scalar_type>::type;
     int const me = mpi::comm_rank(comm);
-    box3d const world = {{0, 0, 0}, {9, 9, 9}};
+    box3d const world = {{0, 0, 0}, {h0, h1, h2}};
     auto world_input = make_data<scalar_type>(world);
     auto world_fft = compute_fft(world, world_input);
 
     for(int i=0; i<3; i++){
         std::array<int, 3> split = {1, 1, 1};
-        split[i] = 2;
+        if (num_ranks == 2){
+            split[i] = 2;
+        }else if (num_ranks == 12){
+            split = {2, 2, 2};
+            split[i] = 3;
+        }
         std::vector<box3d> boxes = heffte::split_world(world, split);
-        assert(boxes.size() == 2);
+        assert(boxes.size() == num_ranks);
         auto local_input = get_subbox(world, boxes[me], world_input);
         auto reference_fft = get_subbox(world, boxes[me], world_fft);
         std::vector<output_type> result(local_input.size());
@@ -110,13 +117,15 @@ void test_fft3d_rank2(MPI_Comm comm){
     }
 }
 
-template<typename backend_tag, typename scalar_type>
-void test_fft3d_rank6(MPI_Comm comm){ // rank 6 is using the vector API, test both the complex and real versions
-    assert(mpi::comm_size(comm) == 6);
-    current_test<scalar_type, using_mpi, backend_tag> name("-np 6 test heffte::fft3d", comm);
+template<typename backend_tag, typename scalar_type, int h0, int h1, int h2>
+void test_fft3d_vectors(MPI_Comm comm){
+    // works with ranks 6 and 8 only
+    int const num_ranks = mpi::comm_size(comm);
+    assert(num_ranks == 6 or num_ranks == 8);
+    current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d", comm);
     using output_type = typename fft_output<scalar_type>::type;
     int const me = mpi::comm_rank(comm);
-    box3d const world = {{0, 0, 0}, {11, 11, 22}};
+    box3d const world = {{0, 0, 0}, {h0, h1, h2}};
     auto world_input = make_data<scalar_type>(world);
     std::vector<output_type> world_complex(world_input.size());
     for(size_t i=0; i<world_complex.size(); i++) world_complex[i] = world_input[i];
@@ -126,17 +135,33 @@ void test_fft3d_rank6(MPI_Comm comm){ // rank 6 is using the vector API, test bo
 
     for(int i=0; i<1; i++){
         std::array<int, 3> split = {1, 1, 1};
-        split[i] = 2;
-        split[(i+1) % 3] = 3;
+        if (num_ranks == 6){
+            split[i] = 2;
+            split[(i+1) % 3] = 3;
+        }else if (num_ranks == 8){
+            split = {2, 2, 2};
+        }
         std::vector<box3d> boxes = heffte::split_world(world, split);
-        assert(boxes.size() == 6);
-        box3d const inbox  = boxes[(me+2) % 6]; // get a semi-random inbox and outbox
-        box3d const outbox = boxes[(me+3) % 6];
+        assert(boxes.size() == num_ranks);
 
-        auto local_input = get_subbox(world, inbox, world_input);
+        // get a semi-random inbox and outbox
+        // makes sure that the boxes do not have to match
+        int iindex, oindex; // indexes of the input and outboxes
+        if (num_ranks == 6){
+            iindex = (me+2) % num_ranks;
+            oindex = (me+3) % num_ranks;
+        }else if (num_ranks == 8){
+            iindex = (me+3) % num_ranks;
+            oindex = (me+5) % num_ranks;
+        }
+
+        box3d const inbox  = boxes[iindex];
+        box3d const outbox = boxes[oindex];
+
+        auto local_input         = get_subbox(world, inbox, world_input);
         auto local_complex_input = get_subbox(world, inbox, world_complex);
-        auto local_real_input = get_subbox(world, inbox, world_real);
-        auto reference_fft = get_subbox(world, outbox, world_fft);
+        auto local_real_input    = get_subbox(world, inbox, world_real);
+        auto reference_fft       = get_subbox(world, outbox, world_fft);
 
         heffte::fft3d<backend_tag> fft(inbox, outbox, comm);
 
