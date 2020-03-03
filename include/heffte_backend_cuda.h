@@ -146,6 +146,19 @@ namespace cuda {
     vector<scalar_type> load(std::vector<scalar_type> const &cpu_data){
         return load(cpu_data.data(), cpu_data.size());
     }
+    /*!
+     * \brief Similar to cuda::load() but loads the data from a std::vector
+     */
+    template<typename scalar_type>
+    void load(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data){
+        if (gpu_data.size() != cpu_data.size()) gpu_data = vector<scalar_type>(cpu_data.size());
+        check_error(cudaMemcpy(gpu_data.data(), cpu_data.data(), gpu_data.size() * sizeof(scalar_type), cudaMemcpyHostToDevice), "cuda::load()");
+    }
+
+    template<typename scalar_type>
+    void load(std::vector<scalar_type> const &a, std::vector<scalar_type> &b){ b = a; }
+    template<typename scalar_type>
+    std::vector<scalar_type> unload(std::vector<scalar_type> const &a){ return a; }
 
     /*!
      * \brief Copy the data from a cuda::vector to a cpu buffer
@@ -360,13 +373,40 @@ private:
     mutable std::unique_ptr<plan_cufft<std::complex<double>>> zcomplex_plan;
 };
 
-// template<> struct one_dim_backend<backend::cufft>{
-//     using type = fftw_executor;
-//
-//     static std::unique_ptr<fftw_executor> make(box3d const box, int dimension){
-//         return std::unique_ptr<fftw_executor>(new fftw_executor(box, dimension));
-//     }
-// };
+template<> struct one_dim_backend<backend::cufft>{
+    using type = cufft_executor;
+
+    static std::unique_ptr<cufft_executor> make(box3d const box, int dimension){
+        return std::unique_ptr<cufft_executor>(new cufft_executor(box, dimension));
+    }
+};
+
+namespace cuda { // packer logic
+
+void direct_pack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, float const source[], float destination[]);
+void direct_unpack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, float const source[], float destination[]);
+void direct_pack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, double const source[], double destination[]);
+void direct_unpack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, double const source[], double destination[]);
+void direct_pack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, std::complex<float> const source[], std::complex<float> destination[]);
+void direct_unpack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, std::complex<float> const source[], std::complex<float> destination[]);
+void direct_pack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, std::complex<double> const source[], std::complex<double> destination[]);
+void direct_unpack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, std::complex<double> const source[], std::complex<double> destination[]);
+
+}
+
+/*!
+ * \brief Simple packer that copies sub-boxes without transposing the order of the indexes.
+ */
+template<> struct direct_packer<tag::gpu>{
+    template<typename scalar_type>
+    void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        cuda::direct_pack(plan.nfast, plan.nmid, plan.nslow, plan.line_stride, plan.plane_stride, data, buffer);
+    }
+    template<typename scalar_type>
+    void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
+        cuda::direct_unpack(plan.nfast, plan.nmid, plan.nslow, plan.line_stride, plan.plane_stride, buffer, data);
+    }
+};
 
 }
 

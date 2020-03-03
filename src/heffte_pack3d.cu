@@ -1110,6 +1110,53 @@ __global__ void heffte_cufft_convert_to_real(int num_entries, scalar_type const 
     }
 }
 
+/*
+ * Launch this with one block per line.
+ */
+template<typename scalar_type, int num_threads, int tuple_size>
+__global__ void heffte_direct_packer_pack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide,
+                                          scalar_type const source[], scalar_type destination[]){
+    int block_index = blockIdx.x;
+    while(block_index < nmid * nslow){
+
+        int mid = block_index % nmid;
+        int slow = block_index / nmid;
+
+        scalar_type const *block_source = &source[tuple_size * (mid * lane_stride + slow * plane_stide)];
+        scalar_type *block_destination = &destination[block_index * nfast * tuple_size];
+
+        int i = threadIdx.x;
+        while(i < nfast * tuple_size){
+            block_destination[i] = block_source[i];
+            i += num_threads;
+        }
+
+        block_index += gridDim.x;
+    }
+}
+template<typename scalar_type, int num_threads, int tuple_size>
+__global__ void heffte_direct_packer_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide,
+                                            scalar_type const source[], scalar_type destination[]){
+    int block_index = blockIdx.x;
+    while(block_index < nmid * nslow){
+
+        int mid = block_index % nmid;
+        int slow = block_index / nmid;
+
+        scalar_type const *block_source = &source[block_index * nfast * tuple_size];
+        scalar_type *block_destination = &destination[tuple_size * (mid * line_stride + slow * plane_stide)];
+
+        int i = threadIdx.x;
+        while(i < nfast * tuple_size){
+            block_destination[i] = block_source[i];
+            i += num_threads;
+        }
+
+        block_index += gridDim.x;
+    }
+}
+
+
 namespace heffte {
 namespace cuda {
 
@@ -1142,6 +1189,46 @@ void convert(int num_entries, std::complex<double> const source[], double destin
     thread_grid_1d grid(num_entries, max_threads);
     heffte_cufft_convert_to_real<double, max_threads><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<double const*>(source), destination);
 }
+
+
+void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, float const source[], float destination[]){
+    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
+    heffte_direct_packer_pack<float, max_threads, 1><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide, source, destination);
+}
+void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, float const source[], float destination[]){
+    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
+    heffte_direct_packer_unpack<float, max_threads, 1><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide, source, destination);
+}
+void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, double const source[], double destination[]){
+    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
+    heffte_direct_packer_pack<double, max_threads, 1><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide, source, destination);
+}
+void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, double const source[], double destination[]){
+    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
+    heffte_direct_packer_unpack<double, max_threads, 1><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide, source, destination);
+}
+
+void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, std::complex<float> const source[], std::complex<float> destination[]){
+    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
+    heffte_direct_packer_pack<float, max_threads, 2><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
+            reinterpret_cast<float const*>(source), reinterpret_cast<float*>(destination));
+}
+void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, std::complex<float> const source[], std::complex<float> destination[]){
+    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
+    heffte_direct_packer_unpack<float, max_threads, 2><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
+            reinterpret_cast<float const*>(source), reinterpret_cast<float*>(destination));
+}
+void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, std::complex<double> const source[], std::complex<double> destination[]){
+    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
+    heffte_direct_packer_pack<double, max_threads, 2><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
+            reinterpret_cast<double const*>(source), reinterpret_cast<double*>(destination));
+}
+void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, std::complex<double> const source[], std::complex<double> destination[]){
+    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
+    heffte_direct_packer_unpack<double, max_threads, 2><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
+            reinterpret_cast<double const*>(source), reinterpret_cast<double*>(destination));
+}
+
 
 }
 }
