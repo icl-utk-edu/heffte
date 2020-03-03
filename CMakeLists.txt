@@ -3,8 +3,9 @@ cmake_minimum_required(VERSION 3.10)
 set(Heffte_version_string 0.2.0)
 project("Heffte" VERSION ${Heffte_version_string} LANGUAGES CXX)
 
-option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"   ON) # must change to OFF later
-option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation" OFF)
+option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            ON) # must change to OFF later
+option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
+option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
 if (Heffte_ENABLE_DOXYGEN)
     add_subdirectory(doxygen)
@@ -26,8 +27,6 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/heffte_config.cmake.h"
 # allow cmake to use custom modules (e.g. FindFFTW)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-
-find_package(FFTW REQUIRED)
 find_package(MPI REQUIRED)
 # find_package(OpenMP REQUIRED)
 # Make the include path visible to all targets
@@ -53,24 +52,37 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
 #include_directories(SYSTEM ${MPI_INCLUDE_PATH})
 
 # libheffte source files list
-set(libheffte_SRCS
-  src/heffte_common.cpp
-  src/heffte.cpp
-  src/heffte_fft3d.cpp
-  src/heffte_pack3d.cpp
-  src/heffte_reshape3d.cpp
-  src/heffte_trace.cpp
-  src/heffte_wrap.cpp
-  )
+set(Heffte_common_sources
+    src/heffte_common.cpp
+    src/heffte.cpp
+    src/heffte_fft3d.cpp
+    src/heffte_pack3d.cpp
+    src/heffte_reshape3d.cpp
+    src/heffte_trace.cpp
+    src/heffte_wrap.cpp
+    )
 
 if(HEFFTE_TIME_DETAILED)
   add_definitions(-DHEFFTE_TIME_DETAILED)
 endif(HEFFTE_TIME_DETAILED)
 
-
 # build CPU libheffte
-add_library(Heffte ${libheffte_SRCS})
-target_link_libraries(Heffte HEFFTE::FFTW MPI::MPI_CXX)
+if (Heffte_ENABLE_CUDA)
+    find_package(CUDA REQUIRED)
+
+    cuda_add_library(Heffte ${Heffte_common_sources}
+                            src/heffte_pack3d.cu
+                            src/heffte_scale.cu)
+
+    cuda_add_cufft_to_target(Heffte)
+else()
+    add_library(Heffte ${Heffte_common_sources})
+endif()
+if (Heffte_ENABLE_FFTW)
+    find_package(FFTW REQUIRED)
+    target_link_libraries(Heffte HEFFTE::FFTW)
+endif()
+target_link_libraries(Heffte MPI::MPI_CXX)
 
 target_compile_features(Heffte PUBLIC cxx_std_11)
 set_target_properties(Heffte PROPERTIES OUTPUT_NAME "heffte"
