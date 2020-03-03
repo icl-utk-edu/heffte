@@ -263,38 +263,130 @@ template<> inline MPI_Datatype type_from<std::complex<double>>(){ return MPI_C_D
 
 }
 
-// Type conversion templates
-
+/*!
+ * \brief Struct to specialize to allow HeFFTe to recognize custom single precision complex types.
+ *
+ * Specializations of this struct will allow HeFFTe to recognize custom complex types
+ * that are ABI compatible with std::complex.
+ * In this context, ABI compatible means that it is safe to use reinterpret_cast
+ * between raw-arrays arrays of the two types.
+ *
+ * \tparam scalar_type indicates the type in question, if the type is ABI compatible
+ *          with single precision complex std::complex<float> then the specialization
+ *          must inherit from std::true_type, otherwise inherit from std::false_type.
+ *          Note that the true/false types define a static const bool member
+ *          called value that is correspondingly true/false.
+ *
+ * See std::is_zcomplex for specialization for double precision complex types,
+ * the ccomplex and zcomplex names are mimicking by the BLAS naming conventions, e.g., cgemm() and zgemm().
+ *
+ * Example:
+ * \code
+ *  struct custom_single_precision_complex{
+ *      float real, imag;
+ *  }
+ *  namespace heffte {
+ *      template<> struct is_ccomplex<custom_single_precision_complex> : std::true_type{};
+ *  }
+ * \endcode
+ */
 template<typename scalar_type> struct is_ccomplex : std::false_type{};
+/*!
+ * \brief Struct to specialize to allow HeFFTe to recognize custom double precision complex types.
+ *
+ * Specializations of this struct will allow HeFFTe to recognize custom complex types
+ * that are ABI compatible with std::complex<double>. See heffte::is_ccomplex for details.
+ *
+ * Example:
+ * \code
+ *  struct custom_double_precision_complex{
+ *      double real, imag;
+ *  }
+ *  namespace heffte {
+ *      template<> struct is_ccomplex<custom_double_precision_complex> : std::true_type{};
+ *  }
+ * \endcode
+ */
 template<typename scalar_type> struct is_zcomplex : std::false_type{};
 
+/*!
+ * \brief By default, HeFFTe recognizes std::complex<float>.
+ */
 template<> struct is_ccomplex<std::complex<float>> : std::true_type{};
+/*!
+ * \brief By default, HeFFTe recognizes std::complex<double>.
+ */
 template<> struct is_zcomplex<std::complex<double>> : std::true_type{};
 
 /*!
  * \brief Struct to specialize that returns the C++ equivalent of each type.
+ *
+ * Given a type that is either float, double, or recognized by the heffte::is_ccomplex
+ * and heffte::is_zcomplex templates, this struct will define a member type (called type)
+ * that will define the corresponding C++ equivalent.
+ *
+ * Example:
+ * \code
+ *  struct custom_double_precision_complex{
+ *      double real, imag;
+ *  }
+ *  namespace heffte {
+ *      template<> struct is_ccomplex<custom_double_precision_complex> : std::true_type{};
+ *  }
+ *  ...
+ *  static_assert(std::is_same<typename define_standard_type<custom_double_precision_complex>::type,
+ *                             std::complex<double>>::value,
+ *                "error: custom_double_precision_complex not equivalent to std::complex<double>");
+ *
+ *  template<typename input_type>
+ *  void foo(input_type x[]){
+ *      auto y = reinterpret_cast<typename define_standard_type<input_type>::type*>(x);
+ *      ...
+ *  }
+ *  ...
+ *  std::vector<custom_double_precision_complex> x(10);
+ *  foo(x.data()); // here input_type will be deduced to custom_double_precision_complex
+ *                 // and inside foo() y will be std::complex<double>*
+ * \endcode
  */
 template<typename, typename = void> struct define_standard_type{};
 
+/*!
+ * \brief Type float is equivalent to float.
+ */
 template<> struct define_standard_type<float, void>{
     using type = float;
 };
+/*!
+ * \brief Type double is equivalent to double.
+ */
 template<> struct define_standard_type<double, void>{
     using type = double;
 };
 
+/*!
+ * \brief Every type with specialization of heffte::is_ccomplex to std::true_type is equivalent to std::complex<float>.
+ */
 template<typename scalar_type> struct define_standard_type<scalar_type, typename std::enable_if<is_ccomplex<scalar_type>::value>::type>{
     using type =  std::complex<float>;
 };
-
+/*!
+ * \brief Every type with specialization of heffte::is_zcomplex to std::true_type is equivalent to std::complex<double>.
+ */
 template<typename scalar_type> struct define_standard_type<scalar_type, typename std::enable_if<is_zcomplex<scalar_type>::value>::type>{
     using type =  std::complex<double>;
 };
 
+/*!
+ * \brief Converts an array of some type to an array of the C++ equivalent type.
+ */
 template<typename scalar_type>
 typename define_standard_type<scalar_type>::type* convert_to_standart(scalar_type input[]){
     return reinterpret_cast<typename define_standard_type<scalar_type>::type*>(input);
 }
+/*!
+ * \brief Converts a const array of some type to a const array of the C++ equivalent type.
+ */
 template<typename scalar_type>
 typename define_standard_type<scalar_type>::type const* convert_to_standart(scalar_type const input[]){
     return reinterpret_cast<typename define_standard_type<scalar_type>::type const*>(input);

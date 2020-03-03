@@ -16,6 +16,18 @@ namespace heffte {
 
 /*!
  * \brief A generic container that describes a 3d box of indexes.
+ *
+ * The box is defined by three low and three high indexes and holds all indexes from low to high
+ * including the low and high. For example,
+ * \code
+ *  box3d box({0, 0, 0}, {0, 1, 2});
+ *  // box will hold the 6 indexes
+ *  // (0, 0, 0), (0, 0, 1), (0, 0, 2)
+ *  // (0, 1, 0), (0, 1, 1), (0, 1, 2)
+ * \endcode
+ *
+ * The box3d also defines a size field that holds the number of indexes in each direction,
+ * for the example above size will be {1, 2, 3}.
  */
 struct box3d{
     //! \brief Constructs a box from the low and high indexes, the span in each direction includes the low and high.
@@ -41,9 +53,17 @@ struct box3d{
             if (low[i] != other.low[i] or high[i] != other.high[i]) return true;
         return false;
     }
-    std::array<int, 3> const low, high, size;
+    //! \brief The three lowest indexes.
+    std::array<int, 3> const low;
+    //! \brief The three highest indexes.
+    std::array<int, 3> const high;
+    //! \brief The number of indexes in each direction.
+    std::array<int, 3> const size;
 };
 
+/*!
+ * \brief Debugging info, writes out the box to a stream.
+ */
 inline std::ostream & operator << (std::ostream &os, box3d const box){
     for(int i=0; i<3; i++)
         os << box.low[i] << "  " << box.high[i] << "  (" << box.size[i] << ")\n";
@@ -51,8 +71,16 @@ inline std::ostream & operator << (std::ostream &os, box3d const box){
     return os;
 }
 
+/*!
+ * \brief Pair of lists of input-output boxes as used by the heffte::fft3d.
+ *
+ * The strict contains all inboxes and outboxes for the ranks associated with the geometry of a heffte::fft3d transformation.
+ */
 struct ioboxes{
-    std::vector<box3d> in, out;
+    //! \brief Inboxes for all ranks across the comm.
+    std::vector<box3d> in;
+    //! \brief Outboxes for all ranks across the comm.
+    std::vector<box3d> out;
 };
 
 /*!

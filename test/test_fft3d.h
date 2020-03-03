@@ -97,7 +97,7 @@ void test_fft3d_rank2(MPI_Comm comm){
         auto reference_fft = get_subbox(world, boxes[me], world_fft);
         std::vector<output_type> result(local_input.size());
 
-        heffte::fft3d<backend_tag> fft(boxes[me], comm);
+        heffte::fft3d<backend_tag> fft(boxes[me], boxes[me], comm);
 
         fft.forward(local_input.data(), result.data());
         tassert(approx(result, reference_fft));
