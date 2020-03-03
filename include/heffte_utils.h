@@ -20,6 +20,14 @@
 
 #include "heffte_config.h"
 
+#ifdef Heffte_ENABLE_CUDA
+// this is needed here for some of the backends, will remove eventually
+    #include <cuda_runtime_api.h>
+    #include <cuda.h>
+    #include <cufft.h>
+    #define heffte_check_cuda_error(){}
+#endif
+
 // Chosing library for 1D FFTs
 #if defined(FFT_MKL) || defined(FFT_MKL_OMP)
   #include "mkl_dfti.h"
@@ -121,6 +129,7 @@ static inline int fft_roundup( int x, int y )
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #else
+#ifndef Heffte_ENABLE_CUDA
 /// For integers x >= 0, y > 0, returns x rounded up to multiple of y.
 /// That is, ceil(x/y)*y.
 /// For x == 0, this is 0.
@@ -144,6 +153,7 @@ static inline int fft_roundup( int x, int y )
 #define cudaMemcpy(x,y,w,z){}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#endif
 #endif
 
 namespace heffte {

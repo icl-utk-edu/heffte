@@ -186,6 +186,56 @@ void test_fftw(){
 void test_fftw(){}
 #endif
 
+#ifdef Heffte_ENABLE_CUDA
+template<typename scalar_type>
+void test_cuda_vector_type(size_t num_entries){
+    current_test<scalar_type, using_nompi> name("cuda::vector");
+    std::vector<scalar_type> source(num_entries);
+    std::iota(source.begin(), source.end(), 0); // fill source with 0, 1, 2, 3, 4 ...
+    cuda::vector<scalar_type> v1 = cuda::load(source);
+    sassert(v1.size() == source.size());
+    cuda::vector<scalar_type> v2 = v1; // test copy constructor
+    sassert(v1.size() == v2.size());
+    std::vector<scalar_type> dest = cuda::unload(v2);
+    sassert(match(dest, source));
+
+    { // test move constructor
+        cuda::vector<scalar_type> t = std::move(v2);
+        dest = std::vector<scalar_type>(); // reset the destination
+        dest = cuda::unload(t);
+        sassert(match(dest, source));
+    }
+
+    sassert(v2.empty()); // test empty and reset to null after move
+    v2 = std::move(v1);  // test move assignment
+    sassert(v1.empty()); // test if moved out of v1
+
+    dest = std::vector<scalar_type>(); // reset the destination
+    dest = cuda::unload(v2);
+    sassert(match(dest, source));
+
+    v1 = cuda::load(source);
+    v2 = cuda::vector<scalar_type>(v1.data(), v1.data() + num_entries / 2);
+    sassert(v2.size() == num_entries / 2);
+    dest = cuda::unload(v2);
+    source.resize(num_entries / 2);
+    sassert(match(dest, source));
+
+    scalar_type *raw_array = v2.release();
+    sassert(v2.empty());
+    cuda::check_error(cudaFree(raw_array), "cudaFree(raw_array)");
+}
+
+void test_cuda_vector(){
+    test_cuda_vector_type<float>(11);
+    test_cuda_vector_type<double>(40);
+    test_cuda_vector_type<std::complex<float>>(73);
+    test_cuda_vector_type<std::complex<double>>(13);
+}
+#else
+void test_cuda_vector(){} // skip cuda
+#endif
+
 int main(int argc, char *argv[]){
 
     all_tests<using_nompi> name("Non-MPI Tests");
@@ -193,6 +243,8 @@ int main(int argc, char *argv[]){
     test_factorize();
     test_process_grid();
     test_split_pencils();
+
+    test_cuda_vector();
 
     test_fftw();
 
