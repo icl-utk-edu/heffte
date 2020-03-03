@@ -1092,4 +1092,58 @@ void unpack_3d_permute2_n_memcpy(float *buf, float *data,
 
 }
 
+template<typename scalar_type, int num_threads>
+__global__ void heffte_cufft_convert_to_complex(int num_entries, scalar_type const source[], scalar_type destination[]){
+    int i = blockIdx.x * num_threads + threadIdx.x;
+    while(i < num_entries){
+        destination[2*i] = source[i];
+        destination[2*i + 1] = 0.0;
+        i += num_threads * gridDim.x;
+    }
+}
+template<typename scalar_type, int num_threads>
+__global__ void heffte_cufft_convert_to_real(int num_entries, scalar_type const source[], scalar_type destination[]){
+    int i = blockIdx.x * num_threads + threadIdx.x;
+    while(i < num_entries){
+        destination[i] = source[2*i];
+        i += num_threads * gridDim.x;
+    }
+}
+
+namespace heffte {
+namespace cuda {
+
+struct thread_grid_1d{
+    thread_grid_1d(int total_threads, int num_per_block) :
+        threads(num_per_block),
+        blocks(clamp(total_threads / threads + ((total_threads % threads == 0) ? 0 : 1)))
+    {}
+    static int clamp(int candidate_blocks){ return (candidate_blocks >= 65536) ? 65536 : candidate_blocks; }
+    int const threads;
+    int const blocks;
+};
+
+constexpr int max_threads  = 1024;
+
+void convert(int num_entries, float const source[], std::complex<float> destination[]){
+    thread_grid_1d grid(num_entries, max_threads);
+    heffte_cufft_convert_to_complex<float, max_threads><<<grid.blocks, grid.threads>>>(num_entries, source, reinterpret_cast<float*>(destination));
+}
+void convert(int num_entries, double const source[], std::complex<double> destination[]){
+    thread_grid_1d grid(num_entries, max_threads);
+    heffte_cufft_convert_to_complex<double, max_threads><<<grid.blocks, grid.threads>>>(num_entries, source, reinterpret_cast<double*>(destination));
+}
+
+void convert(int num_entries, std::complex<float> const source[], float destination[]){
+    thread_grid_1d grid(num_entries, max_threads);
+    heffte_cufft_convert_to_real<float, max_threads><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<float const*>(source), destination);
+}
+void convert(int num_entries, std::complex<double> const source[], double destination[]){
+    thread_grid_1d grid(num_entries, max_threads);
+    heffte_cufft_convert_to_real<double, max_threads><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<double const*>(source), destination);
+}
+
+}
+}
+
 #endif

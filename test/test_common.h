@@ -126,4 +126,11 @@ inline bool approx(std::vector<T> const &a, std::vector<T> const &b){
     return true;
 }
 
+#ifdef Heffte_ENABLE_CUDA
+template<typename T>
+inline bool approx(heffte::cuda::vector<T> const &a, std::vector<T> const &b){
+    return approx(cuda::unload(a), b);
+}
+#endif
+
 #endif

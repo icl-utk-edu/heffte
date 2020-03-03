@@ -40,6 +40,13 @@ namespace cuda {
         if (status != cudaSuccess)
             throw std::runtime_error(function_name + " failed with message: " + cudaGetErrorString(status));
     }
+    /*!
+     * \brief Checks the status of a cufft command and in case of a failure, converts it to a C++ exception.
+     */
+    inline void check_error(cufftResult status, std::string const &function_name){
+        if (status != CUFFT_SUCCESS)
+            throw std::runtime_error(function_name + " failed with error code: " + std::to_string(status));
+    }
 
     /*!
      * \brief Container that wraps around a raw cuda array.
@@ -161,6 +168,23 @@ namespace cuda {
         unload(gpu_data, result.data());
         return result;
     }
+
+    /*!
+     * \brief Convert between source and destination located on the GPU device.
+     */
+    void convert(int num_entries, float const source[], std::complex<float> destination[]);
+    /*!
+     * \brief Convert between source and destination located on the GPU device.
+     */
+    void convert(int num_entries, double const source[], std::complex<double> destination[]);
+    /*!
+     * \brief Convert between source and destination located on the GPU device.
+     */
+    void convert(int num_entries, std::complex<float> const source[], float destination[]);
+    /*!
+     * \brief Convert between source and destination located on the GPU device.
+     */
+    void convert(int num_entries, std::complex<double> const source[], double destination[]);
 }
 
 namespace backend{
@@ -191,146 +215,151 @@ template<> struct is_ccomplex<cufftComplex> : std::true_type{};
  */
 template<> struct is_zcomplex<cufftDoubleComplex> : std::true_type{};
 
-// /*!
-//  * \brief Base plan for fftw, using only the specialization for float and double complex.
-//  *
-//  * FFTW3 library uses plans for forward and backward fft transforms.
-//  * The specializations to this struct will wrap around such plans and provide RAII style
-//  * of memory management and simple constructors that take inputs suitable to HeFFTe.
-//  */
-// template<typename, direction> struct plan_fftw{};
-//
-// /*!
-//  * \brief Plan for the single precision complex transform.
-//  *
-//  * \tparam dir indicates a forward or backward transform
-//  */
-// template<direction dir>
-// struct plan_fftw<std::complex<float>, dir>{
-//     /*!
-//      * \brief Constructor, takes inputs identical to fftwf_plan_many_dft().
-//      *
-//      * \param size is the number of entries in a 1-D transform
-//      * \param howmany is the number of transforms in the batch
-//      * \param stride is the distance between entries of the same transform
-//      * \param dist is the distance between the first entries of consecutive sequences
-//      */
-//     plan_fftw(int size, int howmany, int stride, int dist) :
-//         plan(fftwf_plan_many_dft(1, &size, howmany, nullptr, nullptr, stride, dist,
-//                                                     nullptr, nullptr, stride, dist,
-//                                                     (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
-//                                 ))
-//         {}
-//     //! \brief Destructor, deletes the plan.
-//     ~plan_fftw(){ fftwf_destroy_plan(plan); }
-//     //! \brief Custom conversion to the FFTW3 plan.
-//     operator fftwf_plan() const{ return plan; }
-//     //! \brief The FFTW3 opaque structure (pointer to struct).
-//     fftwf_plan plan;
-// };
-// //! \brief Specialization for double complex.
-// template<direction dir>
-// struct plan_fftw<std::complex<double>, dir>{
-//     //! \brief Identical to the float-complex specialization.
-//     plan_fftw(int size, int howmany, int stride, int dist) :
-//         plan(fftw_plan_many_dft(1, &size, howmany, nullptr, nullptr, stride, dist,
-//                                                    nullptr, nullptr, stride, dist,
-//                                                    (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
-//                                ))
-//         {}
-//     //! \brief Identical to the float-complex specialization.
-//     ~plan_fftw(){ fftw_destroy_plan(plan); }
-//     //! \brief Identical to the float-complex specialization.
-//     operator fftw_plan() const{ return plan; }
-//     //! \brief Identical to the float-complex specialization.
-//     fftw_plan plan;
-// };
-//
-//
-// class fftw_executor{
-// public:
-//     fftw_executor(box3d const box, int dimension) :
-//         size(box.size[dimension]),
-//         howmany(get_many(box, dimension)),
-//         stride(get_stride(box, dimension)),
-//         dist((dimension == 0) ? size : 1),
-//         blocks((dimension == 1) ? box.size[2] : 1),
-//         block_stride(box.size[0] * box.size[1]),
-//         total_size(box.count())
-//     {}
-//
-//     static int get_many(box3d const box, int dimension){
-//         if (dimension == 0) return box.size[1] * box.size[2];
-//         if (dimension == 1) return box.size[0];
-//         return box.size[0] * box.size[1];
-//     }
-//     static int get_stride(box3d const box, int dimension){
-//         if (dimension == 0) return 1;
-//         if (dimension == 1) return box.size[0];
-//         return box.size[0] * box.size[1];
-//     }
-//
-//     void forward(std::complex<float> data[]) const{
-//         make_plan(cforward);
-//         for(int i=0; i<blocks; i++){
-//             fftwf_complex* block_data = reinterpret_cast<fftwf_complex*>(data + i * block_stride);
-//             fftwf_execute_dft(*cforward, block_data, block_data);
-//         }
-//     }
-//     void backward(std::complex<float> data[]) const{
-//         make_plan(cbackward);
-//         for(int i=0; i<blocks; i++){
-//             fftwf_complex* block_data = reinterpret_cast<fftwf_complex*>(data + i * block_stride);
-//             fftwf_execute_dft(*cbackward, block_data, block_data);
-//         }
-//     }
-//     void forward(std::complex<double> data[]) const{
-//         make_plan(zforward);
-//         for(int i=0; i<blocks; i++){
-//             fftw_complex* block_data = reinterpret_cast<fftw_complex*>(data + i * block_stride);
-//             fftw_execute_dft(*zforward, block_data, block_data);
-//         }
-//     }
-//     void backward(std::complex<double> data[]) const{
-//         make_plan(zbackward);
-//         for(int i=0; i<blocks; i++){
-//             fftw_complex* block_data = reinterpret_cast<fftw_complex*>(data + i * block_stride);
-//             fftw_execute_dft(*zbackward, block_data, block_data);
-//         }
-//     }
-//
-//     void forward(float const indata[], std::complex<float> outdata[]) const{
-//         for(int i=0; i<total_size; i++) outdata[i] = std::complex<float>(indata[i]);
-//         forward(outdata);
-//     }
-//     void backward(std::complex<float> indata[], float outdata[]) const{
-//         backward(indata);
-//         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
-//     }
-//     void forward(double const indata[], std::complex<double> outdata[]) const{
-//         for(int i=0; i<total_size; i++) outdata[i] = std::complex<double>(indata[i]);
-//         forward(outdata);
-//     }
-//     void backward(std::complex<double> indata[], double outdata[]) const{
-//         backward(indata);
-//         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
-//     }
-//
-//     int box_size() const{ return total_size; }
-//
-// private:
-//     template<typename scalar_type, direction dir>
-//     void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
-//         if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmany, stride, dist));
-//     }
-//
-//     mutable int size, howmany, stride, dist, blocks, block_stride, total_size;
-//     mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::forward>> cforward;
-//     mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::backward>> cbackward;
-//     mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::forward>> zforward;
-//     mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::backward>> zbackward;
-// };
-//
+/*!
+ * \brief Base plan for cufft, using only the specialization for float and double complex.
+ *
+ * Similar to heffte::plan_fftw but applies to the cufft backend.
+ */
+template<typename> struct plan_cufft{};
+
+/*!
+ * \brief Plan for the single precision complex transform.
+ */
+template<> struct plan_cufft<std::complex<float>>{
+    /*!
+     * \brief Constructor, takes inputs identical to cufftMakePlanMany().
+     *
+     * \param size is the number of entries in a 1-D transform
+     * \param batch is the number of transforms in the batch
+     * \param stride is the distance between entries of the same transform
+     * \param dist is the distance between the first entries of consecutive sequences
+     */
+    plan_cufft(int size, int batch, int stride, int dist) : work_size(0){
+        cuda::check_error(cufftCreate(&plan), "plan_cufft<std::complex<float>>::cufftCreate()");
+        cuda::check_error(
+            cufftMakePlanMany(plan, 1, &size, &size, stride, dist, &size, stride, dist, CUFFT_C2C, batch, &work_size),
+            "plan_cufft<std::complex<float>>::cufftMakePlanMany()"
+        );
+        work_size /= sizeof(std::complex<float>);
+    }
+    //! \brief Destructor, deletes the plan.
+    ~plan_cufft(){ cufftDestroy(plan); }
+    //! \brief Custom conversion to the cufftHandle.
+    operator cufftHandle() const{ return plan; }
+    //! \brief The cufft opaque structure (pointer to struct).
+    mutable cufftHandle plan;
+    //! \brief Returns a cuda::vector with size appropriate for the operation.
+    cuda::vector<std::complex<float>> buffer() const{ return cuda::vector<std::complex<float>>(work_size); }
+private:
+    //! \brief The size of the additional buffer used by cufft.
+    size_t work_size;
+};
+//! \brief Specialization for double complex.
+template<> struct plan_cufft<std::complex<double>>{
+    //! \brief Identical to the float-complex specialization.
+    plan_cufft(int size, int batch, int stride, int dist) : work_size(0){
+        cuda::check_error(cufftCreate(&plan), "plan_cufft<std::complex<double>>::cufftCreate()");
+        cuda::check_error(
+            cufftMakePlanMany(plan, 1, &size, &size, stride, dist, &size, stride, dist, CUFFT_Z2Z, batch, &work_size),
+            "plan_cufft<std::complex<double>>::cufftMakePlanMany()"
+        );
+        work_size /= sizeof(std::complex<double>);
+    }
+    //! \brief Identical to the float-complex specialization.
+    ~plan_cufft(){ cufftDestroy(plan); }
+    //! \brief Identical to the float-complex specialization.
+    operator cufftHandle() const{ return plan; }
+    //! \brief Identical to the float-complex specialization.
+    mutable cufftHandle plan;
+    //! \brief Identical to the float-complex specialization.
+    cuda::vector<std::complex<double>> buffer() const{ return cuda::vector<std::complex<double>>(work_size); }
+private:
+    //! \brief The size of the additional buffer used by cufft.
+    size_t work_size;
+};
+
+class cufft_executor{
+public:
+    cufft_executor(box3d const box, int dimension) :
+        size(box.size[dimension]),
+        howmany(get_many(box, dimension)),
+        stride(get_stride(box, dimension)),
+        dist((dimension == 0) ? size : 1),
+        blocks((dimension == 1) ? box.size[2] : 1),
+        block_stride(box.size[0] * box.size[1]),
+        total_size(box.count())
+    {}
+
+    static int get_many(box3d const box, int dimension){
+        if (dimension == 0) return box.size[1] * box.size[2];
+        if (dimension == 1) return box.size[0];
+        return box.size[0] * box.size[1];
+    }
+    static int get_stride(box3d const box, int dimension){
+        if (dimension == 0) return 1;
+        if (dimension == 1) return box.size[0];
+        return box.size[0] * box.size[1];
+    }
+
+    void forward(std::complex<float> data[]) const{
+        make_plan(ccomplex_plan);
+        for(int i=0; i<blocks; i++){
+            cufftComplex* block_data = reinterpret_cast<cufftComplex*>(data + i * block_stride);
+            cuda::check_error(cufftExecC2C(*ccomplex_plan, block_data, block_data, CUFFT_FORWARD), "cufft_executor::cufftExecC2C() forward");
+        }
+    }
+    void backward(std::complex<float> data[]) const{
+        make_plan(ccomplex_plan);
+        for(int i=0; i<blocks; i++){
+            cufftComplex* block_data = reinterpret_cast<cufftComplex*>(data + i * block_stride);
+            cuda::check_error(cufftExecC2C(*ccomplex_plan, block_data, block_data, CUFFT_INVERSE), "cufft_executor::cufftExecC2C() backward");
+        }
+    }
+    void forward(std::complex<double> data[]) const{
+        make_plan(zcomplex_plan);
+        for(int i=0; i<blocks; i++){
+            cufftDoubleComplex* block_data = reinterpret_cast<cufftDoubleComplex*>(data + i * block_stride);
+            cuda::check_error(cufftExecZ2Z(*zcomplex_plan, block_data, block_data, CUFFT_FORWARD), "cufft_executor::cufftExecZ2Z() forward");
+        }
+    }
+    void backward(std::complex<double> data[]) const{
+        make_plan(zcomplex_plan);
+        for(int i=0; i<blocks; i++){
+            cufftDoubleComplex* block_data = reinterpret_cast<cufftDoubleComplex*>(data + i * block_stride);
+            cuda::check_error(cufftExecZ2Z(*zcomplex_plan, block_data, block_data, CUFFT_INVERSE), "cufft_executor::cufftExecZ2Z() backward");
+        }
+    }
+
+    void forward(float const indata[], std::complex<float> outdata[]) const{
+        cuda::convert(total_size, indata, outdata);
+        forward(outdata);
+    }
+    void backward(std::complex<float> indata[], float outdata[]) const{
+        backward(indata);
+        cuda::convert(total_size, indata, outdata);
+    }
+    void forward(double const indata[], std::complex<double> outdata[]) const{
+        cuda::convert(total_size, indata, outdata);
+        forward(outdata);
+    }
+    void backward(std::complex<double> indata[], double outdata[]) const{
+        backward(indata);
+        cuda::convert(total_size, indata, outdata);
+    }
+
+    int box_size() const{ return total_size; }
+
+private:
+    template<typename scalar_type>
+    void make_plan(std::unique_ptr<plan_cufft<scalar_type>> &plan) const{
+        if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(size, howmany, stride, dist));
+    }
+
+    mutable int size, howmany, stride, dist, blocks, block_stride, total_size;
+    mutable std::unique_ptr<plan_cufft<std::complex<float>>> ccomplex_plan;
+    mutable std::unique_ptr<plan_cufft<std::complex<double>>> zcomplex_plan;
+};
+
 // template<> struct one_dim_backend<backend::cufft>{
 //     using type = fftw_executor;
 //

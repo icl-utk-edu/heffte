@@ -232,8 +232,66 @@ void test_cuda_vector(){
     test_cuda_vector_type<std::complex<float>>(73);
     test_cuda_vector_type<std::complex<double>>(13);
 }
+template<typename scalar_type>
+void test_cufft_1d_complex(){
+    current_test<scalar_type, using_nompi> name("cufft one-dimension");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::cufft_executor fft(box, i);
+
+        auto curesult = cuda::load(input);
+        fft.forward(curesult.data());
+        sassert(approx(curesult, reference[i]));
+
+        fft.backward(curesult.data());
+        auto result = cuda::unload(curesult);
+        for(auto &r : result) r /= (2.0 + i);
+        sassert(approx(result, input));
+    }
+}
+template<typename scalar_type>
+void test_cufft_1d_real(){
+    current_test<scalar_type, using_nompi> name("cufft one-dimension");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::cufft_executor fft(box, i);
+
+        cuda::vector<typename fft_output<scalar_type>::type> curesult(input.size());
+        auto cuinput = cuda::load(input);
+        fft.forward(cuinput.data(), curesult.data());
+        sassert(approx(curesult, reference[i]));
+
+        cuda::vector<scalar_type> cuback_result(curesult.size());
+        fft.backward(curesult.data(), cuback_result.data());
+        auto back_result = cuda::unload(cuback_result);
+        for(auto &r : back_result) r /= (2.0 + i);
+        sassert(approx(back_result, input));
+    }
+}
+
+void test_cufft(){
+    test_cufft_1d_real<float>();
+    test_cufft_1d_real<double>();
+    test_cufft_1d_complex<std::complex<float>>();
+    test_cufft_1d_complex<std::complex<double>>();
+}
 #else
 void test_cuda_vector(){} // skip cuda
+void test_cufft(){}
 #endif
 
 int main(int argc, char *argv[]){
@@ -247,6 +305,7 @@ int main(int argc, char *argv[]){
     test_cuda_vector();
 
     test_fftw();
+    test_cufft();
 
     return 0;
 }
