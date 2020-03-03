@@ -177,8 +177,6 @@ public:
     template<typename scalar_type>
     void apply_base(scalar_type const source[], scalar_type destination[]) const;
 
-
-
 private:
     /*!
      * \brief Private constructor that accepts a set of arrays that have been pre-computed by the factory.
