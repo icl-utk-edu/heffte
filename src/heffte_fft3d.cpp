@@ -2548,7 +2548,7 @@ void FFT3d<double>::deallocate_ffts();
 template
 void FFT3d<float>::deallocate_ffts();
 
-#define HEFFTE_INSTANTIATE_FFT3D(some_backend) \
+#define heffte_instantiate_fft3d(some_backend) \
     template class fft3d<some_backend>; \
     template void fft3d<some_backend>::standard_transform<float>(float const[], std::complex<float>[], \
                                                                  std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
@@ -2806,10 +2806,10 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
 }
 
 #ifdef Heffte_ENABLE_FFTW
-HEFFTE_INSTANTIATE_FFT3D(backend::fftw);
+heffte_instantiate_fft3d(backend::fftw);
 #endif
 // #ifdef Heffte_ENABLE_CUDA
-// HEFFTE_INSTANTIATE_FFT3D(backend::cufft);
+// heffte_instantiate_fft3d(backend::cufft);
 // #endif
 
 }
