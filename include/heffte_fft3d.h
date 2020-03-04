@@ -8,16 +8,8 @@
 #ifndef FFT_FFT3D_H
 #define FFT_FFT3D_H
 
-#include <mpi.h>
-#include "heffte_utils.h"
-#include "heffte_common.h"
 #include "heffte_reshape3d.h"
 
-//#include "heffte_backend_fftw.h"
-
-//#ifdef FFT_FFTW
-//#define FFT_FFTW3
-//#endif
 
 namespace HEFFTE {
 
