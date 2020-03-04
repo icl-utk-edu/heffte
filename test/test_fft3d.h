@@ -52,7 +52,7 @@ std::vector<scalar_type> compute_fft_fftw(box3d const world, std::vector<scalar_
 #endif
 
 template<typename scalar_type>
-std::vector<typename fft_output<scalar_type>::type> compute_fft(box3d const world, std::vector<scalar_type> const &input){
+std::vector<typename fft_output<scalar_type>::type> compute_fft_cpu(box3d const world, std::vector<scalar_type> const &input){
     #ifdef Heffte_ENABLE_FFTW
     std::vector<typename fft_output<scalar_type>::type> result(input.size());
     for(size_t i=0; i<input.size(); i++)
@@ -61,16 +61,37 @@ std::vector<typename fft_output<scalar_type>::type> compute_fft(box3d const worl
     #endif
 }
 template<typename scalar_type>
-std::vector<std::complex<scalar_type>> compute_fft(box3d const world, std::vector<std::complex<scalar_type>> const &input){
+std::vector<std::complex<scalar_type>> compute_fft_cpu(box3d const world, std::vector<std::complex<scalar_type>> const &input){
     #ifdef Heffte_ENABLE_FFTW
     return compute_fft_fftw(world, input);
     #endif
 }
 
+#ifdef Heffte_ENABLE_CUDA
+template<typename scalar_type>
+cuda::vector<scalar_type> compute_fft_cufft(box3d const world, cuda::vector<scalar_type> const &input){
+    assert(input.size() == world.count());
+    cuda::vector<scalar_type> result = input;
+    for(int i=0; i<3; i++)
+        heffte::cufft_executor(world, i).forward(result.data());
+    return result;
+}
+template<typename scalar_type>
+cuda::vector<typename fft_output<scalar_type>::type> compute_fft_cuda(box3d const world, cuda::vector<scalar_type> const &input){
+    cuda::vector<typename fft_output<scalar_type>::type> result(input.size());
+    cuda::convert(input.size(), input.data(), result.data());
+    return compute_fft_cufft(world, result);
+}
+template<typename scalar_type>
+cuda::vector<std::complex<scalar_type>> compute_fft_cuda(box3d const world, cuda::vector<std::complex<scalar_type>> const &input){
+    return compute_fft_cufft(world, input);
+}
+#endif
+
 template<typename backend_tag>
 void test_fft3d_const_dest2(MPI_Comm comm){
     assert(mpi::comm_size(comm) == 2);
-    current_test<> name("heffte::fft3d constructor", comm);
+    current_test<int, using_mpi, backend_tag> name("constructor heffte::fft3d", comm);
     box3d const world = {{0, 0, 0}, {4, 4, 4}};
     std::vector<box3d> boxes = heffte::split_world(world, {2, 1, 1});
     int const me = mpi::comm_rank(comm);
@@ -88,7 +109,7 @@ void test_fft3d_arrays(MPI_Comm comm){
     int const me = mpi::comm_rank(comm);
     box3d const world = {{0, 0, 0}, {h0, h1, h2}};
     auto world_input = make_data<scalar_type>(world);
-    auto world_fft = compute_fft(world, world_input);
+    auto world_fft = compute_fft_cpu(world, world_input);
 
     for(int i=0; i<3; i++){
         std::array<int, 3> split = {1, 1, 1};
@@ -131,7 +152,7 @@ void test_fft3d_vectors(MPI_Comm comm){
     for(size_t i=0; i<world_complex.size(); i++) world_complex[i] = world_input[i];
     std::vector<decltype(std::real(world_complex[0]))> world_real(world_input.size());
     for(size_t i=0; i<world_real.size(); i++) world_real[i] = std::real(world_input[i]);
-    auto world_fft = compute_fft(world, world_input);
+    auto world_fft = compute_fft_cpu(world, world_input);
 
     for(int i=0; i<1; i++){
         std::array<int, 3> split = {1, 1, 1};
@@ -177,6 +198,47 @@ void test_fft3d_vectors(MPI_Comm comm){
         tassert(approx(backward_result, local_real_input));
     }
 }
+
+#ifdef Heffte_ENABLE_CUDA
+template<typename backend_tag, typename scalar_type, int h0, int h1, int h2>
+void test_fft3d_arrays_cuda(MPI_Comm comm){
+    // works with ranks 2 and 12 only
+    int const num_ranks = mpi::comm_size(comm);
+    assert(num_ranks == 2 or num_ranks == 12);
+    current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d", comm);
+    using output_type = typename fft_output<scalar_type>::type;
+    int const me = mpi::comm_rank(comm);
+    box3d const world = {{0, 0, 0}, {h0, h1, h2}};
+    auto world_input = make_data<scalar_type>(world);
+    auto world_fft = compute_fft_cuda(world, cuda::load(world_input));
+
+    for(int i=0; i<3; i++){
+        std::array<int, 3> split = {1, 1, 1};
+        if (num_ranks == 2){
+            split[i] = 2;
+        }else if (num_ranks == 12){
+            split = {2, 2, 2};
+            split[i] = 3;
+        }
+        std::vector<box3d> boxes = heffte::split_world(world, split);
+        assert(boxes.size() == num_ranks);
+        auto local_input = cuda::load(get_subbox(world, boxes[me], world_input));
+        auto reference_fft = get_subbox(world, boxes[me], cuda::unload(world_fft));
+        cuda::vector<output_type> result(local_input.size());
+
+        heffte::fft3d<backend_tag> fft(boxes[me], boxes[me], comm);
+
+        fft.forward(local_input.data(), result.data());
+        tassert(approx(result, reference_fft));
+
+//         std::vector<scalar_type> backward_result(local_input.size());
+//         fft.backward(result.data(), backward_result.data());
+//         for(auto &r : backward_result) r /= static_cast<scalar_type>(world.count());
+//
+//         tassert(approx(backward_result, local_input));
+    }
+}
+#endif
 
 
 #endif

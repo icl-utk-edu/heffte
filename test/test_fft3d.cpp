@@ -20,6 +20,13 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_arrays<backend::fftw, std::complex<float>, 9, 9, 9>(comm);
             test_fft3d_arrays<backend::fftw, std::complex<double>, 9, 9, 9>(comm);
             #endif
+            #ifdef Heffte_ENABLE_CUDA
+            test_fft3d_const_dest2<backend::cufft>(comm);
+            test_fft3d_arrays_cuda<backend::cufft, float, 9, 9, 9>(comm);
+            test_fft3d_arrays_cuda<backend::cufft, double, 9, 9, 9>(comm);
+            test_fft3d_arrays_cuda<backend::cufft, std::complex<float>, 9, 9, 9>(comm);
+            test_fft3d_arrays_cuda<backend::cufft, std::complex<double>, 9, 9, 9>(comm);
+            #endif
             break;
         case 6:
             #ifdef Heffte_ENABLE_FFTW
