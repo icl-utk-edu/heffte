@@ -51,6 +51,12 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_arrays<backend::fftw, std::complex<float>, 19, 20, 21>(comm);
             test_fft3d_arrays<backend::fftw, std::complex<double>, 19, 20, 21>(comm);
             #endif
+            #ifdef Heffte_ENABLE_CUDA
+            test_fft3d_arrays_cuda<backend::cufft, float, 19, 21, 20>(comm);
+            test_fft3d_arrays_cuda<backend::cufft, double, 19, 20, 21>(comm);
+            test_fft3d_arrays_cuda<backend::cufft, std::complex<float>, 19, 14, 25>(comm);
+            test_fft3d_arrays_cuda<backend::cufft, std::complex<double>, 19, 19, 17>(comm);
+            #endif
             break;
         default:
             throw std::runtime_error("No test for the given number of ranks!");

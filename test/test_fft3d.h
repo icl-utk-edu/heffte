@@ -231,11 +231,12 @@ void test_fft3d_arrays_cuda(MPI_Comm comm){
         fft.forward(local_input.data(), result.data());
         tassert(approx(result, reference_fft));
 
-//         std::vector<scalar_type> backward_result(local_input.size());
-//         fft.backward(result.data(), backward_result.data());
-//         for(auto &r : backward_result) r /= static_cast<scalar_type>(world.count());
-//
-//         tassert(approx(backward_result, local_input));
+        cuda::vector<scalar_type> cubackward_result(local_input.size());
+        fft.backward(result.data(), cubackward_result.data());
+        auto backward_result = cuda::unload(cubackward_result);
+        for(auto &r : backward_result) r /= static_cast<scalar_type>(world.count());
+
+        tassert(approx(local_input, backward_result));
     }
 }
 #endif
