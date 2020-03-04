@@ -119,10 +119,10 @@ template<> struct precision<std::complex<float>>{ static constexpr float toleran
 template<> struct precision<std::complex<double>>{ static constexpr double tolerance = 1.E-11; };
 
 template<typename T>
-inline bool approx(std::vector<T> const &a, std::vector<T> const &b){
+inline bool approx(std::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
     if (a.size() != b.size()) return false;
     for(size_t i=0; i<a.size(); i++)
-        if (std::abs(a[i] - b[i]) > precision<T>::tolerance) return false;
+        if (std::abs(a[i] - b[i]) * correction > precision<T>::tolerance) return false;
     return true;
 }
 
@@ -132,8 +132,8 @@ inline bool match(heffte::cuda::vector<T> const &a, std::vector<T> const &b){
     return approx(cuda::unload(a), b);
 }
 template<typename T>
-inline bool approx(heffte::cuda::vector<T> const &a, std::vector<T> const &b){
-    return approx(cuda::unload(a), b);
+inline bool approx(heffte::cuda::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
+    return approx(cuda::unload(a), b, correction);
 }
 #endif
 

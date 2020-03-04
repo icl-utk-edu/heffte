@@ -5,6 +5,8 @@
        @date
 */
 
+#include <random>
+
 #include "test_common.h"
 
 void test_factorize(){
@@ -294,6 +296,48 @@ void test_cuda_vector(){} // skip cuda
 void test_cufft(){}
 #endif
 
+#if defined(Heffte_ENABLE_FFTW) and defined(Heffte_ENABLE_CUDA)
+template<typename scalar_type>
+std::vector<scalar_type> make_data(box3d const world){
+    std::minstd_rand park_miller(4242);
+    std::uniform_real_distribution<double> unif(0.0, 1.0);
+
+    std::vector<scalar_type> result(world.count());
+    for(auto &r : result)
+        r = static_cast<scalar_type>(unif(park_miller));
+    return result;
+}
+template<typename scalar_type>
+void test_cross_reference_type(){
+    current_test<scalar_type, using_nompi> name("cufft - fftw reference");
+
+    box3d box = {{0, 0, 0}, {42, 75, 23}};
+    auto input = make_data<scalar_type>(box);
+    auto cuinput = cuda::load(input);
+
+    for(int i=0; i<3; i++){
+        heffte::fftw_executor  fft_cpu(box, i);
+        heffte::cufft_executor fft_gpu(box, i);
+
+        fft_cpu.forward(input.data());
+        fft_gpu.forward(cuinput.data());
+
+        if (std::is_same<scalar_type, std::complex<float>>::value){
+            sassert(approx(cuinput, input, 0.0005)); // float complex is not well conditioned
+        }else{
+            sassert(approx(cuinput, input));
+        }
+    }
+
+}
+void test_cross_reference(){
+    test_cross_reference_type<std::complex<float>>();
+    test_cross_reference_type<std::complex<double>>();
+}
+#else
+void test_cross_reference(){}
+#endif
+
 int main(int argc, char *argv[]){
 
     all_tests<using_nompi> name("Non-MPI Tests");
@@ -306,6 +350,8 @@ int main(int argc, char *argv[]){
 
     test_fftw();
     test_cufft();
+
+    test_cross_reference();
 
     return 0;
 }
