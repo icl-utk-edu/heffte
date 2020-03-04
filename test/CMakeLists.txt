@@ -6,12 +6,12 @@ macro(heffte_add_mpi_test)
     unset(_heffte_COMMAND)
 endmacro()
 
-add_executable(test_reshape_cpu test_reshape_cpu.cpp)
-target_link_libraries(test_reshape_cpu  Heffte)
+add_executable(test_reshape3d test_reshape3d.cpp)
+target_link_libraries(test_reshape3d  Heffte)
 
-heffte_add_mpi_test(NAME heffte_reshape_cpu4  COMMAND test_reshape_cpu RANKS 4)
-heffte_add_mpi_test(NAME heffte_reshape_cpu7  COMMAND test_reshape_cpu RANKS 7)
-heffte_add_mpi_test(NAME heffte_reshape_cpu12 COMMAND test_reshape_cpu RANKS 12)
+heffte_add_mpi_test(NAME heffte_reshape3d_np4  COMMAND test_reshape3d RANKS 4)
+heffte_add_mpi_test(NAME heffte_reshape3d_np7  COMMAND test_reshape3d RANKS 7)
+heffte_add_mpi_test(NAME heffte_reshape3d_np12 COMMAND test_reshape3d RANKS 12)
 
 add_executable(test_unit_nompi test_units_nompi.cpp)
 target_link_libraries(test_unit_nompi  Heffte)

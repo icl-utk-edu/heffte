@@ -116,6 +116,7 @@ void test_cpu(MPI_Comm const comm){
     tassert(match(output_data, reference_data));
 }
 
+#ifdef Heffte_ENABLE_CUDA
 // splits the world box into a set of boxes with gird given by proc_grid
 template<int hfast, int hmid, int hslow, int pfast, int pmid, int pslow, typename scalar_type, typename backend_tag>
 void test_gpu(MPI_Comm const comm){
@@ -166,6 +167,7 @@ void test_gpu(MPI_Comm const comm){
 
     tassert(match(output_data, reference_data));
 }
+#endif
 
 void perform_tests_cpu(){
     MPI_Comm const comm = MPI_COMM_WORLD;
