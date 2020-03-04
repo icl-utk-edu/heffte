@@ -1091,7 +1091,7 @@ make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                                                        ));
 }
 
-#define HEFFTE_INSTANTIATE_RESHAPE3D_ALLTOALLV(some_backend) \
+#define heffte_instantiate_reshape3d_alltoallv(some_backend) \
 template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<float>(float const source[], float destination[]) const; \
 template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<double>(double const source[], double destination[]) const; \
 template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<std::complex<float>>(std::complex<float> const source[], std::complex<float> destination[]) const; \
@@ -1102,10 +1102,10 @@ make_reshape3d_alltoallv<some_backend, direct_packer>(std::vector<box3d> const&,
 
 
 #ifdef Heffte_ENABLE_FFTW
-HEFFTE_INSTANTIATE_RESHAPE3D_ALLTOALLV(backend::fftw);
+heffte_instantiate_reshape3d_alltoallv(backend::fftw);
 #endif
 #ifdef Heffte_ENABLE_CUDA
-HEFFTE_INSTANTIATE_RESHAPE3D_ALLTOALLV(backend::cufft);
+heffte_instantiate_reshape3d_alltoallv(backend::cufft);
 #endif
 
 }
