@@ -1092,20 +1092,26 @@ void unpack_3d_permute2_n_memcpy(float *buf, float *data,
 
 }
 
-template<typename scalar_type, int num_threads>
-__global__ void heffte_cufft_convert_to_complex(int num_entries, scalar_type const source[], scalar_type destination[]){
+
+namespace heffte {
+namespace cuda {
+
+/*
+ * Launch with one thread per entry.
+ *
+ * If to_complex is true, convert one real number from source to two real numbers in destination.
+ * If to_complex is false, convert two real numbers from source to one real number in destination.
+ */
+template<typename scalar_type, int num_threads, bool to_complex>
+__global__ void real_complex_convert(int num_entries, scalar_type const source[], scalar_type destination[]){
     int i = blockIdx.x * num_threads + threadIdx.x;
     while(i < num_entries){
-        destination[2*i] = source[i];
-        destination[2*i + 1] = 0.0;
-        i += num_threads * gridDim.x;
-    }
-}
-template<typename scalar_type, int num_threads>
-__global__ void heffte_cufft_convert_to_real(int num_entries, scalar_type const source[], scalar_type destination[]){
-    int i = blockIdx.x * num_threads + threadIdx.x;
-    while(i < num_entries){
-        destination[i] = source[2*i];
+        if (to_complex){
+            destination[2*i] = source[i];
+            destination[2*i + 1] = 0.0;
+        }else{
+            destination[i] = source[2*i];
+        }
         i += num_threads * gridDim.x;
     }
 }
@@ -1113,8 +1119,8 @@ __global__ void heffte_cufft_convert_to_real(int num_entries, scalar_type const 
 /*
  * Launch this with one block per line.
  */
-template<typename scalar_type, int num_threads, int tuple_size>
-__global__ void heffte_direct_packer_pack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide,
+template<typename scalar_type, int num_threads, int tuple_size, bool pack>
+__global__ void direct_packer(int nfast, int nmid, int nslow, int line_stride, int plane_stide,
                                           scalar_type const source[], scalar_type destination[]){
     int block_index = blockIdx.x;
     while(block_index < nmid * nslow){
@@ -1122,29 +1128,12 @@ __global__ void heffte_direct_packer_pack(int nfast, int nmid, int nslow, int la
         int mid = block_index % nmid;
         int slow = block_index / nmid;
 
-        scalar_type const *block_source = &source[tuple_size * (mid * lane_stride + slow * plane_stide)];
-        scalar_type *block_destination = &destination[block_index * nfast * tuple_size];
-
-        int i = threadIdx.x;
-        while(i < nfast * tuple_size){
-            block_destination[i] = block_source[i];
-            i += num_threads;
-        }
-
-        block_index += gridDim.x;
-    }
-}
-template<typename scalar_type, int num_threads, int tuple_size>
-__global__ void heffte_direct_packer_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide,
-                                            scalar_type const source[], scalar_type destination[]){
-    int block_index = blockIdx.x;
-    while(block_index < nmid * nslow){
-
-        int mid = block_index % nmid;
-        int slow = block_index / nmid;
-
-        scalar_type const *block_source = &source[block_index * nfast * tuple_size];
-        scalar_type *block_destination = &destination[tuple_size * (mid * line_stride + slow * plane_stide)];
+        scalar_type const *block_source = (pack) ?
+                            &source[tuple_size * (mid * line_stride + slow * plane_stide)] :
+                            &source[block_index * nfast * tuple_size];
+        scalar_type *block_destination = (pack) ?
+                            &destination[block_index * nfast * tuple_size] :
+                            &destination[tuple_size * (mid * line_stride + slow * plane_stide)];
 
         int i = threadIdx.x;
         while(i < nfast * tuple_size){
@@ -1156,79 +1145,83 @@ __global__ void heffte_direct_packer_unpack(int nfast, int nmid, int nslow, int 
     }
 }
 
-
-namespace heffte {
-namespace cuda {
-
+/*
+ * Create a 1-D CUDA thread grid using the total_threads and number of threads per block.
+ * Basically, computes the number of blocks but no more than 65536.
+ */
 struct thread_grid_1d{
+    // Compute the threads and blocks.
     thread_grid_1d(int total_threads, int num_per_block) :
         threads(num_per_block),
-        blocks(clamp(total_threads / threads + ((total_threads % threads == 0) ? 0 : 1)))
+        blocks(std::min(total_threads / threads + ((total_threads % threads == 0) ? 0 : 1), 65536))
     {}
-    static int clamp(int candidate_blocks){ return (candidate_blocks >= 65536) ? 65536 : candidate_blocks; }
+    // number of threads
     int const threads;
+    // number of blocks
     int const blocks;
 };
 
+// max number of cuda threads (Volta supports more, but I don't think it matters)
 constexpr int max_threads  = 1024;
+// allows expressive calls to_complex or not to_complex
+constexpr bool to_complex  = true;
+// allows expressive calls to_pack or not to_pack
+constexpr bool to_pack     = true;
 
-void convert(int num_entries, float const source[], std::complex<float> destination[]){
+template<typename precision_type>
+void convert(int num_entries, precision_type const source[], std::complex<precision_type> destination[]){
     thread_grid_1d grid(num_entries, max_threads);
-    heffte_cufft_convert_to_complex<float, max_threads><<<grid.blocks, grid.threads>>>(num_entries, source, reinterpret_cast<float*>(destination));
+    real_complex_convert<precision_type, max_threads, to_complex><<<grid.blocks, grid.threads>>>(num_entries, source, reinterpret_cast<precision_type*>(destination));
 }
-void convert(int num_entries, double const source[], std::complex<double> destination[]){
+template<typename precision_type>
+void convert(int num_entries, std::complex<precision_type> const source[], precision_type destination[]){
     thread_grid_1d grid(num_entries, max_threads);
-    heffte_cufft_convert_to_complex<double, max_threads><<<grid.blocks, grid.threads>>>(num_entries, source, reinterpret_cast<double*>(destination));
+    real_complex_convert<precision_type, max_threads, not to_complex><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<precision_type const*>(source), destination);
 }
 
-void convert(int num_entries, std::complex<float> const source[], float destination[]){
-    thread_grid_1d grid(num_entries, max_threads);
-    heffte_cufft_convert_to_real<float, max_threads><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<float const*>(source), destination);
-}
-void convert(int num_entries, std::complex<double> const source[], double destination[]){
-    thread_grid_1d grid(num_entries, max_threads);
-    heffte_cufft_convert_to_real<double, max_threads><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<double const*>(source), destination);
+template void convert<float>(int num_entries, float const source[], std::complex<float> destination[]);
+template void convert<double>(int num_entries, double const source[], std::complex<double> destination[]);
+template void convert<float>(int num_entries, std::complex<float> const source[], float destination[]);
+template void convert<double>(int num_entries, std::complex<double> const source[], double destination[]);
+
+/*
+ * For float and double, defines type = <float/double> and tuple_size = 1
+ * For complex float/double, defines type <float/double> and typle_size = 2
+ */
+template<typename scalar_type> struct precision{
+    using type = scalar_type;
+    static const int tuple_size = 1;
+};
+template<typename precision_type> struct precision<std::complex<precision_type>>{
+    using type = precision_type;
+    static const int tuple_size = 2;
+};
+
+template<typename scalar_type>
+void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]){
+    using prec = typename precision<scalar_type>::type;
+    direct_packer<prec, max_threads, precision<scalar_type>::tuple_size, to_pack>
+            <<<std::min(nmid * nslow, 65536), max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
+            reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
 }
 
-
-void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, float const source[], float destination[]){
-    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
-    heffte_direct_packer_pack<float, max_threads, 1><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide, source, destination);
-}
-void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, float const source[], float destination[]){
-    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
-    heffte_direct_packer_unpack<float, max_threads, 1><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide, source, destination);
-}
-void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, double const source[], double destination[]){
-    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
-    heffte_direct_packer_pack<double, max_threads, 1><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide, source, destination);
-}
-void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, double const source[], double destination[]){
-    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
-    heffte_direct_packer_unpack<double, max_threads, 1><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide, source, destination);
+template<typename scalar_type>
+void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]){
+    using prec = typename precision<scalar_type>::type;
+    direct_packer<prec, max_threads, precision<scalar_type>::tuple_size, not to_pack>
+            <<<std::min(nmid * nslow, 65536), max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
+            reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
 }
 
-void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, std::complex<float> const source[], std::complex<float> destination[]){
-    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
-    heffte_direct_packer_pack<float, max_threads, 2><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
-            reinterpret_cast<float const*>(source), reinterpret_cast<float*>(destination));
-}
-void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, std::complex<float> const source[], std::complex<float> destination[]){
-    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
-    heffte_direct_packer_unpack<float, max_threads, 2><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
-            reinterpret_cast<float const*>(source), reinterpret_cast<float*>(destination));
-}
-void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, std::complex<double> const source[], std::complex<double> destination[]){
-    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
-    heffte_direct_packer_pack<double, max_threads, 2><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
-            reinterpret_cast<double const*>(source), reinterpret_cast<double*>(destination));
-}
-void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, std::complex<double> const source[], std::complex<double> destination[]){
-    int num_blocks = thread_grid_1d::clamp(nmid * nslow);
-    heffte_direct_packer_unpack<double, max_threads, 2><<<num_blocks, max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
-            reinterpret_cast<double const*>(source), reinterpret_cast<double*>(destination));
-}
+template void direct_pack<float>(int, int, int, int, int, float const source[], float destination[]);
+template void direct_pack<double>(int, int, int, int, int, double const source[], double destination[]);
+template void direct_pack<std::complex<float>>(int, int, int, int, int, std::complex<float> const source[], std::complex<float> destination[]);
+template void direct_pack<std::complex<double>>(int, int, int, int, int, std::complex<double> const source[], std::complex<double> destination[]);
 
+template void direct_unpack<float>(int, int, int, int, int, float const source[], float destination[]);
+template void direct_unpack<double>(int, int, int, int, int, double const source[], double destination[]);
+template void direct_unpack<std::complex<float>>(int, int, int, int, int, std::complex<float> const source[], std::complex<float> destination[]);
+template void direct_unpack<std::complex<double>>(int, int, int, int, int, std::complex<double> const source[], std::complex<double> destination[]);
 
 }
 }

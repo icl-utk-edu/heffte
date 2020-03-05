@@ -183,21 +183,19 @@ namespace cuda {
     }
 
     /*!
-     * \brief Convert between source and destination located on the GPU device.
+     * \brief Convert real numbers to complex when both are located on the GPU device.
+     *
+     * Launches a CUDA kernel.
      */
-    void convert(int num_entries, float const source[], std::complex<float> destination[]);
+    template<typename precision_type>
+    void convert(int num_entries, precision_type const source[], std::complex<precision_type> destination[]);
     /*!
-     * \brief Convert between source and destination located on the GPU device.
+     * \brief Convert complex numbers to real when both are located on the GPU device.
+     *
+     * Launches a CUDA kernel.
      */
-    void convert(int num_entries, double const source[], std::complex<double> destination[]);
-    /*!
-     * \brief Convert between source and destination located on the GPU device.
-     */
-    void convert(int num_entries, std::complex<float> const source[], float destination[]);
-    /*!
-     * \brief Convert between source and destination located on the GPU device.
-     */
-    void convert(int num_entries, std::complex<double> const source[], double destination[]);
+    template<typename precision_type>
+    void convert(int num_entries, std::complex<precision_type> const source[], precision_type destination[]);
 }
 
 namespace backend{
@@ -383,14 +381,20 @@ template<> struct one_dim_backend<backend::cufft>{
 
 namespace cuda { // packer logic
 
-void direct_pack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, float const source[], float destination[]);
-void direct_unpack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, float const source[], float destination[]);
-void direct_pack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, double const source[], double destination[]);
-void direct_unpack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, double const source[], double destination[]);
-void direct_pack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, std::complex<float> const source[], std::complex<float> destination[]);
-void direct_unpack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, std::complex<float> const source[], std::complex<float> destination[]);
-void direct_pack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, std::complex<double> const source[], std::complex<double> destination[]);
-void direct_unpack(int nfast, int nmid, int nslow, int lane_stride, int plane_stide, std::complex<double> const source[], std::complex<double> destination[]);
+/*!
+ * \brief Performs a direct-pack operation for data sitting on the GPU device.
+ *
+ * Launches a CUDA kernel.
+ */
+template<typename scalar_type>
+void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]);
+/*!
+ * \brief Performs a direct-unpack operation for data sitting on the GPU device.
+ *
+ * Launches a CUDA kernel.
+ */
+template<typename scalar_type>
+void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]);
 
 }
 
