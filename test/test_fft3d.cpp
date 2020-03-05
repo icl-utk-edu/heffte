@@ -22,10 +22,10 @@ void perform_tests(MPI_Comm const comm){
             #endif
             #ifdef Heffte_ENABLE_CUDA
             test_fft3d_const_dest2<backend::cufft>(comm);
-            test_fft3d_arrays_cuda<backend::cufft, float, 9, 9, 9>(comm);
-            test_fft3d_arrays_cuda<backend::cufft, double, 9, 9, 9>(comm);
-            test_fft3d_arrays_cuda<backend::cufft, std::complex<float>, 9, 9, 9>(comm);
-            test_fft3d_arrays_cuda<backend::cufft, std::complex<double>, 9, 9, 9>(comm);
+            test_fft3d_arrays<backend::cufft, float, 9, 9, 9>(comm);
+            test_fft3d_arrays<backend::cufft, double, 9, 9, 9>(comm);
+            test_fft3d_arrays<backend::cufft, std::complex<float>, 9, 9, 9>(comm);
+            test_fft3d_arrays<backend::cufft, std::complex<double>, 9, 9, 9>(comm);
             #endif
             break;
         case 6:
@@ -48,15 +48,16 @@ void perform_tests(MPI_Comm const comm){
             #ifdef Heffte_ENABLE_FFTW
             test_fft3d_arrays<backend::fftw, float, 19, 20, 21>(comm);
             test_fft3d_arrays<backend::fftw, double, 19, 20, 21>(comm);
-            test_fft3d_arrays<backend::fftw, std::complex<float>, 19, 20, 21>(comm);
-            test_fft3d_arrays<backend::fftw, std::complex<double>, 19, 20, 21>(comm);
+            test_fft3d_arrays<backend::fftw, std::complex<float>, 19, 15, 25>(comm);
+            test_fft3d_arrays<backend::fftw, std::complex<double>, 19, 19, 17>(comm);
             #endif
             #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_arrays_cuda<backend::cufft, float, 19, 21, 20>(comm);
-            test_fft3d_arrays_cuda<backend::cufft, double, 19, 20, 21>(comm);
-            test_fft3d_arrays_cuda<backend::cufft, std::complex<float>, 19, 14, 25>(comm);
-            test_fft3d_arrays_cuda<backend::cufft, std::complex<double>, 19, 19, 17>(comm);
+            test_fft3d_arrays<backend::cufft, float, 19, 21, 20>(comm);
+            test_fft3d_arrays<backend::cufft, double, 19, 20, 21>(comm);
+            test_fft3d_arrays<backend::cufft, std::complex<float>, 19, 14, 25>(comm);
+            test_fft3d_arrays<backend::cufft, std::complex<double>, 19, 19, 17>(comm);
             #endif
+
             break;
         default:
             throw std::runtime_error("No test for the given number of ranks!");
