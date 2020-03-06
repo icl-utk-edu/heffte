@@ -20,10 +20,38 @@ pipeline {
                     steps {
                         sh '''rm -rf build && mkdir -p build && cd build &&
 cmake \
+    -DHeffte_ENABLE_FFTW=ON \
+    -DHeffte_ENABLE_CUDA=OFF \
     -DMPIEXEC_PREFLAGS="--allow-run-as-root" \
     .. &&
 make -j4 &&
-ctest -j4 -V --no-compress-output -T Test
+ctest -V --no-compress-output -T Test
+                        '''
+                    }
+                    post {
+                        always {
+                            xunit([CTest(deleteOutputFiles: true, failIfNotNew: true, pattern: 'build/Testing/**/Test.xml', skipNoTestFiles: false, stopProcessingIfError: true)])
+                        }
+                    }
+                }
+                stage('GCC-CUDA') {
+                    agent {
+                        dockerfile {
+                            filename 'Dockerfile_cuda'
+                            dir 'docker'
+                            additionalBuildArgs '--pull'
+                            label 'nvidia-docker'
+                        }
+                    }
+                    steps {
+                        sh '''rm -rf build && mkdir -p build && cd build &&
+cmake \
+    -DHeffte_ENABLE_FFTW=ON \
+    -DHeffte_ENABLE_CUDA=ON \
+    -DMPIEXEC_PREFLAGS="--allow-run-as-root" \
+    .. &&
+make -j4 &&
+ctest -V --no-compress-output -T Test
                         '''
                     }
                     post {
