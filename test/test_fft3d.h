@@ -177,8 +177,8 @@ void test_fft3d_vectors(MPI_Comm comm){
 
         // get a semi-random inbox and outbox
         // makes sure that the boxes do not have to match
-        int iindex, oindex; // indexes of the input and outboxes
-        if (num_ranks == 6){
+        int iindex = me, oindex = me; // indexes of the input and outboxes
+        if (num_ranks == 6){ // shuffle the boxes
             iindex = (me+2) % num_ranks;
             oindex = (me+3) % num_ranks;
         }else if (num_ranks == 8){
