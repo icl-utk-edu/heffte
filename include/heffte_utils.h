@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <functional>
 #include <cassert>
+#include <utility>
 #include <stdio.h>
 #include <mpi.h>
 
@@ -22,10 +23,10 @@
 
 #ifdef Heffte_ENABLE_CUDA
 // this is needed here for some of the backends, will remove eventually
-    #include <cuda_runtime_api.h>
-    #include <cuda.h>
-    #include <cufft.h>
-    #define heffte_check_cuda_error(){}
+//     #include <cuda_runtime_api.h>
+//     #include <cuda.h>
+//     #include <cufft.h>
+//     #define heffte_check_cuda_error(){}
 #endif
 
 // Chosing library for 1D FFTs
@@ -92,8 +93,8 @@ void scalapack_pdplghe( double *A,
 
 // Tools for error handling
 #if defined(FFT_CUFFTW) || defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
-#include <cuda_runtime_api.h>
-#include <cuda.h>
+//#include <cuda_runtime_api.h>
+//#include <cuda.h>
 
 #define CHECK_CUDART(x) do { \
   cudaError_t res = (x); \
@@ -142,15 +143,15 @@ static inline int fft_roundup( int x, int y )
 {
     return fft_ceildiv( x, y ) * y;
 }
-#define heffte_check_cuda_error(){}
-#define cudaMalloc(x, y){}
-#define cudaMallocManaged(x, y){}
-#define cudaMallocHost(x, y){}
-#define cudaFree(x){}
-#define cudaFreeHost(x){}
-#define cudaHostRegister(x, y, z){}
-#define cudaHostUnregister(x){}
-#define cudaMemcpy(x,y,w,z){}
+// #define heffte_check_cuda_error(){}
+// #define cudaMalloc(x, y){}
+// #define cudaMallocManaged(x, y){}
+// #define cudaMallocHost(x, y){}
+// #define cudaFree(x){}
+// #define cudaFreeHost(x){}
+// #define cudaHostRegister(x, y, z){}
+// #define cudaHostUnregister(x){}
+// #define cudaMemcpy(x,y,w,z){}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #endif

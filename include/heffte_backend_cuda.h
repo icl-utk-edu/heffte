@@ -11,8 +11,6 @@
 
 #ifdef Heffte_ENABLE_CUDA
 
-#include <cuda_runtime_api.h>
-#include <cuda.h>
 #include <cufft.h>
 
 namespace heffte{
@@ -26,8 +24,6 @@ T c11_exchange(T& obj, U&& new_value)
     return old_value;
 }
 
-
-
 /*!
  * \brief Cuda specific methods, vector-like container, error checking, etc.
  */
@@ -36,10 +32,7 @@ namespace cuda {
     /*!
      * \brief Checks the status of a cuda command and in case of a failure, converts it to a C++ exception.
      */
-    inline void check_error(cudaError_t status, std::string const &function_name){
-        if (status != cudaSuccess)
-            throw std::runtime_error(function_name + " failed with message: " + cudaGetErrorString(status));
-    }
+    void check_error(cudaError_t status, std::string const &function_name);
     /*!
      * \brief Checks the status of a cufft command and in case of a failure, converts it to a C++ exception.
      */
@@ -55,24 +48,19 @@ namespace cuda {
     public:
         //! \brief Allocate a new vector with the given number of entries.
         vector(size_t num_entries = 0) : num(num_entries), gpu_data(alloc(num)){}
-
         //! \brief Copy a range of entries from the device into the vector.
-        vector(scalar_type const *begin, scalar_type const *end) : num(std::distance(begin, end)), gpu_data(alloc(num)){
-            check_error(cudaMemcpy(gpu_data, begin, num * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "cuda::vector(begin, end)");
-        }
+        vector(scalar_type const *begin, scalar_type const *end);
 
         //! \brief Copy constructor, copy the data from other to this vector.
-        vector(const vector<scalar_type>& other) : num(other.num), gpu_data(alloc(num)){
-            check_error(cudaMemcpy(gpu_data, other.gpu_data, num * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "cuda::vector(cuda::vector const &)");
-        }
+        vector(const vector<scalar_type>& other);
         //! \brief Move constructor, moves the data from \b other into this vector.
         vector(vector<scalar_type> &&other) : num(c11_exchange(other.num, 0)), gpu_data(c11_exchange(other.gpu_data, nullptr)){}
 
+        //! \brief Captures ownership of the data in the raw-pointer, resets the pointer to null.
+        vector(scalar_type* &&raw_pointer, size_t num_entries) : num(num_entries), gpu_data(c11_exchange(raw_pointer, nullptr)){}
+
         //! \brief Desructor, deletes all data.
-        ~vector(){
-            if (gpu_data != nullptr)
-                check_error(cudaFree(gpu_data), "cuda::~vector()");
-        }
+        ~vector();
 
         //! \brief Copy assignment, copies the data form \b other to this object.
         void operator =(vector<scalar_type> const &other){
@@ -109,12 +97,7 @@ namespace cuda {
 
     protected:
         //! \brief Allocate a new cuda array with the given size.
-        static scalar_type* alloc(size_t new_size){
-            if (new_size == 0) return nullptr;
-            scalar_type *new_data;
-            check_error(cudaMalloc((void**) &new_data, new_size * sizeof(scalar_type)), "cuda::vector::alloc()");
-            return new_data;
-        }
+        static scalar_type* alloc(size_t new_size);
 
     private:
         //! \brief Stores the number of entries in the vector.
@@ -122,6 +105,17 @@ namespace cuda {
         //! \brief The array with the GPU data.
         scalar_type *gpu_data;
     };
+
+    /*!
+     * \brief Captures ownership of the data in the raw-pointer.
+     *
+     * The advantage of the factory function over using the constructor is the ability
+     * to auto-deduce the scalar type.
+     */
+    template<typename scalar_type>
+    vector<scalar_type> capture(scalar_type* &&raw_pointer, size_t num_entries){
+        return vector<scalar_type>(std::forward<scalar_type*>(raw_pointer), num_entries);
+    }
 
     /*!
      * \brief Copy the data from a buffer on the CPU to a cuda::vector.
@@ -134,11 +128,7 @@ namespace cuda {
      * \returns a cuda::vector with size equal to \b num_entries and a copy of the CPU data
      */
     template<typename scalar_type>
-    vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries){
-        vector<scalar_type> result(num_entries);
-        check_error(cudaMemcpy(result.data(), cpu_data, num_entries * sizeof(scalar_type), cudaMemcpyHostToDevice), "cuda::load()");
-        return result;
-    }
+    vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries);
     /*!
      * \brief Similar to cuda::load() but loads the data from a std::vector
      */
@@ -150,10 +140,7 @@ namespace cuda {
      * \brief Similar to cuda::load() but loads the data from a std::vector
      */
     template<typename scalar_type>
-    void load(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data){
-        if (gpu_data.size() != cpu_data.size()) gpu_data = vector<scalar_type>(cpu_data.size());
-        check_error(cudaMemcpy(gpu_data.data(), cpu_data.data(), gpu_data.size() * sizeof(scalar_type), cudaMemcpyHostToDevice), "cuda::load()");
-    }
+    void load(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data);
 
     template<typename scalar_type>
     void load(std::vector<scalar_type> const &a, std::vector<scalar_type> &b){ b = a; }
@@ -169,9 +156,8 @@ namespace cuda {
      * \param cpu_data is a buffer with size at least \b gpu_data.size() that sits in the CPU
      */
     template<typename scalar_type>
-    void unload(vector<scalar_type> const &gpu_data, scalar_type *cpu_data){
-        check_error(cudaMemcpy(cpu_data, gpu_data.data(), gpu_data.size() * sizeof(scalar_type), cudaMemcpyDeviceToHost), "cuda::unload()");
-    }
+    void unload(vector<scalar_type> const &gpu_data, scalar_type *cpu_data);
+
     /*!
      * \brief Similar to unload() but copies the data into a std::vector.
      */

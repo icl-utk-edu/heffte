@@ -223,9 +223,12 @@ void test_cuda_vector_type(size_t num_entries){
     source.resize(num_entries / 2);
     sassert(match(dest, source));
 
+    size_t num_v2 = v2.size();
     scalar_type *raw_array = v2.release();
     sassert(v2.empty());
-    cuda::check_error(cudaFree(raw_array), "cudaFree(raw_array)");
+    v2 = cuda::capture(std::move(raw_array), num_v2);
+    sassert(raw_array == nullptr);
+    sassert(not v2.empty());
 }
 
 void test_cuda_vector(){

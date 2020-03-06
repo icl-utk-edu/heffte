@@ -71,8 +71,7 @@ if (Heffte_ENABLE_CUDA)
     find_package(CUDA REQUIRED)
 
     cuda_add_library(Heffte ${Heffte_common_sources}
-                            src/heffte_pack3d.cu
-                            src/heffte_scale.cu)
+                            src/heffte_backend_cuda.cu)
 
     cuda_add_cufft_to_target(Heffte)
 else()
