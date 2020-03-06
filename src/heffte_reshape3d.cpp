@@ -1051,7 +1051,7 @@ void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const sour
     }
 }
 
-template<typename backend_tag, template<typename device> class packer = direct_packer>
+template<typename backend_tag, template<typename device> class packer>
 std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>
 make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                          std::vector<box3d> const &output_boxes,
