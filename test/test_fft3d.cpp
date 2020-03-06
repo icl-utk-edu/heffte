@@ -35,6 +35,12 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_vectors<backend::fftw, std::complex<float>, 11, 11, 22>(comm);
             test_fft3d_vectors<backend::fftw, std::complex<double>, 11, 11, 22>(comm);
             #endif
+            #ifdef Heffte_ENABLE_CUDA
+            test_fft3d_vectors<backend::cufft, float, 11, 11, 22>(comm);
+            test_fft3d_vectors<backend::cufft, double, 11, 11, 22>(comm);
+            test_fft3d_vectors<backend::cufft, std::complex<float>, 11, 11, 22>(comm);
+            test_fft3d_vectors<backend::cufft, std::complex<double>, 11, 11, 22>(comm);
+            #endif
             break;
         case 8:
             #ifdef Heffte_ENABLE_FFTW
@@ -42,6 +48,12 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_vectors<backend::fftw, double, 16, 15, 15>(comm);
             test_fft3d_vectors<backend::fftw, std::complex<float>, 16, 15, 15>(comm);
             test_fft3d_vectors<backend::fftw, std::complex<double>, 16, 15, 15>(comm);
+            #endif
+            #ifdef Heffte_ENABLE_CUDA
+            test_fft3d_vectors<backend::cufft, float, 16, 15, 15>(comm);
+            test_fft3d_vectors<backend::cufft, double, 16, 15, 15>(comm);
+            test_fft3d_vectors<backend::cufft, std::complex<float>, 16, 15, 15>(comm);
+            test_fft3d_vectors<backend::cufft, std::complex<double>, 16, 15, 15>(comm);
             #endif
             break;
         case 12:

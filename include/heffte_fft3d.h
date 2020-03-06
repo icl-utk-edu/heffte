@@ -382,12 +382,10 @@ public:
      * \endcode
      */
     template<typename input_type>
-    std::vector<typename fft_output<input_type>::type> forward(std::vector<input_type> const &input){
-        static_assert(std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::cpu>::value,
-                      "The std::vector variants of fotward() and backward() fft can be called only with a cpu backend.");
+    buffer_container<typename fft_output<input_type>::type> forward(buffer_container<input_type> const &input){
         if (input.size() < size_inbox())
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
-        std::vector<typename fft_output<input_type>::type> output(size_outbox());
+        buffer_container<typename fft_output<input_type>::type> output(size_outbox());
         forward(input.data(), output.data());
         return output;
     }
@@ -425,14 +423,12 @@ public:
      * \brief Perform complex-to-complex backward FFT using vector API.
      */
     template<typename scalar_type>
-    std::vector<scalar_type> backward(std::vector<scalar_type> const &input){
-        static_assert(std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::cpu>::value,
-                      "The std::vector variants of fotward() and backward() fft can be called only with a cpu backend.");
+    buffer_container<scalar_type> backward(buffer_container<scalar_type> const &input){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
         if (input.size() < size_outbox())
             throw std::invalid_argument("The input vector is smaller than size_outbox(), i.e., not enough entries provided to fill the outbox.");
-        std::vector<scalar_type> result(size_inbox());
+        buffer_container<scalar_type> result(size_inbox());
         backward(input.data(), result.data());
         return result;
     }
@@ -441,12 +437,10 @@ public:
      * \brief Perform complex-to-real backward FFT using vector API.
      */
     template<typename scalar_type>
-    std::vector<typename define_standard_type<scalar_type>::type::value_type> backward_real(std::vector<scalar_type> const &input){
-        static_assert(std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::cpu>::value,
-                      "The std::vector variants of fotward() and backward() fft can be called only with a cpu backend.");
+    buffer_container<typename define_standard_type<scalar_type>::type::value_type> backward_real(buffer_container<scalar_type> const &input){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
-        std::vector<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());
+        buffer_container<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());
         backward(input.data(), result.data());
         return result;
     }
