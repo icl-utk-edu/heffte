@@ -70,6 +70,7 @@ endif(HEFFTE_TIME_DETAILED)
 if (Heffte_ENABLE_CUDA)
     find_package(CUDA REQUIRED)
 
+    list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
     cuda_add_library(Heffte ${Heffte_common_sources}
                             src/heffte_backend_cuda.cu)
 
