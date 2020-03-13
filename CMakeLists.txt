@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(Heffte_version_string 0.2.0)
-project("Heffte" VERSION ${Heffte_version_string} LANGUAGES CXX)
+project("Heffte" VERSION 0.2.1 LANGUAGES CXX)
 
 option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            ON) # must change to OFF later
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
@@ -75,12 +74,13 @@ if (Heffte_ENABLE_CUDA)
                             src/heffte_backend_cuda.cu)
 
     cuda_add_cufft_to_target(Heffte)
+    target_include_directories(Heffte PUBLIC $<INSTALL_INTERFACE:${CUDA_INCLUDE_DIRS}>)
 else()
     add_library(Heffte ${Heffte_common_sources})
 endif()
 if (Heffte_ENABLE_FFTW)
     find_package(FFTW REQUIRED)
-    target_link_libraries(Heffte HEFFTE::FFTW)
+    target_link_libraries(Heffte Heffte::FFTW)
 endif()
 target_link_libraries(Heffte MPI::MPI_CXX)
 
@@ -89,7 +89,7 @@ set_target_properties(Heffte PROPERTIES OUTPUT_NAME "heffte"
                                         INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"
                                         CXX_EXTENSIONS OFF
                                         SOVERSION ${Heffte_VERSION_MAJOR}
-                                        VERSION   ${Heffte_version_string})
+                                        VERSION   ${PROJECT_VERSION})
 
 target_include_directories(Heffte PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
 target_include_directories(Heffte PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/>)
@@ -98,19 +98,18 @@ target_include_directories(Heffte PUBLIC $<INSTALL_INTERFACE:include>)
 enable_testing()
 
 # install
-install(TARGETS Heffte EXPORT HEFFTE_Targets DESTINATION lib)
-install(EXPORT HEFFTE_Targets FILE HEFFTE_Targets.cmake NAMESPACE HEFFTE:: DESTINATION lib/cmake/Heffte)
+install(TARGETS Heffte EXPORT Heffte_Targets DESTINATION lib)
+install(EXPORT Heffte_Targets FILE HeffteTargets.cmake NAMESPACE Heffte:: DESTINATION lib/cmake/Heffte)
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file("HEFFTEConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY ExactVersion)
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/HEFFTEConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfig.cmake" @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HEFFTEConfigVersion.cmake" DESTINATION lib/cmake/HEFFTE)
+write_basic_package_version_file("HeffteConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY ExactVersion)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfig.cmake" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfigVersion.cmake" DESTINATION lib/cmake/Heffte)
 #install(DIRECTORY Heffte DESTINATION include FILES_MATCHING PATTERN "include/*.h")
-install (DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
-  PATTERN "**~" EXCLUDE
-  PATTERN "*_gpu*" EXCLUDE
-  PATTERN "*.cu*" EXCLUDE
-  PATTERN "*_cuda*" EXCLUDE
-  )
+install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
+                                                              PATTERN "**~" EXCLUDE
+                                                              PATTERN "*_gpu*" EXCLUDE
+                                                              PATTERN "*.cu*" EXCLUDE
+                                                              )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h DESTINATION include/)
 
 
