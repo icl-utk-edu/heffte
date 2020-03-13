@@ -7,6 +7,7 @@
 */
 
 #include "testing.h"
+#include "heffte_pack3d.h"
 
 using namespace HEFFTE;
 

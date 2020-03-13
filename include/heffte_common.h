@@ -79,4 +79,86 @@ class Error {
 template <class T>
 void scale_ffts_gpu(int n, T *data, T fnorm);
 
+
+namespace heffte {
+
+/*!
+ * \brief Contains internal type-tags.
+ *
+ * Empty structs do not generate run-time code,
+ * but can be used in type checks and overload resolutions at compile time.
+ * Such empty classes are called "type-tags".
+ */
+namespace tag {
+
+/*!
+ * \brief Indicates the use of cpu backend and that all input/output data and arrays will be bound to the cpu.
+ *
+ * Examples of cpu backends are FFTW and MKL.
+ */
+struct cpu{};
+/*!
+ * \brief Indicates the use of gpu backend and that all input/output data and arrays will be bound to the gpu device.
+ *
+ * Example of gpu backend is cuFFT.
+ */
+struct gpu{};
+
+}
+
+/*!
+ * \brief Contains type tags and templates metadata for the various backends.
+ */
+namespace backend {
+
+    /*!
+     * \brief Allows to define whether a specific backend interface has been enabled.
+     *
+     * Defaults to std::false_type, but specializations for each enabled backend
+     * will overwrite this to the std::true_type, i.e., define const static bool value
+     * which is set to true.
+     */
+    template<typename tag>
+    struct is_enabled : std::false_type{};
+
+
+    /*!
+     * \brief Defines the container for the temporary buffers.
+     *
+     * Specialization for each backend will define whether the raw-arrays are associated
+     * with the CPU or GPU devices and the type of the container that will hold temporary
+     * buffers.
+     */
+    template<typename backend_tag>
+    struct buffer_traits{
+        //! \brief Tags the raw-array location tag::cpu or tag::gpu, used by the packers.
+        using location = tag::cpu;
+        //! \brief Defines the container template to use for the temporary buffers in heffte::fft3d.
+        template<typename T> using container = std::vector<T>;
+    };
+
+    /*!
+     * \brief Returns the human readable name of the backend.
+     */
+    template<typename backend_tag>
+    inline std::string name(){ return "unknown"; }
+}
+
+/*!
+ * \brief Indicates the direction of the FFT.
+ */
+enum class direction {
+    //! \brief Forward DFT transform.
+    forward,
+    //! \brief Inverse DFT transform.
+    backward
+};
+
+/*!
+ * \brief Indicates the structure that will be used by the fft backend.
+ */
+template<typename> struct one_dim_backend{};
+
+}
+
 #endif   //  #ifndef HEFFTE_COMMON_H

@@ -17,11 +17,10 @@
 
 #include "heffte_reshape3d.h"
 #include "heffte_pack3d.h"
-#include "heffte_common.h"
 #include "heffte_trace.h"
-#include "heffte_utils.h"
 
-using namespace HEFFTE;
+
+namespace HEFFTE {
 
 /*! \fn
  * @param user_comm  MPI communicator for the P procs which own the data
@@ -882,3 +881,199 @@ int Reshape3d<double>::collide(struct extent_3d *block1, struct extent_3d *block
 template
 int Reshape3d<float>::collide(struct extent_3d *block1, struct extent_3d *block2,
                      struct extent_3d *overlap);
+
+}
+
+namespace heffte {
+
+/*!
+ * \brief Counts how many boxes from the list have a non-empty intersection with the reference box.
+ */
+int count_collisions(std::vector<box3d> const &boxes, box3d const reference){
+    return std::count_if(boxes.begin(), boxes.end(), [&](box3d const b)->bool{ return not reference.collide(b).empty(); });
+}
+
+/*!
+ * \brief Returns the ranks that will participate in an all-to-all communication.
+ *
+ * In a reshape algorithm, consider all ranks and connected them into a graph, where each edge
+ * corresponds to a piece of data that must be communicated (send or receive).
+ * Then take this rank (defined by the list of send and recv procs) and find the larges connected sub-graph.
+ * That corresponds to all the processes that need to participate in an all-to-all communication pattern.
+ *
+ * \param send_proc is the list of ranks that need data from this rank
+ * \param recv_proc is the list of ranks that need to send data to this rank
+ * \param input_boxes is the list of all boxes held currently across the comm
+ * \param output_boxes is the list of all boxes at the end of the communication
+ *
+ * \returns a list of ranks that must participate in an all-to-all communication
+ */
+std::vector<int> a2a_group(std::vector<int> const &send_proc, std::vector<int> const &recv_proc,
+                           std::vector<box3d> const &input_boxes, std::vector<box3d> const &output_boxes){
+    assert(input_boxes.size() == output_boxes.size());
+    std::vector<int> result;
+    std::vector<bool> marked(input_boxes.size(), false);
+
+    // start with the processes that are connected to this rank
+    for(auto p : send_proc){
+        if (marked[p]) continue;
+        marked[p] = true;
+        result.push_back(p);
+    }
+    for(auto p : recv_proc){
+        if (marked[p]) continue;
+        marked[p] = true;
+        result.push_back(p);
+    }
+
+    // loop over procs in result
+    // collide each input_boxes extent with all Nprocs output extents
+    // collide each output_boxes extent with all Nprocs input extents
+    // add any new collision to result
+    // keep iterating until nothing is added to result
+    bool adding = true;
+    while(adding){
+        size_t num_current = result.size();
+        for(size_t i=0; i<num_current; i++){
+            int iproc = result[i];
+            // note the O(n^2) graph search, but should be OK for now
+            for(size_t j=0; j<input_boxes.size(); j++){
+                if (not marked[j] and not input_boxes[iproc].collide(output_boxes[j]).empty()){
+                    result.push_back(j);
+                    marked[j] = true;
+                }
+                if (not marked[j] and not output_boxes[iproc].collide(input_boxes[j]).empty()){
+                    result.push_back(j);
+                    marked[j] = true;
+                }
+            }
+        }
+        adding = (num_current != result.size()); // if nothing got added
+    }
+
+    // sort based on the flag
+    result.resize(0);
+    for(size_t i=0; i<input_boxes.size(); i++)
+        if (marked[i]) result.push_back(i);
+
+    return result;
+}
+
+void compute_overlap_map(int me, int nprocs, box3d const source, std::vector<box3d> const &boxes,
+                         std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d> &plans){
+    for(int i=0; i<nprocs; i++){
+        int iproc = (i + me) % nprocs;
+        box3d overlap = source.collide(boxes[iproc]);
+        if (not overlap.empty()){
+            proc.push_back(iproc);
+            offset.push_back((overlap.low[2] - source.low[2]) * source.size[0] * source.size[1]
+                              + (overlap.low[1] - source.low[1]) * source.size[0]
+                              + (overlap.low[0] - source.low[0]));
+
+            plans.push_back({overlap.size[0], overlap.size[1], overlap.size[2], // fast, mid, and slow sizes
+                             source.size[0], source.size[1] * source.size[0]}); // line and plane strides
+            sizes.push_back(overlap.count());
+        }
+    }
+}
+
+template<typename backend_tag, template<typename device> class packer>
+reshape3d_alltoallv<backend_tag, packer>::reshape3d_alltoallv(
+                        int input_size, int output_size,
+                        MPI_Comm master_comm, std::vector<int> const &pgroup,
+                        std::vector<int> &&csend_offset, std::vector<int> &&csend_size, std::vector<int> const &send_proc,
+                        std::vector<int> &&crecv_offset, std::vector<int> &&crecv_size, std::vector<int> const &recv_proc,
+                        std::vector<pack_plan_3d> &&cpackplan, std::vector<pack_plan_3d> &&cunpackplan
+                                                                ) :
+    reshape3d_base(input_size, output_size),
+    comm(mpi::new_comm_form_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
+    send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
+    recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
+    send_total(std::accumulate(send_size.begin(), send_size.end(), 0)),
+    recv_total(std::accumulate(recv_size.begin(), recv_size.end(), 0)),
+    packplan(std::move(cpackplan)), unpackplan(std::move(cunpackplan)),
+    send(pgroup, send_proc, send_size),
+    recv(pgroup, recv_proc, recv_size)
+{}
+
+template<typename backend_tag, template<typename device> class packer>
+template<typename scalar_type>
+void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const source[], scalar_type destination[]) const{
+
+    std::vector<scalar_type> send_buffer(send_total);
+    std::vector<scalar_type> recv_buffer(recv_total);
+
+    packer<typename backend::buffer_traits<backend_tag>::location> packit;
+
+    int offset = 0;
+    for(auto isend : send.map){
+        if (isend >= 0){ // something to send
+            packit.pack(packplan[isend], &source[send_offset[isend]], &send_buffer[offset]);
+            offset += send_size[isend];
+        }
+    }
+
+    MPI_Alltoallv(send_buffer.data(), send.counts.data(), send.displacements.data(), mpi::type_from<scalar_type>(),
+                  recv_buffer.data(), recv.counts.data(), recv.displacements.data(), mpi::type_from<scalar_type>(),
+                  comm);
+
+    offset = 0;
+    for(auto irecv : recv.map){
+        if (irecv >= 0){ // something received
+            packit.unpack(unpackplan[irecv], &recv_buffer[offset], &destination[recv_offset[irecv]]);
+            offset += recv_size[irecv];
+        }
+    }
+}
+
+template<typename backend_tag, template<typename device> class packer = direct_packer>
+std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>
+make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
+                         std::vector<box3d> const &output_boxes,
+                         MPI_Comm const comm){
+    int const me = mpi::comm_rank(comm);
+    int const nprocs = mpi::comm_size(comm);
+
+    std::vector<pack_plan_3d> packplan, unpackplan; // will be moved into the class
+    std::vector<int> send_offset;
+    std::vector<int> send_size;
+    std::vector<int> send_proc;
+    std::vector<int> recv_offset;
+    std::vector<int> recv_size;
+    std::vector<int> recv_proc;
+
+    box3d outbox = output_boxes[me];
+    box3d inbox  = input_boxes[me];
+
+    // number of ranks that need data from me
+    int nsend = count_collisions(output_boxes, inbox);
+
+    if (nsend > 0) // if others need something from me, prepare the corresponding sizes and plans
+        compute_overlap_map(me, nprocs, input_boxes[me], output_boxes, send_proc, send_offset, send_size, packplan);
+
+    // number of ranks that I need data from
+    int nrecv = count_collisions(input_boxes, outbox);
+
+    if (nrecv > 0) // if I need something from others, prepare the corresponding sizes and plans
+        compute_overlap_map(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
+
+    return std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>(new reshape3d_alltoallv<backend_tag, packer>(
+        inbox.count(), outbox.count(),
+        comm, a2a_group(send_proc, recv_proc, input_boxes, output_boxes),
+        std::move(send_offset), std::move(send_size), send_proc,
+        std::move(recv_offset), std::move(recv_size), recv_proc,
+        std::move(packplan), std::move(unpackplan)
+                                                       ));
+}
+
+#ifdef Heffte_ENABLE_FFTW
+template void reshape3d_alltoallv<backend::fftw, direct_packer>::apply_base<float>(float const source[], float destination[]) const;
+template void reshape3d_alltoallv<backend::fftw, direct_packer>::apply_base<double>(double const source[], double destination[]) const;
+template void reshape3d_alltoallv<backend::fftw, direct_packer>::apply_base<std::complex<float>>(std::complex<float> const source[], std::complex<float> destination[]) const;
+template void reshape3d_alltoallv<backend::fftw, direct_packer>::apply_base<std::complex<double>>(std::complex<double> const source[], std::complex<double> destination[]) const;
+
+template std::unique_ptr<reshape3d_alltoallv<backend::fftw, direct_packer>>
+make_reshape3d_alltoallv<backend::fftw, direct_packer>(std::vector<box3d> const&, std::vector<box3d> const&, MPI_Comm const);
+#endif
+
+}
