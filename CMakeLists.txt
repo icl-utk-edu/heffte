@@ -113,6 +113,13 @@ install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h DESTINATION include/)
 
 
+###########################
+# Examples
+###########################
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExampleCMakeLists.cmake" "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" DESTINATION share/heffte/examples)
+install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp")
+
 
 # ##########
 # GPU BUILD
