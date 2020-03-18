@@ -21,6 +21,9 @@ set(DOXYGEN_HTML_COLORSTYLE_HUE    "205")
 set(DOXYGEN_HTML_COLORSTYLE_SAT     "95")
 set(DOXYGEN_HTML_COLORSTYLE_GAMMA  "190")
 
+# PREDEFINED is used only during doxygen build to show all methods and classes for all options
+set(DOXYGEN_PREDEFINED "Heffte_ENABLE_FFTW;Heffte_ENABLE_CUDA")
+
 doxygen_add_docs(heffte_doxygen
                  README.md
                  include/

@@ -321,7 +321,7 @@ enum class scale{
  * truly inverses, unless the correct scaling is applied. By default, HeFFTe does not apply scaling,
  * but the methods accept an optional parameter with three different options, see also heffte::scale.
  * <table>
- * <tr><td> Forward </tr><td> Backward-inverse </td></tr>
+ * <tr><td> Forward </tr><td> Inverse </td></tr>
  * <tr><td> forward(a, b, scaling::none) </tr><td> forward(a, b, scaling::full) </td></tr>
  * <tr><td> forward(a, b, scaling::symmetric) </tr><td> forward(a, b, scaling::symmetric) </td></tr>
  * <tr><td> forward(a, b, scaling::full) </tr><td> forward(a, b, scaling::none) </td></tr>
@@ -337,7 +337,7 @@ public:
      *
      * Following C++ RAII style of resource management, HeFFTe uses containers to manage
      * the temporary buffers used during transformation and communication.
-     * The CPU backends use std::vector while the GPU backends use (heffte::cuda::vector ... to be implemented).
+     * The CPU backends use std::vector while the GPU backends use heffte::cuda::vector.
      */
     template<typename T> using buffer_container = typename backend::buffer_traits<backend_tag>::template container<T>;
 
@@ -368,6 +368,7 @@ public:
      *          to the inbox
      * \param output is an array of size at least size_outbox() and will be overwritten with
      *          the result from the transform corresponding to the outbox
+     * \param scaling defines the type of scaling to apply (default no-scaling).
      *
      * Note that in the complex-to-complex case, the two arrays can be the same, in which case
      *  the size must be at least std::max(size_inbox(), size_outbox()).
@@ -392,9 +393,10 @@ public:
      * \tparam input_type is a type compatible with the input of a backward FFT,
      *          see \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
      *
-     * \param input is a std::vector with size at least size_inbox() corresponding to the input of forward().
+     * \param input is a std::vector or heffte::cuda::vector with size at least size_inbox() corresponding to the input of forward().
+     * \param scaling defines the type of scaling to apply (default no-scaling).
      *
-     * \returns std::vector with entries corresponding to the output type and with size equal to size_outbox()
+     * \returns std::vector or heffte::cuda::vector with entries corresponding to the output type and with size equal to size_outbox()
      *          corresponding to the output of forward().
      *
      * \throws std::invalid_argument is the size of the \b input is less than size_inbox().
@@ -429,6 +431,7 @@ public:
      *          to the outbox
      * \param output is an array of size at least size_inbox() and will be overwritten with
      *          the result from the transform corresponding to the inbox
+     * \param scaling defines the type of scaling to apply (default no-scaling)
      *
      * Note that in the complex-to-complex case, the two arrays can be the same, in which case
      *  the size must be at least std::max(size_inbox(), size_outbox()).
@@ -485,11 +488,12 @@ private:
      * \param shaper are the four stages of the reshape operations
      * \param executor holds the three stages of the one dimensional FFT algorithm
      * \param dir indicates whether to use the forward or backward method of the executor
+     * \param scaling is the type of scaling to apply to the output data
      */
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
-                            std::array<backend_executor*, 3> const executor, direction dir, scale) const; // complex to complex
+                            std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const; // complex to complex
     /*!
      * \brief Overload to handle the real-to-complex case.
      *
