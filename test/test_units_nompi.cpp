@@ -68,6 +68,22 @@ void test_split_pencils(){
     sassert(reconstructed_world == world);
 }
 
+void test_cpu_scale(){
+    using namespace heffte;
+    current_test<int, using_nompi> name("cpu scaling");
+    std::vector<float> x = {1.0, 33.0, 88.0, -11.0, 2.0};
+    std::vector<float> y = x;
+    for(auto &v : y) v *= 3.0;
+    data_scaling<tag::cpu>::apply(x.size(), x.data(), 3.0);
+    sassert(approx(x, y));
+
+    std::vector<std::complex<double>> cx = {{1.0, -11.0}, {33.0, 8.0}, {88.0, -11.0}, {2.0, -9.0}};
+    std::vector<std::complex<double>> cy = cx;
+    for(auto &v : cy) v /= 1.33;
+    data_scaling<tag::cpu>::apply(cx.size(), cx.data(), 1.0 / 1.33);
+    sassert(approx(cx, cy));
+}
+
 /*
  * Generates input for the fft, the input consists of reals or complex but they have only
  * integer values and the values follow the order of the entries.
@@ -348,6 +364,7 @@ int main(int argc, char *argv[]){
     test_factorize();
     test_process_grid();
     test_split_pencils();
+    test_cpu_scale();
 
     test_cuda_vector();
 
