@@ -1000,33 +1000,58 @@ template<typename backend_tag, template<typename device> class packer>
 template<typename scalar_type>
 void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const source[], scalar_type destination[]) const{
 
-    std::vector<scalar_type> send_buffer(send_total);
-    std::vector<scalar_type> recv_buffer(recv_total);
+    using buffer_container = typename backend::buffer_traits<backend_tag>::template container<scalar_type>;
+
+    buffer_container send_buffer(send_total);
+    buffer_container recv_buffer(recv_total);
 
     packer<typename backend::buffer_traits<backend_tag>::location> packit;
 
     int offset = 0;
     for(auto isend : send.map){
         if (isend >= 0){ // something to send
-            packit.pack(packplan[isend], &source[send_offset[isend]], &send_buffer[offset]);
+            packit.pack(packplan[isend], source + send_offset[isend], send_buffer.data() + offset);
             offset += send_size[isend];
         }
     }
 
-    MPI_Alltoallv(send_buffer.data(), send.counts.data(), send.displacements.data(), mpi::type_from<scalar_type>(),
-                  recv_buffer.data(), recv.counts.data(), recv.displacements.data(), mpi::type_from<scalar_type>(),
+    scalar_type *outgoing = send_buffer.data();
+    scalar_type *incomming = recv_buffer.data();
+
+    #ifdef Heffte_ENABLE_CUDA
+    std::vector<scalar_type> cpu_send_buffer;
+    std::vector<scalar_type> cpu_recv_buffer;
+    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
+        // the data is on the GPU, pull back to the CPU
+        cpu_send_buffer = cuda::unload(send_buffer);
+        cpu_recv_buffer = std::vector<scalar_type>(recv_total);
+
+        outgoing = cpu_send_buffer.data();
+        incomming = cpu_recv_buffer.data();
+    }
+    #endif
+
+    MPI_Alltoallv(outgoing,  send.counts.data(), send.displacements.data(), mpi::type_from<scalar_type>(),
+                  incomming, recv.counts.data(), recv.displacements.data(), mpi::type_from<scalar_type>(),
                   comm);
+
+    #ifdef Heffte_ENABLE_CUDA
+    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
+        // the data is on the GPU, pull back to the CPU
+        cuda::load(cpu_recv_buffer, recv_buffer);
+    }
+    #endif
 
     offset = 0;
     for(auto irecv : recv.map){
         if (irecv >= 0){ // something received
-            packit.unpack(unpackplan[irecv], &recv_buffer[offset], &destination[recv_offset[irecv]]);
+            packit.unpack(unpackplan[irecv], recv_buffer.data() + offset, destination + recv_offset[irecv]);
             offset += recv_size[irecv];
         }
     }
 }
 
-template<typename backend_tag, template<typename device> class packer = direct_packer>
+template<typename backend_tag, template<typename device> class packer>
 std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>
 make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                          std::vector<box3d> const &output_boxes,
@@ -1066,14 +1091,21 @@ make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                                                        ));
 }
 
-#ifdef Heffte_ENABLE_FFTW
-template void reshape3d_alltoallv<backend::fftw, direct_packer>::apply_base<float>(float const source[], float destination[]) const;
-template void reshape3d_alltoallv<backend::fftw, direct_packer>::apply_base<double>(double const source[], double destination[]) const;
-template void reshape3d_alltoallv<backend::fftw, direct_packer>::apply_base<std::complex<float>>(std::complex<float> const source[], std::complex<float> destination[]) const;
-template void reshape3d_alltoallv<backend::fftw, direct_packer>::apply_base<std::complex<double>>(std::complex<double> const source[], std::complex<double> destination[]) const;
+#define heffte_instantiate_reshape3d_alltoallv(some_backend) \
+template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<float>(float const source[], float destination[]) const; \
+template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<double>(double const source[], double destination[]) const; \
+template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<std::complex<float>>(std::complex<float> const source[], std::complex<float> destination[]) const; \
+template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<std::complex<double>>(std::complex<double> const source[], std::complex<double>  destination[]) const; \
+ \
+template std::unique_ptr<reshape3d_alltoallv<some_backend, direct_packer>> \
+make_reshape3d_alltoallv<some_backend, direct_packer>(std::vector<box3d> const&, std::vector<box3d> const&, MPI_Comm const); \
 
-template std::unique_ptr<reshape3d_alltoallv<backend::fftw, direct_packer>>
-make_reshape3d_alltoallv<backend::fftw, direct_packer>(std::vector<box3d> const&, std::vector<box3d> const&, MPI_Comm const);
+
+#ifdef Heffte_ENABLE_FFTW
+heffte_instantiate_reshape3d_alltoallv(backend::fftw);
+#endif
+#ifdef Heffte_ENABLE_CUDA
+heffte_instantiate_reshape3d_alltoallv(backend::cufft);
 #endif
 
 }

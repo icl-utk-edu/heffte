@@ -13,6 +13,7 @@
 #include <mpi.h>
 #include "heffte_geometry.h"
 #include "heffte_backend_fftw.h"
+#include "heffte_backend_cuda.h"
 
 
 namespace HEFFTE {

@@ -243,6 +243,7 @@ template <class T>
 }
 
 namespace heffte {
+
 // identical to before, but in this namespace
 struct pack_plan_3d{
     int nfast;                 // # of elements in fast index

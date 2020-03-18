@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "mpi.h"
-#include "heffte_utils.h"
+#include "heffte_geometry.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // HEFFTE  ALL2ALL options

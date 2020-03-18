@@ -5,6 +5,8 @@
        @date
 */
 
+#include <random>
+
 #include "test_common.h"
 
 void test_factorize(){
@@ -186,6 +188,159 @@ void test_fftw(){
 void test_fftw(){}
 #endif
 
+#ifdef Heffte_ENABLE_CUDA
+template<typename scalar_type>
+void test_cuda_vector_type(size_t num_entries){
+    current_test<scalar_type, using_nompi> name("cuda::vector");
+    std::vector<scalar_type> source(num_entries);
+    std::iota(source.begin(), source.end(), 0); // fill source with 0, 1, 2, 3, 4 ...
+    cuda::vector<scalar_type> v1 = cuda::load(source);
+    sassert(v1.size() == source.size());
+    cuda::vector<scalar_type> v2 = v1; // test copy constructor
+    sassert(v1.size() == v2.size());
+    std::vector<scalar_type> dest = cuda::unload(v2);
+    sassert(match(dest, source));
+
+    { // test move constructor
+        cuda::vector<scalar_type> t = std::move(v2);
+        dest = std::vector<scalar_type>(); // reset the destination
+        dest = cuda::unload(t);
+        sassert(match(dest, source));
+    }
+
+    sassert(v2.empty()); // test empty and reset to null after move
+    v2 = std::move(v1);  // test move assignment
+    sassert(v1.empty()); // test if moved out of v1
+
+    dest = std::vector<scalar_type>(); // reset the destination
+    dest = cuda::unload(v2);
+    sassert(match(dest, source));
+
+    v1 = cuda::load(source);
+    v2 = cuda::vector<scalar_type>(v1.data(), v1.data() + num_entries / 2);
+    sassert(v2.size() == num_entries / 2);
+    dest = cuda::unload(v2);
+    source.resize(num_entries / 2);
+    sassert(match(dest, source));
+
+    size_t num_v2 = v2.size();
+    scalar_type *raw_array = v2.release();
+    sassert(v2.empty());
+    v2 = cuda::capture(std::move(raw_array), num_v2);
+    sassert(raw_array == nullptr);
+    sassert(not v2.empty());
+}
+
+void test_cuda_vector(){
+    test_cuda_vector_type<float>(11);
+    test_cuda_vector_type<double>(40);
+    test_cuda_vector_type<std::complex<float>>(73);
+    test_cuda_vector_type<std::complex<double>>(13);
+}
+template<typename scalar_type>
+void test_cufft_1d_complex(){
+    current_test<scalar_type, using_nompi> name("cufft one-dimension");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::cufft_executor fft(box, i);
+
+        auto curesult = cuda::load(input);
+        fft.forward(curesult.data());
+        sassert(approx(curesult, reference[i]));
+
+        fft.backward(curesult.data());
+        auto result = cuda::unload(curesult);
+        for(auto &r : result) r /= (2.0 + i);
+        sassert(approx(result, input));
+    }
+}
+template<typename scalar_type>
+void test_cufft_1d_real(){
+    current_test<scalar_type, using_nompi> name("cufft one-dimension");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::cufft_executor fft(box, i);
+
+        cuda::vector<typename fft_output<scalar_type>::type> curesult(input.size());
+        auto cuinput = cuda::load(input);
+        fft.forward(cuinput.data(), curesult.data());
+        sassert(approx(curesult, reference[i]));
+
+        cuda::vector<scalar_type> cuback_result(curesult.size());
+        fft.backward(curesult.data(), cuback_result.data());
+        auto back_result = cuda::unload(cuback_result);
+        for(auto &r : back_result) r /= (2.0 + i);
+        sassert(approx(back_result, input));
+    }
+}
+
+void test_cufft(){
+    test_cufft_1d_real<float>();
+    test_cufft_1d_real<double>();
+    test_cufft_1d_complex<std::complex<float>>();
+    test_cufft_1d_complex<std::complex<double>>();
+}
+#else
+void test_cuda_vector(){} // skip cuda
+void test_cufft(){}
+#endif
+
+#if defined(Heffte_ENABLE_FFTW) and defined(Heffte_ENABLE_CUDA)
+template<typename scalar_type>
+std::vector<scalar_type> make_data(box3d const world){
+    std::minstd_rand park_miller(4242);
+    std::uniform_real_distribution<double> unif(0.0, 1.0);
+
+    std::vector<scalar_type> result(world.count());
+    for(auto &r : result)
+        r = static_cast<scalar_type>(unif(park_miller));
+    return result;
+}
+template<typename scalar_type>
+void test_cross_reference_type(){
+    current_test<scalar_type, using_nompi> name("cufft - fftw reference");
+
+    box3d box = {{0, 0, 0}, {42, 75, 23}};
+    auto input = make_data<scalar_type>(box);
+    auto cuinput = cuda::load(input);
+
+    for(int i=0; i<3; i++){
+        heffte::fftw_executor  fft_cpu(box, i);
+        heffte::cufft_executor fft_gpu(box, i);
+
+        fft_cpu.forward(input.data());
+        fft_gpu.forward(cuinput.data());
+
+        if (std::is_same<scalar_type, std::complex<float>>::value){
+            sassert(approx(cuinput, input, 0.0005)); // float complex is not well conditioned
+        }else{
+            sassert(approx(cuinput, input));
+        }
+    }
+
+}
+void test_cross_reference(){
+    test_cross_reference_type<std::complex<float>>();
+    test_cross_reference_type<std::complex<double>>();
+}
+#else
+void test_cross_reference(){}
+#endif
+
 int main(int argc, char *argv[]){
 
     all_tests<using_nompi> name("Non-MPI Tests");
@@ -194,7 +349,12 @@ int main(int argc, char *argv[]){
     test_process_grid();
     test_split_pencils();
 
+    test_cuda_vector();
+
     test_fftw();
+    test_cufft();
+
+    test_cross_reference();
 
     return 0;
 }
