@@ -285,24 +285,13 @@ class cufft_executor{
 public:
     cufft_executor(box3d const box, int dimension) :
         size(box.size[dimension]),
-        howmany(get_many(box, dimension)),
-        stride(get_stride(box, dimension)),
+        howmany(fft1d_get_howmany(box, dimension)),
+        stride(fft1d_get_stride(box, dimension)),
         dist((dimension == 0) ? size : 1),
         blocks((dimension == 1) ? box.size[2] : 1),
         block_stride(box.size[0] * box.size[1]),
         total_size(box.count())
     {}
-
-    static int get_many(box3d const box, int dimension){
-        if (dimension == 0) return box.size[1] * box.size[2];
-        if (dimension == 1) return box.size[0];
-        return box.size[0] * box.size[1];
-    }
-    static int get_stride(box3d const box, int dimension){
-        if (dimension == 0) return 1;
-        if (dimension == 1) return box.size[0];
-        return box.size[0] * box.size[1];
-    }
 
     void forward(std::complex<float> data[]) const{
         make_plan(ccomplex_plan);

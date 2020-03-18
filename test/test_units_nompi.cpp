@@ -128,6 +128,20 @@ std::vector<typename fft_output<scalar_type>::type> make_fft1(){
     return result;
 }
 /*
+ * Same as make_fft1() but using the r2c transform and only the unique entries.
+ */
+template<typename scalar_type>
+std::vector<typename fft_output<scalar_type>::type> make_fft1_r2c(){
+    std::vector<typename fft_output<scalar_type>::type> result(16);
+    for(int j=0; j<4; j++){
+        for(int i=0; i<2; i++){
+            result[4 * j + i]     = typename fft_output<scalar_type>::type((2*j + i+1) * 9.0 - i * 6.0);
+            result[4 * j + i + 2] = typename fft_output<scalar_type>::type(-3.0,  1.73205080756888);
+        }
+    }
+    return result;
+}
+/*
  * Same as make_fft0() but the transforms are applied to dimension 2.
  * Each transform uses 4 entries, since the size in dimension 2 is 4.
  */
@@ -139,6 +153,19 @@ std::vector<typename fft_output<scalar_type>::type> make_fft2(){
         result[i+ 6] = typename fft_output<scalar_type>::type(-12.0, 12.0);
         result[i+12] = typename fft_output<scalar_type>::type(-12.0);
         result[i+18] = typename fft_output<scalar_type>::type(-12.0, -12.0);
+    }
+    return result;
+}
+/*
+ * Same as make_fft2() but using the r2c transform and only the unique entries.
+ */
+template<typename scalar_type>
+std::vector<typename fft_output<scalar_type>::type> make_fft2_r2c(){
+    std::vector<typename fft_output<scalar_type>::type> result(18);
+    for(size_t i=0; i<6; i++){
+        result[i]    = typename fft_output<scalar_type>::type(40.0 + 4 * i);
+        result[i+ 6] = typename fft_output<scalar_type>::type(-12.0, 12.0);
+        result[i+12] = typename fft_output<scalar_type>::type(-12.0);
     }
     return result;
 }
@@ -200,8 +227,38 @@ void test_fftw(){
     test_fftw_1d_complex<std::complex<float>>();
     test_fftw_1d_complex<std::complex<double>>();
 }
+
+template<typename scalar_type>
+void test_fftw_1d_r2c(){
+    current_test<scalar_type, using_nompi> name("fftw3 one-dimension r2c");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::fftw_executor_r2c fft(box, i);
+
+        std::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
+        fft.forward(input.data(), result.data());
+        sassert(approx(result, reference[i]));
+
+        std::vector<scalar_type> back_result(fft.real_size());
+        fft.backward(result.data(), back_result.data());
+        for(auto &r : back_result) r /= (2.0 + i);
+        sassert(approx(back_result, input));
+    }
+}
+void test_fftw_r2c(){
+    test_fftw_1d_r2c<float>();
+    test_fftw_1d_r2c<double>();
+}
 #else
 void test_fftw(){}
+void test_fftw_r2c(){}
 #endif
 
 #ifdef Heffte_ENABLE_CUDA
@@ -390,6 +447,7 @@ int main(int argc, char *argv[]){
     test_gpu_scale();
 
     test_fftw();
+    test_fftw_r2c();
     test_cufft();
 
     test_cross_reference();

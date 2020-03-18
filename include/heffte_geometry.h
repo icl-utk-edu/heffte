@@ -40,6 +40,15 @@ struct box3d{
         return box3d({std::max(low[0], other.low[0]), std::max(low[1], other.low[1]), std::max(low[2], other.low[2])},
                      {std::min(high[0], other.high[0]), std::min(high[1], other.high[1]), std::min(high[2], other.high[2])});
     }
+    //! \brief Returns the box that is reduced in the given dimension according to the real-to-complex symmetry.
+    box3d r2c(int dimension) const{
+        switch(dimension){
+            case 0: return box3d(low, {low[0] + size[0] / 2, high[1], high[2]});
+            case 1: return box3d(low, {high[0], low[1] + size[1] / 2, high[2]});
+            default: // dimension == 2
+                return box3d(low, {high[0], high[1], low[2] + size[2] / 2});
+        }
+    }
     //! \brief Compares two boxes, returns \b true if all sizes and boundaries match.
     bool operator == (box3d const &other) const{
         return not (*this != other);
@@ -66,6 +75,23 @@ inline std::ostream & operator << (std::ostream &os, box3d const box){
         os << box.low[i] << "  " << box.high[i] << "  (" << box.size[i] << ")\n";
     os << "\n";
     return os;
+}
+
+/*!
+ * \brief Return the number of 1-D ffts contained in the box in the given dimension.
+ */
+inline int fft1d_get_howmany(box3d const box, int const dimension){
+    if (dimension == 0) return box.size[1] * box.size[2];
+    if (dimension == 1) return box.size[0];
+    return box.size[0] * box.size[1];
+}
+/*!
+ * \brief Return the stride of the 1-D ffts contained in the box in the given dimension.
+ */
+inline int fft1d_get_stride(box3d const box, int const dimension){
+    if (dimension == 0) return 1;
+    if (dimension == 1) return box.size[0];
+    return box.size[0] * box.size[1];
 }
 
 /*!

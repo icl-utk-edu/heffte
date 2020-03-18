@@ -100,29 +100,17 @@ struct plan_fftw<std::complex<double>, dir>{
     fftw_plan plan;
 };
 
-
 class fftw_executor{
 public:
     fftw_executor(box3d const box, int dimension) :
         size(box.size[dimension]),
-        howmany(get_many(box, dimension)),
-        stride(get_stride(box, dimension)),
+        howmany(fft1d_get_howmany(box, dimension)),
+        stride(fft1d_get_stride(box, dimension)),
         dist((dimension == 0) ? size : 1),
         blocks((dimension == 1) ? box.size[2] : 1),
         block_stride(box.size[0] * box.size[1]),
         total_size(box.count())
     {}
-
-    static int get_many(box3d const box, int dimension){
-        if (dimension == 0) return box.size[1] * box.size[2];
-        if (dimension == 1) return box.size[0];
-        return box.size[0] * box.size[1];
-    }
-    static int get_stride(box3d const box, int dimension){
-        if (dimension == 0) return 1;
-        if (dimension == 1) return box.size[0];
-        return box.size[0] * box.size[1];
-    }
 
     void forward(std::complex<float> data[]) const{
         make_plan(cforward);
@@ -185,11 +173,132 @@ private:
     mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::backward>> zbackward;
 };
 
+//! \brief Specialization for r2c single precision.
+template<direction dir>
+struct plan_fftw<float, dir>{
+    /*!
+     * \brief Constructor taking into account the different sizes for the real and complex parts.
+     *
+     * \param size is the number of entries in a 1-D transform
+     * \param howmany is the number of transforms in the batch
+     * \param stride is the distance between entries of the same transform
+     * \param rdist is the distance between the first entries of consecutive sequences in the real sequences
+     * \param cdist is the distance between the first entries of consecutive sequences in the complex sequences
+     */
+    plan_fftw(int size, int howmany, int stride, int rdist, int cdist) :
+        plan((dir == direction::forward) ?
+             fftwf_plan_many_dft_r2c(1, &size, howmany, nullptr, nullptr, stride, rdist,
+                                                   nullptr, nullptr, stride, cdist,
+                                                   FFTW_ESTIMATE
+                                   ) :
+             fftwf_plan_many_dft_c2r(1, &size, howmany, nullptr, nullptr, stride, cdist,
+                                                   nullptr, nullptr, stride, rdist,
+                                                   FFTW_ESTIMATE
+                                   ))
+        {}
+    //! \brief Identical to the float-complex specialization.
+    ~plan_fftw(){ fftwf_destroy_plan(plan); }
+    //! \brief Identical to the float-complex specialization.
+    operator fftwf_plan() const{ return plan; }
+    //! \brief Identical to the float-complex specialization.
+    fftwf_plan plan;
+};
+//! \brief Specialization for r2c double precision.
+template<direction dir>
+struct plan_fftw<double, dir>{
+    //! \brief Identical to the float-complex specialization.
+    plan_fftw(int size, int howmany, int stride, int rdist, int cdist) :
+        plan((dir == direction::forward) ?
+             fftw_plan_many_dft_r2c(1, &size, howmany, nullptr, nullptr, stride, rdist,
+                                                   nullptr, nullptr, stride, cdist,
+                                                   FFTW_ESTIMATE
+                                   ) :
+             fftw_plan_many_dft_c2r(1, &size, howmany, nullptr, nullptr, stride, cdist,
+                                                   nullptr, nullptr, stride, rdist,
+                                                   FFTW_ESTIMATE
+                                   ))
+        {}
+    //! \brief Identical to the float-complex specialization.
+    ~plan_fftw(){ fftw_destroy_plan(plan); }
+    //! \brief Identical to the float-complex specialization.
+    operator fftw_plan() const{ return plan; }
+    //! \brief Identical to the float-complex specialization.
+    fftw_plan plan;
+};
+
+class fftw_executor_r2c{
+public:
+    fftw_executor_r2c(box3d const box, int dimension) :
+        size(box.size[dimension]),
+        howmany(fft1d_get_howmany(box, dimension)),
+        stride(fft1d_get_stride(box, dimension)),
+        blocks((dimension == 1) ? box.size[2] : 1),
+        rdist((dimension == 0) ? size : 1),
+        cdist((dimension == 0) ? size/2 + 1 : 1),
+        rblock_stride(box.size[0] * box.size[1]),
+        cblock_stride(box.size[0] * (box.size[1]/2 + 1)),
+        rsize(box.count()),
+        csize(box.r2c(dimension).count())
+    {}
+
+    void forward(float const indata[], std::complex<float> outdata[]) const{
+        make_plan(sforward);
+        for(int i=0; i<blocks; i++){
+            float *rdata = const_cast<float*>(indata + i * rblock_stride);
+            fftwf_complex* cdata = reinterpret_cast<fftwf_complex*>(outdata + i * cblock_stride);
+            fftwf_execute_dft_r2c(*sforward, rdata, cdata);
+        }
+    }
+    void backward(std::complex<float> const indata[], float outdata[]) const{
+        make_plan(sbackward);
+        for(int i=0; i<blocks; i++){
+            fftwf_complex* cdata = const_cast<fftwf_complex*>(reinterpret_cast<fftwf_complex const*>(indata + i * cblock_stride));
+            fftwf_execute_dft_c2r(*sbackward, cdata, outdata + i * rblock_stride);
+        }
+    }
+    void forward(double const indata[], std::complex<double> outdata[]) const{
+        make_plan(dforward);
+        for(int i=0; i<blocks; i++){
+            double *rdata = const_cast<double*>(indata + i * rblock_stride);
+            fftw_complex* cdata = reinterpret_cast<fftw_complex*>(outdata + i * cblock_stride);
+            fftw_execute_dft_r2c(*dforward, rdata, cdata);
+        }
+    }
+    void backward(std::complex<double> const indata[], double outdata[]) const{
+        make_plan(dbackward);
+        for(int i=0; i<blocks; i++){
+            fftw_complex* cdata = const_cast<fftw_complex*>(reinterpret_cast<fftw_complex const*>(indata + i * cblock_stride));
+            fftw_execute_dft_c2r(*dbackward, cdata, outdata + i * rblock_stride);
+        }
+    }
+
+    int real_size() const{ return rsize; }
+    int complex_size() const{ return csize; }
+
+private:
+    template<typename scalar_type, direction dir>
+    void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
+        if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmany, stride, rdist, cdist));
+    }
+
+    mutable int size, howmany, stride, blocks;
+    mutable int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
+    mutable std::unique_ptr<plan_fftw<float, direction::forward>> sforward;
+    mutable std::unique_ptr<plan_fftw<double, direction::forward>> dforward;
+    mutable std::unique_ptr<plan_fftw<float, direction::backward>> sbackward;
+    mutable std::unique_ptr<plan_fftw<double, direction::backward>> dbackward;
+};
+
 template<> struct one_dim_backend<backend::fftw>{
     using type = fftw_executor;
+    using type_r2c = fftw_executor_r2c;
 
     static std::unique_ptr<fftw_executor> make(box3d const box, int dimension){
         return std::unique_ptr<fftw_executor>(new fftw_executor(box, dimension));
+    }
+
+    static std::unique_ptr<fftw_executor_r2c> make_r2c(box3d const box, int dimension){
+        return std::unique_ptr<fftw_executor_r2c>(new fftw_executor_r2c(box, dimension));
     }
 };
 
