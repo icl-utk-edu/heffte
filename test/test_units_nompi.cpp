@@ -253,6 +253,25 @@ void test_cuda_vector(){
     test_cuda_vector_type<std::complex<float>>(73);
     test_cuda_vector_type<std::complex<double>>(13);
 }
+void test_gpu_scale(){
+    using namespace heffte;
+    current_test<int, using_nompi> name("cpu scaling");
+    std::vector<float> x = {1.0, 33.0, 88.0, -11.0, 2.0};
+    std::vector<float> y = x;
+    for(auto &v : y) v *= 3.0;
+    auto gx = cuda::load(x);
+    data_scaling<tag::gpu>::apply(gx.size(), gx.data(), 3.0);
+    x = cuda::unload(gx);
+    sassert(approx(x, y));
+
+    std::vector<std::complex<double>> cx = {{1.0, -11.0}, {33.0, 8.0}, {88.0, -11.0}, {2.0, -9.0}};
+    std::vector<std::complex<double>> cy = cx;
+    for(auto &v : cy) v /= 1.33;
+    auto gcx = cuda::load(cx);
+    data_scaling<tag::gpu>::apply(gcx.size(), gcx.data(), 1.0 / 1.33);
+    cx = cuda::unload(gcx);
+    sassert(approx(cx, cy));
+}
 template<typename scalar_type>
 void test_cufft_1d_complex(){
     current_test<scalar_type, using_nompi> name("cufft one-dimension");
@@ -312,6 +331,7 @@ void test_cufft(){
 }
 #else
 void test_cuda_vector(){} // skip cuda
+void test_gpu_scale(){}
 void test_cufft(){}
 #endif
 
@@ -367,6 +387,7 @@ int main(int argc, char *argv[]){
     test_cpu_scale();
 
     test_cuda_vector();
+    test_gpu_scale();
 
     test_fftw();
     test_cufft();
