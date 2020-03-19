@@ -515,25 +515,6 @@ private:
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale) const; // complex to real
 
-    /*!
-     * \brief Performs the reshape operation on the data in base using the helper buffer
-     *
-     * If the reshape operation is not active, this method does nothing.
-     * Otherwise, the reshape is applied from the base to the helper and the two pointers are swapped.
-     *
-     * \tparam scalar_type is the type of the entries of the two arrays
-     *
-     * \param reshape is either active or null reshape operation
-     * \param base is the source of the reshape on entry, and on exit will hold the reshaped data
-     * \param helper is a temporary pointer that will be used for the reshape
-     */
-    template<typename scalar_type>
-    void reshape_stage(std::unique_ptr<reshape3d_base> const &reshape, scalar_type *&base, scalar_type *&helper) const{
-        if (not reshape) return;
-        reshape->apply(base, helper);
-        std::swap(base, helper);
-    }
-
     box3d inbox, outbox;
     double scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;

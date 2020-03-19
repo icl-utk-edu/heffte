@@ -13,7 +13,7 @@
 #include <string.h>
 
 
-#include "heffte_fft3d.h"
+#include "heffte_fft3d_r2c.h"
 
 #if !defined(FFT_MEMALIGN)
 #define FFT_MEMALIGN 64

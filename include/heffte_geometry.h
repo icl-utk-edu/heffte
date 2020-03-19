@@ -113,10 +113,10 @@ struct ioboxes{
  *
  * \param world the collection of all input and output boxes.
  */
-inline box3d find_world(ioboxes const &world){
-    std::array<int, 3> low  = world.in[0].low;
-    std::array<int, 3> high = world.in[0].high;
-    for(auto b : world.in){
+inline box3d find_world(std::vector<box3d> const &boxes){
+    std::array<int, 3> low  = boxes[0].low;
+    std::array<int, 3> high = boxes[0].high;
+    for(auto b : boxes){
         for(int i=0; i<3; i++)
             low[i] = std::min(low[i], b.low[i]);
         for(int i=0; i<3; i++)
@@ -135,9 +135,9 @@ inline box3d find_world(ioboxes const &world){
  * The check is not very rigorous at the moment, a true rigorous test
  * will probably be too expensive unless lots of thought is put into it.
  */
-inline bool world_complete(ioboxes const &boxes, box3d const world){
+inline bool world_complete(std::vector<box3d> const &boxes, box3d const world){
     long long wsize = 0;
-    for(auto b : boxes.in) wsize += b.count();
+    for(auto b : boxes) wsize += b.count();
     if (wsize < world.count())
         throw std::invalid_argument("The provided input boxes do not fill the world box!");
 
@@ -145,9 +145,9 @@ inline bool world_complete(ioboxes const &boxes, box3d const world){
         if (world.low[i] != 0)
             throw std::invalid_argument("Global box indexing must start from 0!");
 
-    for(size_t i=0; i<boxes.in.size(); i++)
-        for(size_t j=0; j<boxes.in.size(); j++)
-            if (i != j and not boxes.in[i].collide(boxes.in[j]).empty())
+    for(size_t i=0; i<boxes.size(); i++)
+        for(size_t j=0; j<boxes.size(); j++)
+            if (i != j and not boxes[i].collide(boxes[j]).empty())
                 throw std::invalid_argument("Input boxes cannot overlap!");
 
     return true;

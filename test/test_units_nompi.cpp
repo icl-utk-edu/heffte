@@ -64,7 +64,7 @@ void test_split_pencils(){
     std::vector<box3d> result2 = make_pencils(world, {2, 2}, 0, reference);
     sassert(match(result2, reference2));
 
-    box3d const reconstructed_world = find_world({result, result});
+    box3d const reconstructed_world = find_world(result);
     sassert(reconstructed_world == world);
 }
 
