@@ -113,8 +113,8 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(FFTW DEFAULT_MSG
                                   FFTW_INCLUDES FFTW_LIBRARIES)
 
-add_library(HEFFTE::FFTW INTERFACE IMPORTED GLOBAL)
-target_link_libraries(HEFFTE::FFTW INTERFACE ${FFTW_LIBRARIES})
-set_target_properties(HEFFTE::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDES})
+add_library(Heffte::FFTW INTERFACE IMPORTED GLOBAL)
+target_link_libraries(Heffte::FFTW INTERFACE ${FFTW_LIBRARIES})
+set_target_properties(Heffte::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDES})
 
 unset(CMAKE_FIND_LIBRARY_SUFFIXES_SAV)
