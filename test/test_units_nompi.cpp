@@ -220,14 +220,6 @@ void test_fftw_1d_real(){
     }
 }
 
-// tests for the 1D fft
-void test_fftw(){
-    test_fftw_1d_real<float>();
-    test_fftw_1d_real<double>();
-    test_fftw_1d_complex<std::complex<float>>();
-    test_fftw_1d_complex<std::complex<double>>();
-}
-
 template<typename scalar_type>
 void test_fftw_1d_r2c(){
     current_test<scalar_type, using_nompi> name("fftw3 one-dimension r2c");
@@ -252,13 +244,18 @@ void test_fftw_1d_r2c(){
         sassert(approx(back_result, input));
     }
 }
-void test_fftw_r2c(){
+
+// tests for the 1D fft
+void test_fftw(){
+    test_fftw_1d_real<float>();
+    test_fftw_1d_real<double>();
+    test_fftw_1d_complex<std::complex<float>>();
+    test_fftw_1d_complex<std::complex<double>>();
     test_fftw_1d_r2c<float>();
     test_fftw_1d_r2c<double>();
 }
 #else
 void test_fftw(){}
-void test_fftw_r2c(){}
 #endif
 
 #ifdef Heffte_ENABLE_CUDA
@@ -380,11 +377,39 @@ void test_cufft_1d_real(){
     }
 }
 
+template<typename scalar_type>
+void test_cufft_1d_r2c(){
+    current_test<scalar_type, using_nompi> name("cufft one-dimension r2c");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::cufft_executor_r2c fft(box, i);
+
+        cuda::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
+        auto cuinput = cuda::load(input);
+        fft.forward(cuinput.data(), result.data());
+        sassert(approx(result, reference[i], 0.01));
+
+        cuda::vector<scalar_type> back_result(fft.real_size());
+        fft.backward(result.data(), back_result.data());
+        data_scaling<tag::gpu>::apply(back_result.size(), back_result.data(), 1.0 / (2.0 + i));
+        sassert(approx(back_result, input, 0.01));
+    }
+}
+
 void test_cufft(){
     test_cufft_1d_real<float>();
     test_cufft_1d_real<double>();
     test_cufft_1d_complex<std::complex<float>>();
     test_cufft_1d_complex<std::complex<double>>();
+    test_cufft_1d_r2c<float>();
+    test_cufft_1d_r2c<double>();
 }
 #else
 void test_cuda_vector(){} // skip cuda
@@ -424,11 +449,62 @@ void test_cross_reference_type(){
             sassert(approx(cuinput, input));
         }
     }
+}
+template<typename scalar_type>
+void test_cross_reference_r2c(){
+    current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
 
+    for(int case_counter = 0; case_counter < 2; case_counter++){
+        // due to alignment issues on the cufft side
+        // need to check the case when both size[0] and size[1] are odd
+        //                        when at least one is even
+        box3d box = (case_counter == 0) ?
+                    box3d({0, 0, 0}, {42, 70, 21}) :
+                    box3d({0, 0, 0}, {41, 50, 21});
+
+        auto input = make_data<scalar_type>(box);
+        cuda::vector<scalar_type> cuinput = cuda::load(input);
+
+        for(int i=0; i<3; i++){
+            heffte::fftw_executor_r2c  fft_cpu(box, i);
+            heffte::cufft_executor_r2c fft_gpu(box, i);
+
+            std::vector<typename fft_output<scalar_type>::type> result(fft_cpu.complex_size());
+            cuda::vector<typename fft_output<scalar_type>::type> curesult(fft_gpu.complex_size());
+
+            fft_cpu.forward(input.data(), result.data());
+            fft_gpu.forward(cuinput.data(), curesult.data());
+
+            if (std::is_same<scalar_type, float>::value){
+                sassert(approx(curesult, result, 0.0005)); // float complex is not well conditioned
+            }else{
+                sassert(approx(curesult, result));
+            }
+
+            std::vector<scalar_type> inverse(fft_cpu.real_size());
+            cuda::vector<scalar_type> cuinverse(fft_gpu.real_size());
+
+            fft_cpu.backward(result.data(), inverse.data());
+            fft_gpu.backward(curesult.data(), cuinverse.data());
+
+            data_scaling<tag::cpu>::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling<tag::gpu>::apply(cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
+
+            if (std::is_same<scalar_type, float>::value){
+                sassert(approx(inverse, input));
+                sassert(approx(cuinverse, input));
+            }else{
+                sassert(approx(inverse, input));
+                sassert(approx(cuinverse, input));
+            }
+        }
+    }
 }
 void test_cross_reference(){
     test_cross_reference_type<std::complex<float>>();
     test_cross_reference_type<std::complex<double>>();
+    test_cross_reference_r2c<float>();
+    test_cross_reference_r2c<double>();
 }
 #else
 void test_cross_reference(){}
@@ -447,7 +523,6 @@ int main(int argc, char *argv[]){
     test_gpu_scale();
 
     test_fftw();
-    test_fftw_r2c();
     test_cufft();
 
     test_cross_reference();
