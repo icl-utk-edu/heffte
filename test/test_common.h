@@ -7,10 +7,6 @@
 #ifndef TEST_COMMON_H
 #define TEST_COMMON_H
 
-#include <iostream>
-#include <iomanip>
-#include <string>
-
 #include "heffte.h"
 
 #define tassert(_result_)          \
