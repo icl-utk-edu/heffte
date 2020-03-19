@@ -14,7 +14,6 @@
 
 
 #include "heffte_fft3d.h"
-#include "heffte_common.h"
 
 #if !defined(FFT_MEMALIGN)
 #define FFT_MEMALIGN 64

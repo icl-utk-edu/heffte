@@ -156,25 +156,25 @@ void heffte_destroy_s(void *ptr)
   delete fft;
 }
 
-void alloc_device_d_(double *work, int size)
-{
-  int64_t  nbytes = ((int64_t) (sizeof(double) * size) );
-  cudaMalloc((void**)&work, nbytes);
-}
+// void alloc_device_d_(double *work, int size)
+// {
+//   int64_t  nbytes = ((int64_t) (sizeof(double) * size) );
+//   cudaMalloc((void**)&work, nbytes);
+// }
+//
+// void alloc_device_s_(float *work, int size)
+// {
+//   int64_t  nbytes = ((int64_t) (sizeof(float) * size) );
+//   cudaMalloc((void**)&work, nbytes);
+// }
 
-void alloc_device_s_(float *work, int size)
-{
-  int64_t  nbytes = ((int64_t) (sizeof(float) * size) );
-  cudaMalloc((void**)&work, nbytes);
-}
-
-void dealloc_device_d_(double *ptr)
-{
-  cudaFree(ptr);
-}
-void dealloc_device_s_(float *ptr)
-{
-  cudaFree(ptr);
-}
+// void dealloc_device_d_(double *ptr)
+// {
+//   cudaFree(ptr);
+// }
+// void dealloc_device_s_(float *ptr)
+// {
+//   cudaFree(ptr);
+// }
 
 }

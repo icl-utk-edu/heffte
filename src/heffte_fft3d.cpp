@@ -2547,3 +2547,269 @@ template
 void FFT3d<double>::deallocate_ffts();
 template
 void FFT3d<float>::deallocate_ffts();
+
+#define heffte_instantiate_fft3d(some_backend) \
+    template class fft3d<some_backend>; \
+    template void fft3d<some_backend>::standard_transform<float>(float const[], std::complex<float>[], \
+                                                                 std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                 direction  \
+                                                                ) const;    \
+    template void fft3d<some_backend>::standard_transform<double>(double const[], std::complex<double>[], \
+                                                                  std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                  direction \
+                                                                 ) const;   \
+    template void fft3d<some_backend>::standard_transform<float>(std::complex<float> const[], float[], \
+                                                                 std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                 direction  \
+                                                                ) const;    \
+    template void fft3d<some_backend>::standard_transform<double>(std::complex<double> const[], double[], \
+                                                                  std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                  direction \
+                                                                 ) const;   \
+    template void fft3d<some_backend>::standard_transform<float>(std::complex<float> const[], std::complex<float>[], \
+                                                                 std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                 direction  \
+                                                                ) const;    \
+    template void fft3d<some_backend>::standard_transform<double>(std::complex<double> const[], std::complex<double>[], \
+                                                                  std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                  direction \
+                                                                 ) const;   \
+
+namespace heffte {
+
+template<typename backend_tag>
+fft3d<backend_tag>::fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm comm) : inbox(cinbox), outbox(coutbox){
+    static_assert(backend::is_enabled<backend_tag>::value, "Requested backend is invalid or has not been enabled.");
+
+    // assemble the entire box layout first
+    // perform all analysis for all reshape operation without further communication
+    // create the reshape objects
+    ioboxes boxes = mpi::gather_boxes(inbox, outbox, comm);
+    box3d const world = find_world(boxes);
+    assert( world_complete(boxes, world) );
+
+    std::array<int, 2> proc_grid = make_procgrid(mpi::comm_size(comm));
+
+    // must analyze here which direction to do first
+    // but the grid will always be proc_grid[0] by proc_grid[1] and have 1 in another direction
+
+    // must check whether the initial input consists of pencils or slabs
+    // for now, assume the input is random (i.e., bricks)
+    std::vector<box3d> shape0 = make_pencils(world, proc_grid, 0, boxes.in);
+    std::vector<box3d> shape1 = make_pencils(world, proc_grid, 1, shape0);
+    std::vector<box3d> shape2 = make_pencils(world, proc_grid, 2, shape1);
+
+    forward_shaper[0] = make_reshape3d_alltoallv<backend_tag>(boxes.in, shape0, comm);
+    forward_shaper[1] = make_reshape3d_alltoallv<backend_tag>(shape0, shape1, comm);
+    forward_shaper[2] = make_reshape3d_alltoallv<backend_tag>(shape1, shape2, comm);
+    forward_shaper[3] = make_reshape3d_alltoallv<backend_tag>(shape2, boxes.out, comm);
+
+    backward_shaper[0] = make_reshape3d_alltoallv<backend_tag>(boxes.out, shape2, comm);
+    backward_shaper[1] = make_reshape3d_alltoallv<backend_tag>(shape2, shape1, comm);
+    backward_shaper[2] = make_reshape3d_alltoallv<backend_tag>(shape1, shape0, comm);
+    backward_shaper[3] = make_reshape3d_alltoallv<backend_tag>(shape0, boxes.in, comm);
+
+    int const me = mpi::comm_rank(comm);
+    fft0 = one_dim_backend<backend_tag>::make(shape0[me], 0);
+    fft1 = one_dim_backend<backend_tag>::make(shape1[me], 1);
+    fft2 = one_dim_backend<backend_tag>::make(shape2[me], 2);
+}
+
+template<typename backend_tag>
+template<typename scalar_type> // complex to complex case
+void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
+                                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                                            std::array<backend_executor*, 3> const executor,
+                                            direction dir) const{
+    /*
+     * The logic is a bit messy, but the objective is:
+     * - call all shaper and executor objects in the correct order
+     * - assume that any or all of the shapers can be missing, i.e., null unique_ptr()
+     * - do not allocate buffers if not needed
+     * - never have more than 2 allocated buffers (input and output)
+     */
+
+    if (not shaper[1] and not shaper[2] and not shaper[3]){
+        // if shaper[0] is the only loaded operation
+        // then the shaper will apply to the output array without additional buffers.
+        // If no shaper operations are loaded, then copy input to output and apply in-place fft
+        // If the input and output are the same, then skip copy and just apply the executors
+        if (shaper[0]){
+            shaper[0]->apply(input, output);
+        }else if (input != output){
+            // not transformations to apply, all data is in one single block
+            std::copy_n(input, executor[0]->box_size(), output);
+        }
+        if (dir == direction::forward){
+            for(auto const e : executor) e->forward(output);
+        }else{
+            for(auto const e : executor) e->backward(output);
+        }
+        return;
+    }
+
+    // if there is messier combination of transforms, then we need some internal buffers
+    size_t buffer_size = std::max(std::max(executor[0]->box_size(), executor[1]->box_size()), executor[2]->box_size());
+
+    // perform stage 0 transformation, either copy or transform the input into the buffer
+    buffer_container<std::complex<scalar_type>> buff0;
+    if (shaper[0]){
+        buff0 = buffer_container<std::complex<scalar_type>>(buffer_size);
+        shaper[0]->apply(input, buff0.data());
+    }else{
+        buff0 = buffer_container<std::complex<scalar_type>>(input, input + executor[0]->box_size());
+    }
+
+    // data is the currently active buffer (if more than one)
+    std::complex<scalar_type> *data = buff0.data();
+
+    // apply the first fft
+    if (dir == direction::forward){
+        executor[0]->forward(data);
+    }else{
+        executor[0]->backward(data);
+    }
+
+    // if only shaper[1] is active, then we can reshape into the output array
+    // but if either shaper[2] or shaper[3] are active, we need another buffer
+    buffer_container<std::complex<scalar_type>> buff1(
+                            (!!shaper[2] or !!shaper[3]) ? buffer_size : 0
+                                                     );
+    std::complex<scalar_type> *temp = buff1.data();
+
+    // reshape either in the temporary buffer or the output, depending on whether more reshapes are needed
+    reshape_stage(shaper[1], data, (!!shaper[2] or !!shaper[3]) ? temp : output);
+    if (dir == direction::forward){
+        executor[1]->forward(data);
+    }else{
+        executor[1]->backward(data);
+    }
+
+    reshape_stage(shaper[2], data, (!!shaper[3]) ? temp : output);
+    if (dir == direction::forward){
+        executor[2]->forward(data);
+    }else{
+        executor[2]->backward(data);
+    }
+
+    // final reshape always goes into the output,
+    // but if shaper[3] is no active than the result is already loaded in the output and data is equal to the output
+    // and this method will do nothing
+    reshape_stage(shaper[3], data, output);
+}
+template<typename backend_tag>
+template<typename scalar_type> // real to complex case
+void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
+                                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                                            std::array<typename one_dim_backend<backend_tag>::type*, 3> const executor,
+                                            direction) const{
+    /*
+     * Follows logic similar to the complex-to-complex case but the first shaper and executor will be applied to real data.
+     * This is the real-to-complex variant which is possible only for a forward transform,
+     * thus the direction parameter is ignored.
+     */
+    buffer_container<scalar_type> reshaped_input;
+    scalar_type const *effective_input = input; // either input or the result of reshape operation 0
+    if (shaper[0]){
+        reshaped_input = buffer_container<scalar_type>(executor[0]->box_size());
+        shaper[0]->apply(input, reshaped_input.data());
+        effective_input = reshaped_input.data();
+    }
+
+    if (not shaper[1] and not shaper[2] and not shaper[3]){
+        executor[0]->forward(effective_input, output);
+        executor[1]->forward(output);
+        executor[2]->forward(output);
+        return;
+    }
+
+    // if there is messier combination of transforms, then we need internal buffers
+    size_t buffer_size = std::max(std::max(executor[0]->box_size(), executor[1]->box_size()), executor[2]->box_size());
+    buffer_container<std::complex<scalar_type>> buff0(buffer_size);
+
+    executor[0]->forward(effective_input, buff0.data());
+    reshaped_input = buffer_container<scalar_type>(); // release the temporary real data (if any)
+
+    // the second buffer is needed only if two of the reshape operations are active
+    buffer_container<std::complex<scalar_type>> buff1(
+                            (!!shaper[2] or !!shaper[3]) ? buffer_size : 0
+                                           );
+    std::complex<scalar_type> *data = buff0.data();
+    std::complex<scalar_type> *temp = buff1.data();
+
+    reshape_stage(shaper[1], data, (!!shaper[2] or !!shaper[3]) ? temp : output);
+    executor[1]->forward(data);
+
+    reshape_stage(shaper[2], data, (!!shaper[3]) ? temp : output);
+    executor[2]->forward(data);
+
+    reshape_stage(shaper[3], data, output);
+}
+template<typename backend_tag>
+template<typename scalar_type> // complex to real case
+void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
+                                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                                            std::array<backend_executor*, 3> const executor, direction) const{
+    /*
+     * Follows logic similar to the complex-to-complex case but the last shaper and executor will be applied to real data.
+     * This is the complex-to-real variant which is possible only for a backward transform,
+     * thus the direction parameter is ignored.
+     */
+    // we need to know the size of the internal buffers
+    size_t buffer_size = std::max(std::max(executor[0]->box_size(), executor[1]->box_size()), executor[2]->box_size());
+
+    // perform stage 0 transformation
+    buffer_container<std::complex<scalar_type>> buff0;
+    if (shaper[0]){
+        buff0 = buffer_container<std::complex<scalar_type>>(buffer_size);
+        shaper[0]->apply(input, buff0.data());
+    }else{
+        buff0 = buffer_container<std::complex<scalar_type>>(input, input + executor[0]->box_size());
+    }
+
+    executor[0]->backward(buff0.data()); // first fft of the backward transform
+
+    // perform shaper 1 and 2 (if active) and apply executor[1]
+    // may use buff1 as a temporary buffer but the result will be in buff0
+    buffer_container<std::complex<scalar_type>> buff1;
+    if (shaper[1] and shaper[2]){
+        // will do two reshape, the data will move buff0 -> buff1 -> buff0
+        buff1 = buffer_container<std::complex<scalar_type>>(buffer_size);
+        shaper[1]->apply(buff0.data(), buff1.data());
+        executor[1]->backward(buff1.data());
+        shaper[2]->apply(buff1.data(), buff0.data());
+    }else if (shaper[1] or shaper[2]){
+        // will do only one reshape, the data will move buff0 -> buff1
+        // and the two containers need to be swapped
+        buff1 = buffer_container<std::complex<scalar_type>>(buffer_size);
+        if (shaper[1]){
+            shaper[1]->apply(buff0.data(), buff1.data());
+            executor[1]->backward(buff1.data());
+        }else{
+            executor[1]->backward(buff0.data());
+            shaper[2]->apply(buff0.data(), buff1.data());
+        }
+        std::swap(buff0, buff1);
+    }
+    buff1 = buffer_container<std::complex<scalar_type>>(); // clear the buffer
+
+    // the result of the first two ffts and three reshapes is stored in buff0
+    // executor 2 must apply complex to real backward transform
+    if (shaper[3]){
+        // there is one more reshape left, transform into a real temporary buffer
+        buffer_container<scalar_type> real_buffer(executor[2]->box_size());
+        executor[2]->backward(buff0.data(), real_buffer.data());
+        shaper[3]->apply(real_buffer.data(), output);
+    }else{
+        executor[2]->backward(buff0.data(), output);
+    }
+}
+
+#ifdef Heffte_ENABLE_FFTW
+heffte_instantiate_fft3d(backend::fftw);
+#endif
+#ifdef Heffte_ENABLE_CUDA
+heffte_instantiate_fft3d(backend::cufft);
+#endif
+
+}
