@@ -16,6 +16,10 @@
 #include <functional>
 #include <cassert>
 #include <utility>
+#include <iostream>
+#include <ostream>
+#include <iomanip>
+#include <string>
 #include <stdio.h>
 #include <mpi.h>
 

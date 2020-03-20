@@ -247,6 +247,20 @@ template<> struct fft_output<double>{
 };
 
 /*!
+ * \brief Indicates the scaling factor to apply on the result of an FFT operation.
+ *
+ * See the description of heffte::fft3d for details.
+ */
+enum class scale{
+    //! \brief No scale, leave the result unperturbed similar to the FFTW API.
+    none,
+    //! \brief Apply the full scale of 1 over the number of elements in the world box.
+    full,
+    //! \brief Symmetric scaling, apply the square-root of the full scaling.
+    symmetric
+};
+
+/*!
  * \brief Defines the plan for a 3-dimensional discrete Fourier transform performed on a MPI distributed data.
  *
  * \par Overview
@@ -300,6 +314,18 @@ template<> struct fft_output<double>{
  * <tr><td rowspan=2> FFTW3 </td><td> fftwf_complex </td><td> std::complex<float> </td></tr>
  * <tr>                          <td> fftw_complex </td><td> std::complex<double> </td></tr>
  * </table>
+ *
+ * \par Scaling
+ * Applying a forward and inverse DFT operations will leave the result as the original data multiplied
+ * by the total number of entries in the world box. Thus, the forward and backward operations are not
+ * truly inverses, unless the correct scaling is applied. By default, HeFFTe does not apply scaling,
+ * but the methods accept an optional parameter with three different options, see also heffte::scale.
+ * <table>
+ * <tr><td> Forward </tr><td> Inverse </td></tr>
+ * <tr><td> forward(a, b, scaling::none) </tr><td> forward(a, b, scaling::full) </td></tr>
+ * <tr><td> forward(a, b, scaling::symmetric) </tr><td> forward(a, b, scaling::symmetric) </td></tr>
+ * <tr><td> forward(a, b, scaling::full) </tr><td> forward(a, b, scaling::none) </td></tr>
+ * </table>
  */
 template<typename backend_tag>
 class fft3d{
@@ -311,7 +337,7 @@ public:
      *
      * Following C++ RAII style of resource management, HeFFTe uses containers to manage
      * the temporary buffers used during transformation and communication.
-     * The CPU backends use std::vector while the GPU backends use (heffte::cuda::vector ... to be implemented).
+     * The CPU backends use std::vector while the GPU backends use heffte::cuda::vector.
      */
     template<typename T> using buffer_container = typename backend::buffer_traits<backend_tag>::template container<T>;
 
@@ -342,20 +368,21 @@ public:
      *          to the inbox
      * \param output is an array of size at least size_outbox() and will be overwritten with
      *          the result from the transform corresponding to the outbox
+     * \param scaling defines the type of scaling to apply (default no-scaling).
      *
      * Note that in the complex-to-complex case, the two arrays can be the same, in which case
      *  the size must be at least std::max(size_inbox(), size_outbox()).
      *  Whether the same or different, padded entities of the arrays will not be accessed.
      */
     template<typename input_type, typename output_type>
-    void forward(input_type const input[], output_type output[]) const{
+    void forward(input_type const input[], output_type output[], scale scaling = scale::none) const{
         static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
                    or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value)
                    or (is_ccomplex<input_type>::value and is_ccomplex<output_type>::value)
                    or (is_zcomplex<input_type>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward);
+        standard_transform(convert_to_standart(input), convert_to_standart(output), forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
     }
 
     /*!
@@ -366,9 +393,10 @@ public:
      * \tparam input_type is a type compatible with the input of a backward FFT,
      *          see \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
      *
-     * \param input is a std::vector with size at least size_inbox() corresponding to the input of forward().
+     * \param input is a std::vector or heffte::cuda::vector with size at least size_inbox() corresponding to the input of forward().
+     * \param scaling defines the type of scaling to apply (default no-scaling).
      *
-     * \returns std::vector with entries corresponding to the output type and with size equal to size_outbox()
+     * \returns std::vector or heffte::cuda::vector with entries corresponding to the output type and with size equal to size_outbox()
      *          corresponding to the output of forward().
      *
      * \throws std::invalid_argument is the size of the \b input is less than size_inbox().
@@ -382,11 +410,11 @@ public:
      * \endcode
      */
     template<typename input_type>
-    buffer_container<typename fft_output<input_type>::type> forward(buffer_container<input_type> const &input){
+    buffer_container<typename fft_output<input_type>::type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
         if (input.size() < size_inbox())
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
         buffer_container<typename fft_output<input_type>::type> output(size_outbox());
-        forward(input.data(), output.data());
+        forward(input.data(), output.data(), scaling);
         return output;
     }
 
@@ -403,33 +431,34 @@ public:
      *          to the outbox
      * \param output is an array of size at least size_inbox() and will be overwritten with
      *          the result from the transform corresponding to the inbox
+     * \param scaling defines the type of scaling to apply (default no-scaling)
      *
      * Note that in the complex-to-complex case, the two arrays can be the same, in which case
      *  the size must be at least std::max(size_inbox(), size_outbox()).
      *  Whether the same or different, padded entities of the arrays will not be accessed.
      */
     template<typename input_type, typename output_type>
-    void backward(input_type const input[], output_type output[]) const{
+    void backward(input_type const input[], output_type output[], scale scaling = scale::none) const{
         static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
                    or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value)
                    or (is_ccomplex<output_type>::value and is_ccomplex<input_type>::value)
                    or (is_zcomplex<output_type>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward);
+        standard_transform(convert_to_standart(input), convert_to_standart(output), backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
     }
 
     /*!
      * \brief Perform complex-to-complex backward FFT using vector API.
      */
     template<typename scalar_type>
-    buffer_container<scalar_type> backward(buffer_container<scalar_type> const &input){
+    buffer_container<scalar_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
         if (input.size() < size_outbox())
             throw std::invalid_argument("The input vector is smaller than size_outbox(), i.e., not enough entries provided to fill the outbox.");
         buffer_container<scalar_type> result(size_inbox());
-        backward(input.data(), result.data());
+        backward(input.data(), result.data(), scaling);
         return result;
     }
 
@@ -437,11 +466,11 @@ public:
      * \brief Perform complex-to-real backward FFT using vector API.
      */
     template<typename scalar_type>
-    buffer_container<typename define_standard_type<scalar_type>::type::value_type> backward_real(buffer_container<scalar_type> const &input){
+    buffer_container<typename define_standard_type<scalar_type>::type::value_type> backward_real(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
         buffer_container<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());
-        backward(input.data(), result.data());
+        backward(input.data(), result.data(), scaling);
         return result;
     }
 
@@ -459,11 +488,12 @@ private:
      * \param shaper are the four stages of the reshape operations
      * \param executor holds the three stages of the one dimensional FFT algorithm
      * \param dir indicates whether to use the forward or backward method of the executor
+     * \param scaling is the type of scaling to apply to the output data
      */
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
-                            std::array<backend_executor*, 3> const executor, direction dir) const; // complex to complex
+                            std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const; // complex to complex
     /*!
      * \brief Overload to handle the real-to-complex case.
      *
@@ -473,7 +503,7 @@ private:
     template<typename scalar_type>
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
-                            std::array<backend_executor*, 3> const executor, direction) const; // real to complex
+                            std::array<backend_executor*, 3> const executor, direction, scale) const; // real to complex
     /*!
      * \brief Overload to handle the complex-to-real case.
      *
@@ -483,7 +513,7 @@ private:
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
-                            std::array<backend_executor*, 3> const executor, direction dir) const; // complex to real
+                            std::array<backend_executor*, 3> const executor, direction dir, scale) const; // complex to real
 
     /*!
      * \brief Performs the reshape operation on the data in base using the helper buffer
@@ -505,6 +535,7 @@ private:
     }
 
     box3d inbox, outbox;
+    double scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
 

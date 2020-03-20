@@ -21,10 +21,15 @@ set(DOXYGEN_HTML_COLORSTYLE_HUE    "205")
 set(DOXYGEN_HTML_COLORSTYLE_SAT     "95")
 set(DOXYGEN_HTML_COLORSTYLE_GAMMA  "190")
 
+# PREDEFINED is used only during doxygen build to show all methods and classes for all options
+set(DOXYGEN_PREDEFINED "Heffte_ENABLE_FFTW;Heffte_ENABLE_CUDA")
+
 doxygen_add_docs(heffte_doxygen
                  README.md
+                 doxygen/installation.md
                  include/
                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../
                  COMMENT "Building the ${PROJECT_NAME} documentation")
 
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html DESTINATION "share/${PROJECT_NAME}/docs")
+add_dependencies(Heffte heffte_doxygen)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../html DESTINATION "share/heffte/docs")
