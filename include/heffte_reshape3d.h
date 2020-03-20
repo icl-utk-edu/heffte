@@ -139,7 +139,10 @@ public:
     int size_output() const{ return output_size; }
 
 protected:
-    int const input_size, output_size;
+    //! \brief Stores the size of the input.
+    int const input_size;
+    //! \brief Stores the size of the output.
+    int const output_size;
 };
 
 /*!

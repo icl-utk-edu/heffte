@@ -153,8 +153,22 @@ namespace cuda {
     template<typename scalar_type>
     void load(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data);
 
+    /*!
+     * \brief Load method that copies two std::vectors, used in template general code.
+     *
+     * This is never executed.
+     * Without if-constexpr (introduced in C++ 2017) generic template code must compile
+     * even branches in the if-statements that will never be reached.
+     */
     template<typename scalar_type>
     void load(std::vector<scalar_type> const &a, std::vector<scalar_type> &b){ b = a; }
+    /*!
+     * \brief Unload method that copies two std::vectors, used in template general code.
+     *
+     * This is never executed.
+     * Without if-constexpr (introduced in C++ 2017) generic template code must compile
+     * even branches in the if-statements that will never be reached.
+     */
     template<typename scalar_type>
     std::vector<scalar_type> unload(std::vector<scalar_type> const &a){ return a; }
 
@@ -208,9 +222,14 @@ namespace backend{
     //! \brief Indicate that the cuFFT backend has been enabled.
     template<> struct is_enabled<cufft> : std::true_type{};
 
+    /*!
+     * \brief Defines the location type-tag and the cuda container.
+     */
     template<>
     struct buffer_traits<cufft>{
+        //! \brief The cufft library uses data on the gpu device.
         using location = tag::gpu;
+        //! \brief The data is managed by the cuda vector container.
         template<typename T> using container = heffte::cuda::vector<T>;
     };
 
@@ -286,8 +305,20 @@ private:
     mutable cufftHandle plan;
 };
 
+/*!
+ * \brief Wrapper around the cuFFT API.
+ *
+ * A single class that manages the plans and executions of cuFFT
+ * so that a single API is provided for all backends.
+ * The executor operates on a box and performs 1-D FFTs
+ * for the given dimension.
+ * The class silently manages the plans and buffers needed
+ * for the different types.
+ * All input and output arrays must have size equal to the box.
+ */
 class cufft_executor{
 public:
+    //! \brief Constructor, specifies the box and dimension.
     cufft_executor(box3d const box, int dimension) :
         size(box.size[dimension]),
         howmany(fft1d_get_howmany(box, dimension)),
@@ -298,6 +329,7 @@ public:
         total_size(box.count())
     {}
 
+    //! \brief Forward fft, float-complex case.
     void forward(std::complex<float> data[]) const{
         make_plan(ccomplex_plan);
         for(int i=0; i<blocks; i++){
@@ -305,6 +337,7 @@ public:
             cuda::check_error(cufftExecC2C(*ccomplex_plan, block_data, block_data, CUFFT_FORWARD), "cufft_executor::cufftExecC2C() forward");
         }
     }
+    //! \brief Backward fft, float-complex case.
     void backward(std::complex<float> data[]) const{
         make_plan(ccomplex_plan);
         for(int i=0; i<blocks; i++){
@@ -312,6 +345,7 @@ public:
             cuda::check_error(cufftExecC2C(*ccomplex_plan, block_data, block_data, CUFFT_INVERSE), "cufft_executor::cufftExecC2C() backward");
         }
     }
+    //! \brief Forward fft, double-complex case.
     void forward(std::complex<double> data[]) const{
         make_plan(zcomplex_plan);
         for(int i=0; i<blocks; i++){
@@ -319,6 +353,7 @@ public:
             cuda::check_error(cufftExecZ2Z(*zcomplex_plan, block_data, block_data, CUFFT_FORWARD), "cufft_executor::cufftExecZ2Z() forward");
         }
     }
+    //! \brief Backward fft, double-complex case.
     void backward(std::complex<double> data[]) const{
         make_plan(zcomplex_plan);
         for(int i=0; i<blocks; i++){
@@ -327,26 +362,32 @@ public:
         }
     }
 
+    //! \brief Converts the deal data to complex and performs float-complex forward transform.
     void forward(float const indata[], std::complex<float> outdata[]) const{
         cuda::convert(total_size, indata, outdata);
         forward(outdata);
     }
+    //! \brief Performs backward float-complex transform and truncates the complex part of the result.
     void backward(std::complex<float> indata[], float outdata[]) const{
         backward(indata);
         cuda::convert(total_size, indata, outdata);
     }
+    //! \brief Converts the deal data to complex and performs double-complex forward transform.
     void forward(double const indata[], std::complex<double> outdata[]) const{
         cuda::convert(total_size, indata, outdata);
         forward(outdata);
     }
+    //! \brief Performs backward double-complex transform and truncates the complex part of the result.
     void backward(std::complex<double> indata[], double outdata[]) const{
         backward(indata);
         cuda::convert(total_size, indata, outdata);
     }
 
+    //! \brief Returns the size of the box.
     int box_size() const{ return total_size; }
 
 private:
+    //! \brief Helper template to create the plan.
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_cufft<scalar_type>> &plan) const{
         if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(size, howmany, stride, dist));
@@ -427,8 +468,20 @@ private:
     mutable cufftHandle plan;
 };
 
+/*!
+ * \brief Wrapper to cuFFT API for real-to-complex transform with shortening of the data.
+ *
+ * Serves the same purpose of heffte::cufft_executor but only real input is accepted
+ * and only the unique (non-conjugate) coefficients are computed.
+ * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
+ */
 class cufft_executor_r2c{
 public:
+    /*!
+     * \brief Constructor defines the box and the dimension of reduction.
+     *
+     * Note that the result sits in the box returned by box.r2c(dimension).
+     */
     cufft_executor_r2c(box3d const box, int dimension) :
         size(box.size[dimension]),
         howmany(fft1d_get_howmany(box, dimension)),
@@ -442,6 +495,7 @@ public:
         csize(box.r2c(dimension).count())
     {}
 
+    //! \brief Forward transform, single precision.
     void forward(float const indata[], std::complex<float> outdata[]) const{
         make_plan(sforward, direction::forward);
         if (blocks == 1 or rblock_stride % 2 == 0){
@@ -460,6 +514,7 @@ public:
             }
         }
     }
+    //! \brief Backward transform, single precision.
     void backward(std::complex<float> const indata[], float outdata[]) const{
         make_plan(sbackward, direction::backward);
         if (blocks == 1 or rblock_stride % 2 == 0){
@@ -476,6 +531,7 @@ public:
             }
         }
     }
+    //! \brief Forward transform, double precision.
     void forward(double const indata[], std::complex<double> outdata[]) const{
         make_plan(dforward, direction::forward);
         if (blocks == 1 or rblock_stride % 2 == 0){
@@ -493,6 +549,7 @@ public:
             }
         }
     }
+    //! \brief Backward transform, double precision.
     void backward(std::complex<double> const indata[], double outdata[]) const{
         make_plan(dbackward, direction::backward);
         if (blocks == 1 or rblock_stride % 2 == 0){
@@ -510,10 +567,13 @@ public:
         }
     }
 
+    //! \brief Returns the size of the box with real data.
     int real_size() const{ return rsize; }
+    //! \brief Returns the size of the box with complex coefficients.
     int complex_size() const{ return csize; }
 
 private:
+    //! \brief Helper template to initialize the plan.
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_cufft<scalar_type>> &plan, direction dir) const{
         if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(dir, size, howmany, stride, rdist, cdist));
@@ -527,13 +587,22 @@ private:
     mutable std::unique_ptr<plan_cufft<double>> dbackward;
 };
 
+/*!
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
 template<> struct one_dim_backend<backend::cufft>{
+    //! \brief Defines the complex-to-complex executor.
     using type = cufft_executor;
+    //! \brief Defines the real-to-complex executor.
     using type_r2c = cufft_executor_r2c;
 
+    //! \brief Constructs a complex-to-complex executor.
     static std::unique_ptr<cufft_executor> make(box3d const box, int dimension){
         return std::unique_ptr<cufft_executor>(new cufft_executor(box, dimension));
     }
+    //! \brief Constructs a real-to-complex executor.
     static std::unique_ptr<cufft_executor_r2c> make_r2c(box3d const box, int dimension){
         return std::unique_ptr<cufft_executor_r2c>(new cufft_executor_r2c(box, dimension));
     }
