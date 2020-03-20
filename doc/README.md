@@ -33,7 +33,7 @@ to your cluster architecture. Follow command line instructions below to obtain C
 and GPU versions of HEFFTE.
 
 ## Install the GPU enabled HEFFTE
-
+Choose GPU 1D FFT backend, e.g. CUFFT.
 ~~~
 cd heffte/src
 src/
@@ -44,11 +44,12 @@ src/
 Lines above will produce library `libheffte_gpu.a`.
 
 ## Install HEFFTE without GPU functionality
+Choose CPU 1D FFT backend, e.g. MKL.
 
 ~~~
 cd heffte/src
 src/
-    make -j fft=FFTW3
+    make -j fft=MKL
     make install
 ~~~
 
