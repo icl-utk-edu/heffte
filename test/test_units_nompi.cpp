@@ -261,6 +261,11 @@ void test_fftw(){}
 #ifdef Heffte_ENABLE_CUDA
 template<typename scalar_type>
 void test_cuda_vector_type(size_t num_entries){
+    static_assert(std::is_copy_constructible<cuda::vector<scalar_type>>::value, "Lost copy-constructor for cuda::vector");
+    static_assert(std::is_move_constructible<cuda::vector<scalar_type>>::value, "Lost move-constructor for cuda::vector");
+    static_assert(std::is_copy_assignable<cuda::vector<scalar_type>>::value, "Lost copy-assign for cuda::vector");
+    static_assert(std::is_move_assignable<cuda::vector<scalar_type>>::value, "Lost move-assign for cuda::vector");
+
     current_test<scalar_type, using_nompi> name("cuda::vector");
     std::vector<scalar_type> source(num_entries);
     std::iota(source.begin(), source.end(), 0); // fill source with 0, 1, 2, 3, 4 ...

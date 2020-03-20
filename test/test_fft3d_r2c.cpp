@@ -33,6 +33,11 @@ void test_fft3d_r2c_arrays(MPI_Comm comm){
     assert(num_ranks == 2 or num_ranks == 12);
     current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d_r2c", comm);
 
+    double correction = 1.0; // single precision is less stable, especially for larger problems with 12 mpi ranks
+    if (std::is_same<scalar_type, float>::value){
+        correction = (num_ranks == 12) ? 1.E-4 : 1.E-2;
+    }
+
     int const me = mpi::comm_rank(comm);
     box3d const rworld = {{0, 0, 0}, {h0, h1, h2}};
     auto world_input = make_data<scalar_type>(rworld);
@@ -66,16 +71,79 @@ void test_fft3d_r2c_arrays(MPI_Comm comm){
             fft.forward(local_input.data(), forward.data()); // compute the forward fft
 
             // compare to the reference
-            if (std::is_same<scalar_type, float>::value){
-                tassert(approx(forward, reference_fft, 0.01)); // float gives error 5.E-5, correct to drop below 1.E-6
-            }else{
-                tassert(approx(forward, reference_fft));
-            }
+            tassert(approx(forward, reference_fft, correction));
 
             input_container backward(local_input.size()); // compute backward fft using scalar_type
             fft.backward(forward.data(), backward.data());
             auto backward_result = rescale(rworld, backward, scale::full); // always std::vector
             tassert(approx(local_input, backward_result)); // compare with the original input
+        }
+    }
+}
+
+template<typename backend_tag, typename scalar_type, int h0, int h1, int h2>
+void test_fft3d_r2c_vectors(MPI_Comm comm){
+    // works with ranks 6 and 8 only
+    int const num_ranks = mpi::comm_size(comm);
+    assert(num_ranks == 6 or num_ranks == 8);
+    current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d_r2c", comm);
+
+    double correction = 1.0; // single precision is less stable, especially for larger problems with 12 mpi ranks
+    if (std::is_same<scalar_type, float>::value){
+        //correction = (num_ranks == 6) ? 0.5E-4 : 1.E-2;
+        correction = 1.0E-4;
+    }
+
+    int const me = mpi::comm_rank(comm);
+    box3d const rworld = {{0, 0, 0}, {h0, h1, h2}};
+    auto world_input = make_data<scalar_type>(rworld);
+
+    std::array<heffte::scale, 3> fscale = {heffte::scale::none, heffte::scale::symmetric, heffte::scale::full};
+    std::array<heffte::scale, 3> bscale = {heffte::scale::full, heffte::scale::symmetric, heffte::scale::none};
+
+    for(int dim = 0; dim < 3; dim++){
+        box3d const cworld = rworld.r2c(dim);
+        auto world_fft     = get_subbox(rworld, cworld, forward_fft<backend_tag>(rworld, world_input));
+
+        for(int i=0; i<3; i++){
+            std::array<int, 3> split = {1, 1, 1};
+            if (num_ranks == 6){
+                split[i] = 2;
+                split[(i+1) % 3] = 3;
+            }else if (num_ranks == 8){
+                split = {2, 2, 2};
+            }
+            std::vector<box3d> rboxes = heffte::split_world(rworld, split);
+            std::vector<box3d> cboxes = heffte::split_world(cworld, split);
+
+            assert(rboxes.size() == num_ranks);
+            assert(cboxes.size() == num_ranks);
+
+            // get a semi-random inbox and outbox
+            // makes sure that the boxes do not have to match
+            int iindex = me, oindex = me; // indexes of the input and outboxes
+            if (num_ranks == 6){ // shuffle the boxes
+                iindex = (me+2) % num_ranks;
+                oindex = (me+3) % num_ranks;
+            }else if (num_ranks == 8){
+                iindex = (me+3) % num_ranks;
+                oindex = (me+5) % num_ranks;
+            }
+
+            box3d const inbox  = rboxes[iindex];
+            box3d const outbox = cboxes[oindex];
+
+            auto local_input   = input_maker<backend_tag, scalar_type>::select(rworld, inbox, world_input);
+            auto reference_fft = rescale(rworld, get_subbox(cworld, outbox, world_fft), fscale[i]);
+
+            heffte::fft3d_r2c<backend_tag> fft(inbox, outbox, dim, comm);
+
+            auto result = fft.forward(local_input, fscale[i]);
+            tassert(approx(result, reference_fft, correction));
+
+            auto backward_result = fft.backward(result, bscale[i]);
+            auto backward_scaled_result = rescale(rworld, backward_result, scale::none);
+            tassert(approx(local_input, backward_scaled_result));
         }
     }
 }
@@ -97,8 +165,37 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_r2c_arrays<backend::cufft, float, 9, 9, 9>(comm);
             test_fft3d_r2c_arrays<backend::cufft, double, 9, 9, 9>(comm);
             #endif
-             break;
-
+            break;
+        case 6:
+            #ifdef Heffte_ENABLE_FFTW
+            test_fft3d_r2c_vectors<backend::fftw, float, 11, 11, 20>(comm);
+            test_fft3d_r2c_vectors<backend::fftw, double, 10, 10, 11>(comm);
+            #endif
+            #ifdef Heffte_ENABLE_CUDA
+            test_fft3d_r2c_vectors<backend::cufft, float, 11, 11, 20>(comm);
+            test_fft3d_r2c_vectors<backend::cufft, double, 10, 10, 11>(comm);
+            #endif
+            break;
+        case 8:
+            #ifdef Heffte_ENABLE_FFTW
+            test_fft3d_r2c_vectors<backend::fftw, float, 12, 12, 10>(comm);
+            test_fft3d_r2c_vectors<backend::fftw, double, 15, 15, 18>(comm);
+            #endif
+            #ifdef Heffte_ENABLE_CUDA
+            test_fft3d_r2c_vectors<backend::cufft, float, 12, 12, 10>(comm);
+            test_fft3d_r2c_vectors<backend::cufft, double, 15, 15, 18>(comm);
+            #endif
+            break;
+        case 12:
+            #ifdef Heffte_ENABLE_FFTW
+            test_fft3d_r2c_arrays<backend::fftw, float, 21, 20, 20>(comm);
+            test_fft3d_r2c_arrays<backend::fftw, double, 20, 20, 19>(comm);
+            #endif
+            #ifdef Heffte_ENABLE_CUDA
+            test_fft3d_r2c_arrays<backend::cufft, float, 21, 20, 20>(comm);
+            test_fft3d_r2c_arrays<backend::cufft, double, 20, 20, 19>(comm);
+            #endif
+            break;
         default:
             throw std::runtime_error("No test for the given number of ranks!");
     };
