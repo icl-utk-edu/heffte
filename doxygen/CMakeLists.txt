@@ -26,8 +26,10 @@ set(DOXYGEN_PREDEFINED "Heffte_ENABLE_FFTW;Heffte_ENABLE_CUDA")
 
 doxygen_add_docs(heffte_doxygen
                  README.md
+                 doxygen/installation.md
                  include/
                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../
                  COMMENT "Building the ${PROJECT_NAME} documentation")
 
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html DESTINATION "share/${PROJECT_NAME}/docs")
+add_dependencies(Heffte heffte_doxygen)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../html DESTINATION "share/heffte/docs")
