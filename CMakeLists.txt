@@ -6,10 +6,6 @@ option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            ON) # must ch
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
-if (Heffte_ENABLE_DOXYGEN)
-    add_subdirectory(doxygen)
-endif()
-
 # guard against in-source builds
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
@@ -112,6 +108,13 @@ install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
                                                               )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h DESTINATION include/)
 
+###########################
+# Documentation
+###########################
+if (Heffte_ENABLE_DOXYGEN)
+    # must come after add_library(Heffte ...)
+    add_subdirectory(doxygen)
+endif()
 
 ###########################
 # Examples
