@@ -9,9 +9,6 @@
 
 #include "heffte_utils.h"
 
-#include <iostream>
-#include <ostream>
-
 namespace heffte {
 
 /*!
