@@ -182,6 +182,12 @@ namespace cuda {
      */
     template<typename precision_type>
     void convert(int num_entries, std::complex<precision_type> const source[], precision_type destination[]);
+
+    /*!
+     * \brief Scales real data (double or float) by the scaling factor.
+     */
+    template<typename scalar_type>
+    void scale_data(int num_entries, scalar_type *data, double scale_factor);
 }
 
 namespace backend{
@@ -395,6 +401,26 @@ template<> struct direct_packer<tag::gpu>{
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
         cuda::direct_unpack(plan.nfast, plan.nmid, plan.nslow, plan.line_stride, plan.plane_stride, buffer, data);
+    }
+};
+
+/*!
+ * \brief Specialization for the CPU case.
+ */
+template<> struct data_scaling<tag::gpu>{
+    /*!
+     * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
+     */
+    template<typename scalar_type>
+    static void apply(int num_entries, scalar_type *data, double scale_factor){
+        cuda::scale_data(num_entries, data, scale_factor);
+    }
+    /*!
+     * \brief Complex by real scaling.
+     */
+    template<typename precision_type>
+    static void apply(int num_entries, std::complex<precision_type> *data, double scale_factor){
+        apply<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
 };
 

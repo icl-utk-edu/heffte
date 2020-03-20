@@ -41,9 +41,12 @@ std::vector<scalar_type> get_subbox(box3d const world, box3d const box, std::vec
 }
 
 template<typename scalar_type>
-std::vector<scalar_type> rescale(box3d const world, std::vector<scalar_type> const &data){
+std::vector<scalar_type> rescale(box3d const world, std::vector<scalar_type> const &data, scale scaling){
     std::vector<scalar_type> result = data;
-    for(auto &r : result) r /= static_cast<scalar_type>(world.count());
+    double scaling_factor = (scaling == scale::none) ? 1.0 : 1.0 / static_cast<double>(world.count());
+    if (scaling == scale::symmetric) scaling_factor = std::sqrt(scaling_factor);
+    if (scaling != scale::none)
+        data_scaling<tag::cpu>::apply(result.size(), result.data(), scaling_factor);
     return result;
 }
 
@@ -129,8 +132,8 @@ struct input_maker<backend::cufft, scalar_type>{
     }
 };
 template<typename scalar_type>
-std::vector<scalar_type> rescale(box3d const world, cuda::vector<scalar_type> const &data){
-    return rescale(world, cuda::unload(data));
+std::vector<scalar_type> rescale(box3d const world, cuda::vector<scalar_type> const &data, scale scaling){
+    return rescale(world, cuda::unload(data), scaling);
 }
 #endif
 
@@ -164,7 +167,10 @@ void test_fft3d_vectors(MPI_Comm comm){
     for(size_t i=0; i<world_real.size(); i++) world_real[i] = std::real(world_input[i]);
     auto world_fft = forward_fft<backend_tag>(world, world_input);
 
-    for(int i=0; i<1; i++){
+    std::array<heffte::scale, 3> fscale = {heffte::scale::none, heffte::scale::symmetric, heffte::scale::full};
+    std::array<heffte::scale, 3> bscale = {heffte::scale::full, heffte::scale::symmetric, heffte::scale::none};
+
+    for(int i=0; i<3; i++){
         std::array<int, 3> split = {1, 1, 1};
         if (num_ranks == 6){
             split[i] = 2;
@@ -192,19 +198,19 @@ void test_fft3d_vectors(MPI_Comm comm){
         auto local_input         = input_maker<backend_tag, scalar_type>::select(world, inbox, world_input);
         auto local_complex_input = get_subbox(world, inbox, world_complex);
         auto local_real_input    = get_subbox(world, inbox, world_real);
-        auto reference_fft       = get_subbox(world, outbox, world_fft);
+        auto reference_fft       = rescale(world, get_subbox(world, outbox, world_fft), fscale[i]);
 
         heffte::fft3d<backend_tag> fft(inbox, outbox, comm);
 
-        auto result = fft.forward(local_input);
+        auto result = fft.forward(local_input, fscale[i]);
         tassert(approx(result, reference_fft));
 
-        auto backward_cresult = fft.backward(result);
-        auto backward_scaled_cresult = rescale(world, backward_cresult);
+        auto backward_cresult = fft.backward(result, bscale[i]);
+        auto backward_scaled_cresult = rescale(world, backward_cresult, scale::none);
         tassert(approx(local_complex_input, backward_scaled_cresult));
 
-        auto backward_rresult = fft.backward_real(result);
-        auto backward_scaled_rresult = rescale(world, backward_rresult);
+        auto backward_rresult = fft.backward_real(result, bscale[i]);
+        auto backward_scaled_rresult = rescale(world, backward_rresult, scale::none);
         tassert(approx(backward_scaled_rresult, local_real_input));
     }
 }
@@ -250,12 +256,12 @@ void test_fft3d_arrays(MPI_Comm comm){
 
         input_container backward(local_input.size()); // compute backward fft using scalar_type
         fft.backward(forward.data(), backward.data());
-        auto backward_result = rescale(world, backward); // always std::vector
+        auto backward_result = rescale(world, backward, scale::full); // always std::vector
         tassert(approx(local_input, backward_result)); // compare with the original input
 
         output_container cbackward(local_input.size()); // complex backward transform
         fft.backward(forward.data(), cbackward.data());
-        auto cbackward_result = rescale(world, cbackward);
+        auto cbackward_result = rescale(world, cbackward, scale::full);
         // convert the world to complex numbers and extract the reference sub-box
         tassert(approx(get_complex_subbox(world, boxes[me], world_input),
                        cbackward_result));

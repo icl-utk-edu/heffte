@@ -303,6 +303,39 @@ template<> struct direct_packer<tag::cpu>{
     }
 };
 
+/*!
+ * \brief Apply scaling to the CPU data.
+ *
+ * Similar to the packer, the scaling factors are divided into CPU and GPU variants
+ * and not specific to the backend, e.g., FFTW and MKL use the same CPU scaling method.
+ */
+template<typename mode> struct data_scaling{};
+
+/*!
+ * \brief Specialization for the CPU case.
+ */
+template<> struct data_scaling<tag::cpu>{
+    /*!
+     * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
+     */
+    template<typename scalar_type>
+    static void apply(int num_entries, scalar_type *data, double scale_factor){;
+        for(int i=0; i<num_entries; i++) data[i] *= scale_factor;
+    }
+    /*!
+     * \brief Complex by real scaling.
+     *
+     * Depending on the compiler and type of operation, C++ complex numbers can have bad
+     * performance compared to float and double operations.
+     * Since the scaling factor is always real, scaling can be performed
+     * with real arithmetic which is easier to vectorize.
+     */
+    template<typename precision_type>
+    static void apply(int num_entries, std::complex<precision_type> *data, double scale_factor){
+        apply<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    }
+};
+
 }
 
 #endif

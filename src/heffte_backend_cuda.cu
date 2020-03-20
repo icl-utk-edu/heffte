@@ -119,6 +119,18 @@ __global__ void direct_packer(int nfast, int nmid, int nslow, int line_stride, i
 }
 
 /*
+ * Call with one thread per entry.
+ */
+template<typename scalar_type, int num_threads>
+__global__ void simple_scal(int num_entries, scalar_type data[], scalar_type scaling_factor){
+    int i = blockIdx.x * num_threads + threadIdx.x;
+    while(i < num_entries){
+        data[i] *= scaling_factor;
+        i += num_threads * gridDim.x;
+    }
+}
+
+/*
  * Create a 1-D CUDA thread grid using the total_threads and number of threads per block.
  * Basically, computes the number of blocks but no more than 65536.
  */
@@ -195,6 +207,15 @@ template void direct_unpack<float>(int, int, int, int, int, float const source[]
 template void direct_unpack<double>(int, int, int, int, int, double const source[], double destination[]);
 template void direct_unpack<std::complex<float>>(int, int, int, int, int, std::complex<float> const source[], std::complex<float> destination[]);
 template void direct_unpack<std::complex<double>>(int, int, int, int, int, std::complex<double> const source[], std::complex<double> destination[]);
+
+template<typename scalar_type>
+void scale_data(int num_entries, scalar_type *data, double scale_factor){
+    thread_grid_1d grid(num_entries, max_threads);
+    simple_scal<scalar_type, max_threads><<<grid.blocks, grid.threads>>>(num_entries, data, static_cast<scalar_type>(scale_factor));
+}
+
+template void scale_data(int num_entries, float *data, double scale_factor);
+template void scale_data(int num_entries, double *data, double scale_factor);
 
 } // namespace cuda
 } // namespace heffte
