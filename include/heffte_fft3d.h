@@ -386,9 +386,9 @@ public:
     }
 
     /*!
-     * \brief Vector variant of forward() using input and output std::vector containers.
+     * \brief Vector variant of forward() using input and output buffer_container classes.
      *
-     * Requires a CPU backend, e.g., backend::fftw, and returns the vectors using only C++ standard types.
+     * Returns either std::vector or heffte::cuda:vector using only the C++ standard types.
      *
      * \tparam input_type is a type compatible with the input of a backward FFT,
      *          see \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
