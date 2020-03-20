@@ -6,42 +6,34 @@ HEFFTE: User manual
 Installation using CMAKE
 ========================
 
-To install HEFFTE using CMAKE we create a folder `build`, where we store the object files,
+To install HEFFTE using CMAKE, create a `build` folder, this will contain object files,
 library, and executables.
 
-## Install the GPU enabled HEFFTE
+## Choose 1D FFT backends
+
+A single 1D FFT backend for CPU and GPU can be chosen. Tune options to ON or OFF accordingly to obtain required support.
 
 ~~~
 mkdir build; cd $_
 build/
-    cmake -DBUILD_GPU=true -DCXX_FLAGS="-O3" -DBUILD_SHARED=false ..
+    cmake -DHeffte_ENABLE_FFTW=ON -DHeffte_ENABLE_CUDA=ON ..
     make -j
 ~~~
 
-Note that adding `-DHEFFTE_TIME_DETAILED=true` to CMAKE options, will provide you an array of
+Adding `-DHEFFTE_TIME_DETAILED=true` to CMAKE options, provides an array of
 runtime spent per kernel, see `timing.md ` for details.
 
-## Install HEFFTE without GPU functionality
-
-This will need to specify the 1DFFT library which by default is FFTW3, simply add the paths to the
-library or load the library, e.g. "`module load fftw3`".
-
-~~~
-build/
-    cmake -DFFTW_ROOT="/ccs/home/aayala/fftw-3.3.8" -DBUILD_GPU=false -DCXX_FLAGS="-O3" -DBUILD_SHARED=false ..
-    make -j
-~~~
 
 
 Installation using Makefile
 ===========================
 
-We provide two makefiles for linux systems on folders `src` and `test`, modify them accordingly
-for your cluster architecture. Following the command line instructions below you can have both, CPU
-and GPU, versions of HEFFTE. You may also obtain only one of them.
+We provide two Makefiles for linux systems on folders `src` and `test`, modify them accordingly
+to your cluster architecture. Follow command line instructions below to obtain CPU
+and GPU versions of HEFFTE.
 
 ## Install the GPU enabled HEFFTE
-
+Choose GPU 1D FFT backend, e.g. CUFFT.
 ~~~
 cd heffte/src
 src/
@@ -52,11 +44,12 @@ src/
 Lines above will produce library `libheffte_gpu.a`.
 
 ## Install HEFFTE without GPU functionality
+Choose CPU 1D FFT backend, e.g. MKL.
 
 ~~~
 cd heffte/src
 src/
-    make -j fft=FFTW3
+    make -j fft=MKL
     make install
 ~~~
 
@@ -67,9 +60,20 @@ Lines above will produce library `libheffte.a`.
 Running tests
 =============
 
-If the installation was performed using CMAKE, then `heffte/build/test/` will contain two
-executables for C2C FFTs, `test3d_cpu` and `test3d_gpu`, and two for R2C FFTs, `test3d_cpu_r2c` and
-`test3d_gpu_r2c`. If you prefer to get this executables via standard Makefile, then do as follows:
+## Verifying correctness
+
+To ensure HEFFTE was properly built, we provide several tests for all kernels. Using CMAKE functionality, simply do as follows:
+
+~~~
+cd heffte/build
+    ctests -V
+~~~
+
+## Running individual tests
+
+If installation was performed using CMAKE, then `heffte/build/test/` will contain several executables; for example, `test3d_cpu` and `test3d_gpu` for C2C FFTs, which can be individually tested.
+
+When using standard Makefile, you can obtain those executables by following lines below:
 
 ~~~
 cd heffte/test
@@ -89,7 +93,7 @@ mpirun -n 2  ./test3d_gpu -g 512 256 512 -v -i 82783 -c point -verb -s
 mpirun -n 1  ./test3d_gpu_r2c -g 512 256 512 -v -i 82783 -c all -s
 ~~~
 
-To run on Summit supercomputer,follow the examples:
+To run on Summit supercomputer, follow the examples:
 
 ~~~
 jsrun --smpiargs="-gpu" -n192 -a1 -c1 -g1 -r6 ./test3d_gpu -g 1024 1024 1024 -i 82783 -v -c point -s
