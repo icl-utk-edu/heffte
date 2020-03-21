@@ -100,30 +100,31 @@ struct plan_fftw<std::complex<double>, dir>{
     fftw_plan plan;
 };
 
-
+/*!
+ * \brief Wrapper around the FFTW3 API.
+ *
+ * A single class that manages the plans and executions of fftw3
+ * so that a single API is provided for all backends.
+ * The executor operates on a box and performs 1-D FFTs
+ * for the given dimension.
+ * The class silently manages the plans and buffers needed
+ * for the different types.
+ * All input and output arrays must have size equal to the box.
+ */
 class fftw_executor{
 public:
+    //! \brief Constructor, specifies the box and dimension.
     fftw_executor(box3d const box, int dimension) :
         size(box.size[dimension]),
-        howmany(get_many(box, dimension)),
-        stride(get_stride(box, dimension)),
+        howmany(fft1d_get_howmany(box, dimension)),
+        stride(fft1d_get_stride(box, dimension)),
         dist((dimension == 0) ? size : 1),
         blocks((dimension == 1) ? box.size[2] : 1),
         block_stride(box.size[0] * box.size[1]),
         total_size(box.count())
     {}
 
-    static int get_many(box3d const box, int dimension){
-        if (dimension == 0) return box.size[1] * box.size[2];
-        if (dimension == 1) return box.size[0];
-        return box.size[0] * box.size[1];
-    }
-    static int get_stride(box3d const box, int dimension){
-        if (dimension == 0) return 1;
-        if (dimension == 1) return box.size[0];
-        return box.size[0] * box.size[1];
-    }
-
+    //! \brief Forward fft, float-complex case.
     void forward(std::complex<float> data[]) const{
         make_plan(cforward);
         for(int i=0; i<blocks; i++){
@@ -131,6 +132,7 @@ public:
             fftwf_execute_dft(*cforward, block_data, block_data);
         }
     }
+    //! \brief Backward fft, float-complex case.
     void backward(std::complex<float> data[]) const{
         make_plan(cbackward);
         for(int i=0; i<blocks; i++){
@@ -138,6 +140,7 @@ public:
             fftwf_execute_dft(*cbackward, block_data, block_data);
         }
     }
+    //! \brief Forward fft, double-complex case.
     void forward(std::complex<double> data[]) const{
         make_plan(zforward);
         for(int i=0; i<blocks; i++){
@@ -145,6 +148,7 @@ public:
             fftw_execute_dft(*zforward, block_data, block_data);
         }
     }
+    //! \brief Backward fft, double-complex case.
     void backward(std::complex<double> data[]) const{
         make_plan(zbackward);
         for(int i=0; i<blocks; i++){
@@ -153,26 +157,32 @@ public:
         }
     }
 
+    //! \brief Converts the deal data to complex and performs float-complex forward transform.
     void forward(float const indata[], std::complex<float> outdata[]) const{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<float>(indata[i]);
         forward(outdata);
     }
+    //! \brief Performs backward float-complex transform and truncates the complex part of the result.
     void backward(std::complex<float> indata[], float outdata[]) const{
         backward(indata);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
+    //! \brief Converts the deal data to complex and performs double-complex forward transform.
     void forward(double const indata[], std::complex<double> outdata[]) const{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<double>(indata[i]);
         forward(outdata);
     }
+    //! \brief Performs backward double-complex transform and truncates the complex part of the result.
     void backward(std::complex<double> indata[], double outdata[]) const{
         backward(indata);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
 
+    //! \brief Returns the size of the box.
     int box_size() const{ return total_size; }
 
 private:
+    //! \brief Helper template to create the plan.
     template<typename scalar_type, direction dir>
     void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
         if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmany, stride, dist));
@@ -185,11 +195,159 @@ private:
     mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::backward>> zbackward;
 };
 
-template<> struct one_dim_backend<backend::fftw>{
-    using type = fftw_executor;
+//! \brief Specialization for r2c single precision.
+template<direction dir>
+struct plan_fftw<float, dir>{
+    /*!
+     * \brief Constructor taking into account the different sizes for the real and complex parts.
+     *
+     * \param size is the number of entries in a 1-D transform
+     * \param howmany is the number of transforms in the batch
+     * \param stride is the distance between entries of the same transform
+     * \param rdist is the distance between the first entries of consecutive sequences in the real sequences
+     * \param cdist is the distance between the first entries of consecutive sequences in the complex sequences
+     */
+    plan_fftw(int size, int howmany, int stride, int rdist, int cdist) :
+        plan((dir == direction::forward) ?
+             fftwf_plan_many_dft_r2c(1, &size, howmany, nullptr, nullptr, stride, rdist,
+                                                   nullptr, nullptr, stride, cdist,
+                                                   FFTW_ESTIMATE
+                                   ) :
+             fftwf_plan_many_dft_c2r(1, &size, howmany, nullptr, nullptr, stride, cdist,
+                                                   nullptr, nullptr, stride, rdist,
+                                                   FFTW_ESTIMATE
+                                   ))
+        {}
+    //! \brief Identical to the float-complex specialization.
+    ~plan_fftw(){ fftwf_destroy_plan(plan); }
+    //! \brief Identical to the float-complex specialization.
+    operator fftwf_plan() const{ return plan; }
+    //! \brief Identical to the float-complex specialization.
+    fftwf_plan plan;
+};
+//! \brief Specialization for r2c double precision.
+template<direction dir>
+struct plan_fftw<double, dir>{
+    //! \brief Identical to the float-complex specialization.
+    plan_fftw(int size, int howmany, int stride, int rdist, int cdist) :
+        plan((dir == direction::forward) ?
+             fftw_plan_many_dft_r2c(1, &size, howmany, nullptr, nullptr, stride, rdist,
+                                                   nullptr, nullptr, stride, cdist,
+                                                   FFTW_ESTIMATE
+                                   ) :
+             fftw_plan_many_dft_c2r(1, &size, howmany, nullptr, nullptr, stride, cdist,
+                                                   nullptr, nullptr, stride, rdist,
+                                                   FFTW_ESTIMATE
+                                   ))
+        {}
+    //! \brief Identical to the float-complex specialization.
+    ~plan_fftw(){ fftw_destroy_plan(plan); }
+    //! \brief Identical to the float-complex specialization.
+    operator fftw_plan() const{ return plan; }
+    //! \brief Identical to the float-complex specialization.
+    fftw_plan plan;
+};
 
+/*!
+ * \brief Wrapper to fftw3 API for real-to-complex transform with shortening of the data.
+ *
+ * Serves the same purpose of heffte::fftw_executor but only real input is accepted
+ * and only the unique (non-conjugate) coefficients are computed.
+ * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
+ */
+class fftw_executor_r2c{
+public:
+    /*!
+     * \brief Constructor defines the box and the dimension of reduction.
+     *
+     * Note that the result sits in the box returned by box.r2c(dimension).
+     */
+    fftw_executor_r2c(box3d const box, int dimension) :
+        size(box.size[dimension]),
+        howmany(fft1d_get_howmany(box, dimension)),
+        stride(fft1d_get_stride(box, dimension)),
+        blocks((dimension == 1) ? box.size[2] : 1),
+        rdist((dimension == 0) ? size : 1),
+        cdist((dimension == 0) ? size/2 + 1 : 1),
+        rblock_stride(box.size[0] * box.size[1]),
+        cblock_stride(box.size[0] * (box.size[1]/2 + 1)),
+        rsize(box.count()),
+        csize(box.r2c(dimension).count())
+    {}
+
+    //! \brief Forward transform, single precision.
+    void forward(float const indata[], std::complex<float> outdata[]) const{
+        make_plan(sforward);
+        for(int i=0; i<blocks; i++){
+            float *rdata = const_cast<float*>(indata + i * rblock_stride);
+            fftwf_complex* cdata = reinterpret_cast<fftwf_complex*>(outdata + i * cblock_stride);
+            fftwf_execute_dft_r2c(*sforward, rdata, cdata);
+        }
+    }
+    //! \brief Backward transform, single precision.
+    void backward(std::complex<float> const indata[], float outdata[]) const{
+        make_plan(sbackward);
+        for(int i=0; i<blocks; i++){
+            fftwf_complex* cdata = const_cast<fftwf_complex*>(reinterpret_cast<fftwf_complex const*>(indata + i * cblock_stride));
+            fftwf_execute_dft_c2r(*sbackward, cdata, outdata + i * rblock_stride);
+        }
+    }
+    //! \brief Forward transform, double precision.
+    void forward(double const indata[], std::complex<double> outdata[]) const{
+        make_plan(dforward);
+        for(int i=0; i<blocks; i++){
+            double *rdata = const_cast<double*>(indata + i * rblock_stride);
+            fftw_complex* cdata = reinterpret_cast<fftw_complex*>(outdata + i * cblock_stride);
+            fftw_execute_dft_r2c(*dforward, rdata, cdata);
+        }
+    }
+    //! \brief Backward transform, double precision.
+    void backward(std::complex<double> const indata[], double outdata[]) const{
+        make_plan(dbackward);
+        for(int i=0; i<blocks; i++){
+            fftw_complex* cdata = const_cast<fftw_complex*>(reinterpret_cast<fftw_complex const*>(indata + i * cblock_stride));
+            fftw_execute_dft_c2r(*dbackward, cdata, outdata + i * rblock_stride);
+        }
+    }
+
+    //! \brief Returns the size of the box with real data.
+    int real_size() const{ return rsize; }
+    //! \brief Returns the size of the box with complex coefficients.
+    int complex_size() const{ return csize; }
+
+private:
+    //! \brief Helper template to initialize the plan.
+    template<typename scalar_type, direction dir>
+    void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
+        if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmany, stride, rdist, cdist));
+    }
+
+    mutable int size, howmany, stride, blocks;
+    mutable int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
+    mutable std::unique_ptr<plan_fftw<float, direction::forward>> sforward;
+    mutable std::unique_ptr<plan_fftw<double, direction::forward>> dforward;
+    mutable std::unique_ptr<plan_fftw<float, direction::backward>> sbackward;
+    mutable std::unique_ptr<plan_fftw<double, direction::backward>> dbackward;
+};
+
+/*!
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::fftw>{
+    //! \brief Defines the complex-to-complex executor.
+    using type = fftw_executor;
+    //! \brief Defines the real-to-complex executor.
+    using type_r2c = fftw_executor_r2c;
+
+    //! \brief Constructs a complex-to-complex executor.
     static std::unique_ptr<fftw_executor> make(box3d const box, int dimension){
         return std::unique_ptr<fftw_executor>(new fftw_executor(box, dimension));
+    }
+    //! \brief Constructs a real-to-complex executor.
+    static std::unique_ptr<fftw_executor_r2c> make_r2c(box3d const box, int dimension){
+        return std::unique_ptr<fftw_executor_r2c>(new fftw_executor_r2c(box, dimension));
     }
 };
 

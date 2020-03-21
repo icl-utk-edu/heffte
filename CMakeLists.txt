@@ -19,38 +19,22 @@ endif()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/heffte_config.cmake.h"
                "${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h")
 
-# allow cmake to use custom modules (e.g. FindFFTW)
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+if (Heffte_ENABLE_FFTW)
+    # allow cmake to use custom modules (e.g. FindFFTW)
+    set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+endif()
 
 find_package(MPI REQUIRED)
-# find_package(OpenMP REQUIRED)
-# Make the include path visible to all targets
-INCLUDE_DIRECTORIES (
-  ${Heffte_SOURCE_DIR}/include
-  ${Heffte_BINARY_DIR}/include
-  )
 
-
-
-# Add OpenMP and FFTW cxx flags to all targets
-# FOR PGI COMPILER
-#set(OpenMP_CXX_FLAGS "-lpthread")
-# set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 ${OpenMP_CXX_FLAGS} " )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3" )
 
-
-# #########
-# CPU BUILD
-# #########
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
-
-#include_directories(SYSTEM ${MPI_INCLUDE_PATH})
 
 # libheffte source files list
 set(Heffte_common_sources
     src/heffte_common.cpp
     src/heffte.cpp
     src/heffte_fft3d.cpp
+    src/heffte_fft3d_r2c.cpp
     src/heffte_pack3d.cpp
     src/heffte_reshape3d.cpp
     src/heffte_trace.cpp
@@ -75,7 +59,7 @@ else()
     add_library(Heffte ${Heffte_common_sources})
 endif()
 if (Heffte_ENABLE_FFTW)
-    find_package(FFTW REQUIRED)
+    find_package(HeffteFFTW REQUIRED)
     target_link_libraries(Heffte Heffte::FFTW)
 endif()
 target_link_libraries(Heffte MPI::MPI_CXX)
