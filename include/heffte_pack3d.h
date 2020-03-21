@@ -244,15 +244,25 @@ template <class T>
 
 namespace heffte {
 
-// identical to before, but in this namespace
+/*!
+ * \brief Holds the plan for a pack/unpack operation.
+ */
 struct pack_plan_3d{
-    int nfast;                 // # of elements in fast index
-    int nmid;                  // # of elements in mid index
-    int nslow;                 // # of elements in slow index
-    int line_stride;           // stride between successive mid indices
-    int plane_stride;          // stride between successive slow indices
+    //! \brief Number of elements in the fast direction.
+    int nfast;
+    //! \brief Number of elements in the middle direction.
+    int nmid;
+    //! \brief Number of elements in the slow direction.
+    int nslow;
+    //! \brief Stride of the lines.
+    int line_stride;
+    //! \brief Stride of the planes.
+    int plane_stride;
 };
 
+/*!
+ * \brief Writes a plan to the stream, useful for debugging.
+ */
 inline std::ostream & operator << (std::ostream &os, pack_plan_3d const &plan){
     os << "nfast = " << plan.nfast << "\n";
     os << "nmid  = " << plan.nmid << "\n";

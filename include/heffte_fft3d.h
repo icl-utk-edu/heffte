@@ -289,16 +289,16 @@ enum class scale{
  * The backward (inverse) transform takes complex data entries back to real or complex data.
  * The precision must always match, e.g., float to std::complex<float>, double and std::complex<double>.
  * <table>
- * <tr><td> Forward transform input </td><td> Forward transform output </td><td/>
+ * <tr><td> Forward transform input </td><td> Forward transform output </td><td></td>
  *     <td> Backward transform input </td><td> Backward transform output </td>
  * </tr>
- * <tr><td> float </td><td> std::complex<float> </td><td/>
+ * <tr><td> float </td><td> std::complex<float> </td><td></td>
  *     <td> std::complex<float> </td><td> float </td></tr>
- * <tr><td> double </td><td> std::complex<double> </td><td/>
+ * <tr><td> double </td><td> std::complex<double> </td><td></td>
  *     <td> std::complex<double> </td><td> double </td></tr>
- * <tr><td> std::complex<float> </td><td> std::complex<float> </td><td/>
+ * <tr><td> std::complex<float> </td><td> std::complex<float> </td><td></td>
  *     <td> std::complex<float> </td><td> std::complex<float> </td></tr>
- * <tr><td> std::complex<double> </td><td> std::complex<double> </td><td/>
+ * <tr><td> std::complex<double> </td><td> std::complex<double> </td><td></td>
  *     <td> std::complex<double> </td><td> std::complex<double> </td></tr>
  * </table>
  *
@@ -310,9 +310,11 @@ enum class scale{
  * Thus, HeFFTe recognizes the types defined by the backend libraries and additional types can be accepted
  * with a specialization of heffte::is_ccomplex and heffte::is_zcomplex.
  * <table>
- * <tr><td> Backend </tr><td> Type </td><td> C++ Equivalent </td></tr>
+ * <tr><td> Backend </td><td> Type </td><td> C++ Equivalent </td></tr>
  * <tr><td rowspan=2> FFTW3 </td><td> fftwf_complex </td><td> std::complex<float> </td></tr>
  * <tr>                          <td> fftw_complex </td><td> std::complex<double> </td></tr>
+ * <tr><td rowspan=2> cuFFT </td><td> cufftComplex </td><td> std::complex<float> </td></tr>
+ * <tr>                          <td> cufftDoubleComplex </td><td> std::complex<double> </td></tr>
  * </table>
  *
  * \par Scaling
@@ -321,7 +323,7 @@ enum class scale{
  * truly inverses, unless the correct scaling is applied. By default, HeFFTe does not apply scaling,
  * but the methods accept an optional parameter with three different options, see also heffte::scale.
  * <table>
- * <tr><td> Forward </tr><td> Inverse </td></tr>
+ * <tr><td> Forward </td><td> Inverse </td></tr>
  * <tr><td> forward(a, b, scaling::none) </tr><td> forward(a, b, scaling::full) </td></tr>
  * <tr><td> forward(a, b, scaling::symmetric) </tr><td> forward(a, b, scaling::symmetric) </td></tr>
  * <tr><td> forward(a, b, scaling::full) </tr><td> forward(a, b, scaling::none) </td></tr>
@@ -386,9 +388,9 @@ public:
     }
 
     /*!
-     * \brief Vector variant of forward() using input and output std::vector containers.
+     * \brief Vector variant of forward() using input and output buffer_container classes.
      *
-     * Requires a CPU backend, e.g., backend::fftw, and returns the vectors using only C++ standard types.
+     * Returns either std::vector or heffte::cuda:vector using only the C++ standard types.
      *
      * \tparam input_type is a type compatible with the input of a backward FFT,
      *          see \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
@@ -514,25 +516,6 @@ private:
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale) const; // complex to real
-
-    /*!
-     * \brief Performs the reshape operation on the data in base using the helper buffer
-     *
-     * If the reshape operation is not active, this method does nothing.
-     * Otherwise, the reshape is applied from the base to the helper and the two pointers are swapped.
-     *
-     * \tparam scalar_type is the type of the entries of the two arrays
-     *
-     * \param reshape is either active or null reshape operation
-     * \param base is the source of the reshape on entry, and on exit will hold the reshaped data
-     * \param helper is a temporary pointer that will be used for the reshape
-     */
-    template<typename scalar_type>
-    void reshape_stage(std::unique_ptr<reshape3d_base> const &reshape, scalar_type *&base, scalar_type *&helper) const{
-        if (not reshape) return;
-        reshape->apply(base, helper);
-        std::swap(base, helper);
-    }
 
     box3d inbox, outbox;
     double scale_factor;

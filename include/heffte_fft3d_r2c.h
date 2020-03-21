@@ -1,0 +1,174 @@
+/** @class */
+/*
+    -- HEFFTE (version 0.2) --
+       Univ. of Tennessee, Knoxville
+       @date
+*/
+
+#ifndef FFT_FFT3D_R2C_H
+#define FFT_FFT3D_R2C_H
+
+#include "heffte_fft3d.h"
+
+namespace heffte {
+
+/*!
+ * \brief Similar to heffte::fft3d, but computed fewer redundant coefficients when the input is real.
+ *
+ * \par Overview
+ * Given real input data, there is no unambiguous way to distinguish between the positive and negative
+ * direction in the complex plane; therefore, by an argument of symmetry, all complex output must come
+ * in conjugate pairs. The heffte::fft3d computes both numbers for each conjugate pair,
+ * this class aims at computing fewer redundant coefficients and thus reducing both flops and data movement.
+ * This is achieved by selecting one of the three dimensions and the data is shortened in that dimensions
+ * to contain only the unique (non-conjugate) coefficients.
+ *
+ * \par Boxes and Data Distribution
+ * Similar to heffte::fft3d the data is organized in boxes using the heffte::box3d structs;
+ * however, in the real-to-complex case the global input and output domains do not match.
+ * If the original data sits in a box {0, 0, 0}, {x, y, z}, then depending on the dimensions
+ * chosen for the shortening, the output data will form the box:
+ * \code
+ *  {{0, 0, 0}, {x/2 + 1, y,       z}}        // if chosen dimension 0
+ *  {{0, 0, 0}, {x,       y/2 + 1, z}}        // if chosen dimension 1
+ *  {{0, 0, 0}, {x,       y,       z/2 + 1}}  // if chosen dimension 2
+ * // note that x/2 indicates the standard C++ integer division
+ * \endcode
+ * Thus, the union of the inboxes across all MPI ranks must add up to the global input box,
+ * and the union of the outboxes must add up to the shortened global box.
+ *
+ * \par Compatible Types
+ * The real-to-complex variant does not support the cases when the input is complex,
+ * the supported types are the ones with real input in
+ * \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
+ */
+template<typename backend_tag>
+class fft3d_r2c{
+public:
+    //! \brief FFT executor for the complex-to-complex dimensions.
+    using backend_executor_c2c = typename one_dim_backend<backend_tag>::type;
+    //! \brief FFT executor for the real-to-complex dimension.
+    using backend_executor_r2c = typename one_dim_backend<backend_tag>::type_r2c;
+
+    /*!
+     * \brief Alias to the container template associated with the backend (allows for RAII memory management).
+     */
+    template<typename T> using buffer_container = typename backend::buffer_traits<backend_tag>::template container<T>;
+
+    /*!
+     * \brief Constructor creating a plan for FFT transform across the given communicator and using the box geometry.
+     *
+     * \param cinbox is the box for the non-transformed data, i.e., the input for the forward() transform and the output of the backward() transform.
+     * \param coutbox is the box for the transformed data, i.e., the output for the forward() transform and the input of the backward() transform.
+     * \param r2c_direction indicates the direction where the total set of coefficients will be reduced to hold only the non-conjugate pairs;
+     *        selecting a dimension with odd number of indexes will result in (slightly) smaller final data set.
+     * \param comm is the MPI communicator with all ranks that will participate in the FFT.
+     */
+    fft3d_r2c(box3d const cinbox, box3d const coutbox, int r2c_direction, MPI_Comm const);
+
+    //! \brief Returns the size of the inbox defined in the constructor.
+    int size_inbox() const{ return inbox.count(); }
+    //! \brief Returns the size of the outbox defined in the constructor.
+    int size_outbox() const{ return outbox.count(); }
+
+    /*!
+     * \brief Performs a forward Fourier transform using two arrays.
+     *
+     * \tparam input_type is either float or double type.
+     * \tparam output_type is a type compatible with the output of a forward FFT,
+     *         see \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
+     *
+     * \param input is an array of size at least size_inbox() holding the input data corresponding
+     *          to the inbox
+     * \param output is an array of size at least size_outbox() and will be overwritten with
+     *          the result from the transform corresponding to the outbox
+     * \param scaling defines the type of scaling to apply (default no-scaling).
+     */
+    template<typename input_type, typename output_type>
+    void forward(input_type const input[], output_type output[], scale scaling = scale::none) const{
+        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
+                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        standard_transform(convert_to_standart(input), convert_to_standart(output), scaling);
+    }
+
+    /*!
+     * \brief Vector variant of forward() using input and output buffer_container classes.
+     *
+     * Returns either std::vector or heffte::cuda:vector using only the C++ standard types.
+     * Allows for more C++-ish calls and RAII memory management, see the heffte::fft3d equivalent.
+     *
+     * \tparam input_type is either float or double.
+     *
+     * \param input is a std::vector or heffte::cuda::vector with size at least size_inbox() corresponding to the input of forward().
+     * \param scaling defines the type of scaling to apply (default no-scaling).
+     *
+     * \returns std::vector or heffte::cuda::vector with entries corresponding to the output type and with size equal to size_outbox()
+     *          corresponding to the output of forward().
+     *
+     * \throws std::invalid_argument is the size of the \b input is less than size_inbox().
+     */
+    template<typename input_type>
+    buffer_container<typename fft_output<input_type>::type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
+        if (input.size() < size_inbox())
+            throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
+        static_assert(std::is_same<input_type, float>::value or std::is_same<input_type, double>::value,
+                      "The input to forward() must be real, i.e., either float or double.");
+        buffer_container<typename fft_output<input_type>::type> output(size_outbox());
+        forward(input.data(), output.data(), scaling);
+        return output;
+    }
+
+    /*!
+     * \brief Performs a backward Fourier transform using two arrays.
+     *
+     * \tparam input_type is either float or double.
+     * \tparam output_type is a type compatible with the output of a backward FFT,
+     *                     see \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
+     *
+     * \param input is an array of size at least size_outbox() holding the input data corresponding
+     *          to the outbox
+     * \param output is an array of size at least size_inbox() and will be overwritten with
+     *          the result from the transform corresponding to the inbox
+     * \param scaling defines the type of scaling to apply (default no-scaling)
+     */
+    template<typename input_type, typename output_type>
+    void backward(input_type const input[], output_type output[], scale scaling = scale::none) const{
+        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
+                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        standard_transform(convert_to_standart(input), convert_to_standart(output), scaling);
+    }
+
+    /*!
+     * \brief Variant of backward() that uses buffer_container for RAII style of resource management.
+     */
+    template<typename scalar_type>
+    buffer_container<typename define_standard_type<scalar_type>::type::value_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
+        static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
+                      "Either calling backward() with non-complex input or using an unknown complex type.");
+        buffer_container<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());
+        backward(input.data(), result.data(), scaling);
+        return result;
+    }
+
+private:
+    template<typename scalar_type>
+    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale) const;
+    template<typename scalar_type>
+    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], scale) const;
+
+    box3d inbox, outbox;
+    double scale_factor;
+    std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
+    std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
+
+    std::unique_ptr<backend_executor_r2c> fft_r2c;
+    std::unique_ptr<backend_executor_c2c> fft1, fft2;
+};
+
+}
+
+#endif

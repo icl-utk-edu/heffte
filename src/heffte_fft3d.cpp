@@ -2585,8 +2585,9 @@ fft3d<backend_tag>::fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm comm
     // perform all analysis for all reshape operation without further communication
     // create the reshape objects
     ioboxes boxes = mpi::gather_boxes(inbox, outbox, comm);
-    box3d const world = find_world(boxes);
-    assert( world_complete(boxes, world) );
+    box3d const world = find_world(boxes.in);
+    assert( world_complete(boxes.in, world) );
+    assert( world_complete(boxes.out, world) );
     scale_factor = 1.0 / static_cast<double>(world.count());
 
     std::array<int, 2> proc_grid = make_procgrid(mpi::comm_size(comm));

@@ -83,4 +83,7 @@ An example is installed in `<install-prefix>/share/heffte/examples/`.
     * work is underway to make FFTW optional
 * the GNU Make engine is not supported
     * work is in progress to build using simple GNU Make
+* the current testing suite requires about 3GB of free GPU RAM
+    * CUDA seem to reserve 100-200MB of RAM per MPI rank and some tests use 12 ranks
+    * tested on CUDA 10.2 with just allocating and freeing a vary small array
 

@@ -64,7 +64,7 @@ void test_split_pencils(){
     std::vector<box3d> result2 = make_pencils(world, {2, 2}, 0, reference);
     sassert(match(result2, reference2));
 
-    box3d const reconstructed_world = find_world({result, result});
+    box3d const reconstructed_world = find_world(result);
     sassert(reconstructed_world == world);
 }
 
@@ -128,6 +128,20 @@ std::vector<typename fft_output<scalar_type>::type> make_fft1(){
     return result;
 }
 /*
+ * Same as make_fft1() but using the r2c transform and only the unique entries.
+ */
+template<typename scalar_type>
+std::vector<typename fft_output<scalar_type>::type> make_fft1_r2c(){
+    std::vector<typename fft_output<scalar_type>::type> result(16);
+    for(int j=0; j<4; j++){
+        for(int i=0; i<2; i++){
+            result[4 * j + i]     = typename fft_output<scalar_type>::type((2*j + i+1) * 9.0 - i * 6.0);
+            result[4 * j + i + 2] = typename fft_output<scalar_type>::type(-3.0,  1.73205080756888);
+        }
+    }
+    return result;
+}
+/*
  * Same as make_fft0() but the transforms are applied to dimension 2.
  * Each transform uses 4 entries, since the size in dimension 2 is 4.
  */
@@ -139,6 +153,19 @@ std::vector<typename fft_output<scalar_type>::type> make_fft2(){
         result[i+ 6] = typename fft_output<scalar_type>::type(-12.0, 12.0);
         result[i+12] = typename fft_output<scalar_type>::type(-12.0);
         result[i+18] = typename fft_output<scalar_type>::type(-12.0, -12.0);
+    }
+    return result;
+}
+/*
+ * Same as make_fft2() but using the r2c transform and only the unique entries.
+ */
+template<typename scalar_type>
+std::vector<typename fft_output<scalar_type>::type> make_fft2_r2c(){
+    std::vector<typename fft_output<scalar_type>::type> result(18);
+    for(size_t i=0; i<6; i++){
+        result[i]    = typename fft_output<scalar_type>::type(40.0 + 4 * i);
+        result[i+ 6] = typename fft_output<scalar_type>::type(-12.0, 12.0);
+        result[i+12] = typename fft_output<scalar_type>::type(-12.0);
     }
     return result;
 }
@@ -193,12 +220,39 @@ void test_fftw_1d_real(){
     }
 }
 
+template<typename scalar_type>
+void test_fftw_1d_r2c(){
+    current_test<scalar_type, using_nompi> name("fftw3 one-dimension r2c");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::fftw_executor_r2c fft(box, i);
+
+        std::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
+        fft.forward(input.data(), result.data());
+        sassert(approx(result, reference[i]));
+
+        std::vector<scalar_type> back_result(fft.real_size());
+        fft.backward(result.data(), back_result.data());
+        for(auto &r : back_result) r /= (2.0 + i);
+        sassert(approx(back_result, input));
+    }
+}
+
 // tests for the 1D fft
 void test_fftw(){
     test_fftw_1d_real<float>();
     test_fftw_1d_real<double>();
     test_fftw_1d_complex<std::complex<float>>();
     test_fftw_1d_complex<std::complex<double>>();
+    test_fftw_1d_r2c<float>();
+    test_fftw_1d_r2c<double>();
 }
 #else
 void test_fftw(){}
@@ -207,6 +261,11 @@ void test_fftw(){}
 #ifdef Heffte_ENABLE_CUDA
 template<typename scalar_type>
 void test_cuda_vector_type(size_t num_entries){
+    static_assert(std::is_copy_constructible<cuda::vector<scalar_type>>::value, "Lost copy-constructor for cuda::vector");
+    static_assert(std::is_move_constructible<cuda::vector<scalar_type>>::value, "Lost move-constructor for cuda::vector");
+    static_assert(std::is_copy_assignable<cuda::vector<scalar_type>>::value, "Lost copy-assign for cuda::vector");
+    static_assert(std::is_move_assignable<cuda::vector<scalar_type>>::value, "Lost move-assign for cuda::vector");
+
     current_test<scalar_type, using_nompi> name("cuda::vector");
     std::vector<scalar_type> source(num_entries);
     std::iota(source.begin(), source.end(), 0); // fill source with 0, 1, 2, 3, 4 ...
@@ -323,11 +382,39 @@ void test_cufft_1d_real(){
     }
 }
 
+template<typename scalar_type>
+void test_cufft_1d_r2c(){
+    current_test<scalar_type, using_nompi> name("cufft one-dimension r2c");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::cufft_executor_r2c fft(box, i);
+
+        cuda::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
+        auto cuinput = cuda::load(input);
+        fft.forward(cuinput.data(), result.data());
+        sassert(approx(result, reference[i], 0.01));
+
+        cuda::vector<scalar_type> back_result(fft.real_size());
+        fft.backward(result.data(), back_result.data());
+        data_scaling<tag::gpu>::apply(back_result.size(), back_result.data(), 1.0 / (2.0 + i));
+        sassert(approx(back_result, input, 0.01));
+    }
+}
+
 void test_cufft(){
     test_cufft_1d_real<float>();
     test_cufft_1d_real<double>();
     test_cufft_1d_complex<std::complex<float>>();
     test_cufft_1d_complex<std::complex<double>>();
+    test_cufft_1d_r2c<float>();
+    test_cufft_1d_r2c<double>();
 }
 #else
 void test_cuda_vector(){} // skip cuda
@@ -367,11 +454,62 @@ void test_cross_reference_type(){
             sassert(approx(cuinput, input));
         }
     }
+}
+template<typename scalar_type>
+void test_cross_reference_r2c(){
+    current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
 
+    for(int case_counter = 0; case_counter < 2; case_counter++){
+        // due to alignment issues on the cufft side
+        // need to check the case when both size[0] and size[1] are odd
+        //                        when at least one is even
+        box3d box = (case_counter == 0) ?
+                    box3d({0, 0, 0}, {42, 70, 21}) :
+                    box3d({0, 0, 0}, {41, 50, 21});
+
+        auto input = make_data<scalar_type>(box);
+        cuda::vector<scalar_type> cuinput = cuda::load(input);
+
+        for(int i=0; i<3; i++){
+            heffte::fftw_executor_r2c  fft_cpu(box, i);
+            heffte::cufft_executor_r2c fft_gpu(box, i);
+
+            std::vector<typename fft_output<scalar_type>::type> result(fft_cpu.complex_size());
+            cuda::vector<typename fft_output<scalar_type>::type> curesult(fft_gpu.complex_size());
+
+            fft_cpu.forward(input.data(), result.data());
+            fft_gpu.forward(cuinput.data(), curesult.data());
+
+            if (std::is_same<scalar_type, float>::value){
+                sassert(approx(curesult, result, 0.0005)); // float complex is not well conditioned
+            }else{
+                sassert(approx(curesult, result));
+            }
+
+            std::vector<scalar_type> inverse(fft_cpu.real_size());
+            cuda::vector<scalar_type> cuinverse(fft_gpu.real_size());
+
+            fft_cpu.backward(result.data(), inverse.data());
+            fft_gpu.backward(curesult.data(), cuinverse.data());
+
+            data_scaling<tag::cpu>::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling<tag::gpu>::apply(cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
+
+            if (std::is_same<scalar_type, float>::value){
+                sassert(approx(inverse, input));
+                sassert(approx(cuinverse, input));
+            }else{
+                sassert(approx(inverse, input));
+                sassert(approx(cuinverse, input));
+            }
+        }
+    }
 }
 void test_cross_reference(){
     test_cross_reference_type<std::complex<float>>();
     test_cross_reference_type<std::complex<double>>();
+    test_cross_reference_r2c<float>();
+    test_cross_reference_r2c<double>();
 }
 #else
 void test_cross_reference(){}

@@ -39,6 +39,14 @@ scalar_type* vector<scalar_type>::alloc(size_t new_size){
     return new_data;
 }
 template<typename scalar_type>
+void copy_pntr(vector<scalar_type> const &x, scalar_type data[]){
+    check_error(cudaMemcpy(data, x.data(), x.size() * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "cuda::copy_pntr(vector, data)");
+}
+template<typename scalar_type>
+void copy_pntr(scalar_type const data[], vector<scalar_type> &x){
+    check_error(cudaMemcpy(x.data(), data, x.size() * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "cuda::copy_pntr(data, vector)");
+}
+template<typename scalar_type>
 vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries){
     vector<scalar_type> result(num_entries);
     check_error(cudaMemcpy(result.data(), cpu_data, num_entries * sizeof(scalar_type), cudaMemcpyHostToDevice), "cuda::load()");
@@ -59,6 +67,8 @@ void unload(vector<scalar_type> const &gpu_data, scalar_type *cpu_data){
     template vector<scalar_type>::vector(const vector<scalar_type>& other); \
     template vector<scalar_type>::~vector(); \
     template scalar_type* vector<scalar_type>::alloc(size_t); \
+    template void copy_pntr(vector<scalar_type> const &x, scalar_type data[]); \
+    template void copy_pntr(scalar_type const data[], vector<scalar_type> &x); \
     template vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries); \
     template void load<scalar_type>(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data); \
     template void unload<scalar_type>(vector<scalar_type> const &, scalar_type *); \
