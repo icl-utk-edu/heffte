@@ -321,7 +321,7 @@ public:
     //! \brief Constructor, specifies the box and dimension.
     cufft_executor(box3d const box, int dimension) :
         size(box.size[dimension]),
-        howmany(fft1d_get_howmany(box, dimension)),
+        howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == 0) ? size : 1),
         blocks((dimension == 1) ? box.size[2] : 1),
@@ -390,10 +390,10 @@ private:
     //! \brief Helper template to create the plan.
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_cufft<scalar_type>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(size, howmany, stride, dist));
+        if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(size, howmanyffts, stride, dist));
     }
 
-    mutable int size, howmany, stride, dist, blocks, block_stride, total_size;
+    mutable int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
     mutable std::unique_ptr<plan_cufft<std::complex<float>>> ccomplex_plan;
     mutable std::unique_ptr<plan_cufft<std::complex<double>>> zcomplex_plan;
 };
@@ -484,7 +484,7 @@ public:
      */
     cufft_executor_r2c(box3d const box, int dimension) :
         size(box.size[dimension]),
-        howmany(fft1d_get_howmany(box, dimension)),
+        howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         blocks((dimension == 1) ? box.size[2] : 1),
         rdist((dimension == 0) ? size : 1),
@@ -576,10 +576,10 @@ private:
     //! \brief Helper template to initialize the plan.
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_cufft<scalar_type>> &plan, direction dir) const{
-        if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(dir, size, howmany, stride, rdist, cdist));
+        if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(dir, size, howmanyffts, stride, rdist, cdist));
     }
 
-    mutable int size, howmany, stride, blocks;
+    mutable int size, howmanyffts, stride, blocks;
     mutable int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
     mutable std::unique_ptr<plan_cufft<float>> sforward;
     mutable std::unique_ptr<plan_cufft<double>> dforward;
