@@ -8,6 +8,7 @@
 #define HEFFTE_GEOMETRY_H
 
 #include "heffte_utils.h"
+#include <array>
 
 namespace heffte {
 

@@ -65,12 +65,12 @@ struct plan_fftw<std::complex<float>, dir>{
      * \brief Constructor, takes inputs identical to fftwf_plan_many_dft().
      *
      * \param size is the number of entries in a 1-D transform
-     * \param howmany is the number of transforms in the batch
+     * \param howmanyffts is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
      * \param dist is the distance between the first entries of consecutive sequences
      */
-    plan_fftw(int size, int howmany, int stride, int dist) :
-        plan(fftwf_plan_many_dft(1, &size, howmany, nullptr, nullptr, stride, dist,
+    plan_fftw(int size, int howmanyffts, int stride, int dist) :
+        plan(fftwf_plan_many_dft(1, &size, howmanyffts, nullptr, nullptr, stride, dist,
                                                     nullptr, nullptr, stride, dist,
                                                     (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                 ))
@@ -86,8 +86,8 @@ struct plan_fftw<std::complex<float>, dir>{
 template<direction dir>
 struct plan_fftw<std::complex<double>, dir>{
     //! \brief Identical to the float-complex specialization.
-    plan_fftw(int size, int howmany, int stride, int dist) :
-        plan(fftw_plan_many_dft(1, &size, howmany, nullptr, nullptr, stride, dist,
+    plan_fftw(int size, int howmanyffts, int stride, int dist) :
+        plan(fftw_plan_many_dft(1, &size, howmanyffts, nullptr, nullptr, stride, dist,
                                                    nullptr, nullptr, stride, dist,
                                                    (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                ))
@@ -116,7 +116,7 @@ public:
     //! \brief Constructor, specifies the box and dimension.
     fftw_executor(box3d const box, int dimension) :
         size(box.size[dimension]),
-        howmany(fft1d_get_howmany(box, dimension)),
+        howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == 0) ? size : 1),
         blocks((dimension == 1) ? box.size[2] : 1),
@@ -185,10 +185,10 @@ private:
     //! \brief Helper template to create the plan.
     template<typename scalar_type, direction dir>
     void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmany, stride, dist));
+        if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, dist));
     }
 
-    mutable int size, howmany, stride, dist, blocks, block_stride, total_size;
+    mutable int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
     mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::forward>> cforward;
     mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::backward>> cbackward;
     mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::forward>> zforward;
@@ -202,18 +202,18 @@ struct plan_fftw<float, dir>{
      * \brief Constructor taking into account the different sizes for the real and complex parts.
      *
      * \param size is the number of entries in a 1-D transform
-     * \param howmany is the number of transforms in the batch
+     * \param howmanyffts is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
      * \param rdist is the distance between the first entries of consecutive sequences in the real sequences
      * \param cdist is the distance between the first entries of consecutive sequences in the complex sequences
      */
-    plan_fftw(int size, int howmany, int stride, int rdist, int cdist) :
+    plan_fftw(int size, int howmanyffts, int stride, int rdist, int cdist) :
         plan((dir == direction::forward) ?
-             fftwf_plan_many_dft_r2c(1, &size, howmany, nullptr, nullptr, stride, rdist,
+             fftwf_plan_many_dft_r2c(1, &size, howmanyffts, nullptr, nullptr, stride, rdist,
                                                    nullptr, nullptr, stride, cdist,
                                                    FFTW_ESTIMATE
                                    ) :
-             fftwf_plan_many_dft_c2r(1, &size, howmany, nullptr, nullptr, stride, cdist,
+             fftwf_plan_many_dft_c2r(1, &size, howmanyffts, nullptr, nullptr, stride, cdist,
                                                    nullptr, nullptr, stride, rdist,
                                                    FFTW_ESTIMATE
                                    ))
@@ -229,13 +229,13 @@ struct plan_fftw<float, dir>{
 template<direction dir>
 struct plan_fftw<double, dir>{
     //! \brief Identical to the float-complex specialization.
-    plan_fftw(int size, int howmany, int stride, int rdist, int cdist) :
+    plan_fftw(int size, int howmanyffts, int stride, int rdist, int cdist) :
         plan((dir == direction::forward) ?
-             fftw_plan_many_dft_r2c(1, &size, howmany, nullptr, nullptr, stride, rdist,
+             fftw_plan_many_dft_r2c(1, &size, howmanyffts, nullptr, nullptr, stride, rdist,
                                                    nullptr, nullptr, stride, cdist,
                                                    FFTW_ESTIMATE
                                    ) :
-             fftw_plan_many_dft_c2r(1, &size, howmany, nullptr, nullptr, stride, cdist,
+             fftw_plan_many_dft_c2r(1, &size, howmanyffts, nullptr, nullptr, stride, cdist,
                                                    nullptr, nullptr, stride, rdist,
                                                    FFTW_ESTIMATE
                                    ))
@@ -264,7 +264,7 @@ public:
      */
     fftw_executor_r2c(box3d const box, int dimension) :
         size(box.size[dimension]),
-        howmany(fft1d_get_howmany(box, dimension)),
+        howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         blocks((dimension == 1) ? box.size[2] : 1),
         rdist((dimension == 0) ? size : 1),
@@ -319,10 +319,10 @@ private:
     //! \brief Helper template to initialize the plan.
     template<typename scalar_type, direction dir>
     void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmany, stride, rdist, cdist));
+        if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, rdist, cdist));
     }
 
-    mutable int size, howmany, stride, blocks;
+    mutable int size, howmanyffts, stride, blocks;
     mutable int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
     mutable std::unique_ptr<plan_fftw<float, direction::forward>> sforward;
     mutable std::unique_ptr<plan_fftw<double, direction::forward>> dforward;
