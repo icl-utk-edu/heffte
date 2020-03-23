@@ -18,6 +18,8 @@
 #include "heffte_scale.h"
 #include "heffte_trace.h"
 
+#ifdef Heffte_ENABLE_FFTW
+
 using namespace HEFFTE;
 
 #define BIG 1.0e20
@@ -2547,6 +2549,8 @@ template
 void FFT3d<double>::deallocate_ffts();
 template
 void FFT3d<float>::deallocate_ffts();
+
+#endif
 
 #define heffte_instantiate_fft3d(some_backend) \
     template class fft3d<some_backend>; \

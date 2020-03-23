@@ -10,7 +10,7 @@
 
 #include "heffte_reshape3d.h"
 
-
+#ifdef Heffte_ENABLE_FFTW
 namespace HEFFTE {
 
   /*!
@@ -215,6 +215,7 @@ class FFT3d {
 };
 
 }
+#endif
 
 namespace heffte {
 

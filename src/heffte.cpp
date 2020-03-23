@@ -11,6 +11,8 @@
 #include "heffte_reshape3d.h"
 #include "mpi.h"
 
+#ifdef Heffte_ENABLE_FFTW
+
 typedef int64_t bigint;
 
 using namespace HEFFTE;
@@ -491,3 +493,5 @@ void heffte_cleanup() {
 	fftw_cleanup();
   #endif
 }
+
+#endif

@@ -11,6 +11,8 @@
 #include "heffte_wrap.h"
 #include "heffte_fft3d.h"
 
+#ifdef Heffte_ENABLE_FFTW
+
 using namespace HEFFTE;
 
 
@@ -178,3 +180,5 @@ void heffte_destroy_s(void *ptr)
 // }
 
 }
+
+#endif
