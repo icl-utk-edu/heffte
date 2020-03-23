@@ -36,24 +36,26 @@ heffte_add_mpi_test(NAME heffte_fft3d_r2c_np12  COMMAND test_fft3d_r2c RANKS 12)
 add_executable(test_heffte_header  test_heffte_header.cpp)
 target_link_libraries(test_heffte_header  Heffte)
 
-#
-# CPU executable double precision
-#
-# source files list
-# include dirs
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+if (Heffte_ENABLE_FFTW)
+    #
+    # CPU executable double precision
+    #
+    # source files list
+    # include dirs
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-set (test3d_cpu_src test3d_cpu.cpp)
-set (test3d_cpu_r2c_src test3d_cpu_r2c.cpp)
+    set (test3d_cpu_src test3d_cpu.cpp)
+    set (test3d_cpu_r2c_src test3d_cpu_r2c.cpp)
 
-#add_definitions(-DFFT_FFTW3)
+    #add_definitions(-DFFT_FFTW3)
 
-add_executable(test3d_cpu ${test3d_cpu_src})
-add_executable(test3d_cpu_r2c ${test3d_cpu_src})
+    add_executable(test3d_cpu ${test3d_cpu_src})
+    add_executable(test3d_cpu_r2c ${test3d_cpu_src})
 
-# set_target_properties(test3d_cpu PROPERTIES COMPILE_FLAGS "-DFFT_FFTW3")
-target_link_libraries(test3d_cpu      Heffte)
-target_link_libraries(test3d_cpu_r2c  Heffte)
+    # set_target_properties(test3d_cpu PROPERTIES COMPILE_FLAGS "-DFFT_FFTW3")
+    target_link_libraries(test3d_cpu      Heffte)
+    target_link_libraries(test3d_cpu_r2c  Heffte)
+endif()
 
 if(BUILD_GPU)
   #

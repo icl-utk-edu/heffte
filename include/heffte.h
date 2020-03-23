@@ -15,6 +15,8 @@
 
 #include "heffte_fft3d_r2c.h"
 
+#ifdef Heffte_ENABLE_FFTW
+
 #if !defined(FFT_MEMALIGN)
 #define FFT_MEMALIGN 64
 #endif
@@ -96,5 +98,6 @@ void heffte_grid_setup(int* N, int* i_lo, int* i_hi, int* o_lo, int* o_hi,
 void heffte_proc_setup(int *N, int *proc_grid, int nprocs);
 void heffte_proc3d(int *N, int &px, int &py, int &pz, int nprocs);
 
+#endif
 
 #endif     /* HEFFTE_H */
