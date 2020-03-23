@@ -146,9 +146,18 @@ endif
 # # -------------------------------------------------------------------------------
 # # 1DFFT library
 # Provide fftw3 folders or (if available) use "module load fftw3"
+ifneq (,$(filter FFTW3,$(FFT)))
 FFT1D_DIR 	= /home/aayalaob/fftw-3.3.8
-FFT1D_INC 	= -I$(FFT1D_DIR)/api/
+FFT1D_INC  += -I$(FFT1D_DIR)/api/
 FFT1D_LIB 	= -L$(FFT1D_DIR)/lib/
+endif
+
+ifneq (,$(filter MKL,$(FFT)))
+FFT1D_DIR 	= /spack/opt/spack/linux-scientific7-x86_64/gcc-7.3.0/intel-mkl-2019.3.199-2pn4ijrdu2xxlbbp45o5jqq2c2vyh6kj/compilers_and_libraries_2019.3.199/linux/mkl
+FFT1D_INC  += -I$(FFT1D_DIR)/include/
+FFT1D_LIB 	= -L$(FFT1D_DIR)/lib/
+endif
+
 
 # -------------------------------------------------------------------------------
 # Memory aligment (if needed)
