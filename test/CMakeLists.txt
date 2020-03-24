@@ -6,26 +6,31 @@ macro(heffte_add_mpi_test)
     unset(_heffte_COMMAND)
 endmacro()
 
+# tests the consistency of the headers, it is a compile time test
+add_executable(test_heffte_header  test_heffte_header.cpp)
+target_link_libraries(test_heffte_header  Heffte)
+
+# no MPI test of different aspects of the on-node algorithms
+add_executable(test_unit_nompi test_units_nompi.cpp)
+target_link_libraries(test_unit_nompi  Heffte)
+add_test(unit_tests_nompi  test_unit_nompi)
+
+# test the reshape methods
 add_executable(test_reshape3d test_reshape3d.cpp)
 target_link_libraries(test_reshape3d  Heffte)
-
 heffte_add_mpi_test(NAME heffte_reshape3d_np4  COMMAND test_reshape3d RANKS 4)
 heffte_add_mpi_test(NAME heffte_reshape3d_np7  COMMAND test_reshape3d RANKS 7)
 heffte_add_mpi_test(NAME heffte_reshape3d_np12 COMMAND test_reshape3d RANKS 12)
 
-add_executable(test_unit_nompi test_units_nompi.cpp)
-target_link_libraries(test_unit_nompi  Heffte)
-
-add_test(unit_tests_nompi  test_unit_nompi)
-
+# test the complex-to-complex class
 add_executable(test_fft3d  test_fft3d.h test_fft3d.cpp)
 target_link_libraries(test_fft3d  Heffte)
-
 heffte_add_mpi_test(NAME heffte_fft3d_np2   COMMAND test_fft3d RANKS 2)
 heffte_add_mpi_test(NAME heffte_fft3d_np6   COMMAND test_fft3d RANKS 6)
 heffte_add_mpi_test(NAME heffte_fft3d_np8   COMMAND test_fft3d RANKS 8)
 heffte_add_mpi_test(NAME heffte_fft3d_np12  COMMAND test_fft3d RANKS 12)
 
+# test the real-to-complex class
 add_executable(test_fft3d_r2c  test_fft3d.h test_fft3d_r2c.cpp)
 target_link_libraries(test_fft3d_r2c  Heffte)
 heffte_add_mpi_test(NAME heffte_fft3d_r2c_np2   COMMAND test_fft3d_r2c RANKS 2)
@@ -33,9 +38,10 @@ heffte_add_mpi_test(NAME heffte_fft3d_r2c_np6   COMMAND test_fft3d_r2c RANKS 6)
 heffte_add_mpi_test(NAME heffte_fft3d_r2c_np8   COMMAND test_fft3d_r2c RANKS 8)
 heffte_add_mpi_test(NAME heffte_fft3d_r2c_np12  COMMAND test_fft3d_r2c RANKS 12)
 
-add_executable(test_heffte_header  test_heffte_header.cpp)
-target_link_libraries(test_heffte_header  Heffte)
 
+################################################################
+# OLD CODE for the OLD API
+################################################################
 if (Heffte_ENABLE_FFTW)
     #
     # CPU executable double precision
