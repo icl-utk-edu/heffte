@@ -13,9 +13,9 @@ if (NOT Heffte_ENABLE_FFTW AND
     message(FATAL_ERROR "HeFFTe requires at least one enabled backend!")
 endif()
 
-# guard against in-source builds
+# guard against in-source builds (may be tricked by sym-links, but it is as good as it gets)
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-  message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
+    message(FATAL_ERROR "In-source builds are not allowed, please perform an out-of-source or out-of-place build, see https://cmake.org/runningcmake/ for details.")
 endif()
 
 # Set default install path t o build
