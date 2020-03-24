@@ -33,8 +33,6 @@ endif()
 
 find_package(MPI REQUIRED)
 
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3" )
-
 
 # libheffte source files list
 set(Heffte_common_sources
