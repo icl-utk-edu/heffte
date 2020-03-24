@@ -2,9 +2,16 @@ cmake_minimum_required(VERSION 3.10)
 
 project("Heffte" VERSION 0.2.1 LANGUAGES CXX)
 
-option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            ON) # must change to OFF later
+option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            OFF)
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
+
+# check if at least one backend has been enabled
+if (NOT Heffte_ENABLE_FFTW AND
+    NOT Heffte_ENABLE_CUDA
+    )
+    message(FATAL_ERROR "HeFFTe requires at least one enabled backend!")
+endif()
 
 # guard against in-source builds
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
