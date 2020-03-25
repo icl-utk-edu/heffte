@@ -482,7 +482,7 @@ public:
     }
 
     /*!
-     * \brief Returns the scale factor for the given chosen scaling.
+     * \brief Returns the scale factor for the given scaling.
      */
     double get_scale_factor(scale scaling) const{ return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor; }
 

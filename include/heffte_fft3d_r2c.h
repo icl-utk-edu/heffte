@@ -49,6 +49,10 @@ public:
     using backend_executor_c2c = typename one_dim_backend<backend_tag>::type;
     //! \brief FFT executor for the real-to-complex dimension.
     using backend_executor_r2c = typename one_dim_backend<backend_tag>::type_r2c;
+    /*!
+     * \brief Type-tag that is either tag::cpu or tag::gpu to indicate the location of the data.
+     */
+    using location_tag = typename backend::buffer_traits<backend_tag>::location;
 
     /*!
      * \brief Alias to the container template associated with the backend (allows for RAII memory management).
@@ -154,6 +158,11 @@ public:
         return result;
     }
 
+    /*!
+     * \brief Returns the scale factor for the given scaling.
+     */
+    double get_scale_factor(scale scaling) const{ return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor; }
+
 private:
     template<typename scalar_type>
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale) const;
@@ -165,8 +174,8 @@ private:
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
 
-    std::unique_ptr<backend_executor_r2c> fft_r2c;
-    std::unique_ptr<backend_executor_c2c> fft1, fft2;
+    std::unique_ptr<backend_executor_r2c> executor_r2c;
+    std::array<std::unique_ptr<backend_executor_c2c>, 2> executor;
 };
 
 }

@@ -427,6 +427,14 @@ size_t get_max_size(std::array<some_class*, 3> const executors){
     return std::max(executors[0]->box_size(), std::max(executors[1]->box_size(), executors[2]->box_size()));
 }
 
+/*!
+ * \brief Returns the max of the box_size() for each of the executors.
+ */
+template<typename some_class_r2c, typename some_class>
+size_t get_max_size(some_class_r2c const &executors_r2c, std::array<some_class, 2> const &executors){
+    return std::max(executors_r2c->complex_size(), std::max(executors[0]->box_size(), executors[1]->box_size()));
+}
+
 }
 
 
