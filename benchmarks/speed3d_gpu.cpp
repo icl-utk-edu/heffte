@@ -12,7 +12,7 @@
 using namespace heffte;
 
 template <typename backend_tag> 
-void benchmark_cpu_tester(std::array<int,3>& N){
+void benchmark_gpu_tester(std::array<int,3>& N){
 
     double t, t_max; // timing parameters
     int me, nprocs;
@@ -39,21 +39,32 @@ void benchmark_cpu_tester(std::array<int,3>& N){
     // Locally initialize input
     auto input = make_data<std::complex<float>>(inboxes[me]);
 
-    // Define output arrays
+    // Define output arrays on host
     std::vector<std::complex<float>> output(fft.size_outbox()); 
-    std::vector<std::complex<float>> inverse(fft.size_inbox()); 
+    std::vector<std::complex<float>> inverse(fft.size_inbox());
+   
+    // copying arrays to GPU
+    auto input_gpu   = cuda::load(input); 
+    auto output_gpu  = cuda::load(output);
+    auto inverse_gpu = cuda::load(inverse);
+
+    // mpi::dump(0, input, "Initial FFT data");
 
     // Execution    
-    int ntest = 2; // must be at least 2, in order to warmup
+    int ntest = 1; // must be at least 2, in order to warmup
     for(int i = 0; i < ntest; ++i) {
         t -= MPI_Wtime();
-        fft.forward(input.data(), output.data(),  scale::full);
-        fft.backward(output.data(), inverse.data());
+        fft.forward(input_gpu.data(), output_gpu.data(),  scale::full);
+        fft.backward(output_gpu.data(), inverse_gpu.data());
         t += MPI_Wtime();
     }
 
     // Get execution time
-	MPI_Reduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, 0, fft_comm);
+	MPI_Reduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, 0, fft_comm);    
+
+    // Copy back to the host
+    inverse = cuda::unload(inverse_gpu);
+    // mpi::dump(0, inverse, "After backward FFT");
 
     // Validate result
     tassert(approx(input, inverse)); 
@@ -63,7 +74,7 @@ void benchmark_cpu_tester(std::array<int,3>& N){
         double fftsize  = 1.0 * N[0] * N[1] * N[2];
         double floprate = 5.0 * fftsize * log(fftsize) * 1e-9 / log(2.0) / t_max;
         cout << "------------------------------- \n";
-        cout << "heFFTe performance test on CPUs \n";
+        cout << "heFFTe performance test on GPUs \n";
         cout << "------------------------------- \n";
         cout << "Backend: " << backend::name<backend_tag>() << endl;
         cout << "Size: " << N[0] << "x" << N[1] << "x" << N[2] << endl;
@@ -80,8 +91,7 @@ int main(int argc, char *argv[]){
     MPI_Init(&argc, &argv);
     std::array<int,3> size_fft = { atoi(argv[1]), atoi(argv[2]), atoi(argv[3])}; // FFT size from user
 
-    benchmark_cpu_tester<backend::fftw>( size_fft );
-    //benchmark_cpu_tester<backend::mkl> ( size_fft );
+    benchmark_gpu_tester<backend::cufft>( size_fft );
 
     MPI_Finalize();
     return 0;
