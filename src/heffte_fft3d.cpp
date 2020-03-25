@@ -2917,6 +2917,9 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_fft3d(backend::fftw);
 #endif
+#ifdef Heffte_ENABLE_MKL
+heffte_instantiate_fft3d(backend::mkl);
+#endif
 #ifdef Heffte_ENABLE_CUDA
 heffte_instantiate_fft3d(backend::cufft);
 #endif

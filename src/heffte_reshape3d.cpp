@@ -1104,6 +1104,9 @@ make_reshape3d_alltoallv<some_backend, direct_packer>(std::vector<box3d> const&,
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_reshape3d_alltoallv(backend::fftw);
 #endif
+#ifdef Heffte_ENABLE_MKL
+heffte_instantiate_reshape3d_alltoallv(backend::mkl);
+#endif
 #ifdef Heffte_ENABLE_CUDA
 heffte_instantiate_reshape3d_alltoallv(backend::cufft);
 #endif

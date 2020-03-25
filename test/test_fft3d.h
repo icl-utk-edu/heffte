@@ -73,6 +73,17 @@ std::vector<scalar_type> compute_fft_fftw(box3d const world, std::vector<scalar_
 }
 #endif
 
+#ifdef Heffte_ENABLE_MKL
+template<typename scalar_type>
+std::vector<scalar_type> compute_fft_mkl(box3d const world, std::vector<scalar_type> const &input){
+    assert(input.size() == world.count());
+    std::vector<scalar_type> result = input;
+    for(int i=0; i<3; i++)
+        heffte::mkl_executor(world, i).forward(result.data());
+    return result;
+}
+#endif
+
 template<typename backend_tag, typename scalar_type>
 struct perform_fft{};
 template<typename backend_tag, typename scalar_type>
@@ -93,6 +104,27 @@ struct perform_fft<backend::fftw, scalar_type>{
 };
 template<typename scalar_type>
 struct input_maker<backend::fftw, scalar_type>{
+    static std::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
+        return get_subbox(world, box, input);
+    }
+};
+#endif
+
+#ifdef Heffte_ENABLE_MKL
+template<typename scalar_type>
+struct perform_fft<backend::mkl, scalar_type>{
+    static std::vector<typename fft_output<scalar_type>::type> forward(box3d const world, std::vector<scalar_type> const &input){
+        std::vector<typename fft_output<scalar_type>::type> result(input.size());
+        for(size_t i=0; i<input.size(); i++)
+            result[i] = static_cast<typename fft_output<scalar_type>::type>(input[i]);
+        return compute_fft_mkl(world, result);
+    }
+    static std::vector<std::complex<scalar_type>> forward(box3d const world, std::vector<std::complex<scalar_type>> const &input){
+        return compute_fft_mkl(world, input);
+    }
+};
+template<typename scalar_type>
+struct input_maker<backend::mkl, scalar_type>{
     static std::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
         return get_subbox(world, box, input);
     }

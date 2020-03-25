@@ -12,6 +12,7 @@
 #define Heffte_VERSION_PATCH @Heffte_VERSION_PATCH@
 
 #cmakedefine Heffte_ENABLE_FFTW
+#cmakedefine Heffte_ENABLE_MKL
 #cmakedefine Heffte_ENABLE_CUDA
 
 

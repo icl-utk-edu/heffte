@@ -20,6 +20,13 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_arrays<backend::fftw, std::complex<float>, 9, 9, 9>(comm);
             test_fft3d_arrays<backend::fftw, std::complex<double>, 9, 9, 9>(comm);
             #endif
+            #ifdef Heffte_ENABLE_MKL
+            test_fft3d_const_dest2<backend::mkl>(comm);
+            test_fft3d_arrays<backend::mkl, float, 9, 9, 9>(comm);
+            test_fft3d_arrays<backend::mkl, double, 9, 9, 9>(comm);
+            test_fft3d_arrays<backend::mkl, std::complex<float>, 9, 9, 9>(comm);
+            test_fft3d_arrays<backend::mkl, std::complex<double>, 9, 9, 9>(comm);
+            #endif
             #ifdef Heffte_ENABLE_CUDA
             test_fft3d_const_dest2<backend::cufft>(comm);
             test_fft3d_arrays<backend::cufft, float, 9, 9, 9>(comm);
@@ -35,6 +42,12 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_vectors<backend::fftw, std::complex<float>, 11, 11, 22>(comm);
             test_fft3d_vectors<backend::fftw, std::complex<double>, 11, 11, 22>(comm);
             #endif
+            #ifdef Heffte_ENABLE_MKL
+            test_fft3d_vectors<backend::mkl, float, 11, 11, 22>(comm);
+            test_fft3d_vectors<backend::mkl, double, 11, 11, 22>(comm);
+            test_fft3d_vectors<backend::mkl, std::complex<float>, 11, 11, 22>(comm);
+            test_fft3d_vectors<backend::mkl, std::complex<double>, 11, 11, 22>(comm);
+            #endif
             #ifdef Heffte_ENABLE_CUDA
             test_fft3d_vectors<backend::cufft, float, 11, 11, 22>(comm);
             test_fft3d_vectors<backend::cufft, double, 11, 11, 22>(comm);
@@ -49,6 +62,12 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_vectors<backend::fftw, std::complex<float>, 16, 15, 15>(comm);
             test_fft3d_vectors<backend::fftw, std::complex<double>, 16, 15, 15>(comm);
             #endif
+            #ifdef Heffte_ENABLE_MKL
+            test_fft3d_vectors<backend::mkl, float, 16, 15, 15>(comm);
+            test_fft3d_vectors<backend::mkl, double, 16, 15, 15>(comm);
+            test_fft3d_vectors<backend::mkl, std::complex<float>, 16, 15, 15>(comm);
+            test_fft3d_vectors<backend::mkl, std::complex<double>, 16, 15, 15>(comm);
+            #endif
             #ifdef Heffte_ENABLE_CUDA
             test_fft3d_vectors<backend::cufft, float, 16, 15, 15>(comm);
             test_fft3d_vectors<backend::cufft, double, 16, 15, 15>(comm);
@@ -62,6 +81,12 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_arrays<backend::fftw, double, 19, 20, 21>(comm);
             test_fft3d_arrays<backend::fftw, std::complex<float>, 19, 15, 25>(comm);
             test_fft3d_arrays<backend::fftw, std::complex<double>, 19, 19, 17>(comm);
+            #endif
+            #ifdef Heffte_ENABLE_MKL
+            test_fft3d_arrays<backend::mkl, float, 19, 20, 21>(comm);
+            test_fft3d_arrays<backend::mkl, double, 19, 20, 21>(comm);
+            test_fft3d_arrays<backend::mkl, std::complex<float>, 19, 15, 25>(comm);
+            test_fft3d_arrays<backend::mkl, std::complex<double>, 19, 19, 17>(comm);
             #endif
             #ifdef Heffte_ENABLE_CUDA
             test_fft3d_arrays<backend::cufft, float, 19, 21, 20>(comm);
