@@ -228,4 +228,16 @@ template void scale_data(int num_entries, float *data, double scale_factor);
 template void scale_data(int num_entries, double *data, double scale_factor);
 
 } // namespace cuda
+
+template<typename scalar_type>
+void data_manipulator<tag::gpu>::copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]){
+    cuda::check_error(cudaMemcpy(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "data_manipulator::copy_n()");
+}
+
+template void data_manipulator<tag::gpu>::copy_n<float>(float const[], size_t, float[]);
+template void data_manipulator<tag::gpu>::copy_n<double>(double const[], size_t, double[]);
+template void data_manipulator<tag::gpu>::copy_n<std::complex<float>>(std::complex<float> const[], size_t, std::complex<float>[]);
+template void data_manipulator<tag::gpu>::copy_n<std::complex<double>>(std::complex<double> const[], size_t, std::complex<double>[]);
+
+
 } // namespace heffte

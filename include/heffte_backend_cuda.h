@@ -215,6 +215,31 @@ namespace cuda {
     void scale_data(int num_entries, scalar_type *data, double scale_factor);
 }
 
+/*!
+ * \brief Data manipulations on the GPU end.
+ */
+template<> struct data_manipulator<tag::gpu>{
+    /*!
+     * \brief Equivalent to std::copy_n() but using CUDA arrays.
+     */
+    template<typename scalar_type>
+    static void copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]);
+    /*!
+     * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
+     */
+    template<typename scalar_type>
+    static void scale(int num_entries, scalar_type data[], double scale_factor){
+        cuda::scale_data(num_entries, data, scale_factor);
+    }
+    /*!
+     * \brief Complex by real scaling.
+     */
+    template<typename precision_type>
+    static void scale(int num_entries, std::complex<precision_type> data[], double scale_factor){
+        scale<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    }
+};
+
 namespace backend{
     //! \brief Type-tag for the cuFFT backend
     struct cufft{};

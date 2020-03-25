@@ -407,6 +407,26 @@ typename define_standard_type<scalar_type>::type const* convert_to_standart(scal
     return reinterpret_cast<typename define_standard_type<scalar_type>::type const*>(input);
 }
 
+/*!
+ * \brief Return the index of the last active (non-null) unique_ptr.
+ *
+ * The method returns -1 if all shapers are null.
+ */
+template<typename some_class>
+int get_last_active(std::array<std::unique_ptr<some_class>, 4> const &shaper){
+    int last = -1;
+    for(int i=0; i<4; i++) if (shaper[i]) last = i;
+    return last;
+}
+
+/*!
+ * \brief Returns the max of the box_size() for each of the executors.
+ */
+template<typename some_class>
+size_t get_max_size(std::array<some_class*, 3> const executors){
+    return std::max(executors[0]->box_size(), std::max(executors[1]->box_size(), executors[2]->box_size()));
+}
+
 }
 
 

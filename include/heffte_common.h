@@ -107,6 +107,43 @@ struct gpu{};
 }
 
 /*!
+ * \brief Contains methods for data manipulation either on the CPU or GPU.
+ */
+template<typename location_tag> struct data_manipulator{};
+
+/*!
+ * \brief Data manipulations on the CPU end.
+ */
+template<> struct data_manipulator<tag::cpu>{
+    /*!
+     * \brief Wrapper around std::copy_n().
+     */
+    template<typename scalar_type>
+    static void copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]){
+        std::copy_n(source, num_entries, destination);
+    }
+    /*!
+     * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
+     */
+    template<typename scalar_type>
+    static void scale(int num_entries, scalar_type *data, double scale_factor){;
+        for(int i=0; i<num_entries; i++) data[i] *= scale_factor;
+    }
+    /*!
+     * \brief Complex by real scaling.
+     *
+     * Depending on the compiler and type of operation, C++ complex numbers can have bad
+     * performance compared to float and double operations.
+     * Since the scaling factor is always real, scaling can be performed
+     * with real arithmetic which is easier to vectorize.
+     */
+    template<typename precision_type>
+    static void scale(int num_entries, std::complex<precision_type> *data, double scale_factor){
+        scale<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    }
+};
+
+/*!
  * \brief Contains type tags and templates metadata for the various backends.
  */
 namespace backend {

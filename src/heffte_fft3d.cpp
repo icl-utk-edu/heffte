@@ -2635,79 +2635,54 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
      * - never have more than 2 allocated buffers (input and output)
      */
 
-    if (not shaper[1] and not shaper[2] and not shaper[3]){
-        // if shaper[0] is the only loaded operation
-        // then the shaper will apply to the output array without additional buffers.
-        // If no shaper operations are loaded, then copy input to output and apply in-place fft
-        // If the input and output are the same, then skip copy and just apply the executors
-        if (shaper[0]){
+    auto apply_fft = [&](int i, std::complex<scalar_type> data[])
+        ->void{
+            if (dir == direction::forward){
+                executor[i]->forward(data);
+            }else{
+                executor[i]->backward(data);
+            }
+        };
+
+    int last = get_last_active(shaper);
+
+    if (last < 1){ // no extra buffer case
+        // move input -> output and apply all ffts
+        // use either zeroth shaper or simple copy (or nothing in case of in-place transform)
+        if (last == 0){
             shaper[0]->apply(input, output);
         }else if (input != output){
-            // not transformations to apply, all data is in one single block
-            std::copy_n(input, executor[0]->box_size(), output);
+            data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), output);
         }
-        if (dir == direction::forward){
-            for(auto const e : executor) e->forward(output);
-        }else{
-            for(auto const e : executor) e->backward(output);
-        }
+        for(int i=0; i<3; i++)
+            apply_fft(i, output);
         return;
     }
 
-    // if there is messier combination of transforms, then we need some internal buffers
-    size_t buffer_size = std::max(std::max(executor[0]->box_size(), executor[1]->box_size()), executor[2]->box_size());
-
-    // perform stage 0 transformation, either copy or transform the input into the buffer
-    buffer_container<std::complex<scalar_type>> buff0;
+    size_t buffer_size = get_max_size(executor);
+    buffer_container<std::complex<scalar_type>> temp_buffer(buffer_size);
     if (shaper[0]){
-        buff0 = buffer_container<std::complex<scalar_type>>(buffer_size);
-        shaper[0]->apply(input, buff0.data());
+        shaper[0]->apply(input, temp_buffer.data());
     }else{
-        buff0 = buffer_container<std::complex<scalar_type>>(input, input + executor[0]->box_size());
+        data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer.data());
     }
 
-    // data is the currently active buffer (if more than one)
-    std::complex<scalar_type> *data = buff0.data();
-
-    // apply the first fft
-    if (dir == direction::forward){
-        executor[0]->forward(data);
-    }else{
-        executor[0]->backward(data);
+    for(int i=1; i<last; i++){
+        apply_fft(i-1, temp_buffer.data());
+        if (shaper[i])
+            shaper[i]->apply(temp_buffer.data(), temp_buffer.data());
     }
 
-    // if only shaper[1] is active, then we can reshape into the output array
-    // but if either shaper[2] or shaper[3] are active, we need another buffer
-    buffer_container<std::complex<scalar_type>> buff1(
-                            (!!shaper[2] or !!shaper[3]) ? buffer_size : 0
-                                                     );
-    std::complex<scalar_type> *temp = buff1.data();
+    apply_fft(last-1, temp_buffer.data());
+    shaper[last]->apply(temp_buffer.data(), output);
 
-    // reshape either in the temporary buffer or the output, depending on whether more reshapes are needed
-    reshape_stage(shaper[1], data, (!!shaper[2] or !!shaper[3]) ? temp : output);
-    if (dir == direction::forward){
-        executor[1]->forward(data);
-    }else{
-        executor[1]->backward(data);
-    }
-
-    reshape_stage(shaper[2], data, (!!shaper[3]) ? temp : output);
-    if (dir == direction::forward){
-        executor[2]->forward(data);
-    }else{
-        executor[2]->backward(data);
-    }
-
-    // final reshape always goes into the output,
-    // but if shaper[3] is no active than the result is already loaded in the output and data is equal to the output
-    // and this method will do nothing
-    reshape_stage(shaper[3], data, output);
+    for(int i=last; i<3; i++)
+        apply_fft(i, output);
 
     if (scaling != scale::none)
-        data_scaling<typename backend::buffer_traits<backend_tag>::location>::apply(
+        data_manipulator<location_tag>::scale(
             (dir == direction::forward) ? size_outbox() : size_inbox(),
-            data, // due to the swap in reshape_stage(), the data will hold the solution
-            (scaling == scale::full) ? scale_factor : std::sqrt(scale_factor));
+            output, get_scale_factor(scaling));
 }
 template<typename backend_tag>
 template<typename scalar_type> // real to complex case
@@ -2720,6 +2695,8 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
      * This is the real-to-complex variant which is possible only for a forward transform,
      * thus the direction parameter is ignored.
      */
+    int last = get_last_active(shaper);
+
     buffer_container<scalar_type> reshaped_input;
     scalar_type const *effective_input = input; // either input or the result of reshape operation 0
     if (shaper[0]){
@@ -2728,7 +2705,7 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
         effective_input = reshaped_input.data();
     }
 
-    if (not shaper[1] and not shaper[2] and not shaper[3]){
+    if (last < 1){ // no reshapes after 0
         executor[0]->forward(effective_input, output);
         executor[1]->forward(output);
         executor[2]->forward(output);
@@ -2736,31 +2713,23 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
     }
 
     // if there is messier combination of transforms, then we need internal buffers
-    size_t buffer_size = std::max(std::max(executor[0]->box_size(), executor[1]->box_size()), executor[2]->box_size());
-    buffer_container<std::complex<scalar_type>> buff0(buffer_size);
+    size_t buffer_size = get_max_size(executor);
+    buffer_container<std::complex<scalar_type>> temp_buffer(buffer_size);
+    executor[0]->forward(effective_input, temp_buffer.data());
+    reshaped_input = buffer_container<scalar_type>();
 
-    executor[0]->forward(effective_input, buff0.data());
-    reshaped_input = buffer_container<scalar_type>(); // release the temporary real data (if any)
+    for(int i=1; i<last; i++){
+        if (shaper[i])
+            shaper[i]->apply(temp_buffer.data(), temp_buffer.data());
+        executor[i]->forward(temp_buffer.data());
+    }
+    shaper[last]->apply(temp_buffer.data(), output);
 
-    // the second buffer is needed only if two of the reshape operations are active
-    buffer_container<std::complex<scalar_type>> buff1(
-                            (!!shaper[2] or !!shaper[3]) ? buffer_size : 0
-                                           );
-    std::complex<scalar_type> *data = buff0.data();
-    std::complex<scalar_type> *temp = buff1.data();
-
-    reshape_stage(shaper[1], data, (!!shaper[2] or !!shaper[3]) ? temp : output);
-    executor[1]->forward(data);
-
-    reshape_stage(shaper[2], data, (!!shaper[3]) ? temp : output);
-    executor[2]->forward(data);
-
-    reshape_stage(shaper[3], data, output);
+    for(int i=last; i<3; i++)
+        executor[i]->forward(output);
 
     if (scaling != scale::none)
-        data_scaling<typename backend::buffer_traits<backend_tag>::location>::apply(
-            size_outbox(), data,
-            (scaling == scale::full) ? scale_factor : std::sqrt(scale_factor));
+        data_manipulator<location_tag>::scale(size_outbox(), output, get_scale_factor(scaling));
 }
 template<typename backend_tag>
 template<typename scalar_type> // complex to real case
@@ -2772,59 +2741,34 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
      * This is the complex-to-real variant which is possible only for a backward transform,
      * thus the direction parameter is ignored.
      */
-    // we need to know the size of the internal buffers
-    size_t buffer_size = std::max(std::max(executor[0]->box_size(), executor[1]->box_size()), executor[2]->box_size());
-
-    // perform stage 0 transformation
-    buffer_container<std::complex<scalar_type>> buff0;
+    size_t buffer_size = get_max_size(executor);
+    buffer_container<std::complex<scalar_type>> temp_buffer(buffer_size);
     if (shaper[0]){
-        buff0 = buffer_container<std::complex<scalar_type>>(buffer_size);
-        shaper[0]->apply(input, buff0.data());
+        shaper[0]->apply(input, temp_buffer.data());
     }else{
-        buff0 = buffer_container<std::complex<scalar_type>>(input, input + executor[0]->box_size());
+        data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer.data());
     }
 
-    executor[0]->backward(buff0.data()); // first fft of the backward transform
-
-    // perform shaper 1 and 2 (if active) and apply executor[1]
-    // may use buff1 as a temporary buffer but the result will be in buff0
-    buffer_container<std::complex<scalar_type>> buff1;
-    if (shaper[1] and shaper[2]){
-        // will do two reshape, the data will move buff0 -> buff1 -> buff0
-        buff1 = buffer_container<std::complex<scalar_type>>(buffer_size);
-        shaper[1]->apply(buff0.data(), buff1.data());
-        executor[1]->backward(buff1.data());
-        shaper[2]->apply(buff1.data(), buff0.data());
-    }else if (shaper[1] or shaper[2]){
-        // will do only one reshape, the data will move buff0 -> buff1
-        // and the two containers need to be swapped
-        buff1 = buffer_container<std::complex<scalar_type>>(buffer_size);
-        if (shaper[1]){
-            shaper[1]->apply(buff0.data(), buff1.data());
-            executor[1]->backward(buff1.data());
-        }else{
-            executor[1]->backward(buff0.data());
-            shaper[2]->apply(buff0.data(), buff1.data());
-        }
-        std::swap(buff0, buff1);
+    for(int i=0; i<2; i++){ // apply the two complex-to-complex ffts
+        executor[i]->backward(temp_buffer.data());
+        if (shaper[i+1])
+            shaper[i+1]->apply(temp_buffer.data(), temp_buffer.data());
     }
-    buff1 = buffer_container<std::complex<scalar_type>>(); // clear the buffer
 
-    // the result of the first two ffts and three reshapes is stored in buff0
+    // the result of the first two ffts and three reshapes is stored in temp_buffer
     // executor 2 must apply complex to real backward transform
     if (shaper[3]){
         // there is one more reshape left, transform into a real temporary buffer
         buffer_container<scalar_type> real_buffer(executor[2]->box_size());
-        executor[2]->backward(buff0.data(), real_buffer.data());
+        executor[2]->backward(temp_buffer.data(), real_buffer.data());
+        temp_buffer = buffer_container<std::complex<scalar_type>>(); // clean temp_buffer
         shaper[3]->apply(real_buffer.data(), output);
     }else{
-        executor[2]->backward(buff0.data(), output);
+        executor[2]->backward(temp_buffer.data(), output);
     }
 
     if (scaling != scale::none)
-        data_scaling<typename backend::buffer_traits<backend_tag>::location>::apply(
-            size_inbox(), output,
-            (scaling == scale::full) ? scale_factor : std::sqrt(scale_factor));
+        data_manipulator<location_tag>::scale(size_inbox(), output, get_scale_factor(scaling));
 }
 
 #ifdef Heffte_ENABLE_FFTW

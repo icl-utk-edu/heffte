@@ -343,6 +343,10 @@ public:
      * The CPU backends use std::vector while the GPU backends use heffte::cuda::vector.
      */
     template<typename T> using buffer_container = typename backend::buffer_traits<backend_tag>::template container<T>;
+    /*!
+     * \brief Type-tag that is either tag::cpu or tag::gpu to indicate the location of the data.
+     */
+    using location_tag = typename backend::buffer_traits<backend_tag>::location;
 
     /*!
      * \brief Constructor creating a plan for FFT transform across the given communicator and using the box geometry.
@@ -476,6 +480,11 @@ public:
         backward(input.data(), result.data(), scaling);
         return result;
     }
+
+    /*!
+     * \brief Returns the scale factor for the given chosen scaling.
+     */
+    double get_scale_factor(scale scaling) const{ return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor; }
 
 private:
     /*!
