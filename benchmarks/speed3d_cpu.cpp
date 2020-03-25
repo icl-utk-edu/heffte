@@ -80,8 +80,8 @@ int main(int argc, char *argv[]){
     MPI_Init(&argc, &argv);
     std::array<int,3> size_fft = { atoi(argv[1]), atoi(argv[2]), atoi(argv[3])}; // FFT size from user
 
-    // benchmark_cpu_tester<backend::fftw>( size_fft );
-    benchmark_cpu_tester<backend::mkl> ( size_fft );
+    benchmark_cpu_tester<backend::fftw>( size_fft );
+    //benchmark_cpu_tester<backend::mkl> ( size_fft );
 
     MPI_Finalize();
     return 0;
