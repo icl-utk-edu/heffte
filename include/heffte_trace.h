@@ -113,7 +113,7 @@ namespace heffte {
 
     struct add_trace{
         add_trace(std::string){}
-    }
+    };
     inline void init_tracing(std::string){}
     inline void finalize_tracing(){}
 

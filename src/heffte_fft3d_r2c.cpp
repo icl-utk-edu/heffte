@@ -82,6 +82,7 @@ void fft3d_r2c<backend_tag>::standard_transform(scalar_type const input[], std::
     }
 
     if (last < 1){ // no reshapes after 0
+        add_trace name("fft-1d x3");
         executor_r2c->forward(effective_input, output);
         executor[0]->forward(output);
         executor[1]->forward(output);
@@ -97,15 +98,20 @@ void fft3d_r2c<backend_tag>::standard_transform(scalar_type const input[], std::
     for(int i=1; i<last; i++){
         if (forward_shaper[i])
             forward_shaper[i]->apply(temp_buffer.data(), temp_buffer.data(), workspace);
+        add_trace name("fft-1d");
         executor[i-1]->forward(temp_buffer.data());
     }
     forward_shaper[last]->apply(temp_buffer.data(), output, workspace);
 
-    for(int i=last-1; i<2; i++)
+    for(int i=last-1; i<2; i++){
+        add_trace name("fft-1d");
         executor[i]->forward(output);
+    }
 
-    if (scaling != scale::none)
+    if (scaling != scale::none){
+        add_trace name("scale");
         data_manipulator<location_tag>::scale(size_outbox(), output, get_scale_factor(scaling));
+    }
 }
 
 template<typename backend_tag>
@@ -124,7 +130,9 @@ void fft3d_r2c<backend_tag>::standard_transform(std::complex<scalar_type> const 
     }
 
     for(int i=0; i<2; i++){ // apply the two complex-to-complex ffts
+        { add_trace name("fft-1d");
         executor[1-i]->backward(temp_buffer.data());
+        }
         if (backward_shaper[i+1])
             backward_shaper[i+1]->apply(temp_buffer.data(), temp_buffer.data(), workspace);
     }
@@ -134,15 +142,20 @@ void fft3d_r2c<backend_tag>::standard_transform(std::complex<scalar_type> const 
     if (backward_shaper[3]){
         // there is one more reshape left, transform into a real temporary buffer
         buffer_container<scalar_type> real_buffer(executor_r2c->real_size());
+        { add_trace name("fft-1d");
         executor_r2c->backward(temp_buffer.data(), real_buffer.data());
+        }
         temp_buffer = buffer_container<std::complex<scalar_type>>(); // clean temp_buffer
         backward_shaper[3]->apply(real_buffer.data(), output, reinterpret_cast<scalar_type*>(workspace));
     }else{
+        add_trace name("fft-1d");
         executor_r2c->backward(temp_buffer.data(), output);
     }
 
-    if (scaling != scale::none)
+    if (scaling != scale::none){
+        add_trace name("scale");
         data_manipulator<location_tag>::scale(size_inbox(), output, get_scale_factor(scaling));
+    }
 }
 
 #ifdef Heffte_ENABLE_FFTW

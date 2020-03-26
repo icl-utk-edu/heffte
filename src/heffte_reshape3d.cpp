@@ -1016,11 +1016,14 @@ void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const sour
     packer<typename backend::buffer_traits<backend_tag>::location> packit;
 
     int offset = 0;
+
+    { add_trace name("packing");
     for(auto isend : send.map){
         if (isend >= 0){ // something to send
             packit.pack(packplan[isend], source + send_offset[isend], send_buffer + offset);
             offset += send_size[isend];
         }
+    }
     }
 
     #ifdef Heffte_ENABLE_CUDA
@@ -1029,16 +1032,20 @@ void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const sour
         cuda::synchronize_default_stream();
     #endif
 
+    { add_trace name("all2allv");
     MPI_Alltoallv(send_buffer, send.counts.data(), send.displacements.data(), mpi::type_from<scalar_type>(),
                   recv_buffer, recv.counts.data(), recv.displacements.data(), mpi::type_from<scalar_type>(),
                   comm);
+    }
 
     offset = 0;
+    { add_trace name("unpacking");
     for(auto irecv : recv.map){
         if (irecv >= 0){ // something received
             packit.unpack(unpackplan[irecv], recv_buffer + offset, destination + recv_offset[irecv]);
             offset += recv_size[irecv];
         }
+    }
     }
 }
 
