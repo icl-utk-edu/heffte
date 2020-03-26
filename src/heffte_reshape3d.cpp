@@ -759,6 +759,7 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
     trace_cpu_start( thread_id, func_name, func_message );
 
     int offset = 0;
+    { heffte::add_trace name("packing");
     for (int igroup = 0; igroup < ngroup; igroup++) {
       if (sendmap[igroup] >= 0) {
         isend = sendmap[igroup];
@@ -771,6 +772,7 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
 
         offset += send_size[isend];
       }
+    }
     }
     trace_cpu_end( thread_id);
 
@@ -792,6 +794,7 @@ enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
 
       t = MPI_Wtime();
 
+      { heffte::add_trace name("all2allv");
       if(sizeof(T)==4)
       heffte_Alltoallv(sendbuf,sendcnts,senddispls,MPI_FLOAT,
                       recvbuf,recvcnts,recvdispls,MPI_FLOAT,
@@ -800,6 +803,7 @@ enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
       heffte_Alltoallv(sendbuf,sendcnts,senddispls,MPI_DOUBLE,
                       recvbuf,recvcnts,recvdispls,MPI_DOUBLE,
                       newcomm, HEFFTE_A2AV_algo);
+      }
 
       #if defined(HEFFTE_TIME_DETAILED)
         timing_array[5] += MPI_Wtime() - t;
@@ -816,6 +820,7 @@ enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
     snprintf(func_message, sizeof(func_message), "A2A_unpack");
     trace_cpu_start( thread_id, func_name, func_message );
     offset = 0;
+    { heffte::add_trace name("unpacking");
     for (int igroup = 0; igroup < ngroup; igroup++) {
       if (recvmap[igroup] >= 0) {
         irecv = recvmap[igroup];
@@ -828,6 +833,7 @@ enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
 
         offset += recv_size[irecv];
       }
+    }
     }
     trace_cpu_end( thread_id);
   }

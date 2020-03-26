@@ -789,7 +789,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_fast");
       snprintf(func_message, sizeof(func_message), "compute_fast");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_fast);
+      }
       trace_cpu_end( thread_id);
       if (reshape_fastmid) {
         snprintf(func_name, sizeof(func_name), "reshape_fastmid");
@@ -801,7 +803,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_mid");
       snprintf(func_message, sizeof(func_message), "compute_mid");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_mid);
+      }
       trace_cpu_end( thread_id);
       if (reshape_midslow) {
         snprintf(func_name, sizeof(func_name), "reshape_midslow");
@@ -813,7 +817,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_slow");
       snprintf(func_message, sizeof(func_message), "compute_slow");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_slow);
+      }
       trace_cpu_end( thread_id);
     }
 
@@ -829,6 +835,7 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "scale_fft");
       snprintf(func_message, sizeof(func_message), "scale_fft");
       trace_cpu_start( thread_id, func_name, func_message );
+      heffte::add_trace name("scale");
       scale_ffts(fft_norm, data);
       trace_cpu_end( thread_id);
     }
@@ -869,7 +876,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_slow");
       snprintf(func_message, sizeof(func_message), "compute_slow");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_slow);
+      }
       trace_cpu_end( thread_id);
       if (reshape_slowmid) {
       snprintf(func_name, sizeof(func_name), "reshape_slowmid");
@@ -881,7 +890,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_mid");
       snprintf(func_message, sizeof(func_message), "compute_mid");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_mid);
+      }
       trace_cpu_end( thread_id);
       if (reshape_midfast) {
       snprintf(func_name, sizeof(func_name), "reshape_midfast");
@@ -893,7 +904,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_fast");
       snprintf(func_message, sizeof(func_message), "compute_fast");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_fast);
+      }
       trace_cpu_end( thread_id);
     }
 
@@ -974,7 +987,9 @@ void FFT3d<U>::compute_r2c(T *in, T *out)
     snprintf(func_name, sizeof(func_name), "compute_r2c_fast");
     snprintf(func_message, sizeof(func_message), "compute_r2c_fast");
     trace_cpu_start( thread_id, func_name, func_message );
+    { heffte::add_trace name("fft1d");
     perform_ffts_r2c(data, data,fft_fast);
+    }
     trace_cpu_end( thread_id);
 
     if (reshape_fastmid) {
@@ -988,7 +1003,9 @@ void FFT3d<U>::compute_r2c(T *in, T *out)
     snprintf(func_name, sizeof(func_name), "compute_mid");
     snprintf(func_message, sizeof(func_message), "compute_mid");
     trace_cpu_start( thread_id, func_name, func_message );
+    { heffte::add_trace name("fft1d");
     perform_ffts(data,flag,fft_mid);
+    }
     trace_cpu_end( thread_id);
 
     if (reshape_midslow) {
@@ -1002,7 +1019,9 @@ void FFT3d<U>::compute_r2c(T *in, T *out)
     snprintf(func_name, sizeof(func_name), "compute_slow");
     snprintf(func_message, sizeof(func_message), "compute_slow");
     trace_cpu_start( thread_id, func_name, func_message );
+    { heffte::add_trace name("fft1d");
     perform_ffts(data,flag,fft_slow);
+    }
     trace_cpu_end( thread_id);
 
     if (reshape_postslow) {
@@ -1070,6 +1089,7 @@ void FFT3d<U>::only_1d_ffts(T *in, int flag)
 {
   if (!setupflag) error->all("Cannot compute 1d FFTs before setup");
 
+  heffte::add_trace name("fft1d x3");
   perform_ffts(in,flag,fft_fast);
   perform_ffts(in,flag,fft_mid);
   perform_ffts(in,flag,fft_slow);
