@@ -886,6 +886,14 @@ int Reshape3d<float>::collide(struct extent_3d *block1, struct extent_3d *block2
 
 namespace heffte {
 
+#ifdef Heffte_ENABLE_TRACING
+
+    std::deque<event> event_log;
+    std::string log_filename;
+
+#endif
+
+
 /*!
  * \brief Counts how many boxes from the list have a non-empty intersection with the reference box.
  */

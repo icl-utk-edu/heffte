@@ -7,7 +7,7 @@
 #ifndef HEFFTE_TRACE_H
 #define HEFFTE_TRACE_H
 
-#include "heffte_common.h"
+#include "heffte_utils.h"
 #define heffteMaxGPUs                        1
 
 #define heffte_queue_t                       int
@@ -65,5 +65,60 @@ void trace_cpu_decrease_cnt( int core );
 }
 #endif
 
+namespace heffte {
+
+    #ifdef Heffte_ENABLE_TRACING
+    /*!
+     * \brief A tracing event.
+     *
+     * The events that are being traced will be associated with start time,
+     * duration, and name of the event.
+     */
+    struct event {
+        //! \brief Name of the event.
+        std::string name;
+        //! \brief Start time according to MPI high-precision clock.
+        double start_time;
+        //! \brief Duration according to the MPI high-precision clock.
+        double duration;
+    };
+
+    extern std::deque<event> event_log;
+    extern std::string log_filename;
+
+    struct add_trace {
+        add_trace(std::string s) : name(s), start_time(MPI_Wtime()){}
+        ~add_trace(){
+            double duration = MPI_Wtime() - start_time;
+            event_log.push_back({std::move(name), start_time, duration});
+        }
+        std::string name;
+        double start_time;
+    };
+
+    inline void init_tracing(std::string root_filename){
+        event_log = std::deque<event>();
+        log_filename = root_filename + "_" + std::to_string(mpi::world_rank()) + ".log";
+    }
+
+    inline void finalize_tracing(){
+        std::ofstream ofs(log_filename);
+        ofs.precision(12);
+
+        for(auto const &e : event_log)
+            ofs << std::setw(40) << e.name << std::setw(20) << e.start_time << std::setw(20) << e.duration << "\n";
+    }
+
+    #else
+
+    struct add_trace{
+        add_trace(std::string){}
+    }
+    inline void init_tracing(std::string){}
+    inline void finalize_tracing(){}
+
+    #endif
+
+}
 
 #endif        //  #ifndef HEFFTE_TRACE_H

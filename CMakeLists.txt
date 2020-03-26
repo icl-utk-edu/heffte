@@ -6,6 +6,8 @@ option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            OFF)
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
+option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
+
 # check if at least one backend has been enabled
 if (NOT Heffte_ENABLE_FFTW AND
     NOT Heffte_ENABLE_CUDA
