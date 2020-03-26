@@ -148,6 +148,11 @@ namespace cuda {
         return load(cpu_data.data(), cpu_data.size());
     }
     /*!
+     * \brief Similar to cuda::load() but loads the data from a std::vector into a pointer.
+     */
+    template<typename scalar_type>
+    void load(std::vector<scalar_type> const &cpu_data, scalar_type gpu_data[]);
+    /*!
      * \brief Similar to cuda::load() but loads the data from a std::vector
      */
     template<typename scalar_type>
@@ -171,6 +176,12 @@ namespace cuda {
      */
     template<typename scalar_type>
     std::vector<scalar_type> unload(std::vector<scalar_type> const &a){ return a; }
+
+    /*!
+     * \brief Copy number of entries from the GPU pointer into the vector.
+     */
+    template<typename scalar_type>
+    std::vector<scalar_type> unload(scalar_type const gpu_pointer[], size_t num_entries);
 
     /*!
      * \brief Copy the data from a cuda::vector to a cpu buffer
