@@ -58,8 +58,19 @@ void load(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_dat
     check_error(cudaMemcpy(gpu_data.data(), cpu_data.data(), gpu_data.size() * sizeof(scalar_type), cudaMemcpyHostToDevice), "cuda::load()");
 }
 template<typename scalar_type>
+void load(std::vector<scalar_type> const &cpu_data, scalar_type gpu_data[]){
+    check_error(cudaMemcpy(gpu_data, cpu_data.data(), cpu_data.size() * sizeof(scalar_type), cudaMemcpyHostToDevice), "cuda::load()");
+}
+template<typename scalar_type>
 void unload(vector<scalar_type> const &gpu_data, scalar_type *cpu_data){
     check_error(cudaMemcpy(cpu_data, gpu_data.data(), gpu_data.size() * sizeof(scalar_type), cudaMemcpyDeviceToHost), "cuda::unload()");
+}
+
+template<typename scalar_type>
+std::vector<scalar_type> unload(scalar_type const gpu_pointer[], size_t num_entries){
+    std::vector<scalar_type> result(num_entries);
+    check_error(cudaMemcpy(result.data(), gpu_pointer, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToHost), "cuda::unload()");
+    return result;
 }
 
 #define instantiate_cuda_vector(scalar_type) \
@@ -71,7 +82,9 @@ void unload(vector<scalar_type> const &gpu_data, scalar_type *cpu_data){
     template void copy_pntr(scalar_type const data[], vector<scalar_type> &x); \
     template vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries); \
     template void load<scalar_type>(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data); \
+    template void load<scalar_type>(std::vector<scalar_type> const&, scalar_type[]); \
     template void unload<scalar_type>(vector<scalar_type> const &, scalar_type *); \
+    template std::vector<scalar_type> unload<scalar_type>(scalar_type const[], size_t); \
 
 
 instantiate_cuda_vector(float);
@@ -228,4 +241,16 @@ template void scale_data(int num_entries, float *data, double scale_factor);
 template void scale_data(int num_entries, double *data, double scale_factor);
 
 } // namespace cuda
+
+template<typename scalar_type>
+void data_manipulator<tag::gpu>::copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]){
+    cuda::check_error(cudaMemcpy(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "data_manipulator::copy_n()");
+}
+
+template void data_manipulator<tag::gpu>::copy_n<float>(float const[], size_t, float[]);
+template void data_manipulator<tag::gpu>::copy_n<double>(double const[], size_t, double[]);
+template void data_manipulator<tag::gpu>::copy_n<std::complex<float>>(std::complex<float> const[], size_t, std::complex<float>[]);
+template void data_manipulator<tag::gpu>::copy_n<std::complex<double>>(std::complex<double> const[], size_t, std::complex<double>[]);
+
+
 } // namespace heffte

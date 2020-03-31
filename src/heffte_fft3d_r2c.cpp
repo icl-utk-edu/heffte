@@ -13,10 +13,10 @@
 
 #define heffte_instantiate_fft3d_r2c(some_backend) \
     template class fft3d_r2c<some_backend>; \
-    template void fft3d_r2c<some_backend>::standard_transform<float>(float const[], std::complex<float>[], scale) const;    \
-    template void fft3d_r2c<some_backend>::standard_transform<double>(double const[], std::complex<double>[], scale) const; \
-    template void fft3d_r2c<some_backend>::standard_transform<float>(std::complex<float> const[], float[], scale) const;    \
-    template void fft3d_r2c<some_backend>::standard_transform<double>(std::complex<double> const[], double[], scale) const; \
+    template void fft3d_r2c<some_backend>::standard_transform<float>(float const[], std::complex<float>[], std::complex<float>[], scale) const;    \
+    template void fft3d_r2c<some_backend>::standard_transform<double>(double const[], std::complex<double>[], std::complex<double>[], scale) const; \
+    template void fft3d_r2c<some_backend>::standard_transform<float>(std::complex<float> const[], float[], std::complex<float>[], scale) const;    \
+    template void fft3d_r2c<some_backend>::standard_transform<double>(std::complex<double> const[], double[], std::complex<double>[], scale) const; \
 
 namespace heffte {
 
@@ -59,117 +59,90 @@ fft3d_r2c<backend_tag>::fft3d_r2c(box3d const cinbox, box3d const coutbox, int r
     backward_shaper[3] = make_reshape3d_alltoallv<backend_tag>(shape0, boxes.in, comm);
 
     int const me = mpi::comm_rank(comm);
-    fft_r2c = one_dim_backend<backend_tag>::make_r2c(shape0[me], dirs[0]);
-    fft1 = one_dim_backend<backend_tag>::make(shape1[me], dirs[1]);
-    fft2 = one_dim_backend<backend_tag>::make(shape2[me], dirs[2]);
+    executor_r2c = one_dim_backend<backend_tag>::make_r2c(shape0[me], dirs[0]);
+    executor[0] = one_dim_backend<backend_tag>::make(shape1[me], dirs[1]);
+    executor[1] = one_dim_backend<backend_tag>::make(shape2[me], dirs[2]);
 }
 
 template<typename backend_tag>
 template<typename scalar_type>
-void fft3d_r2c<backend_tag>::standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale scaling) const{
+void fft3d_r2c<backend_tag>::standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
+                                                std::complex<scalar_type> workspace[], scale scaling) const{
     /*
      * Follows logic similar to the fft3d case but using directly the member shapers and executors.
      */
+    int last = get_last_active(forward_shaper);
+
     buffer_container<scalar_type> reshaped_input;
     scalar_type const *effective_input = input; // either input or the result of reshape operation 0
     if (forward_shaper[0]){
-        reshaped_input = buffer_container<scalar_type>(fft_r2c->real_size());
-        forward_shaper[0]->apply(input, reshaped_input.data());
+        reshaped_input = buffer_container<scalar_type>(executor_r2c->real_size());
+        forward_shaper[0]->apply(input, reshaped_input.data(), reinterpret_cast<scalar_type*>(workspace));
         effective_input = reshaped_input.data();
     }
 
-    if (not forward_shaper[1] and not forward_shaper[2] and not forward_shaper[3]){
-        fft_r2c->forward(effective_input, output);
-        fft1->forward(output);
-        fft2->forward(output);
+    if (last < 1){ // no reshapes after 0
+        executor_r2c->forward(effective_input, output);
+        executor[0]->forward(output);
+        executor[1]->forward(output);
         return;
     }
 
     // if there is messier combination of transforms, then we need internal buffers
-    size_t buffer_size = std::max(std::max(fft_r2c->complex_size(), fft1->box_size()), fft2->box_size());
-    buffer_container<std::complex<scalar_type>> buff0(buffer_size);
+    size_t buffer_size = get_max_size(executor_r2c, executor);
+    buffer_container<std::complex<scalar_type>> temp_buffer(buffer_size);
+    executor_r2c->forward(effective_input, temp_buffer.data());
+    reshaped_input = buffer_container<scalar_type>();
 
-    fft_r2c->forward(effective_input, buff0.data());
-    reshaped_input = buffer_container<scalar_type>(); // release the temporary real data (if any)
+    for(int i=1; i<last; i++){
+        if (forward_shaper[i])
+            forward_shaper[i]->apply(temp_buffer.data(), temp_buffer.data(), workspace);
+        executor[i-1]->forward(temp_buffer.data());
+    }
+    forward_shaper[last]->apply(temp_buffer.data(), output, workspace);
 
-    // the second buffer is needed only if two of the reshape operations are active
-    buffer_container<std::complex<scalar_type>> buff1(
-                            (!!forward_shaper[2] or !!forward_shaper[3]) ? buffer_size : 0
-                                           );
-    std::complex<scalar_type> *data = buff0.data();
-    std::complex<scalar_type> *temp = buff1.data();
-
-    reshape_stage(forward_shaper[1], data, (!!forward_shaper[2] or !!forward_shaper[3]) ? temp : output);
-    fft1->forward(data);
-
-    reshape_stage(forward_shaper[2], data, (!!forward_shaper[3]) ? temp : output);
-    fft2->forward(data);
-
-    reshape_stage(forward_shaper[3], data, output);
+    for(int i=last-1; i<2; i++)
+        executor[i]->forward(output);
 
     if (scaling != scale::none)
-        data_scaling<typename backend::buffer_traits<backend_tag>::location>::apply(
-            size_outbox(), data,
-            (scaling == scale::full) ? scale_factor : std::sqrt(scale_factor));
+        data_manipulator<location_tag>::scale(size_outbox(), output, get_scale_factor(scaling));
 }
 
 template<typename backend_tag>
 template<typename scalar_type>
-void fft3d_r2c<backend_tag>::standard_transform(std::complex<scalar_type> const input[], scalar_type output[], scale scaling) const{
+void fft3d_r2c<backend_tag>::standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
+                                                std::complex<scalar_type> workspace[], scale scaling) const{
     /*
      * Follows logic similar to the fft3d case but using directly the member shapers and executors.
      */
-    // we need to know the size of the internal buffers
-    size_t buffer_size = std::max(std::max(fft_r2c->complex_size(), fft1->box_size()), fft2->box_size());
-
-    // perform stage 0 transformation
-    buffer_container<std::complex<scalar_type>> buff0;
+    size_t buffer_size = get_max_size(executor_r2c, executor);
+    buffer_container<std::complex<scalar_type>> temp_buffer(buffer_size);
     if (backward_shaper[0]){
-        buff0 = buffer_container<std::complex<scalar_type>>(buffer_size);
-        backward_shaper[0]->apply(input, buff0.data());
+        backward_shaper[0]->apply(input, temp_buffer.data(), workspace);
     }else{
-        buff0 = buffer_container<std::complex<scalar_type>>(input, input + fft2->box_size());
+        data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer.data());
     }
 
-    fft2->backward(buff0.data()); // first fft of the backward transform
-
-    buffer_container<std::complex<scalar_type>> buff1;
-    if (backward_shaper[1] and backward_shaper[2]){
-        // will do two reshape, the data will move buff0 -> buff1 -> buff0
-        buff1 = buffer_container<std::complex<scalar_type>>(buffer_size);
-        backward_shaper[1]->apply(buff0.data(), buff1.data());
-        fft1->backward(buff1.data());
-        backward_shaper[2]->apply(buff1.data(), buff0.data());
-    }else if (backward_shaper[1] or backward_shaper[2]){
-        // will do only one reshape, the data will move buff0 -> buff1
-        // and the two containers need to be swapped
-        buff1 = buffer_container<std::complex<scalar_type>>(buffer_size);
-        if (backward_shaper[1]){
-            backward_shaper[1]->apply(buff0.data(), buff1.data());
-            fft1->backward(buff1.data());
-        }else{
-            fft1->backward(buff0.data());
-            backward_shaper[2]->apply(buff0.data(), buff1.data());
-        }
-        std::swap(buff0, buff1);
+    for(int i=0; i<2; i++){ // apply the two complex-to-complex ffts
+        executor[1-i]->backward(temp_buffer.data());
+        if (backward_shaper[i+1])
+            backward_shaper[i+1]->apply(temp_buffer.data(), temp_buffer.data(), workspace);
     }
-    buff1 = buffer_container<std::complex<scalar_type>>(); // clear the buffer
 
-    // the result of the first two ffts and three reshapes is stored in buff0
+    // the result of the first two ffts and three reshapes is stored in temp_buffer
     // executor 2 must apply complex to real backward transform
     if (backward_shaper[3]){
         // there is one more reshape left, transform into a real temporary buffer
-        buffer_container<scalar_type> real_buffer(fft_r2c->real_size());
-        fft_r2c->backward(buff0.data(), real_buffer.data());
-        backward_shaper[3]->apply(real_buffer.data(), output);
+        buffer_container<scalar_type> real_buffer(executor_r2c->real_size());
+        executor_r2c->backward(temp_buffer.data(), real_buffer.data());
+        temp_buffer = buffer_container<std::complex<scalar_type>>(); // clean temp_buffer
+        backward_shaper[3]->apply(real_buffer.data(), output, reinterpret_cast<scalar_type*>(workspace));
     }else{
-        fft_r2c->backward(buff0.data(), output);
+        executor_r2c->backward(temp_buffer.data(), output);
     }
 
     if (scaling != scale::none)
-        data_scaling<typename backend::buffer_traits<backend_tag>::location>::apply(
-            size_inbox(), output,
-            (scaling == scale::full) ? scale_factor : std::sqrt(scale_factor));
+        data_manipulator<location_tag>::scale(size_inbox(), output, get_scale_factor(scaling));
 }
 
 #ifdef Heffte_ENABLE_FFTW

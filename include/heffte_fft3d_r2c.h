@@ -49,6 +49,10 @@ public:
     using backend_executor_c2c = typename one_dim_backend<backend_tag>::type;
     //! \brief FFT executor for the real-to-complex dimension.
     using backend_executor_r2c = typename one_dim_backend<backend_tag>::type_r2c;
+    /*!
+     * \brief Type-tag that is either tag::cpu or tag::gpu to indicate the location of the data.
+     */
+    using location_tag = typename backend::buffer_traits<backend_tag>::location;
 
     /*!
      * \brief Alias to the container template associated with the backend (allows for RAII memory management).
@@ -70,6 +74,8 @@ public:
     int size_inbox() const{ return inbox.count(); }
     //! \brief Returns the size of the outbox defined in the constructor.
     int size_outbox() const{ return outbox.count(); }
+    //! \brief Returns the workspace size that will be used, size is measured in complex numbers.
+    size_t size_workspace() const{ return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper)); }
 
     /*!
      * \brief Performs a forward Fourier transform using two arrays.
@@ -91,6 +97,16 @@ public:
                 "Using either an unknown complex type or an incompatible pair of types!");
 
         standard_transform(convert_to_standart(input), convert_to_standart(output), scaling);
+    }
+
+    //! \brief Overload utilizing a user provided buffer.
+    template<typename input_type, typename output_type>
+    void forward(input_type const input[], output_type output[], output_type workspace[], scale scaling = scale::none) const{
+        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
+                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        standard_transform(convert_to_standart(input), convert_to_standart(output), convert_to_standart(workspace), scaling);
     }
 
     /*!
@@ -142,6 +158,16 @@ public:
         standard_transform(convert_to_standart(input), convert_to_standart(output), scaling);
     }
 
+    //! \brief Overload utilizing a user provided buffer.
+    template<typename input_type, typename output_type>
+    void backward(input_type const input[], output_type output[], input_type workspace[], scale scaling = scale::none) const{
+        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
+                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        standard_transform(convert_to_standart(input), convert_to_standart(output), convert_to_standart(workspace), scaling);
+    }
+
     /*!
      * \brief Variant of backward() that uses buffer_container for RAII style of resource management.
      */
@@ -154,19 +180,35 @@ public:
         return result;
     }
 
+    /*!
+     * \brief Returns the scale factor for the given scaling.
+     */
+    double get_scale_factor(scale scaling) const{ return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor; }
+
 private:
     template<typename scalar_type>
-    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale) const;
+    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale scaling) const{
+        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        standard_transform(input, output, workspace.data(), scaling);
+    }
     template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], scale) const;
+    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], scale scaling) const{
+        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        standard_transform(input, output, workspace.data(), scaling);
+    }
+
+    template<typename scalar_type>
+    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], std::complex<scalar_type> workspace[], scale) const;
+    template<typename scalar_type>
+    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], std::complex<scalar_type> workspace[], scale) const;
 
     box3d inbox, outbox;
     double scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
 
-    std::unique_ptr<backend_executor_r2c> fft_r2c;
-    std::unique_ptr<backend_executor_c2c> fft1, fft2;
+    std::unique_ptr<backend_executor_r2c> executor_r2c;
+    std::array<std::unique_ptr<backend_executor_c2c>, 2> executor;
 };
 
 }
