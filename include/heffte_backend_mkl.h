@@ -56,14 +56,14 @@ struct plan_mkl<std::complex<float>>{
      * \brief Constructor, takes inputs identical to MKL FFT descriptors.
      *
      * \param size is the number of entries in a 1-D transform
-     * \param howmany is the number of transforms in the batch
+     * \param howmanyffts is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
      * \param dist is the distance between the first entries of consecutive sequences
      */
-    plan_mkl(int size, int howmany, int stride, int dist){
+    plan_mkl(int size, int howmanyffts, int stride, int dist){
         DFTI_DESCRIPTOR_HANDLE plan;
         DftiCreateDescriptor(&plan, DFTI_SINGLE, DFTI_COMPLEX, 1, (MKL_LONG) size);
-        DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmany);
+        DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
         DftiSetValue(plan, DFTI_PLACEMENT, DFTI_INPLACE);
         //DftiSetValue(plan, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
         DftiSetValue(plan, DFTI_INPUT_DISTANCE, (MKL_LONG) stride);
@@ -87,14 +87,14 @@ struct plan_mkl<std::complex<double>>{
      * \brief Constructor, takes inputs identical to MKL FFT descriptors.
      *
      * \param size is the number of entries in a 1-D transform
-     * \param howmany is the number of transforms in the batch
+     * \param howmanyffts is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
      * \param dist is the distance between the first entries of consecutive sequences
      */
-    plan_mkl(int size, int howmany, int stride, int dist){
+    plan_mkl(int size, int howmanyffts, int stride, int dist){
         DFTI_DESCRIPTOR_HANDLE plan;
         DftiCreateDescriptor(&plan, DFTI_DOUBLE, DFTI_COMPLEX, 1, (MKL_LONG) size);
-        DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmany);
+        DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
         DftiSetValue(plan, DFTI_PLACEMENT, DFTI_INPLACE);
         //DftiSetValue(plan, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
         DftiSetValue(plan, DFTI_INPUT_DISTANCE, (MKL_LONG) stride);
@@ -128,7 +128,7 @@ public:
     //! \brief Constructor, specifies the box and dimension.
     mkl_executor(box3d const box, int dimension) :
         size(box.size[dimension]),
-        howmany(fft1d_get_howmany(box, dimension)),
+        howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == 0) ? size : 1),
         blocks((dimension == 1) ? box.size[2] : 1),
@@ -197,10 +197,10 @@ private:
     //! \brief Helper template to create the plan.
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_mkl<scalar_type>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_mkl<scalar_type>>(new plan_mkl<scalar_type>(size, howmany, stride, dist));
+        if (!plan) plan = std::unique_ptr<plan_mkl<scalar_type>>(new plan_mkl<scalar_type>(size, howmanyffts, stride, dist));
     }
 
-    mutable int size, howmany, stride, dist, blocks, block_stride, total_size;
+    mutable int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
     mutable std::unique_ptr<plan_mkl<std::complex<float>> cforward;
     mutable std::unique_ptr<plan_mkl<std::complex<float>> cbackward;
     mutable std::unique_ptr<plan_mkl<std::complex<double>> zforward;
@@ -213,15 +213,15 @@ struct plan_mkl<float>{
      * \brief Constructor taking into account the different sizes for the real and complex parts.
      *
      * \param size is the number of entries in a 1-D transform
-     * \param howmany is the number of transforms in the batch
+     * \param howmanyffts is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
      * \param rdist is the distance between the first entries of consecutive sequences in the real sequences
      * \param cdist is the distance between the first entries of consecutive sequences in the complex sequences
      */
-    plan_mkl(int size, int howmany, int stride, int dist){
+    plan_mkl(int size, int howmanyffts, int stride, int dist){
         DFTI_DESCRIPTOR_HANDLE plan;
         DftiCreateDescriptor(&plan, DFTI_SINGLE, DFTI_REAL, 1, (MKL_LONG) size);
-        DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmany);
+        DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
         DftiSetValue(plan, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
         DftiSetValue(plan, DFTI_INPUT_DISTANCE, (MKL_LONG) stride);
         DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, (MKL_LONG) stride);
@@ -238,10 +238,10 @@ struct plan_mkl<float>{
 template<direction dir>
 struct plan_mkl<double>{
     //! \brief Identical to the float-complex specialization.
-    plan_mkl(int size, int howmany, int stride, int dist){
+    plan_mkl(int size, int howmanyffts, int stride, int dist){
         DFTI_DESCRIPTOR_HANDLE plan;
         DftiCreateDescriptor(&plan, DFTI_DOUBLE, DFTI_REAL, 1, (MKL_LONG) size);
-        DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmany);
+        DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
         DftiSetValue(plan, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
         DftiSetValue(plan, DFTI_INPUT_DISTANCE, (MKL_LONG) stride);
         DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, (MKL_LONG) stride);
@@ -271,7 +271,7 @@ public:
      */
     mkl_executor_r2c(box3d const box, int dimension) :
         size(box.size[dimension]),
-        howmany(fft1d_get_howmany(box, dimension)),
+        howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         blocks((dimension == 1) ? box.size[2] : 1),
         rdist((dimension == 0) ? size : 1),
@@ -326,10 +326,10 @@ private:
     //! \brief Helper template to initialize the plan.
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_mkl<scalar_type>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_mkl<scalar_type>>(new plan_mkl<scalar_type>(size, howmany, stride, rdist, cdist));
+        if (!plan) plan = std::unique_ptr<plan_mkl<scalar_type>>(new plan_mkl<scalar_type>(size, howmanyffts, stride, rdist, cdist));
     }
 
-    mutable int size, howmany, stride, blocks;
+    mutable int size, howmanyffts, stride, blocks;
     mutable int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
     mutable std::unique_ptr<plan_mkl<float> sforward;
     mutable std::unique_ptr<plan_mkl<double> dforward;

@@ -9,8 +9,7 @@
 
 #ifdef Heffte_ENABLE_FFTW
 using default_cpu_backend = heffte::backend::fftw;
-#endif
-#ifdef Heffte_ENABLE_MKL
+#elif defined(Heffte_ENABLE_MKL)
 using default_cpu_backend = heffte::backend::mkl;
 #endif
 
