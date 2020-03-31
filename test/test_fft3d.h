@@ -283,16 +283,18 @@ void test_fft3d_arrays(MPI_Comm comm){
 
         heffte::fft3d<backend_tag> fft(boxes[me], boxes[me], comm);
 
-        fft.forward(local_input.data(), forward.data()); // compute the forward fft
+        output_container workspace(fft.size_workspace());
+
+        fft.forward(local_input.data(), forward.data(), workspace.data()); // compute the forward fft
         tassert(approx(forward, reference_fft)); // compare to the reference
 
         input_container backward(local_input.size()); // compute backward fft using scalar_type
-        fft.backward(forward.data(), backward.data());
+        fft.backward(forward.data(), backward.data(), workspace.data());
         auto backward_result = rescale(world, backward, scale::full); // always std::vector
         tassert(approx(local_input, backward_result)); // compare with the original input
 
         output_container cbackward(local_input.size()); // complex backward transform
-        fft.backward(forward.data(), cbackward.data());
+        fft.backward(forward.data(), cbackward.data(), workspace.data());
         auto cbackward_result = rescale(world, cbackward, scale::full);
         // convert the world to complex numbers and extract the reference sub-box
         tassert(approx(get_complex_subbox(world, boxes[me], world_input),

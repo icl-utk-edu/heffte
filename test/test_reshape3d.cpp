@@ -96,6 +96,7 @@ void test_cpu(MPI_Comm const comm){
 
     // create caches for a reshape algorithm, including creating a new mpi comm
     auto reshape = make_reshape3d_alltoallv<backend_tag>(boxes, rotate_boxes, comm);
+    std::vector<scalar_type> workspace(reshape->size_workspace());
 
     auto input_data     = get_subdata<scalar_type>(world, boxes[me]);
     auto reference_data = get_subdata<scalar_type>(world, rotate_boxes[me]);
@@ -104,11 +105,11 @@ void test_cpu(MPI_Comm const comm){
     if (std::is_same<scalar_type, float>::value){
         // sometimes, run two tests to make sure there is no internal corruption
         // there is no need to do that for every data type
-        reshape->apply(input_data.data(), output_data.data());
+        reshape->apply(input_data.data(), output_data.data(), workspace.data());
         output_data = std::vector<scalar_type>(rotate_boxes[me].count());
-        reshape->apply(input_data.data(), output_data.data());
+        reshape->apply(input_data.data(), output_data.data(), workspace.data());
     }else{
-        reshape->apply(input_data.data(), output_data.data());
+        reshape->apply(input_data.data(), output_data.data(), workspace.data());
     }
 
     // mpi::dump(0, input_data,     "input");
@@ -147,6 +148,7 @@ void test_gpu(MPI_Comm const comm){
 
     // create caches for a reshape algorithm, including creating a new mpi comm
     auto reshape = make_reshape3d_alltoallv<backend_tag>(boxes, rotate_boxes, comm);
+    cuda::vector<scalar_type> workspace(reshape->size_workspace());
 
     auto input_data     = get_subdata<scalar_type>(world, boxes[me]);
     auto cuinput_data   = cuda::load(input_data);
@@ -156,11 +158,11 @@ void test_gpu(MPI_Comm const comm){
     if (std::is_same<scalar_type, float>::value){
         // sometimes, run two tests to make sure there is no internal corruption
         // there is no need to do that for every data type
-        reshape->apply(cuinput_data.data(), output_data.data());
+        reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
         output_data = cuda::vector<scalar_type>(rotate_boxes[me].count());
-        reshape->apply(cuinput_data.data(), output_data.data());
+        reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
     }else{
-        reshape->apply(cuinput_data.data(), output_data.data());
+        reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
     }
 
     //auto ramout = cuda::unload(output_data);

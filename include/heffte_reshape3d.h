@@ -125,18 +125,20 @@ public:
     //! \brief Default virtual destructor.
     virtual ~reshape3d_base() = default;
     //! \brief Apply the reshape, single precision.
-    virtual void apply(float const source[], float destination[]) const = 0;
+    virtual void apply(float const source[], float destination[], float workspace[]) const = 0;
     //! \brief Apply the reshape, double precision.
-    virtual void apply(double const source[], double destination[]) const = 0;
+    virtual void apply(double const source[], double destination[], double workspace[]) const = 0;
     //! \brief Apply the reshape, single precision complex.
-    virtual void apply(std::complex<float> const source[], std::complex<float> destination[]) const = 0;
+    virtual void apply(std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const = 0;
     //! \brief Apply the reshape, double precision complex.
-    virtual void apply(std::complex<double> const source[], std::complex<double> destination[]) const = 0;
+    virtual void apply(std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const = 0;
 
     //! \brief Returns the input size.
     int size_intput() const{ return input_size; }
     //! \brief Returns the output size.
     int size_output() const{ return output_size; }
+    //! \brief Returns the workspace size.
+    size_t size_workspace() const{ return input_size + output_size; }
 
 protected:
     //! \brief Stores the size of the input.
@@ -146,22 +148,12 @@ protected:
 };
 
 /*!
- * \brief Performs the reshape operation on the data in base using the helper buffer
- *
- * If the reshape operation is not active, this method does nothing.
- * Otherwise, the reshape is applied from the base to the helper and the two pointers are swapped.
- *
- * \tparam scalar_type is the type of the entries of the two arrays
- *
- * \param reshape is either active or null reshape operation
- * \param base is the source of the reshape on entry, and on exit will hold the reshaped data
- * \param helper is a temporary pointer that will be used for the reshape
+ * \brief Returns the maximum workspace size used by the shapers.
  */
-template<typename scalar_type>
-void reshape_stage(std::unique_ptr<reshape3d_base> const &reshape, scalar_type *&base, scalar_type *&helper){
-    if (not reshape) return;
-    reshape->apply(base, helper);
-    std::swap(base, helper);
+inline size_t get_workspace_size(std::array<std::unique_ptr<reshape3d_base>, 4> const &shapers){
+    size_t max_size = 0;
+    for(auto const &s : shapers) if (s) max_size = std::max(max_size, s->size_workspace());
+    return max_size;
 }
 
 /*!
@@ -180,25 +172,25 @@ public:
     make_reshape3d_alltoallv(std::vector<box3d> const&, std::vector<box3d> const&, MPI_Comm const);
 
     //! \brief Apply the reshape operations, single precision overload.
-    void apply(float const source[], float destination[]) const override final{
-        apply_base(source, destination);
+    void apply(float const source[], float destination[], float workspace[]) const override final{
+        apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision overload.
-    void apply(double const source[], double destination[]) const override final{
-        apply_base(source, destination);
+    void apply(double const source[], double destination[], double workspace[]) const override final{
+        apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, single precision complex overload.
-    void apply(std::complex<float> const source[], std::complex<float> destination[]) const override final{
-        apply_base(source, destination);
+    void apply(std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
+        apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision complex overload.
-    void apply(std::complex<double> const source[], std::complex<double> destination[]) const override final{
-        apply_base(source, destination);
+    void apply(std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
+        apply_base(source, destination, workspace);
     }
 
     //! \brief Templated apply algorithm for all scalar types.
     template<typename scalar_type>
-    void apply_base(scalar_type const source[], scalar_type destination[]) const;
+    void apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
 
 private:
     /*!

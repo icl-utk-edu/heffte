@@ -359,6 +359,10 @@ public:
      * The CPU backends use std::vector while the GPU backends use heffte::cuda::vector.
      */
     template<typename T> using buffer_container = typename backend::buffer_traits<backend_tag>::template container<T>;
+    /*!
+     * \brief Type-tag that is either tag::cpu or tag::gpu to indicate the location of the data.
+     */
+    using location_tag = typename backend::buffer_traits<backend_tag>::location;
 
     /*!
      * \brief Constructor creating a plan for FFT transform across the given communicator and using the box geometry.
@@ -402,6 +406,30 @@ public:
                 "Using either an unknown complex type or an incompatible pair of types!");
 
         standard_transform(convert_to_standart(input), convert_to_standart(output), forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
+    }
+
+    /*!
+     * \brief An overload utilizing a user-allocated workspace buffer.
+     *
+     * HeFFTe requires additional buffers to for various MPI operations, e.g., pack-send-receive-unpack.
+     * In the standard overload, the extra memory will be allocated during the call to forward()
+     * and released right after.
+     * However, allocating and deallocation of large buffers can have a measurable negative effect on performance.
+     * Optionally, the use can allocate the workspace buffer externally and pass it into the HeFFTe calls.
+     *
+     * The workspace buffer must have size equal to size_workspace() and measured in number of complex scalars,
+     * e.g., std::complex<float> or std::complex<double> for single and double precision respectively.
+     */
+    template<typename input_type, typename output_type>
+    void forward(input_type const input[], output_type output[], output_type workspace[], scale scaling = scale::none) const{
+        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
+                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value)
+                   or (is_ccomplex<input_type>::value and is_ccomplex<output_type>::value)
+                   or (is_zcomplex<input_type>::value and is_zcomplex<output_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        standard_transform(convert_to_standart(input), convert_to_standart(output), convert_to_standart(workspace),
+                           forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
     }
 
     /*!
@@ -468,6 +496,21 @@ public:
     }
 
     /*!
+     * \brief Overload with user-provided workspace buffer, see the corresponding overload of forward().
+     */
+    template<typename input_type, typename output_type>
+    void backward(input_type const input[], output_type output[], input_type workspace[], scale scaling = scale::none) const{
+        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
+                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value)
+                   or (is_ccomplex<output_type>::value and is_ccomplex<input_type>::value)
+                   or (is_zcomplex<output_type>::value and is_zcomplex<input_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        standard_transform(convert_to_standart(input), convert_to_standart(output), convert_to_standart(workspace),
+                           backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
+    }
+
+    /*!
      * \brief Perform complex-to-complex backward FFT using vector API.
      */
     template<typename scalar_type>
@@ -493,6 +536,16 @@ public:
         return result;
     }
 
+    /*!
+     * \brief Returns the scale factor for the given scaling.
+     */
+    double get_scale_factor(scale scaling) const{ return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor; }
+
+    /*!
+     * \brief Returns the workspace size that will be used, size is measured in complex numbers.
+     */
+    size_t size_workspace() const{ return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper)); }
+
 private:
     /*!
      * \brief Performs the FFT assuming the input types match the C++ standard.
@@ -504,6 +557,8 @@ private:
      * \tparam scalar_type is either float or double, indicating the working precision
      *
      * \param input is the input for the forward or backward transform
+     * \param output is the output for the forward or backward transform
+     * \param workspace is the pre-allocated buffer with size at least size_workspace()
      * \param shaper are the four stages of the reshape operations
      * \param executor holds the three stages of the one dimensional FFT algorithm
      * \param dir indicates whether to use the forward or backward method of the executor
@@ -511,8 +566,18 @@ private:
      */
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
+                            std::complex<scalar_type> workspace[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const; // complex to complex
+    //! \brief Overload that allocates and deallocates the workspace.
+    template<typename scalar_type>
+    void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
+
+                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
+        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
+    }
     /*!
      * \brief Overload to handle the real-to-complex case.
      *
@@ -521,8 +586,17 @@ private:
      */
     template<typename scalar_type>
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
+                            std::complex<scalar_type> workspace[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction, scale) const; // real to complex
+    //! \brief Overload that allocates and deallocates the workspace.
+    template<typename scalar_type>
+    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
+                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
+        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
+    }
     /*!
      * \brief Overload to handle the complex-to-real case.
      *
@@ -531,8 +605,17 @@ private:
      */
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
+                            std::complex<scalar_type> workspace[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale) const; // complex to real
+    //! \brief Overload that allocates and deallocates the workspace.
+    template<typename scalar_type>
+    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
+                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
+        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
+    }
 
     box3d inbox, outbox;
     double scale_factor;
