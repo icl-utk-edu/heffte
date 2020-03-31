@@ -215,8 +215,6 @@ struct plan_mkl<float>{
      * \param size is the number of entries in a 1-D transform
      * \param howmanyffts is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
-     * \param rdist is the distance between the first entries of consecutive sequences in the real sequences
-     * \param cdist is the distance between the first entries of consecutive sequences in the complex sequences
      */
     plan_mkl(int size, int howmanyffts, int stride, int dist){
         DFTI_DESCRIPTOR_HANDLE plan;
