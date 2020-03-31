@@ -6,8 +6,6 @@
 */
 
 #include "test_fft3d.h"
-#include <iostream>
-#include "mpi.h"
 
 using namespace heffte;
 
