@@ -14,13 +14,13 @@ using namespace heffte;
 template <typename backend_tag> 
 void benchmark_gpu_tester(std::array<int,3>& N){
 
-    double t, t_max; // timing parameters
+    double t = 0.0, t_max = 0.0; // timing parameters
     int me, nprocs;
     MPI_Comm fft_comm = MPI_COMM_WORLD;  // Change if need to compute FFT within a subcommunicator
     MPI_Comm_rank(fft_comm, &me);
     MPI_Comm_size(fft_comm, &nprocs);
 
-    // std::array<int, 3> N = {2,2,2};
+    // std::array<int, 3> N = {64,64,64};
 
     // Get grid of processors at input and output
     std::array<int,3> proc_i = {0,0,0}; 
@@ -50,14 +50,18 @@ void benchmark_gpu_tester(std::array<int,3>& N){
 
     // mpi::dump(0, input, "Initial FFT data");
 
+    // Warmup
+    fft.forward(input.data(), output.data(),  scale::full);
+    fft.backward(output.data(), inverse.data());
+
     // Execution    
-    int ntest = 1; // must be at least 2, in order to warmup
+    int ntest = 1; 
+    t -= MPI_Wtime();
     for(int i = 0; i < ntest; ++i) {
-        t -= MPI_Wtime();
-        fft.forward(input_gpu.data(), output_gpu.data(),  scale::full);
-        fft.backward(output_gpu.data(), inverse_gpu.data());
-        t += MPI_Wtime();
+        fft.forward(input.data(), output.data(),  scale::full);
+        fft.backward(output.data(), inverse.data());
     }
+    t += MPI_Wtime();
 
     // Get execution time
 	MPI_Reduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, 0, fft_comm);    
@@ -71,6 +75,7 @@ void benchmark_gpu_tester(std::array<int,3>& N){
     
     // Print results
     if(me==0){
+        t_max = t_max / (2.0 * ntest);
         double fftsize  = 1.0 * N[0] * N[1] * N[2];
         double floprate = 5.0 * fftsize * log(fftsize) * 1e-9 / log(2.0) / t_max;
         cout << "------------------------------- \n";
@@ -87,7 +92,13 @@ void benchmark_gpu_tester(std::array<int,3>& N){
 
 
 int main(int argc, char *argv[]){
-    
+
+    if (argc < 4){
+        cout << "Usage: mpirun -np x ./speed3d nx ny nz \n ";
+        cout << "       where nx, ny, nz are the 3D array dimensions \n";
+        return 0;
+    }
+
     MPI_Init(&argc, &argv);
     std::array<int,3> size_fft = { atoi(argv[1]), atoi(argv[2]), atoi(argv[3])}; // FFT size from user
 
