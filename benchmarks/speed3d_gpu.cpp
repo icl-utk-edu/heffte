@@ -51,15 +51,15 @@ void benchmark_gpu_tester(std::array<int,3>& N){
     // mpi::dump(0, input, "Initial FFT data");
 
     // Warmup
-    fft.forward(input.data(), output.data(),  scale::full);
-    fft.backward(output.data(), inverse.data());
+    fft.forward(input_gpu.data(), output_gpu.data(),  scale::full);
+    fft.backward(output_gpu.data(), inverse_gpu.data());
 
     // Execution    
     int ntest = 1; 
     t -= MPI_Wtime();
     for(int i = 0; i < ntest; ++i) {
-        fft.forward(input.data(), output.data(),  scale::full);
-        fft.backward(output.data(), inverse.data());
+        fft.forward(input_gpu.data(), output_gpu.data(),  scale::full);
+        fft.backward(output_gpu.data(), inverse_gpu.data());
     }
     t += MPI_Wtime();
 
