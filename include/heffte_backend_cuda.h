@@ -42,6 +42,11 @@ namespace cuda {
     }
 
     /*!
+     * \brief Wrapper around cudaStreamSynchronize(nullptr).
+     */
+    void synchronize_default_stream();
+
+    /*!
      * \brief Container that wraps around a raw cuda array.
      */
     template<typename scalar_type> class vector{
