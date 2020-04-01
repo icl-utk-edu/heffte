@@ -54,9 +54,9 @@ cmake \
     -DCMAKE_INSTALL_PREFIX=./HeffteInstall \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wshadow" \
-    -DHeffte_ENABLE_FFTW=ON \
+    -DHeffte_ENABLE_FFTW=OFF \
     -DHeffte_ENABLE_CUDA=ON \
-    -DMPIEXEC_PREFLAGS="--allow-run-as-root" \
+    -DMPIEXEC_PREFLAGS="--allow-run-as-root;--host;localhost:12" \
     .. &&
 make -j4 &&
 ctest -V --no-compress-output -T Test &&
