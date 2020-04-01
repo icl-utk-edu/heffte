@@ -268,12 +268,6 @@ if (me == 0){
   if(mode==1)
     printf("\t%d forward 3D-FFTs on %d procs on a complex %dx%dx%d grid\n",nloop,nprocs,N[0],N[1],N[2]);
 
-  #if defined(FFT_CUFFTW) || defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
-    printf("\t1D FFT library       : CUFFT\n");
-  #else
-    printf("\t1D FFT library       : FFTW3\n");
-  #endif
-
   if(typeid(T) == typeid(double))
     printf("\tPrecision            : DOUBLE\n");
   if(typeid(T) == typeid(float))
@@ -298,6 +292,10 @@ if (me == 0){
 template <class T>
 void heffte_opts::heffte_timing(FFT3d<T> *fft)
 {
+
+  if(me ==0)  printf("\t1D FFT library       : %s \n", fft->fft1d);
+
+
 // Get MPI information from communicator
   int me, nprocs;
   MPI_Comm_size(fft->world, &nprocs);

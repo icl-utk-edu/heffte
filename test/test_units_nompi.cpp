@@ -258,6 +258,95 @@ void test_fftw(){
 void test_fftw(){}
 #endif
 
+#ifdef Heffte_ENABLE_MKL
+template<typename scalar_type>
+void test_mkl_1d_complex(){
+    current_test<scalar_type, using_nompi> name("mkl one-dimension");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::mkl_executor fft(box, i);
+
+        std::vector<scalar_type> result = input;
+        fft.forward(result.data());
+        sassert(approx(result, reference[i]));
+
+        fft.backward(result.data());
+        for(auto &r : result) r /= (2.0 + i);
+        sassert(approx(result, input));
+    }
+}
+
+template<typename scalar_type>
+void test_mkl_1d_real(){
+    current_test<scalar_type, using_nompi> name("mkl one-dimension");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::mkl_executor fft(box, i);
+
+        std::vector<typename fft_output<scalar_type>::type> result(input.size());
+        fft.forward(input.data(), result.data());
+        sassert(approx(result, reference[i]));
+
+        std::vector<scalar_type> back_result(result.size());
+        fft.backward(result.data(), back_result.data());
+        for(auto &r : back_result) r /= (2.0 + i);
+        sassert(approx(back_result, input));
+    }
+}
+
+template<typename scalar_type>
+void test_mkl_1d_r2c(){
+    current_test<scalar_type, using_nompi> name("mkl one-dimension r2c");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::mkl_executor_r2c fft(box, i);
+
+        std::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
+        fft.forward(input.data(), result.data());
+        sassert(approx(result, reference[i]));
+
+        std::vector<scalar_type> back_result(fft.real_size());
+        fft.backward(result.data(), back_result.data());
+        for(auto &r : back_result) r /= (2.0 + i);
+        sassert(approx(back_result, input));
+    }
+}
+
+// tests for the 1D fft
+void test_mkl(){
+    test_mkl_1d_real<float>();
+    test_mkl_1d_real<double>();
+    test_mkl_1d_complex<std::complex<float>>();
+    test_mkl_1d_complex<std::complex<double>>();
+    test_mkl_1d_r2c<float>();
+    test_mkl_1d_r2c<double>();
+}
+#else
+void test_mkl(){}
+#endif
+
+
 #ifdef Heffte_ENABLE_CUDA
 template<typename scalar_type>
 void test_cuda_vector_type(size_t num_entries){
@@ -528,6 +617,7 @@ int main(int argc, char *argv[]){
     test_gpu_scale();
 
     test_fftw();
+    test_mkl();
     test_cufft();
 
     test_cross_reference();

@@ -15,5 +15,6 @@ endif()
 
 set(Heffte_SHARED_FOUND  "@BUILD_SHARED_LIBS@")
 set(Heffte_FFTW_FOUND    "@Heffte_ENABLE_FFTW@")
+set(Heffte_MKL_FOUND    "@Heffte_ENABLE_MKLW@")
 set(Heffte_CUDA_FOUND    "@Heffte_ENABLE_CUDA@")
 

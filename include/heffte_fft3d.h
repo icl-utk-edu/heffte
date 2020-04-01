@@ -38,7 +38,7 @@ namespace HEFFTE {
      typedef cufftComplex complex_type;
    };
 
-#else
+#elif defined(FFT_FFTW3)
 //------------------------------------------------------------------------------
 // Traits to lookup FFTW plan type. Default is double.
  template <typename T>
@@ -56,6 +56,22 @@ namespace HEFFTE {
      typedef fftwf_complex fftw_complex_data;
  };
  //------------------------------------------------------------------------------
+ #elif defined(FFT_MKL)
+ //------------------------------------------------------------------------------
+ // Traits MKL FFTs. Default is double.
+  template <typename T>
+  struct mkl_traits
+  {
+      typedef double _Complex mkl_complex_data;
+  };
+
+  // Specialization for float.
+  template <>
+  struct mkl_traits<float>
+  {
+      typedef float _Complex mkl_complex_data;
+  };
+
 #endif
 
 template <class U>

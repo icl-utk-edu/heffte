@@ -1677,6 +1677,13 @@ int64_t FFT3d<float>::reshape_memory();
 // -------------------------------------------------------------------
 
 #if defined(FFT_MKL) || defined(FFT_MKL_OMP)
+
+
+// ----------------------
+// Complex to complex MKL
+// ----------------------
+// Plan definition
+
 template <class U>
 void FFT3d<U>::setup_ffts()
 {
@@ -1686,7 +1693,7 @@ void FFT3d<U>::setup_ffts()
   if(sizeof(U)==8) DftiCreateDescriptor(&fft_fast->handle, DFTI_DOUBLE, DFTI_COMPLEX, 1, (MKL_LONG) nfast);
 
   DftiSetValue(fft_fast->handle, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) fft_fast->total/nfast);
-  DftiSetValue(fft_fast->handle, DFTI_PLACEMENT,DFTI_INPLACE);
+  DftiSetValue(fft_fast->handle, DFTI_PLACEMENT, DFTI_INPLACE);
   DftiSetValue(fft_fast->handle, DFTI_INPUT_DISTANCE, (MKL_LONG) nfast);
   DftiSetValue(fft_fast->handle, DFTI_OUTPUT_DISTANCE, (MKL_LONG) nfast);
   DftiCommitDescriptor(fft_fast->handle);
@@ -1695,7 +1702,7 @@ void FFT3d<U>::setup_ffts()
   if(sizeof(U)==8) DftiCreateDescriptor(&fft_mid->handle, DFTI_DOUBLE, DFTI_COMPLEX, 1, (MKL_LONG) nmid);
 
   DftiSetValue(fft_mid->handle, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) fft_mid->total/nmid);
-  DftiSetValue(fft_mid->handle, DFTI_PLACEMENT,DFTI_INPLACE);
+  DftiSetValue(fft_mid->handle, DFTI_PLACEMENT, DFTI_INPLACE);
   DftiSetValue(fft_mid->handle, DFTI_INPUT_DISTANCE, (MKL_LONG) nmid);
   DftiSetValue(fft_mid->handle, DFTI_OUTPUT_DISTANCE, (MKL_LONG) nmid);
   DftiCommitDescriptor(fft_mid->handle);
@@ -1704,7 +1711,7 @@ void FFT3d<U>::setup_ffts()
   if(sizeof(U)==8) DftiCreateDescriptor(&fft_slow->handle, DFTI_DOUBLE, DFTI_COMPLEX, 1, (MKL_LONG) nslow);
 
   DftiSetValue(fft_slow->handle, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) fft_slow->total/nslow);
-  DftiSetValue(fft_slow->handle, DFTI_PLACEMENT,DFTI_INPLACE);
+  DftiSetValue(fft_slow->handle, DFTI_PLACEMENT, DFTI_INPLACE);
   DftiSetValue(fft_slow->handle, DFTI_INPUT_DISTANCE, (MKL_LONG) nslow);
   DftiSetValue(fft_slow->handle, DFTI_OUTPUT_DISTANCE, (MKL_LONG) nslow);
   DftiCommitDescriptor(fft_slow->handle);
@@ -1716,29 +1723,24 @@ void FFT3d<U>::perform_ffts(U *data, int flag, FFT1d *plan)
 {
   int  thread_id = 1;
   char func_name[80], func_message[80];
-  double t;
-  t = MPI_Wtime();
 
-  if(sizeof(U)==4) {
-    float _Complex *data_mkl = (float _Complex *) data;
-  }
-  if(sizeof(U)==8) {
-    double _Complex *data_mkl = (double _Complex *) data;
-  }
+  using mkl_complex_type = typename mkl_traits<U>::mkl_complex_data;
+  mkl_complex_type *mkl_data = (mkl_complex_type *) data;
 
+  double t = MPI_Wtime();
   if (flag == -1) {
     snprintf(func_name, sizeof(func_name), "COMPUTE_FWD");
     snprintf(func_message, sizeof(func_message), "MKLDFTI_FWD%d",0);
     trace_cpu_start( thread_id, func_name, func_message );
-    DftiComputeForward(plan->handle,data_mkl);
+    DftiComputeForward(plan->handle, mkl_data);
     trace_cpu_end( thread_id);
     }
   else {
-  snprintf(func_name, sizeof(func_name), "COMPUTE_BWD");
-  snprintf(func_message, sizeof(func_message), "MKLDFTI_BWD%d",0);
-  trace_cpu_start( thread_id, func_name, func_message );
-  DftiComputeBackward(plan->handle,data_mkl);
-  trace_cpu_end( thread_id);
+    snprintf(func_name, sizeof(func_name), "COMPUTE_BWD");
+    snprintf(func_message, sizeof(func_message), "MKLDFTI_BWD%d",0);
+    trace_cpu_start( thread_id, func_name, func_message );
+    DftiComputeBackward(plan->handle, mkl_data);
+    trace_cpu_end( thread_id);
   }
   #if defined(HEFFTE_TIME_DETAILED)
     timing_array[1] += MPI_Wtime() - t;
@@ -1755,9 +1757,83 @@ void FFT3d<U>::scale_ffts(T &fft_norm, T *data)
   snprintf(func_message, sizeof(func_message), "scale_fft_MKL");
   trace_cpu_start( thread_id, func_name, func_message );
   fft_norm = norm;
-  for (int i = 0; i < normnum; i++) data[i] *= fft_norm;
+  T *data_ptr = (T *) data;
+  double t = MPI_Wtime();
+  for (int i = 0; i < normnum; i++) {
+    *(data_ptr++) *= fft_norm;
+    *(data_ptr++) *= fft_norm;
+  }
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[4] += MPI_Wtime() - t;
+  #endif
   trace_cpu_end( thread_id);
 }
+
+
+
+// -------------------
+// Real to complex MKL
+// -------------------
+// Plan definition
+
+template <class U>
+void FFT3d<U>::setup_ffts_r2c()
+{
+  fft1d = "MKL";
+
+  if(sizeof(U)==4) DftiCreateDescriptor(&fft_fast->handle, DFTI_SINGLE, DFTI_REAL, 1, (MKL_LONG) nfast);
+  if(sizeof(U)==8) DftiCreateDescriptor(&fft_fast->handle, DFTI_DOUBLE, DFTI_REAL, 1, (MKL_LONG) nfast);
+
+  DftiSetValue(fft_fast->handle, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) fft_fast->total/nfast);
+  DftiSetValue(fft_fast->handle, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
+  DftiSetValue(fft_fast->handle, DFTI_INPUT_DISTANCE, (MKL_LONG) nfast);
+  DftiSetValue(fft_fast->handle, DFTI_OUTPUT_DISTANCE, (MKL_LONG) nfast);
+  DftiCommitDescriptor(fft_fast->handle);
+
+  if(sizeof(U)==4) DftiCreateDescriptor(&fft_mid->handle, DFTI_SINGLE, DFTI_REAL, 1, (MKL_LONG) nmid);
+  if(sizeof(U)==8) DftiCreateDescriptor(&fft_mid->handle, DFTI_DOUBLE, DFTI_REAL, 1, (MKL_LONG) nmid);
+
+  DftiSetValue(fft_mid->handle, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) fft_mid->total/nmid);
+  DftiSetValue(fft_mid->handle, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
+  DftiSetValue(fft_mid->handle, DFTI_INPUT_DISTANCE, (MKL_LONG) nmid);
+  DftiSetValue(fft_mid->handle, DFTI_OUTPUT_DISTANCE, (MKL_LONG) nmid);
+  DftiCommitDescriptor(fft_mid->handle);
+
+  if(sizeof(U)==4) DftiCreateDescriptor(&fft_slow->handle, DFTI_SINGLE, DFTI_REAL, 1, (MKL_LONG) nslow);
+  if(sizeof(U)==8) DftiCreateDescriptor(&fft_slow->handle, DFTI_DOUBLE, DFTI_REAL, 1, (MKL_LONG) nslow);
+
+  DftiSetValue(fft_slow->handle, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) fft_slow->total/nslow);
+  DftiSetValue(fft_slow->handle, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
+  DftiSetValue(fft_slow->handle, DFTI_INPUT_DISTANCE, (MKL_LONG) nslow);
+  DftiSetValue(fft_slow->handle, DFTI_OUTPUT_DISTANCE, (MKL_LONG) nslow);
+  DftiCommitDescriptor(fft_slow->handle);
+}
+
+
+
+
+template <class U>
+void FFT3d<U>::perform_ffts_r2c(U *data, U *data_out, FFT1d *plan)
+{
+  int  thread_id = 1;
+  char func_name[80], func_message[80];
+
+  using mkl_complex_type = typename mkl_traits<U>::mkl_complex_data;
+  mkl_complex_type *mkl_data = (mkl_complex_type *) data_out;
+
+  double t = MPI_Wtime();
+  snprintf(func_name, sizeof(func_name), "COMPUTE_R2C");
+  snprintf(func_message, sizeof(func_message), "MKLDFTI_FWD%d",0);
+  trace_cpu_start( thread_id, func_name, func_message );
+  DftiComputeForward(plan->handle, data, mkl_data);
+  trace_cpu_end( thread_id);
+  #if defined(HEFFTE_TIME_DETAILED)
+    timing_array[1] += MPI_Wtime() - t;
+  #endif
+}
+
+
+
 
 
 template <class U>
@@ -1767,6 +1843,17 @@ void FFT3d<U>::deallocate_ffts()
   DftiFreeDescriptor(&fft_mid->handle);
   DftiFreeDescriptor(&fft_slow->handle);
 }
+
+
+template <class U>
+void FFT3d<U>::deallocate_ffts_r2c()
+{
+  DftiFreeDescriptor(&fft_fast->handle);
+  DftiFreeDescriptor(&fft_mid->handle);
+  DftiFreeDescriptor(&fft_slow->handle);
+}
+
+
 
 
 // -------------------------------------------------------------------
@@ -2775,6 +2862,9 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
 
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_fft3d(backend::fftw);
+#endif
+#ifdef Heffte_ENABLE_MKL
+heffte_instantiate_fft3d(backend::mkl);
 #endif
 #ifdef Heffte_ENABLE_CUDA
 heffte_instantiate_fft3d(backend::cufft);

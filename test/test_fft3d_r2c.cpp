@@ -161,6 +161,11 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_r2c_arrays<backend::fftw, float, 9, 9, 9>(comm);
             test_fft3d_r2c_arrays<backend::fftw, double, 9, 9, 9>(comm);
             #endif
+            #ifdef Heffte_ENABLE_MKL
+            test_fft3d_r2c_const_dest2<backend::mkl>(comm);
+            test_fft3d_r2c_arrays<backend::mkl, float, 9, 9, 9>(comm);
+            test_fft3d_r2c_arrays<backend::mkl, double, 9, 9, 9>(comm);
+            #endif
             #ifdef Heffte_ENABLE_CUDA
             test_fft3d_r2c_const_dest2<backend::cufft>(comm);
             test_fft3d_r2c_arrays<backend::cufft, float, 9, 9, 9>(comm);
@@ -172,6 +177,10 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_r2c_vectors<backend::fftw, float, 11, 11, 20>(comm);
             test_fft3d_r2c_vectors<backend::fftw, double, 10, 10, 11>(comm);
             #endif
+            #ifdef Heffte_ENABLE_MKL
+            test_fft3d_r2c_vectors<backend::mkl, float, 11, 11, 20>(comm);
+            test_fft3d_r2c_vectors<backend::mkl, double, 10, 10, 11>(comm);
+            #endif
             #ifdef Heffte_ENABLE_CUDA
             test_fft3d_r2c_vectors<backend::cufft, float, 11, 11, 20>(comm);
             test_fft3d_r2c_vectors<backend::cufft, double, 10, 10, 11>(comm);
@@ -182,6 +191,10 @@ void perform_tests(MPI_Comm const comm){
             test_fft3d_r2c_vectors<backend::fftw, float, 12, 12, 10>(comm);
             test_fft3d_r2c_vectors<backend::fftw, double, 15, 15, 18>(comm);
             #endif
+            #ifdef Heffte_ENABLE_MKL
+            test_fft3d_r2c_vectors<backend::mkl, float, 12, 12, 10>(comm);
+            test_fft3d_r2c_vectors<backend::mkl, double, 15, 15, 18>(comm);
+            #endif
             #ifdef Heffte_ENABLE_CUDA
             test_fft3d_r2c_vectors<backend::cufft, float, 12, 12, 10>(comm);
             test_fft3d_r2c_vectors<backend::cufft, double, 15, 15, 18>(comm);
@@ -191,6 +204,10 @@ void perform_tests(MPI_Comm const comm){
             #ifdef Heffte_ENABLE_FFTW
             test_fft3d_r2c_arrays<backend::fftw, float, 21, 20, 20>(comm);
             test_fft3d_r2c_arrays<backend::fftw, double, 20, 20, 19>(comm);
+            #endif
+            #ifdef Heffte_ENABLE_MKL
+            test_fft3d_r2c_arrays<backend::mkl, float, 21, 20, 20>(comm);
+            test_fft3d_r2c_arrays<backend::mkl, double, 20, 20, 19>(comm);
             #endif
             #ifdef Heffte_ENABLE_CUDA
             test_fft3d_r2c_arrays<backend::cufft, float, 21, 20, 20>(comm);
