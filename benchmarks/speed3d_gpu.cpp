@@ -6,12 +6,10 @@
 */
 
 #include "test_fft3d.h"
-#include <iostream>
-#include "mpi.h"
 
 using namespace heffte;
 
-template <typename backend_tag> 
+template <typename backend_tag>
 void benchmark_gpu_tester(std::array<int,3>& N){
 
     double t = 0.0, t_max = 0.0; // timing parameters
@@ -23,8 +21,8 @@ void benchmark_gpu_tester(std::array<int,3>& N){
     // std::array<int, 3> N = {64,64,64};
 
     // Get grid of processors at input and output
-    std::array<int,3> proc_i = {0,0,0}; 
-    std::array<int,3> proc_o = {0,0,0}; 
+    std::array<int,3> proc_i = {0,0,0};
+    std::array<int,3> proc_o = {0,0,0};
     heffte_proc_setup(N.data(), proc_i.data(), nprocs);
     heffte_proc_setup(N.data(), proc_o.data(), nprocs);
 
@@ -35,16 +33,16 @@ void benchmark_gpu_tester(std::array<int,3>& N){
 
     // Define 3D FFT plan
     heffte::fft3d<backend_tag> fft(inboxes[me], outboxes[me], fft_comm);
-    
+
     // Locally initialize input
     auto input = make_data<std::complex<float>>(inboxes[me]);
 
     // Define output arrays on host
-    std::vector<std::complex<float>> output(fft.size_outbox()); 
+    std::vector<std::complex<float>> output(fft.size_outbox());
     std::vector<std::complex<float>> inverse(fft.size_inbox());
-   
+
     // copying arrays to GPU
-    auto input_gpu   = cuda::load(input); 
+    auto input_gpu   = cuda::load(input);
     auto output_gpu  = cuda::load(output);
     auto inverse_gpu = cuda::load(inverse);
 
@@ -54,8 +52,8 @@ void benchmark_gpu_tester(std::array<int,3>& N){
     fft.forward(input_gpu.data(), output_gpu.data(),  scale::full);
     fft.backward(output_gpu.data(), inverse_gpu.data());
 
-    // Execution    
-    int ntest = 1; 
+    // Execution
+    int ntest = 1;
     t -= MPI_Wtime();
     for(int i = 0; i < ntest; ++i) {
         fft.forward(input_gpu.data(), output_gpu.data(),  scale::full);
@@ -64,15 +62,15 @@ void benchmark_gpu_tester(std::array<int,3>& N){
     t += MPI_Wtime();
 
     // Get execution time
-	MPI_Reduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, 0, fft_comm);    
+	MPI_Reduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, 0, fft_comm);
 
     // Copy back to the host
     inverse = cuda::unload(inverse_gpu);
     // mpi::dump(0, inverse, "After backward FFT");
 
     // Validate result
-    tassert(approx(input, inverse)); 
-    
+    tassert(approx(input, inverse));
+
     // Print results
     if(me==0){
         t_max = t_max / (2.0 * ntest);
