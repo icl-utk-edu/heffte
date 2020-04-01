@@ -121,6 +121,9 @@ add_subdirectory(test)
 ###########################
 # Post Install Test
 ###########################
+# The REGEX helps accept both list and regular set of flags.
+string(REGEX REPLACE ";" " " Heffte_mpi_preflags  "${MPIEXEC_PREFLAGS}")
+string(REGEX REPLACE ";" " " Heffte_mpi_postflags "${MPIEXEC_POSTFLAGS}")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/test/post_install_test.cmake.sh" "${CMAKE_CURRENT_BINARY_DIR}/post_install_test.sh" @ONLY)
 add_custom_target(test_install COMMAND bash "${CMAKE_CURRENT_BINARY_DIR}/post_install_test.sh")
 

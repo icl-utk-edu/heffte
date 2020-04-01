@@ -17,7 +17,7 @@ echo ""
 if [ -f heffte_example_fftw ]; then
     exist_any=1
     echo "running with 2 mpi ranks  ./heffte_example_fftw"
-    @MPIEXEC_EXECUTABLE@ @MPIEXEC_NUMPROC_FLAG@ 2 @MPIEXEC_PREFLAGS@ ./heffte_example_fftw @MPIEXEC_POSTFLAGS@
+    @MPIEXEC_EXECUTABLE@ @MPIEXEC_NUMPROC_FLAG@ 2 @Heffte_mpi_preflags@ ./heffte_example_fftw @Heffte_mpi_postflags@
 fi
 
 echo ""
