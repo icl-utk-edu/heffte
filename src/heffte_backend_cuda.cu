@@ -18,6 +18,10 @@ void check_error(cudaError_t status, std::string const &function_name){
         throw std::runtime_error(function_name + " failed with message: " + cudaGetErrorString(status));
 }
 
+void synchronize_default_stream(){
+    check_error(cudaStreamSynchronize(nullptr), "device synch"); // synch the default stream
+}
+
 template<typename scalar_type>
 vector<scalar_type>::vector(scalar_type const *begin, scalar_type const *end) : num(std::distance(begin, end)), gpu_data(alloc(num)){
     check_error(cudaMemcpy(gpu_data, begin, num * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "cuda::vector(begin, end)");
