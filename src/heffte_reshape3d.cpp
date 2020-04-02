@@ -1015,32 +1015,15 @@ void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const sour
         }
     }
 
-    scalar_type *outgoing = send_buffer;
-    scalar_type *incomming = recv_buffer;
-
     #ifdef Heffte_ENABLE_CUDA
-    std::vector<scalar_type> cpu_send_buffer;
-    std::vector<scalar_type> cpu_recv_buffer;
-    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
-        // the data is on the GPU, pull back to the CPU
-        cpu_send_buffer = cuda::unload(send_buffer, input_size);
-        cpu_recv_buffer = std::vector<scalar_type>(recv_total);
-
-        outgoing = cpu_send_buffer.data();
-        incomming = cpu_recv_buffer.data();
-    }
+    // the device_synchronize() is needed to flush the kernels of the asynchronous packing
+    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value)
+        cuda::synchronize_default_stream();
     #endif
 
-    MPI_Alltoallv(outgoing,  send.counts.data(), send.displacements.data(), mpi::type_from<scalar_type>(),
-                  incomming, recv.counts.data(), recv.displacements.data(), mpi::type_from<scalar_type>(),
+    MPI_Alltoallv(send_buffer, send.counts.data(), send.displacements.data(), mpi::type_from<scalar_type>(),
+                  recv_buffer, recv.counts.data(), recv.displacements.data(), mpi::type_from<scalar_type>(),
                   comm);
-
-    #ifdef Heffte_ENABLE_CUDA
-    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
-        // the data is on the GPU, pull back to the CPU
-        cuda::load(cpu_recv_buffer, recv_buffer);
-    }
-    #endif
 
     offset = 0;
     for(auto irecv : recv.map){

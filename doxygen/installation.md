@@ -86,7 +86,11 @@ Selecting the backends is done with:
     make backends=fftw,cufft
 ```
 The `backends` should be separated by commas and must have correctly selected
-compilers, includes, and libraries. See the comments in the Makefile.
+compilers, includes, and libraries. Additional options are available, see
+```
+    make help
+```
+and see also the comments inside the Makefile.
 
 Testing is invoked with:
 ```

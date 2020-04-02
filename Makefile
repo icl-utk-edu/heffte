@@ -1,36 +1,44 @@
 #
-# Edit the following lines:
-# - edit the general compiler section
-# - pick a backend library
-# - edit the includes and libraries for the backend
-# - use make backend=<chosen-backend>
+# Edit the general compiler options and the backends sections
+# but only if the corresponding variables cannot be set
+# in the environment or if the backend will actually be used,
+# e.g., no need to set CUDA and NVCC variables if cufft is not used
 #
 
 ############################################################
 # General compiler options
 ############################################################
-backends = fftw
+backends ?= fftw
 
-MPICXX = mpicxx
-MPICXX_FLAGS = -O3 -fPIC -I./include/
-MPIRUN = mpirun
+MPI_ROOT ?= /usr
+MPICXX ?= $(MPI_ROOT)/bin/mpicxx
+MPICXX_FLAGS ?= -O3 -fPIC -I./include/
+MPIRUN ?= $(MPI_ROOT)/bin/mpirun
+MPIRUN_NUMPROC_FLAG ?= -np
+MPIRUN_PREFLAGS ?= --host localhost:12
 
 # Used only by cuda backends
-NVCC = nvcc
-NVCC_FLAGS = -I./include/ -I/usr/include/openmpi/ -Xcompiler -fPIC
+CUDA_ROOT ?= /usr/local/cuda
+NVCC ?= $(CUDA_ROOT)/bin/nvcc
+NVCC_FLAGS ?= -I./include/ -I$(MPI_ROOT)/include/ -Xcompiler -fPIC
 
 # library, change to ./lib/libheffte.a to build the static libs
 libheffte = ./lib/libheffte.so
 
 
 ############################################################
-# Backends, only needs the one needed
+# Backends, only needs the ones selected for build
 ############################################################
-FFTW_INCLUDES = -I/usr/include/
-FFTW_LIBRARIES = -L/usr/lib/x86_64-linux-gnu/ -lfftw3 -lfftw3f -lfftw3_threads -lfftw3f_threads -pthread
+FFTW_ROOT ?= /usr
+FFTW_INCLUDES = -I$(FFTW_ROOT)/include/
+FFTW_LIBRARIES = -L$(FFTW_ROOT)/lib/ -lfftw3 -lfftw3f -lfftw3_threads -lfftw3f_threads -pthread
 
-CUFFT_INCLUDES = -I/usr/local/cuda/include/
-CUFFT_LIBRARIES = -L/usr/local/cuda/lib64/ -lcufft -lcudart
+CUFFT_INCLUDES = -I$(CUDA_ROOT)/include/
+CUFFT_LIBRARIES = -L$(CUDA_ROOT)/lib64/ -lcufft -lcudart
+
+MKL_ROOT ?= /opt/mkl
+MKL_INCLUDES = -I$(MKL_ROOT)/include/
+MKL_LIBRARIES = -L$(MKL_ROOT)/lib/ -lmkl_cdft_core -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -lm -ldl -lgfortran -liomp5
 
 
 ############################################################
@@ -67,6 +75,13 @@ ifneq (,$(filter cufft,$(spaced_backends)))
 	CUDA_KERNELS += kernels.obj
 endif
 
+MKL = no_mkl
+ifneq (,$(filter mkl,$(spaced_backends)))
+	MKL = with_mkl
+	INCS += $(MKL_INCLUDES)
+	LIBS += $(MKL_LIBRARIES)
+endif
+
 FFTW = no_fftw
 ifneq (,$(filter fftw,$(spaced_backends)))
 	FFTW = with_fftw
@@ -80,6 +95,34 @@ endif
 ############################################################
 .PHONY.: all
 all: $(libheffte) test_reshape3d test_units_nompi test_fft3d test_fft3d_r2c
+
+.PHONY.: help
+help:
+	@echo ""
+	@echo "HeFFTe GNU Make Build system, examples:"
+	@echo ""
+	@echo "    make backends=fftw   FFTW_ROOT=/opt/fftw-3.3.8"
+	@echo "    make backends=cufft  CUDA_ROOT=/usr/local/cuda MPI_ROOT=/opt/openmpi-cuda/"
+	@echo "    make backends=fftw,cufft  MKL_ROOT=/opt/mkl  libheffte=./lib/libheffte.a"
+	@echo "    make ctest"
+	@echo "    make clean"
+	@echo ""
+	@echo "Options set in the environment, the command line, or by editing the Makefile"
+	@echo "  backends : comma separated list of backends to include in the library"
+	@echo "             fftw,cufft,mkl"
+	@echo " libheffte : specifies whether to build shared of static library"
+	@echo "             use ./lib/libheffte.so (default) or ./lib/libheffte.a"
+	@echo "  MPI_ROOT : path to the MPI installation, default /usr"
+	@echo " CUDA_ROOT : path to the CUDA installation, default /usr/local/cuda"
+	@echo " FFTW_ROOT : path to the FFTW3 installation, default /usr"
+	@echo "  MKL_ROOT : path to the MKL installation, default /opt/mkl"
+	@echo ""
+	@echo "Note: the build system assumes that the usual install conventions are followed,"
+	@echo "      e.g., using <root>/bin and <root>/include and <root>/lib"
+	@echo "      But, if those fail or if additional compiler options and flags are needed,"
+	@echo "      those can be adjusted by editing the top two sections of the Makefile."
+	@echo "      Alternatively, use the more robust CMake script."
+	@echo ""
 
 ./include/heffte_config.h:
 	cp ./include/heffte_config.cmake.h ./include/heffte_config.h
@@ -96,10 +139,17 @@ no_fftw: ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_FFTW|#undef Heffte_ENABLE_FFTW|g' ./include/heffte_config.h
 
 # set heffte_config.h with and without cufft
-with_cuda: ./include/heffte_config.h $(FFTW)
+with_mkl: ./include/heffte_config.h $(FFTW)
+	sed -i -e 's|#cmakedefine Heffte_ENABLE_MKL|#define Heffte_ENABLE_MKL|g' ./include/heffte_config.h
+
+no_mkl: ./include/heffte_config.h $(FFTW)
+	sed -i -e 's|#cmakedefine Heffte_ENABLE_MKL|#undef Heffte_ENABLE_MKL|g' ./include/heffte_config.h
+
+# set heffte_config.h with and without cufft
+with_cuda: ./include/heffte_config.h $(MKL)
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_CUDA|#define Heffte_ENABLE_CUDA|g' ./include/heffte_config.h
 
-no_cuda: ./include/heffte_config.h $(FFTW)
+no_cuda: ./include/heffte_config.h $(MKL)
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_CUDA|#undef Heffte_ENABLE_CUDA|g' ./include/heffte_config.h
 
 # cuda object files
@@ -139,18 +189,18 @@ test_fft3d_r2c: $(libheffte)
 # execute the tests
 .PHONY.: ctest
 ctest:
-	$(MPIRUN) -np  4 test_reshape3d
-	$(MPIRUN) -np  7 test_reshape3d
-	$(MPIRUN) -np 12 test_reshape3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  4 $(MPIRUN_PREFLAGS) test_reshape3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  7 $(MPIRUN_PREFLAGS) test_reshape3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) test_reshape3d
 	./test_units_nompi
-	$(MPIRUN) -np  2 test_fft3d
-	$(MPIRUN) -np  6 test_fft3d
-	$(MPIRUN) -np  8 test_fft3d
-	$(MPIRUN) -np 12 test_fft3d
-	$(MPIRUN) -np  2 test_fft3d_r2c
-	$(MPIRUN) -np  6 test_fft3d_r2c
-	$(MPIRUN) -np  8 test_fft3d_r2c
-	$(MPIRUN) -np 12 test_fft3d_r2c
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  2 $(MPIRUN_PREFLAGS) test_fft3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  6 $(MPIRUN_PREFLAGS) test_fft3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  8 $(MPIRUN_PREFLAGS) test_fft3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) test_fft3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  2 $(MPIRUN_PREFLAGS) test_fft3d_r2c
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  6 $(MPIRUN_PREFLAGS) test_fft3d_r2c
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  8 $(MPIRUN_PREFLAGS) test_fft3d_r2c
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) test_fft3d_r2c
 
 
 ############################################################
