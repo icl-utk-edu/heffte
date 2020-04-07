@@ -18,16 +18,13 @@ void benchmark_cpu_tester(std::array<int,3>& N){
     MPI_Comm_rank(fft_comm, &me);
     MPI_Comm_size(fft_comm, &nprocs);
 
-    // std::array<int, 3> N = {64,64,64};
-
-    // Get grid of processors at input and output
-    std::array<int,3> proc_i = {0,0,0};
-    std::array<int,3> proc_o = {0,0,0};
-    heffte_proc_setup(N.data(), proc_i.data(), nprocs);
-    heffte_proc_setup(N.data(), proc_o.data(), nprocs);
-
     // Create input and output boxes on local processor
     box3d const world = {{0, 0, 0}, {N[0]-1, N[1]-1, N[2]-1}};
+
+    // Get grid of processors at input and output
+    std::array<int,3> proc_i = heffte::proc_setup_min_surface(world, nprocs);
+    std::array<int,3> proc_o = heffte::proc_setup_min_surface(world, nprocs);
+
     std::vector<box3d> inboxes  = heffte::split_world(world, proc_i);
     std::vector<box3d> outboxes = heffte::split_world(world, proc_o);
 
