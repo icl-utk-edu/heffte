@@ -9,6 +9,7 @@
 
 #include "heffte_utils.h"
 #include <array>
+#include <valarray>
 
 namespace heffte {
 
@@ -285,6 +286,56 @@ inline std::vector<box3d> make_pencils(box3d const world, std::array<int, 2> con
     }
 
     return result;
+}
+
+/*!
+ * \brief Creates a grid of mpi-ranks that will minimize the area of each of the boxes.
+ *
+ * Given the world box of indexes, generate the dimensions of a 3d grid of mpi-ranks,
+ * where the grid is chosen to minimize the total surface area of each of the boxes.
+ *
+ * \param world is the box of all indexes starting from 0.
+ * \param num_procs is the total number of mpi-ranks to use for the process grid.
+ *
+ * \returns the dimensions of the 3d grid that will minimize the size of each box.
+ */
+inline std::array<int, 3> proc_setup_min_surface(box3d const world, int num_procs){
+    assert(world.count() > 0); // make sure the world is not empty
+
+    // using valarrays that work much like vectors, but can perform basic
+    // point-wise operations such as addition, multiply, and division
+    std::valarray<int> all_indexes = {world.size[0], world.size[1], world.size[2]};
+    // set initial guess, probably the worst grid but a valid one
+    std::valarray<int> best_grid = {1, 1, num_procs};
+
+    // internal helper method to compute the surface
+    auto surface = [&](std::valarray<int> const &proc_grid)->
+        int{
+            auto box_size = all_indexes / proc_grid;
+            return ( box_size * box_size.cshift(1) ).sum();
+        };
+
+    int best_surface = surface({1, 1, num_procs});
+
+    for(int i=1; i<=num_procs; i++){
+        if (num_procs % i == 0){
+            int const remainder = num_procs / i;
+            for(int j=1; j<=remainder; j++){
+                if (remainder % j == 0){
+                    std::valarray<int> candidate_grid = {i, j, remainder / j};
+                    int const candidate_surface = surface(candidate_grid);
+                    if (candidate_surface < best_surface){
+                        best_surface = candidate_surface;
+                        best_grid    = candidate_grid;
+                    }
+                }
+            }
+        }
+    }
+
+    assert(best_grid[0] * best_grid[1] * best_grid[2] == num_procs);
+
+    return {best_grid[0], best_grid[1], best_grid[2]};
 }
 
 namespace mpi {

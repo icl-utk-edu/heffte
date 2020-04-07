@@ -21,6 +21,7 @@
 #include <string>
 
 #include "heffte_trace.h"
+#include "heffte_common.h"
 
 // define TRACING_MPI to compile these functions, e.g.,
 // gcc -DTRACING -c trace.cpp

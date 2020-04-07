@@ -20,6 +20,8 @@
 #include <ostream>
 #include <iomanip>
 #include <string>
+#include <deque>
+#include <fstream>
 #include <stdio.h>
 #include <mpi.h>
 

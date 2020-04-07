@@ -129,6 +129,7 @@ help:
 	sed -i -e 's|@Heffte_VERSION_MAJOR@|0|g' ./include/heffte_config.h
 	sed -i -e 's|@Heffte_VERSION_MINOR@|2|g' ./include/heffte_config.h
 	sed -i -e 's|@Heffte_VERSION_PATCH@|1|g' ./include/heffte_config.h
+	sed -i -e 's|#cmakedefine Heffte_ENABLE_TRACING|#undef Heffte_ENABLE_TRACING|g' ./include/heffte_config.h
 
 .PHONY.: with_fftw no_fftw with_cufft no_cufft
 # set heffte_config.h with and without fftw
