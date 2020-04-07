@@ -9,7 +9,7 @@
 
 using namespace heffte;
 
-template <typename backend_tag> 
+template <typename backend_tag>
 void benchmark_cpu_tester(std::array<int,3>& N){
 
     double t = 0.0, t_max = 0.0; // timing parameters
@@ -21,8 +21,8 @@ void benchmark_cpu_tester(std::array<int,3>& N){
     // std::array<int, 3> N = {64,64,64};
 
     // Get grid of processors at input and output
-    std::array<int,3> proc_i = {0,0,0}; 
-    std::array<int,3> proc_o = {0,0,0}; 
+    std::array<int,3> proc_i = {0,0,0};
+    std::array<int,3> proc_o = {0,0,0};
     heffte_proc_setup(N.data(), proc_i.data(), nprocs);
     heffte_proc_setup(N.data(), proc_o.data(), nprocs);
 
@@ -33,23 +33,26 @@ void benchmark_cpu_tester(std::array<int,3>& N){
 
     // Define 3D FFT plan
     heffte::fft3d<backend_tag> fft(inboxes[me], outboxes[me], fft_comm);
-    
+
     // Locally initialize input
     auto input = make_data<std::complex<float>>(inboxes[me]);
 
     // Define output arrays
-    std::vector<std::complex<float>> output(fft.size_outbox()); 
-    std::vector<std::complex<float>> inverse(fft.size_inbox()); 
+    std::vector<std::complex<float>> output(fft.size_outbox());
+    std::vector<std::complex<float>> inverse(fft.size_inbox());
 
     // Warmup
+    heffte::add_trace("mark warmup begin");
     fft.forward(input.data(), output.data(),  scale::full);
     fft.backward(output.data(), inverse.data());
 
-    // Execution    
-    int ntest = 1; 
+    // Execution
+    int ntest = 1;
     t -= MPI_Wtime();
     for(int i = 0; i < ntest; ++i) {
+        heffte::add_trace("mark forward begin");
         fft.forward(input.data(), output.data(),  scale::full);
+        heffte::add_trace("mark backward begin");
         fft.backward(output.data(), inverse.data());
     }
     t += MPI_Wtime();
@@ -58,8 +61,8 @@ void benchmark_cpu_tester(std::array<int,3>& N){
 	MPI_Reduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, 0, fft_comm);
 
     // Validate result
-    tassert(approx(input, inverse)); 
-    
+    tassert(approx(input, inverse));
+
     // Print results
     if(me==0){
         t_max = t_max / (2.0 * ntest);
@@ -85,12 +88,17 @@ int main(int argc, char *argv[]){
         cout << "       where nx, ny, nz are the 3D array dimensions \n";
         return 0;
     }
-    
+
     MPI_Init(&argc, &argv);
+
+    heffte::init_tracing("speed3d_cpu");
+
     std::array<int,3> size_fft = { atoi(argv[1]), atoi(argv[2]), atoi(argv[3])}; // FFT size from user
 
     benchmark_cpu_tester<backend::fftw>( size_fft );
     //benchmark_cpu_tester<backend::mkl> ( size_fft );
+
+    heffte::finalize_tracing();
 
     MPI_Finalize();
     return 0;

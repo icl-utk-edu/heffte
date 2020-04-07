@@ -115,6 +115,7 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cmake" "${CMAKE_C
 ######################
 # EXAMPLES and TESTS #
 ######################
+add_subdirectory(benchmarks)
 add_subdirectory(examples)
 enable_testing()
 add_subdirectory(test)
