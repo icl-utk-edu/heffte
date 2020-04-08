@@ -94,7 +94,7 @@ endif
 # build rules
 ############################################################
 .PHONY.: all
-all: $(libheffte) test_reshape3d test_units_nompi test_fft3d test_fft3d_r2c
+all: $(libheffte) test_reshape3d test_units_nompi test_fft3d test_fft3d_r2c speed3d_c2c speed3d_r2c
 
 .PHONY.: help
 help:
@@ -186,6 +186,11 @@ test_fft3d: $(libheffte)
 test_fft3d_r2c: $(libheffte)
 	$(MPICXX) $(MPICXX_FLAGS) $(INCS) -I./test/ -L./lib/ ./test/test_fft3d_r2c.cpp -o test_fft3d_r2c $(libheffte) $(LIBS)
 
+speed3d_c2c: $(libheffte)
+	$(MPICXX) $(MPICXX_FLAGS) $(INCS) -I./test/ -I./benchmarks/ -L./lib/ ./benchmarks/speed3d_c2c.cpp -o speed3d_c2c $(libheffte) $(LIBS)
+
+speed3d_r2c: $(libheffte)
+	$(MPICXX) $(MPICXX_FLAGS) $(INCS) -I./test/ -I./benchmarks/ -L./lib/ ./benchmarks/speed3d_r2c.cpp -o speed3d_r2c $(libheffte) $(LIBS)
 
 # execute the tests
 .PHONY.: ctest
@@ -217,3 +222,5 @@ clean:
 	rm -fr test_units_nompi
 	rm -fr test_fft3d_r2c
 	rm -fr test_fft3d
+	rm -fr speed3d_c2c
+	rm -fr speed3d_r2c
