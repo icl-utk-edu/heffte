@@ -38,6 +38,11 @@ heffte_add_mpi_test(NAME heffte_fft3d_r2c_np6   COMMAND test_fft3d_r2c RANKS 6)
 heffte_add_mpi_test(NAME heffte_fft3d_r2c_np8   COMMAND test_fft3d_r2c RANKS 8)
 heffte_add_mpi_test(NAME heffte_fft3d_r2c_np12  COMMAND test_fft3d_r2c RANKS 12)
 
+if (Heffte_ENABLE_TRACING)
+    add_executable(test_trace  test_trace.cpp)
+    target_link_libraries(test_trace  Heffte)
+    heffte_add_mpi_test(NAME test_tracing   COMMAND test_trace RANKS 2)
+endif()
 
 ################################################################
 # OLD CODE for the OLD API

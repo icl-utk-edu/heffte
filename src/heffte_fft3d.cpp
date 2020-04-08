@@ -789,7 +789,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_fast");
       snprintf(func_message, sizeof(func_message), "compute_fast");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_fast);
+      }
       trace_cpu_end( thread_id);
       if (reshape_fastmid) {
         snprintf(func_name, sizeof(func_name), "reshape_fastmid");
@@ -801,7 +803,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_mid");
       snprintf(func_message, sizeof(func_message), "compute_mid");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_mid);
+      }
       trace_cpu_end( thread_id);
       if (reshape_midslow) {
         snprintf(func_name, sizeof(func_name), "reshape_midslow");
@@ -813,7 +817,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_slow");
       snprintf(func_message, sizeof(func_message), "compute_slow");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_slow);
+      }
       trace_cpu_end( thread_id);
     }
 
@@ -829,6 +835,7 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "scale_fft");
       snprintf(func_message, sizeof(func_message), "scale_fft");
       trace_cpu_start( thread_id, func_name, func_message );
+      heffte::add_trace name("scale");
       scale_ffts(fft_norm, data);
       trace_cpu_end( thread_id);
     }
@@ -869,7 +876,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_slow");
       snprintf(func_message, sizeof(func_message), "compute_slow");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_slow);
+      }
       trace_cpu_end( thread_id);
       if (reshape_slowmid) {
       snprintf(func_name, sizeof(func_name), "reshape_slowmid");
@@ -881,7 +890,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_mid");
       snprintf(func_message, sizeof(func_message), "compute_mid");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_mid);
+      }
       trace_cpu_end( thread_id);
       if (reshape_midfast) {
       snprintf(func_name, sizeof(func_name), "reshape_midfast");
@@ -893,7 +904,9 @@ void FFT3d<U>::compute(T *in, T *out, int flag)
       snprintf(func_name, sizeof(func_name), "compute_fast");
       snprintf(func_message, sizeof(func_message), "compute_fast");
       trace_cpu_start( thread_id, func_name, func_message );
+      { heffte::add_trace name("fft1d");
       perform_ffts(data,flag,fft_fast);
+      }
       trace_cpu_end( thread_id);
     }
 
@@ -974,7 +987,9 @@ void FFT3d<U>::compute_r2c(T *in, T *out)
     snprintf(func_name, sizeof(func_name), "compute_r2c_fast");
     snprintf(func_message, sizeof(func_message), "compute_r2c_fast");
     trace_cpu_start( thread_id, func_name, func_message );
+    { heffte::add_trace name("fft1d");
     perform_ffts_r2c(data, data,fft_fast);
+    }
     trace_cpu_end( thread_id);
 
     if (reshape_fastmid) {
@@ -988,7 +1003,9 @@ void FFT3d<U>::compute_r2c(T *in, T *out)
     snprintf(func_name, sizeof(func_name), "compute_mid");
     snprintf(func_message, sizeof(func_message), "compute_mid");
     trace_cpu_start( thread_id, func_name, func_message );
+    { heffte::add_trace name("fft1d");
     perform_ffts(data,flag,fft_mid);
+    }
     trace_cpu_end( thread_id);
 
     if (reshape_midslow) {
@@ -1002,7 +1019,9 @@ void FFT3d<U>::compute_r2c(T *in, T *out)
     snprintf(func_name, sizeof(func_name), "compute_slow");
     snprintf(func_message, sizeof(func_message), "compute_slow");
     trace_cpu_start( thread_id, func_name, func_message );
+    { heffte::add_trace name("fft1d");
     perform_ffts(data,flag,fft_slow);
+    }
     trace_cpu_end( thread_id);
 
     if (reshape_postslow) {
@@ -1070,6 +1089,7 @@ void FFT3d<U>::only_1d_ffts(T *in, int flag)
 {
   if (!setupflag) error->all("Cannot compute 1d FFTs before setup");
 
+  heffte::add_trace name("fft1d x3");
   perform_ffts(in,flag,fft_fast);
   perform_ffts(in,flag,fft_mid);
   perform_ffts(in,flag,fft_slow);
@@ -2724,6 +2744,7 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
      */
     auto apply_fft = [&](int i, std::complex<scalar_type> data[])
         ->void{
+            add_trace name("fft-1d");
             if (dir == direction::forward){
                 executor[i]->forward(data);
             }else{
@@ -2766,10 +2787,12 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
     for(int i=last; i<3; i++)
         apply_fft(i, output);
 
-    if (scaling != scale::none)
+    if (scaling != scale::none){
+        add_trace name("scale");
         data_manipulator<location_tag>::scale(
             (dir == direction::forward) ? size_outbox() : size_inbox(),
             output, get_scale_factor(scaling));
+    }
 }
 template<typename backend_tag>
 template<typename scalar_type> // real to complex case
@@ -2794,6 +2817,7 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
     }
 
     if (last < 1){ // no reshapes after 0
+        add_trace name("fft-1d x3");
         executor[0]->forward(effective_input, output);
         executor[1]->forward(output);
         executor[2]->forward(output);
@@ -2803,21 +2827,28 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
     // if there is messier combination of transforms, then we need internal buffers
     size_t buffer_size = get_max_size(executor);
     buffer_container<std::complex<scalar_type>> temp_buffer(buffer_size);
+    { add_trace name("fft-1d x3");
     executor[0]->forward(effective_input, temp_buffer.data());
+    }
     reshaped_input = buffer_container<scalar_type>();
 
     for(int i=1; i<last; i++){
         if (shaper[i])
             shaper[i]->apply(temp_buffer.data(), temp_buffer.data(), workspace);
+        add_trace name("fft-1d");
         executor[i]->forward(temp_buffer.data());
     }
     shaper[last]->apply(temp_buffer.data(), output, workspace);
 
-    for(int i=last; i<3; i++)
+    for(int i=last; i<3; i++){
+        add_trace name("fft-1d x3");
         executor[i]->forward(output);
+    }
 
-    if (scaling != scale::none)
+    if (scaling != scale::none){
+        add_trace name("scale");
         data_manipulator<location_tag>::scale(size_outbox(), output, get_scale_factor(scaling));
+    }
 }
 template<typename backend_tag>
 template<typename scalar_type> // complex to real case
@@ -2839,7 +2870,9 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
     }
 
     for(int i=0; i<2; i++){ // apply the two complex-to-complex ffts
+        { add_trace name("fft-1d x3");
         executor[i]->backward(temp_buffer.data());
+        }
         if (shaper[i+1])
             shaper[i+1]->apply(temp_buffer.data(), temp_buffer.data(), workspace);
     }
@@ -2849,15 +2882,20 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
     if (shaper[3]){
         // there is one more reshape left, transform into a real temporary buffer
         buffer_container<scalar_type> real_buffer(executor[2]->box_size());
+        { add_trace name("fft-1d");
         executor[2]->backward(temp_buffer.data(), real_buffer.data());
+        }
         temp_buffer = buffer_container<std::complex<scalar_type>>(); // clean temp_buffer
         shaper[3]->apply(real_buffer.data(), output, reinterpret_cast<scalar_type*>(workspace));
     }else{
+        add_trace name("fft-1d");
         executor[2]->backward(temp_buffer.data(), output);
     }
 
-    if (scaling != scale::none)
+    if (scaling != scale::none){
+        add_trace name("scale");
         data_manipulator<location_tag>::scale(size_inbox(), output, get_scale_factor(scaling));
+    }
 }
 
 #ifdef Heffte_ENABLE_FFTW

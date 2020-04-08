@@ -759,6 +759,7 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
     trace_cpu_start( thread_id, func_name, func_message );
 
     int offset = 0;
+    { heffte::add_trace name("packing");
     for (int igroup = 0; igroup < ngroup; igroup++) {
       if (sendmap[igroup] >= 0) {
         isend = sendmap[igroup];
@@ -771,6 +772,7 @@ void Reshape3d<U>::reshape(T *in, T *out, T *user_sendbuf, T *user_recvbuf)
 
         offset += send_size[isend];
       }
+    }
     }
     trace_cpu_end( thread_id);
 
@@ -792,6 +794,7 @@ enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
 
       t = MPI_Wtime();
 
+      { heffte::add_trace name("all2allv");
       if(sizeof(T)==4)
       heffte_Alltoallv(sendbuf,sendcnts,senddispls,MPI_FLOAT,
                       recvbuf,recvcnts,recvdispls,MPI_FLOAT,
@@ -800,6 +803,7 @@ enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
       heffte_Alltoallv(sendbuf,sendcnts,senddispls,MPI_DOUBLE,
                       recvbuf,recvcnts,recvdispls,MPI_DOUBLE,
                       newcomm, HEFFTE_A2AV_algo);
+      }
 
       #if defined(HEFFTE_TIME_DETAILED)
         timing_array[5] += MPI_Wtime() - t;
@@ -816,6 +820,7 @@ enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
     snprintf(func_message, sizeof(func_message), "A2A_unpack");
     trace_cpu_start( thread_id, func_name, func_message );
     offset = 0;
+    { heffte::add_trace name("unpacking");
     for (int igroup = 0; igroup < ngroup; igroup++) {
       if (recvmap[igroup] >= 0) {
         irecv = recvmap[igroup];
@@ -828,6 +833,7 @@ enum algo_heffte_a2av_type_t HEFFTE_A2AV_algo = ALL2ALLV;
 
         offset += recv_size[irecv];
       }
+    }
     }
     trace_cpu_end( thread_id);
   }
@@ -885,6 +891,14 @@ int Reshape3d<float>::collide(struct extent_3d *block1, struct extent_3d *block2
 }
 
 namespace heffte {
+
+#ifdef Heffte_ENABLE_TRACING
+
+    std::deque<event> event_log;
+    std::string log_filename;
+
+#endif
+
 
 /*!
  * \brief Counts how many boxes from the list have a non-empty intersection with the reference box.
@@ -1008,11 +1022,14 @@ void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const sour
     packer<typename backend::buffer_traits<backend_tag>::location> packit;
 
     int offset = 0;
+
+    { add_trace name("packing");
     for(auto isend : send.map){
         if (isend >= 0){ // something to send
             packit.pack(packplan[isend], source + send_offset[isend], send_buffer + offset);
             offset += send_size[isend];
         }
+    }
     }
 
     #ifdef Heffte_ENABLE_CUDA
@@ -1021,16 +1038,20 @@ void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const sour
         cuda::synchronize_default_stream();
     #endif
 
+    { add_trace name("all2allv");
     MPI_Alltoallv(send_buffer, send.counts.data(), send.displacements.data(), mpi::type_from<scalar_type>(),
                   recv_buffer, recv.counts.data(), recv.displacements.data(), mpi::type_from<scalar_type>(),
                   comm);
+    }
 
     offset = 0;
+    { add_trace name("unpacking");
     for(auto irecv : recv.map){
         if (irecv >= 0){ // something received
             packit.unpack(unpackplan[irecv], recv_buffer + offset, destination + recv_offset[irecv]);
             offset += recv_size[irecv];
         }
+    }
     }
 }
 

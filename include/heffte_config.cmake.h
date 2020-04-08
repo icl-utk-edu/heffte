@@ -15,5 +15,7 @@
 #cmakedefine Heffte_ENABLE_MKL
 #cmakedefine Heffte_ENABLE_CUDA
 
+#cmakedefine Heffte_ENABLE_TRACING
+
 
 #endif  /* HEFFTE_CONFIG_H */
