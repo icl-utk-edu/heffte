@@ -190,7 +190,7 @@ void perform_tests_cpu(){
             break;
         case 12:
             test_cpu<13, 13, 10, 3, 4, 1, float, default_cpu_backend>(comm);
-            test_cpu<16, 21, 17, 3, 1, 4, double, default_cpu_backend>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, default_cpu_backend>(comm);
             test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, default_cpu_backend>(comm);
             test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, default_cpu_backend>(comm);
             break;
@@ -213,7 +213,7 @@ void perform_tests_cpu(){
             break;
         case 12:
             test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::mkl>(comm);
-            test_cpu<16, 21, 17, 3, 1, 4, double, heffte::backend::mkl>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::mkl>(comm);
             test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::mkl>(comm);
             test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::mkl>(comm);
             break;
@@ -221,7 +221,7 @@ void perform_tests_cpu(){
             // unknown test
             break;
     }
-    #endif    
+    #endif
 }
 
 void perform_tests_gpu(){
@@ -239,7 +239,7 @@ void perform_tests_gpu(){
             break;
         case 12:
             test_gpu<13, 13, 10, 3, 4, 1, float, heffte::backend::cufft>(comm);
-            test_gpu<16, 21, 17, 3, 1, 4, double, heffte::backend::cufft>(comm);
+            test_gpu<16, 21, 17, 2, 3, 2, double, heffte::backend::cufft>(comm);
             test_gpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::cufft>(comm);
             test_gpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::cufft>(comm);
             break;

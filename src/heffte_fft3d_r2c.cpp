@@ -34,10 +34,8 @@ fft3d_r2c<backend_tag>::fft3d_r2c(box3d const cinbox, box3d const coutbox, int r
     scale_factor = 1.0 / static_cast<double>(plan.index_count);
 
     for(int i=0; i<4; i++){
-        if (not match(plan.in_shape[i], plan.out_shape[i])){
-            forward_shaper[i]    = make_reshape3d_alltoallv<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
-            backward_shaper[3-i] = make_reshape3d_alltoallv<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
-        }
+        forward_shaper[i]    = make_reshape3d_alltoallv<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
+        backward_shaper[3-i] = make_reshape3d_alltoallv<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
     }
 
     int const me = mpi::comm_rank(comm);
@@ -108,7 +106,7 @@ void fft3d_r2c<backend_tag>::standard_transform(std::complex<scalar_type> const 
     if (backward_shaper[0]){
         backward_shaper[0]->apply(input, temp_buffer.data(), workspace);
     }else{
-        data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer.data());
+        data_manipulator<location_tag>::copy_n(input, executor[1]->box_size(), temp_buffer.data());
     }
 
     for(int i=0; i<2; i++){ // apply the two complex-to-complex ffts

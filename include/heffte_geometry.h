@@ -274,6 +274,10 @@ inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int d
  * \returns a sorted list of boxes that describes
  */
 inline std::vector<box3d> make_pencils(box3d const world, std::array<int, 2> const proc_grid, int const dimension, std::vector<box3d> const &source){
+    // trivial case, the grid is already in a pencil format
+    if (is_pencils(world, source, dimension))
+        return source;
+
     // create a list of boxes ordered in column major format (following the proc_grid box)
     std::vector<box3d> pencils;
     if (dimension == 0){

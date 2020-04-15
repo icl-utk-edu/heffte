@@ -2702,10 +2702,8 @@ fft3d<backend_tag>::fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm comm
     scale_factor = 1.0 / static_cast<double>(plan.index_count);
 
     for(int i=0; i<4; i++){
-        if (not match(plan.in_shape[i], plan.out_shape[i])){
-            forward_shaper[i]    = make_reshape3d_alltoallv<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
-            backward_shaper[3-i] = make_reshape3d_alltoallv<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
-        }
+        forward_shaper[i]    = make_reshape3d_alltoallv<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
+        backward_shaper[3-i] = make_reshape3d_alltoallv<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
     }
 
     int const me = mpi::comm_rank(comm);
