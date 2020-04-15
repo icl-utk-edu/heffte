@@ -27,6 +27,22 @@ void benchmark_fft(std::array<int,3> size_fft){
 
     // Define 3D FFT plan
     heffte::fft3d<backend_tag> fft(inboxes[me], outboxes[me], fft_comm);
+    std::array<int, 2> proc_grid = make_procgrid(nprocs);
+    // writes out the proc_grid in the given dimension
+    auto print_proc_grid = [&](int i){
+        switch(i){
+            case -1: cout << "(" << proc_i[0] << ", " << proc_i[1] << ", " << proc_i[2] << ")  "; break;
+            case  0: cout << "(" << 1 << ", " << proc_grid[0] << ", " << proc_grid[1] << ")  "; break;
+            case  1: cout << "(" << proc_grid[0] << ", " << 1 << ", " << proc_grid[1] << ")  "; break;
+            case  2: cout << "(" << proc_grid[0] << ", " << proc_grid[1] << ", " << 1 << ")  "; break;
+            case  3: cout << "(" << proc_o[0] << ", " << proc_o[1] << ", " << proc_o[2] << ")  "; break;
+            default:
+                throw std::runtime_error("printing incorrect direction");
+        }
+    };
+
+    // the call above uses the following plan, get it twice to give verbose info of the grid-shapes
+    logic_plan3d plan = plan_operations({inboxes, outboxes}, -1);
 
     // Locally initialize input
     auto input = make_data<BENCH_INPUT>(inboxes[me]);
@@ -78,6 +94,11 @@ void benchmark_fft(std::array<int,3> size_fft){
         cout << "Backend: " << backend::name<backend_tag>() << endl;
         cout << "Size: " << world.size[0] << "x" << world.size[1] << "x" << world.size[2] << endl;
         cout << "Nprc: " << nprocs << endl;
+        cout << "Grids: ";
+        print_proc_grid(-1);
+        for(int i=0; i<4; i++)
+            if (not match(plan.in_shape[i], plan.out_shape[i])) print_proc_grid((i<3) ? plan.fft_direction[i] : i);
+        cout << "\n";
         cout << "Time: " << t_max << " (s)" << endl;
         cout << "Perf: " << floprate << " GFlops/s" << endl;
         cout << "Tolr: " << precision<std::complex<precision_type>>::tolerance << endl;
