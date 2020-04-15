@@ -21,27 +21,18 @@
 namespace heffte {
 
 template<typename backend_tag>
-fft3d_r2c<backend_tag>::fft3d_r2c(box3d const cinbox, box3d const coutbox, int r2c_direction, MPI_Comm const comm) : inbox(cinbox), outbox(coutbox){
-    static_assert(backend::is_enabled<backend_tag>::value, "Requested backend is invalid or has not been enabled.");
-
-    // assemble the entire box layout first
-    // perform all analysis for all reshape operation without further communication
-    // create the reshape objects
-    ioboxes boxes = mpi::gather_boxes(inbox, outbox, comm);
-
-    logic_plan3d plan = plan_operations(boxes, r2c_direction);
-
-    scale_factor = 1.0 / static_cast<double>(plan.index_count);
-
+fft3d_r2c<backend_tag>::fft3d_r2c(logic_plan3d const &plan, int const this_mpi_rank, MPI_Comm const comm) :
+    pinbox(plan.in_shape[0][this_mpi_rank]), poutbox(plan.out_shape[3][this_mpi_rank]),
+    scale_factor(1.0 / static_cast<double>(plan.index_count))
+{
     for(int i=0; i<4; i++){
         forward_shaper[i]    = make_reshape3d_alltoallv<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
         backward_shaper[3-i] = make_reshape3d_alltoallv<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
     }
 
-    int const me = mpi::comm_rank(comm);
-    executor_r2c = one_dim_backend<backend_tag>::make_r2c(plan.out_shape[0][me], plan.fft_direction[0]);
-    executor[0] = one_dim_backend<backend_tag>::make(plan.out_shape[1][me], plan.fft_direction[1]);
-    executor[1] = one_dim_backend<backend_tag>::make(plan.out_shape[2][me], plan.fft_direction[2]);
+    executor_r2c = one_dim_backend<backend_tag>::make_r2c(plan.out_shape[0][this_mpi_rank], plan.fft_direction[0]);
+    executor[0] = one_dim_backend<backend_tag>::make(plan.out_shape[1][this_mpi_rank], plan.fft_direction[1]);
+    executor[1] = one_dim_backend<backend_tag>::make(plan.out_shape[2][this_mpi_rank], plan.fft_direction[2]);
 }
 
 template<typename backend_tag>
