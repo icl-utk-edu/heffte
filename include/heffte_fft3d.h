@@ -9,6 +9,7 @@
 #define FFT_FFT3D_H
 
 #include "heffte_reshape3d.h"
+#include "heffte_plan_logic.h"
 
 #ifdef Heffte_ENABLE_FFTW
 namespace HEFFTE {

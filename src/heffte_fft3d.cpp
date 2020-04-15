@@ -2696,36 +2696,22 @@ fft3d<backend_tag>::fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm comm
     // perform all analysis for all reshape operation without further communication
     // create the reshape objects
     ioboxes boxes = mpi::gather_boxes(inbox, outbox, comm);
-    box3d const world = find_world(boxes.in);
-    assert( world_complete(boxes.in, world) );
-    assert( world_complete(boxes.out, world) );
-    scale_factor = 1.0 / static_cast<double>(world.count());
 
-    std::array<int, 2> proc_grid = make_procgrid(mpi::comm_size(comm));
+    logic_plan3d plan = plan_operations(boxes, -1);
 
-    // must analyze here which direction to do first
-    // but the grid will always be proc_grid[0] by proc_grid[1] and have 1 in another direction
+    scale_factor = 1.0 / static_cast<double>(plan.index_count);
 
-    // must check whether the initial input consists of pencils or slabs
-    // for now, assume the input is random (i.e., bricks)
-    std::vector<box3d> shape0 = make_pencils(world, proc_grid, 0, boxes.in);
-    std::vector<box3d> shape1 = make_pencils(world, proc_grid, 1, shape0);
-    std::vector<box3d> shape2 = make_pencils(world, proc_grid, 2, shape1);
-
-    forward_shaper[0] = make_reshape3d_alltoallv<backend_tag>(boxes.in, shape0, comm);
-    forward_shaper[1] = make_reshape3d_alltoallv<backend_tag>(shape0, shape1, comm);
-    forward_shaper[2] = make_reshape3d_alltoallv<backend_tag>(shape1, shape2, comm);
-    forward_shaper[3] = make_reshape3d_alltoallv<backend_tag>(shape2, boxes.out, comm);
-
-    backward_shaper[0] = make_reshape3d_alltoallv<backend_tag>(boxes.out, shape2, comm);
-    backward_shaper[1] = make_reshape3d_alltoallv<backend_tag>(shape2, shape1, comm);
-    backward_shaper[2] = make_reshape3d_alltoallv<backend_tag>(shape1, shape0, comm);
-    backward_shaper[3] = make_reshape3d_alltoallv<backend_tag>(shape0, boxes.in, comm);
+    for(int i=0; i<4; i++){
+        if (not match(plan.in_shape[i], plan.out_shape[i])){
+            forward_shaper[i]    = make_reshape3d_alltoallv<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
+            backward_shaper[3-i] = make_reshape3d_alltoallv<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
+        }
+    }
 
     int const me = mpi::comm_rank(comm);
-    fft0 = one_dim_backend<backend_tag>::make(shape0[me], 0);
-    fft1 = one_dim_backend<backend_tag>::make(shape1[me], 1);
-    fft2 = one_dim_backend<backend_tag>::make(shape2[me], 2);
+    fft0 = one_dim_backend<backend_tag>::make(plan.out_shape[0][me], plan.fft_direction[0]);
+    fft1 = one_dim_backend<backend_tag>::make(plan.out_shape[1][me], plan.fft_direction[1]);
+    fft2 = one_dim_backend<backend_tag>::make(plan.out_shape[2][me], plan.fft_direction[2]);
 }
 
 template<typename backend_tag>

@@ -28,40 +28,22 @@ fft3d_r2c<backend_tag>::fft3d_r2c(box3d const cinbox, box3d const coutbox, int r
     // perform all analysis for all reshape operation without further communication
     // create the reshape objects
     ioboxes boxes = mpi::gather_boxes(inbox, outbox, comm);
-    box3d const real_world = find_world(boxes.in);
-    box3d const complex_world = find_world(boxes.out);
 
-    assert(real_world.r2c(r2c_direction) == complex_world);
-    assert( world_complete(boxes.in, real_world) );
-    assert( world_complete(boxes.out, complex_world) );
+    logic_plan3d plan = plan_operations(boxes, r2c_direction);
 
-    scale_factor = 1.0 / static_cast<double>(real_world.count());
+    scale_factor = 1.0 / static_cast<double>(plan.index_count);
 
-    std::array<int, 2> proc_grid = make_procgrid(mpi::comm_size(comm));
-
-    // the directions in which to do transformations
-    std::array<int, 3> dirs = {r2c_direction, (r2c_direction + 1) % 3, (r2c_direction + 2) % 3};
-
-    std::vector<box3d> shape0 = make_pencils(real_world, proc_grid, dirs[0], boxes.in);
-    std::vector<box3d> shape0_r2c;
-    for(auto b : shape0) shape0_r2c.push_back(b.r2c(r2c_direction));
-    std::vector<box3d> shape1 = make_pencils(complex_world, proc_grid, dirs[1], shape0_r2c);
-    std::vector<box3d> shape2 = make_pencils(complex_world, proc_grid, dirs[2], shape1);
-
-    forward_shaper[0] = make_reshape3d_alltoallv<backend_tag>(boxes.in, shape0, comm);
-    forward_shaper[1] = make_reshape3d_alltoallv<backend_tag>(shape0_r2c, shape1, comm);
-    forward_shaper[2] = make_reshape3d_alltoallv<backend_tag>(shape1, shape2, comm);
-    forward_shaper[3] = make_reshape3d_alltoallv<backend_tag>(shape2, boxes.out, comm);
-
-    backward_shaper[0] = make_reshape3d_alltoallv<backend_tag>(boxes.out, shape2, comm);
-    backward_shaper[1] = make_reshape3d_alltoallv<backend_tag>(shape2, shape1, comm);
-    backward_shaper[2] = make_reshape3d_alltoallv<backend_tag>(shape1, shape0_r2c, comm);
-    backward_shaper[3] = make_reshape3d_alltoallv<backend_tag>(shape0, boxes.in, comm);
+    for(int i=0; i<4; i++){
+        if (not match(plan.in_shape[i], plan.out_shape[i])){
+            forward_shaper[i]    = make_reshape3d_alltoallv<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
+            backward_shaper[3-i] = make_reshape3d_alltoallv<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
+        }
+    }
 
     int const me = mpi::comm_rank(comm);
-    executor_r2c = one_dim_backend<backend_tag>::make_r2c(shape0[me], dirs[0]);
-    executor[0] = one_dim_backend<backend_tag>::make(shape1[me], dirs[1]);
-    executor[1] = one_dim_backend<backend_tag>::make(shape2[me], dirs[2]);
+    executor_r2c = one_dim_backend<backend_tag>::make_r2c(plan.out_shape[0][me], plan.fft_direction[0]);
+    executor[0] = one_dim_backend<backend_tag>::make(plan.out_shape[1][me], plan.fft_direction[1]);
+    executor[1] = one_dim_backend<backend_tag>::make(plan.out_shape[2][me], plan.fft_direction[2]);
 }
 
 template<typename backend_tag>
