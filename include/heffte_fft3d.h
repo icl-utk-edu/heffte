@@ -9,6 +9,7 @@
 #define FFT_FFT3D_H
 
 #include "heffte_reshape3d.h"
+#include "heffte_plan_logic.h"
 
 #ifdef Heffte_ENABLE_FFTW
 namespace HEFFTE {
@@ -367,16 +368,23 @@ public:
     /*!
      * \brief Constructor creating a plan for FFT transform across the given communicator and using the box geometry.
      *
-     * \param cinbox is the box for the non-transformed data, i.e., the input for the forward() transform and the output of the backward() transform.
-     * \param coutbox is the box for the transformed data, i.e., the output for the forward() transform and the input of the backward() transform.
+     * \param inbox is the box for the non-transformed data, i.e., the input for the forward() transform and the output of the backward() transform.
+     * \param outbox is the box for the transformed data, i.e., the output for the forward() transform and the input of the backward() transform.
      * \param comm is the MPI communicator with all ranks that will participate in the FFT.
      */
-    fft3d(box3d const cinbox, box3d const coutbox, MPI_Comm const);
+    fft3d(box3d const inbox, box3d const outbox, MPI_Comm const comm) :
+        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1), mpi::comm_rank(comm), comm){
+        static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
+    }
 
     //! \brief Returns the size of the inbox defined in the constructor.
-    int size_inbox() const{ return inbox.count(); }
+    int size_inbox() const{ return pinbox.count(); }
     //! \brief Returns the size of the outbox defined in the constructor.
-    int size_outbox() const{ return outbox.count(); }
+    int size_outbox() const{ return poutbox.count(); }
+    //! \brief Returns the inbox.
+    box3d inbox() const{ return pinbox; }
+    //! \brief Returns the outbox.
+    box3d outbox() const{ return poutbox; }
 
     /*!
      * \brief Performs a forward Fourier transform using two arrays.
@@ -548,6 +556,27 @@ public:
 
 private:
     /*!
+     * \brief Initialize the class using the provided plan and communicator.
+     *
+     * This constructor is private to prevent direct call from the user.
+     * The user can provide higher-level logic related to the geometry and the plan is created
+     * after analysis of the geometry, but the analysis is performed externally to the class.
+     * The separation of the constructor and the geometry analysis gives us:
+     * - better code organization, e.g., we don't clutter the fft class with messy analysis logic
+     *   and we do not have to repeat the logic again for the fft3d_r2c class
+     * - simpler interface, e.g., the user provides only high-level geometry data
+     *   and we (internally) ensure that the plan is build on the correct communicator
+     * - stricter enforcement of const, e.g., we can have const variables that require multiple
+     *   analysis steps before they can be initialized.
+     *
+     * \param plan is the description of the input and output shapes on each stage of the transform
+     *             and the direction of the 1-D ffts
+     * \param this_mpi_rank is the rank of this mpi process, i.e., mpi::comm_rank(comm)
+     * \param comm is the communicator operating on the data
+     */
+    fft3d(logic_plan3d const &plan, int const this_mpi_rank, MPI_Comm const comm);
+
+    /*!
      * \brief Performs the FFT assuming the input types match the C++ standard.
      *
      * The generic template API will convert the various input types into C++ standards
@@ -617,8 +646,8 @@ private:
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
 
-    box3d inbox, outbox;
-    double scale_factor;
+    box3d const pinbox, poutbox; // inbox/output for this process
+    double const scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
 

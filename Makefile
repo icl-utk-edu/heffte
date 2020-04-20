@@ -65,6 +65,7 @@ OBJECT_FILES = heffte_common.o    \
                heffte_fft3d_r2c.o \
                heffte_pack3d.o    \
                heffte_reshape3d.o \
+               heffte_plan_logic.o\
                heffte_trace.o     \
                heffte_wrap.o      \
 

@@ -1060,6 +1060,10 @@ std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>
 make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                          std::vector<box3d> const &output_boxes,
                          MPI_Comm const comm){
+    // if the input and output are the same, returns an empty reshape
+    if (match(input_boxes, output_boxes))
+        return std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>();
+
     int const me = mpi::comm_rank(comm);
     int const nprocs = mpi::comm_size(comm);
 
