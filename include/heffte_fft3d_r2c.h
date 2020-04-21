@@ -83,7 +83,13 @@ public:
     //! \brief Returns the outbox.
     box3d outbox() const{ return poutbox; }
     //! \brief Returns the workspace size that will be used, size is measured in complex numbers.
-    size_t size_workspace() const{ return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper)); }
+    size_t size_workspace() const{
+        return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper))
+               + get_max_size(executor_r2c, executor);
+
+    }
+    //! \brief Returns the size used by the communication workspace buffers (internal use).
+    size_t size_comm_buffers() const{ return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper)); }
 
     /*!
      * \brief Performs a forward Fourier transform using two arrays.
