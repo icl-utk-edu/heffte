@@ -15,6 +15,11 @@
 #include "heffte_geometry.h"
 #include "heffte_trace.h"
 
+#include <cuda_runtime_api.h>
+#include <cuda.h>
+#include <cufft.h>
+#include <cufft.h>
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // HEFFTE  ALL2ALL options
 enum algo_heffte_a2av_type_t{

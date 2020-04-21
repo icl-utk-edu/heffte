@@ -268,32 +268,42 @@ void *Memory::smalloc(int64_t nbytes, heffte_memory_type_t memory_type)
 
     switch (memory_type) {
         case HEFFTE_MEM_GPU:
-            //cudaMalloc((void**)&ptr, nbytes);
-            //heffte_check_cuda_error();
+            #ifdef FFT_CUFFT
+            cudaMalloc((void**)&ptr, nbytes);
+            heffte_check_cuda_error();
+            #endif
             if (ptr == NULL) printf("null ------------------ \n");
 
             FFT_PRINTF("FFT_CUFFT::: Called allocation called from %s \n", __func__);
             break;
 
         case HEFFTE_MEM_MANAGED_ALIGN:
+            #ifdef FFT_CUFFT
             ptr = aligned_cuda_malloc(FFT_MEMALIGN, nbytes);
-            //heffte_check_cuda_error();
+            heffte_check_cuda_error();
+            #endif
             FFT_PRINTF("FFT_CUFFT_M::: Called allocation called from %s \n", __func__);
             break;
         case HEFFTE_MEM_MANAGED:
-            //cudaMallocManaged((void**)&ptr, nbytes);
-            //heffte_check_cuda_error();
+            #ifdef FFT_CUFFT
+            cudaMallocManaged((void**)&ptr, nbytes);
+            heffte_check_cuda_error();
+            #endif
             break;
 
         case HEFFTE_MEM_REG_ALIGN:
             retval = posix_memalign(&ptr,FFT_MEMALIGN,nbytes);
             if (retval) ptr = NULL;
-            //if (ptr) { cudaHostRegister(ptr,nbytes,0); heffte_check_cuda_error();}
+            #ifdef FFT_CUFFT
+            if (ptr) { cudaHostRegister(ptr,nbytes,0); heffte_check_cuda_error();}
+            #endif
             FFT_PRINTF("FFT_CUFFT_R/USE_CUFFTW::: Called cudaHostRegister allocation called from %s \n", __func__);
             break;
         case HEFFTE_MEM_REG:
+            #ifdef FFT_CUFFT
             ptr = malloc(nbytes);
-            //if (ptr) { cudaHostRegister(ptr,nbytes,0); heffte_check_cuda_error();}
+            if (ptr) { cudaHostRegister(ptr,nbytes,0); heffte_check_cuda_error();}
+            #endif
             FFT_PRINTF("HEFFTE_MEM_REG::: Called allocation called from %s \n", __func__);
             break;
 
@@ -313,8 +323,10 @@ void *Memory::smalloc(int64_t nbytes, heffte_memory_type_t memory_type)
             break;
 
         case HEFFTE_MEM_PIN:
-            //cudaMallocHost((void**)&ptr, nbytes);
-            //heffte_check_cuda_error();
+            #ifdef FFT_CUFFT
+            cudaMallocHost((void**)&ptr, nbytes);
+            heffte_check_cuda_error();
+            #endif
             FFT_PRINTF("HEFFTE_MEM_PIN::: Called allocation called from %s \n", __func__);
             break;
 
@@ -344,39 +356,49 @@ void *Memory::srealloc(void *ptr, int64_t nbytes, heffte_memory_type_t memory_ty
 
   switch (memory_type) {
       case HEFFTE_MEM_GPU:
-          //cudaMalloc((void**)&ptr, nbytes);
-          //heffte_check_cuda_error();
-          //if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
-          //cudaFree(old_ptr);
+          #ifdef FFT_CUFFT
+          cudaMalloc((void**)&ptr, nbytes);
+          heffte_check_cuda_error();
+          if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
+          cudaFree(old_ptr);
+          #endif
           FFT_PRINTF("Realloc FFT_CUFFT %s \n",__func__);
           break;
 
       case HEFFTE_MEM_MANAGED_ALIGN:
-          //ptr = aligned_cuda_malloc(FFT_MEMALIGN, nbytes);
-          //heffte_check_cuda_error();
-          //if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
-          //aligned_cuda_free(old_ptr);
+          #ifdef FFT_CUFFT
+          ptr = aligned_cuda_malloc(FFT_MEMALIGN, nbytes);
+          heffte_check_cuda_error();
+          if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
+          aligned_cuda_free(old_ptr);
+          #endif
           FFT_PRINTF("Realloc FFT_CUFFT_M %s \n",__func__);
           break;
       case HEFFTE_MEM_MANAGED:
-          //cudaMallocManaged((void**)&ptr, nbytes);
-          //heffte_check_cuda_error();
-          //if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
-          //cudaFree(old_ptr);
+          #ifdef FFT_CUFFT
+          cudaMallocManaged((void**)&ptr, nbytes);
+          heffte_check_cuda_error();
+          if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDeviceToDevice);
+          cudaFree(old_ptr);
+          #endif
           break;
 
       case HEFFTE_MEM_REG_ALIGN:
           retval = posix_memalign(&ptr,FFT_MEMALIGN,nbytes);
           if (retval) ptr = NULL;
-          //if (ptr) cudaHostRegister(ptr,nbytes,0);
-          //if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDefault);//it could be memcpy as well
+          #ifdef FFT_CUFFT
+          if (ptr) cudaHostRegister(ptr,nbytes,0);
+          if (ptr) cudaMemcpy(ptr, old_ptr, nbytes, cudaMemcpyDefault);//it could be memcpy as well
+          #endif
           free(old_ptr);
           FFT_PRINTF("Realloc FFT_CUFFT_R/USE_CUFFTW %s \n",__func__);
           break;
       case HEFFTE_MEM_REG:
-          //cudaHostUnregister(ptr);
+          #ifdef FFT_CUFFT
+          cudaHostUnregister(ptr);
           ptr = realloc(ptr, nbytes);
-          //if (ptr) cudaHostRegister(ptr, nbytes, 0);
+          if (ptr) cudaHostRegister(ptr, nbytes, 0);
+          #endif
           break;
 
       case HEFFTE_MEM_CPU_ALIGN:
@@ -420,25 +442,36 @@ void Memory::sfree(void *ptr, heffte_memory_type_t memory_type)
 
     switch (memory_type) {
         case HEFFTE_MEM_GPU:
-            //cudaFree(ptr);
-            //heffte_check_cuda_error();
+            #ifdef FFT_CUFFT
+            cudaFree(ptr);
+            heffte_check_cuda_error();
+            #endif
             break;
 
         case HEFFTE_MEM_MANAGED_ALIGN:
-            //aligned_cuda_free(ptr);
+            #ifdef FFT_CUFFT
+            aligned_cuda_free(ptr);
+            #endif
+
             break;
         case HEFFTE_MEM_MANAGED:
-            //cudaFree(ptr);
-            //heffte_check_cuda_error();
+            #ifdef FFT_CUFFT
+            cudaFree(ptr);
+            heffte_check_cuda_error();
+            #endif
             break;
 
         case HEFFTE_MEM_REG_ALIGN:
-            //cudaHostUnregister(ptr);
-            //free(ptr);
+            #ifdef FFT_CUFFT
+            cudaHostUnregister(ptr);
+            free(ptr);
+            #endif
             break;
         case HEFFTE_MEM_REG:
-            //cudaHostUnregister(ptr);
-            //free(ptr);
+            #ifdef FFT_CUFFT
+            cudaHostUnregister(ptr);
+            free(ptr);
+            #endif
             break;
 
         case HEFFTE_MEM_CPU_ALIGN:
