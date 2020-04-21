@@ -57,6 +57,7 @@ void benchmark_fft(std::array<int,3> size_fft){
     #endif
 
     // Define output arrays
+    typename heffte::fft3d<backend_tag>::template buffer_container<std::complex<precision_type>> workspace(fft.size_workspace());
     typename heffte::fft3d<backend_tag>::template buffer_container<std::complex<precision_type>> output(fft.size_outbox());
     typename heffte::fft3d<backend_tag>::template buffer_container<BENCH_INPUT> inverse(fft.size_inbox());
 
@@ -70,9 +71,9 @@ void benchmark_fft(std::array<int,3> size_fft){
     double t = -MPI_Wtime();
     for(int i = 0; i < ntest; ++i) {
         heffte::add_trace("mark forward begin");
-        fft.forward(input_array, output.data(),  scale::full);
+        fft.forward(input_array, output.data(), workspace.data(), scale::full);
         heffte::add_trace("mark backward begin");
-        fft.backward(output.data(), inverse.data());
+        fft.backward(output.data(), inverse.data(), workspace.data());
     }
     t += MPI_Wtime();
 

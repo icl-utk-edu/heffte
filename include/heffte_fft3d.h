@@ -552,7 +552,12 @@ public:
     /*!
      * \brief Returns the workspace size that will be used, size is measured in complex numbers.
      */
-    size_t size_workspace() const{ return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper)); }
+    size_t size_workspace() const{
+        return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper))
+               + get_max_size(std::array<backend_executor*, 3>{fft0.get(), fft1.get(), fft2.get()});
+    }
+    //!\brief Returns the size used by the communication workspace buffers (internal use).
+    size_t size_comm_buffers() const{ return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper)); }
 
 private:
     /*!
