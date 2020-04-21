@@ -240,6 +240,16 @@ template<> struct data_manipulator<tag::gpu>{
      */
     template<typename scalar_type>
     static void copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]);
+    //! \brief Copy-convert complex-to-real.
+    template<typename scalar_type>
+    static void copy_n(std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
+        cuda::convert(num_entries, source, destination);
+    }
+    //! \brief Copy-convert real-to-complex.
+    template<typename scalar_type>
+    static void copy_n(scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
+        cuda::convert(num_entries, source, destination);
+    }
     /*!
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */

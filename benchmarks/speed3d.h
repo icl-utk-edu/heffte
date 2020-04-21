@@ -46,43 +46,55 @@ void benchmark_fft(std::array<int,3> size_fft){
 
     // Locally initialize input
     auto input = make_data<BENCH_INPUT>(inboxes[me]);
+    auto reference_input = input; // safe a copy for error checking
 
-    BENCH_INPUT *input_array = input.data();
+    // define allocation for in-place transform
+    std::vector<std::complex<precision_type>> output(std::max(fft.size_outbox(), fft.size_inbox()));
+    std::copy(input.begin(), input.end(), output.begin());
+
+    std::complex<precision_type> *output_array = output.data();
     #ifdef Heffte_ENABLE_CUDA
-    cuda::vector<BENCH_INPUT> cuda_input;
+    cuda::vector<std::complex<precision_type>> cuda_output;
     if (std::is_same<backend_tag, backend::cufft>::value){
-        cuda_input = cuda::load(input);
-        input_array = cuda_input.data();
+        cuda_output = cuda::load(output);
+        output_array = cuda_output.data();
     }
     #endif
 
-    // Define output arrays
+    // Define workspace array
     typename heffte::fft3d<backend_tag>::template buffer_container<std::complex<precision_type>> workspace(fft.size_workspace());
-    typename heffte::fft3d<backend_tag>::template buffer_container<std::complex<precision_type>> output(fft.size_outbox());
-    typename heffte::fft3d<backend_tag>::template buffer_container<BENCH_INPUT> inverse(fft.size_inbox());
 
     // Warmup
     heffte::add_trace("mark warmup begin");
-    fft.forward(input_array, output.data(),  scale::full);
-    fft.backward(output.data(), inverse.data());
+    fft.forward(output_array, output_array,  scale::full);
+    fft.backward(output_array, output_array);
 
     // Execution
     int const ntest = 5;
+    MPI_Barrier(fft_comm);
     double t = -MPI_Wtime();
     for(int i = 0; i < ntest; ++i) {
         heffte::add_trace("mark forward begin");
-        fft.forward(input_array, output.data(), workspace.data(), scale::full);
+        fft.forward(output_array, output_array, workspace.data(), scale::full);
         heffte::add_trace("mark backward begin");
-        fft.backward(output.data(), inverse.data(), workspace.data());
+        fft.backward(output_array, output_array, workspace.data());
     }
     t += MPI_Wtime();
+    MPI_Barrier(fft_comm);
 
     // Get execution time
     double t_max = 0.0;
 	MPI_Reduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, 0, fft_comm);
 
     // Validate result
-    tassert(approx(inverse, input));
+    #ifdef Heffte_ENABLE_CUDA
+    if (std::is_same<backend_tag, backend::cufft>::value){
+        // unload from the GPU, if it was stored there
+        output = cuda::unload(cuda_output);
+    }
+    #endif
+    output.resize(input.size()); // match the size of the original input
+    tassert(approx(output, input));
 
     // Print results
     if(me==0){
