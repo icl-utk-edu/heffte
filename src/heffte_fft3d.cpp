@@ -2728,9 +2728,11 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
             }
         };
 
+    int num_active = count_active(shaper);
     int last = get_last_active(shaper);
 
     if (last < 1){ // no extra buffer case
+        add_trace name("less than 1");
         // move input -> output and apply all ffts
         // use either zeroth shaper or simple copy (or nothing in case of in-place transform)
         if (last == 0){
@@ -2743,24 +2745,53 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
         return;
     }
 
+    // with only one reshape, the temp buffer would be used only if not doing in-place
     std::complex<scalar_type> *temp_buffer = workspace + size_comm_buffers();
-    if (shaper[0]){
-        shaper[0]->apply(input, temp_buffer, workspace);
-    }else{
-        data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer);
+    if (num_active == 1){ // one active and not shaper 0
+        std::complex<scalar_type> *effective_input = output;
+        if (input != output){
+            data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer);
+            effective_input = temp_buffer;
+        }
+        for(int i=0; i<last; i++)
+            apply_fft(i, effective_input);
+        shaper[last]->apply(effective_input, output, workspace);
+        for(int i=last; i<3; i++)
+            apply_fft(i, output);
+        return;
     }
 
-    for(int i=1; i<last; i++){
-        apply_fft(i-1, temp_buffer);
+    // with two or more reshapes, the first reshape must move to the temp_buffer and the last must move to output
+    int active_shaper = 0;
+    if (shaper[0] or input != output){
+        if (shaper[0]){
+            shaper[0]->apply(input, temp_buffer, workspace);
+        }else{
+            add_trace name("copy");
+            data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer);
+        }
+        active_shaper = 1;
+    }else{
+        // in place transform and shaper[0] is not active
+        while(not shaper[active_shaper]){
+            // note, at least one shaper must be active, otherwise last will catch it
+            apply_fft(active_shaper++, output);
+        }
+        shaper[active_shaper]->apply(output, temp_buffer, workspace);
+        active_shaper += 1;
+    }
+    apply_fft(active_shaper - 1, temp_buffer); // one reshape was applied above
+
+    for(int i=active_shaper; i<last; i++){
         if (shaper[i])
             shaper[i]->apply(temp_buffer, temp_buffer, workspace);
+        apply_fft(i, temp_buffer);
     }
-
-    apply_fft(last-1, temp_buffer);
     shaper[last]->apply(temp_buffer, output, workspace);
 
     for(int i=last; i<3; i++)
         apply_fft(i, output);
+
 
     if (scaling != scale::none){
         add_trace name("scale");
@@ -2834,6 +2865,7 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
      * thus the direction parameter is ignored.
      */
     std::complex<scalar_type> *temp_buffer = workspace + size_comm_buffers();
+
     if (shaper[0]){
         shaper[0]->apply(input, temp_buffer, workspace);
     }else{

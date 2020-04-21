@@ -288,9 +288,9 @@ void test_fft3d_arrays(MPI_Comm comm){
         fft.forward(local_input.data(), forward.data(), workspace.data()); // compute the forward fft
         tassert(approx(forward, reference_fft)); // compare to the reference
 
-        input_container backward(local_input.size()); // compute backward fft using scalar_type
-        fft.backward(forward.data(), backward.data(), workspace.data());
-        auto backward_result = rescale(world, backward, scale::full); // always std::vector
+        input_container rbackward(local_input.size()); // compute backward fft using scalar_type
+        fft.backward(forward.data(), rbackward.data(), workspace.data());
+        auto backward_result = rescale(world, rbackward, scale::full); // always std::vector
         tassert(approx(local_input, backward_result)); // compare with the original input
 
         output_container cbackward(local_input.size()); // complex backward transform
@@ -299,6 +299,24 @@ void test_fft3d_arrays(MPI_Comm comm){
         // convert the world to complex numbers and extract the reference sub-box
         tassert(approx(get_complex_subbox(world, boxes[me], world_input),
                        cbackward_result));
+
+        output_container inplace_buffer(std::max(fft.size_inbox(), fft.size_outbox()));
+        data_manipulator<typename fft3d<backend_tag>::location_tag>::copy_n(local_input.data(), fft.size_inbox(), inplace_buffer.data());
+        fft.forward(inplace_buffer.data(), inplace_buffer.data());
+        output_container inplace_forward(inplace_buffer.data(), inplace_buffer.data() + fft.size_outbox());
+        tassert(approx(inplace_forward, reference_fft)); // compare to the reference
+
+        auto inplace_buffer_copy = inplace_buffer;
+        fft.backward(inplace_buffer.data(), reinterpret_cast<scalar_type*>(inplace_buffer.data())); // in-place complex-to-real
+        rbackward = input_container(reinterpret_cast<scalar_type*>(inplace_buffer.data()),
+                                    reinterpret_cast<scalar_type*>(inplace_buffer.data()) + fft.size_inbox());
+        backward_result = rescale(world, rbackward, scale::full); // always std::vector
+        tassert(approx(local_input, backward_result));
+
+        fft.backward(inplace_buffer_copy.data(), inplace_buffer_copy.data());
+        output_container inplace_backward(inplace_buffer_copy.data(), inplace_buffer_copy.data() + fft.size_inbox());
+        cbackward_result = rescale(world, inplace_backward, scale::full);
+        tassert(approx(get_complex_subbox(world, boxes[me], world_input), cbackward_result));
     }
 }
 
