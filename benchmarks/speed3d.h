@@ -27,45 +27,74 @@ void benchmark_fft(std::array<int,3> size_fft){
 
     // Define 3D FFT plan
     heffte::fft3d<backend_tag> fft(inboxes[me], outboxes[me], fft_comm);
+    std::array<int, 2> proc_grid = make_procgrid(nprocs);
+    // writes out the proc_grid in the given dimension
+    auto print_proc_grid = [&](int i){
+        switch(i){
+            case -1: cout << "(" << proc_i[0] << ", " << proc_i[1] << ", " << proc_i[2] << ")  "; break;
+            case  0: cout << "(" << 1 << ", " << proc_grid[0] << ", " << proc_grid[1] << ")  "; break;
+            case  1: cout << "(" << proc_grid[0] << ", " << 1 << ", " << proc_grid[1] << ")  "; break;
+            case  2: cout << "(" << proc_grid[0] << ", " << proc_grid[1] << ", " << 1 << ")  "; break;
+            case  3: cout << "(" << proc_o[0] << ", " << proc_o[1] << ", " << proc_o[2] << ")  "; break;
+            default:
+                throw std::runtime_error("printing incorrect direction");
+        }
+    };
+
+    // the call above uses the following plan, get it twice to give verbose info of the grid-shapes
+    logic_plan3d plan = plan_operations({inboxes, outboxes}, -1);
 
     // Locally initialize input
     auto input = make_data<BENCH_INPUT>(inboxes[me]);
+    auto reference_input = input; // safe a copy for error checking
 
-    BENCH_INPUT *input_array = input.data();
+    // define allocation for in-place transform
+    std::vector<std::complex<precision_type>> output(std::max(fft.size_outbox(), fft.size_inbox()));
+    std::copy(input.begin(), input.end(), output.begin());
+
+    std::complex<precision_type> *output_array = output.data();
     #ifdef Heffte_ENABLE_CUDA
-    cuda::vector<BENCH_INPUT> cuda_input;
+    cuda::vector<std::complex<precision_type>> cuda_output;
     if (std::is_same<backend_tag, backend::cufft>::value){
-        cuda_input = cuda::load(input);
-        input_array = cuda_input.data();
+        cuda_output = cuda::load(output);
+        output_array = cuda_output.data();
     }
     #endif
 
-    // Define output arrays
-    typename heffte::fft3d<backend_tag>::template buffer_container<std::complex<precision_type>> output(fft.size_outbox());
-    typename heffte::fft3d<backend_tag>::template buffer_container<BENCH_INPUT> inverse(fft.size_inbox());
+    // Define workspace array
+    typename heffte::fft3d<backend_tag>::template buffer_container<std::complex<precision_type>> workspace(fft.size_workspace());
 
     // Warmup
     heffte::add_trace("mark warmup begin");
-    fft.forward(input_array, output.data(),  scale::full);
-    fft.backward(output.data(), inverse.data());
+    fft.forward(output_array, output_array,  scale::full);
+    fft.backward(output_array, output_array);
 
     // Execution
     int const ntest = 5;
+    MPI_Barrier(fft_comm);
     double t = -MPI_Wtime();
     for(int i = 0; i < ntest; ++i) {
         heffte::add_trace("mark forward begin");
-        fft.forward(input_array, output.data(),  scale::full);
+        fft.forward(output_array, output_array, workspace.data(), scale::full);
         heffte::add_trace("mark backward begin");
-        fft.backward(output.data(), inverse.data());
+        fft.backward(output_array, output_array, workspace.data());
     }
     t += MPI_Wtime();
+    MPI_Barrier(fft_comm);
 
     // Get execution time
     double t_max = 0.0;
 	MPI_Reduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, 0, fft_comm);
 
     // Validate result
-    tassert(approx(inverse, input));
+    #ifdef Heffte_ENABLE_CUDA
+    if (std::is_same<backend_tag, backend::cufft>::value){
+        // unload from the GPU, if it was stored there
+        output = cuda::unload(cuda_output);
+    }
+    #endif
+    output.resize(input.size()); // match the size of the original input
+    tassert(approx(output, input));
 
     // Print results
     if(me==0){
@@ -78,6 +107,11 @@ void benchmark_fft(std::array<int,3> size_fft){
         cout << "Backend: " << backend::name<backend_tag>() << endl;
         cout << "Size: " << world.size[0] << "x" << world.size[1] << "x" << world.size[2] << endl;
         cout << "Nprc: " << nprocs << endl;
+        cout << "Grids: ";
+        print_proc_grid(-1);
+        for(int i=0; i<4; i++)
+            if (not match(plan.in_shape[i], plan.out_shape[i])) print_proc_grid((i<3) ? plan.fft_direction[i] : i);
+        cout << "\n";
         cout << "Time: " << t_max << " (s)" << endl;
         cout << "Perf: " << floprate << " GFlops/s" << endl;
         cout << "Tolr: " << precision<std::complex<precision_type>>::tolerance << endl;

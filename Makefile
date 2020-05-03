@@ -12,18 +12,20 @@ backends ?= fftw
 
 MPI_ROOT ?= /usr
 MPICXX ?= $(MPI_ROOT)/bin/mpicxx
-MPICXX_FLAGS ?= -O3 -fPIC -I./include/
+MPICXX_FLAGS ?= -O3 -std=c++11 -I./include/
+SHARED_FLAG ?= -fPIC
 MPIRUN ?= $(MPI_ROOT)/bin/mpirun
-MPIRUN_NUMPROC_FLAG ?= -np
+MPIRUN_NUMPROC_FLAG ?= -n
 MPIRUN_PREFLAGS ?= --host localhost:12
 
 # Used only by cuda backends
 CUDA_ROOT ?= /usr/local/cuda
 NVCC ?= $(CUDA_ROOT)/bin/nvcc
-NVCC_FLAGS ?= -I./include/ -I$(MPI_ROOT)/include/ -Xcompiler -fPIC
+NVCC_FLAGS ?= -std=c++11
+NVCC_FINAL_FLAGS ?= -I./include/ -I$(MPI_ROOT)/include/ $(NVCC_FLAGS)
 
 # library, change to ./lib/libheffte.a to build the static libs
-libheffte = ./lib/libheffte.so
+libsuffix = .so
 
 
 ############################################################
@@ -63,6 +65,7 @@ OBJECT_FILES = heffte_common.o    \
                heffte_fft3d_r2c.o \
                heffte_pack3d.o    \
                heffte_reshape3d.o \
+               heffte_plan_logic.o\
                heffte_trace.o     \
                heffte_wrap.o      \
 
@@ -89,6 +92,12 @@ ifneq (,$(filter fftw,$(spaced_backends)))
 	LIBS += $(FFTW_LIBRARIES)
 endif
 
+libheffte = ./lib/libheffte$(libsuffix)
+ifneq (,$(filter .so,$(libsuffix)))
+	MPICXX_FLAGS += $(SHARED_FLAG)
+	NVCC_FINAL_FLAGS += -Xcompiler $(SHARED_FLAG)
+endif
+
 
 ############################################################
 # build rules
@@ -110,8 +119,8 @@ help:
 	@echo "Options set in the environment, the command line, or by editing the Makefile"
 	@echo "  backends : comma separated list of backends to include in the library"
 	@echo "             fftw,cufft,mkl"
-	@echo " libheffte : specifies whether to build shared of static library"
-	@echo "             use ./lib/libheffte.so (default) or ./lib/libheffte.a"
+	@echo " libsuffix : specifies whether to build shared of static library"
+	@echo "             use .so (default) or .a"
 	@echo "  MPI_ROOT : path to the MPI installation, default /usr"
 	@echo " CUDA_ROOT : path to the CUDA installation, default /usr/local/cuda"
 	@echo " FFTW_ROOT : path to the FFTW3 installation, default /usr"
@@ -155,7 +164,7 @@ no_cuda: ./include/heffte_config.h $(MKL)
 
 # cuda object files
 kernels.obj: $(CUFFTW)
-	$(NVCC) $(NVCC_FLAGS) -c ./src/heffte_backend_cuda.cu -o kernels.obj
+	$(NVCC) $(NVCC_FINAL_FLAGS) -c ./src/heffte_backend_cuda.cu -o kernels.obj
 
 # build the object files
 %.o: src/%.cpp $(CUFFTW) $(CUDA_KERNELS)
@@ -195,18 +204,18 @@ speed3d_r2c: $(libheffte)
 # execute the tests
 .PHONY.: ctest
 ctest:
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  4 $(MPIRUN_PREFLAGS) test_reshape3d
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  7 $(MPIRUN_PREFLAGS) test_reshape3d
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) test_reshape3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  4 $(MPIRUN_PREFLAGS) ./test_reshape3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  7 $(MPIRUN_PREFLAGS) ./test_reshape3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) ./test_reshape3d
 	./test_units_nompi
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  2 $(MPIRUN_PREFLAGS) test_fft3d
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  6 $(MPIRUN_PREFLAGS) test_fft3d
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  8 $(MPIRUN_PREFLAGS) test_fft3d
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) test_fft3d
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  2 $(MPIRUN_PREFLAGS) test_fft3d_r2c
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  6 $(MPIRUN_PREFLAGS) test_fft3d_r2c
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  8 $(MPIRUN_PREFLAGS) test_fft3d_r2c
-	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) test_fft3d_r2c
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  2 $(MPIRUN_PREFLAGS) ./test_fft3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  6 $(MPIRUN_PREFLAGS) ./test_fft3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  8 $(MPIRUN_PREFLAGS) ./test_fft3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) ./test_fft3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  2 $(MPIRUN_PREFLAGS) ./test_fft3d_r2c
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  6 $(MPIRUN_PREFLAGS) ./test_fft3d_r2c
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  8 $(MPIRUN_PREFLAGS) ./test_fft3d_r2c
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) ./test_fft3d_r2c
 
 
 ############################################################

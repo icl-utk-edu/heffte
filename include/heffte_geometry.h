@@ -128,6 +128,17 @@ inline box3d find_world(std::vector<box3d> const &boxes){
 }
 
 /*!
+ * \brief Compares two vectors of boxes, returns true if all boxes match.
+ */
+inline bool match(std::vector<box3d> const &shape0, std::vector<box3d> const &shape1){
+    if (shape0.size() != shape1.size()) return false;
+    for(size_t i=0; i<shape0.size(); i++)
+        if (shape0[i] != shape1[i])
+            return false;
+    return true;
+}
+
+/*!
  * \brief Returns true if the geometry of the world is as expected.
  *
  * Runs simple checks to ensure that the inboxes will fill the world.
@@ -234,6 +245,16 @@ inline std::vector<box3d> split_world(box3d const world, std::array<int, 3> cons
 }
 
 /*!
+ * \brief Returns true if the shape forms pencils in the given direction.
+ */
+inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int direction){
+    for(auto s : shape)
+        if (s.size[direction] != world.size[direction])
+            return false;
+    return true;
+}
+
+/*!
  * \brief Breaks the wold into a grid of pencils and orders the pencils to the ranks that will minimize communication
  *
  * A pencil is a box with one dimension that matches the entire world,
@@ -253,6 +274,10 @@ inline std::vector<box3d> split_world(box3d const world, std::array<int, 3> cons
  * \returns a sorted list of boxes that describes
  */
 inline std::vector<box3d> make_pencils(box3d const world, std::array<int, 2> const proc_grid, int const dimension, std::vector<box3d> const &source){
+    // trivial case, the grid is already in a pencil format
+    if (is_pencils(world, source, dimension))
+        return source;
+
     // create a list of boxes ordered in column major format (following the proc_grid box)
     std::vector<box3d> pencils;
     if (dimension == 0){

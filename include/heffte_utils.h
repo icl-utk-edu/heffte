@@ -422,6 +422,16 @@ int get_last_active(std::array<std::unique_ptr<some_class>, 4> const &shaper){
 }
 
 /*!
+ * \brief Return the number of active (non-null) unique_ptr.
+ */
+template<typename some_class>
+int count_active(std::array<std::unique_ptr<some_class>, 4> const &shaper){
+    int num = 0;
+    for(int i=0; i<4; i++) if (shaper[i]) num++;
+    return num;
+}
+
+/*!
  * \brief Returns the max of the box_size() for each of the executors.
  */
 template<typename some_class>

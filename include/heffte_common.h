@@ -119,8 +119,8 @@ template<> struct data_manipulator<tag::cpu>{
     /*!
      * \brief Wrapper around std::copy_n().
      */
-    template<typename scalar_type>
-    static void copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]){
+    template<typename source_type, typename destination_type>
+    static void copy_n(source_type const source[], size_t num_entries, destination_type destination[]){
         std::copy_n(source, num_entries, destination);
     }
     /*!

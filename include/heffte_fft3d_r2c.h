@@ -62,20 +62,34 @@ public:
     /*!
      * \brief Constructor creating a plan for FFT transform across the given communicator and using the box geometry.
      *
-     * \param cinbox is the box for the non-transformed data, i.e., the input for the forward() transform and the output of the backward() transform.
-     * \param coutbox is the box for the transformed data, i.e., the output for the forward() transform and the input of the backward() transform.
+     * \param inbox is the box for the non-transformed data, i.e., the input for the forward() transform and the output of the backward() transform.
+     * \param outbox is the box for the transformed data, i.e., the output for the forward() transform and the input of the backward() transform.
      * \param r2c_direction indicates the direction where the total set of coefficients will be reduced to hold only the non-conjugate pairs;
      *        selecting a dimension with odd number of indexes will result in (slightly) smaller final data set.
      * \param comm is the MPI communicator with all ranks that will participate in the FFT.
      */
-    fft3d_r2c(box3d const cinbox, box3d const coutbox, int r2c_direction, MPI_Comm const);
+    fft3d_r2c(box3d const inbox, box3d const outbox, int r2c_direction, MPI_Comm const comm) :
+        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction), mpi::comm_rank(comm), comm){
+        assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
+        static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
+    }
 
     //! \brief Returns the size of the inbox defined in the constructor.
-    int size_inbox() const{ return inbox.count(); }
+    int size_inbox() const{ return pinbox.count(); }
     //! \brief Returns the size of the outbox defined in the constructor.
-    int size_outbox() const{ return outbox.count(); }
+    int size_outbox() const{ return poutbox.count(); }
+    //! \brief Returns the inbox.
+    box3d inbox() const{ return pinbox; }
+    //! \brief Returns the outbox.
+    box3d outbox() const{ return poutbox; }
     //! \brief Returns the workspace size that will be used, size is measured in complex numbers.
-    size_t size_workspace() const{ return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper)); }
+    size_t size_workspace() const{
+        return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper))
+               + get_max_size(executor_r2c, executor);
+
+    }
+    //! \brief Returns the size used by the communication workspace buffers (internal use).
+    size_t size_comm_buffers() const{ return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper)); }
 
     /*!
      * \brief Performs a forward Fourier transform using two arrays.
@@ -186,6 +200,9 @@ public:
     double get_scale_factor(scale scaling) const{ return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor; }
 
 private:
+    //! \brief Same as in the fft3d case.
+    fft3d_r2c(logic_plan3d const &plan, int const this_mpi_rank, MPI_Comm const comm);
+
     template<typename scalar_type>
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale scaling) const{
         buffer_container<std::complex<scalar_type>> workspace(size_workspace());
@@ -202,8 +219,8 @@ private:
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], std::complex<scalar_type> workspace[], scale) const;
 
-    box3d inbox, outbox;
-    double scale_factor;
+    box3d const pinbox, poutbox;
+    double const scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
 

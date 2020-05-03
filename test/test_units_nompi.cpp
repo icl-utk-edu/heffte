@@ -570,7 +570,7 @@ void test_cross_reference_r2c(){
             fft_gpu.forward(cuinput.data(), curesult.data());
 
             if (std::is_same<scalar_type, float>::value){
-                sassert(approx(curesult, result, 0.0005)); // float complex is not well conditioned
+                sassert(approx(curesult, result, 0.005)); // float complex is not well conditioned
             }else{
                 sassert(approx(curesult, result));
             }
