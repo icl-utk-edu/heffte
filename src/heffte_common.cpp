@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+
+#include "heffte_old_api_cuda.h"
 #include "heffte_common.h"
 
 

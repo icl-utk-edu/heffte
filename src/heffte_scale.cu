@@ -12,6 +12,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include "heffte_old_api_cuda.h"
 #include "heffte_utils.h"
 #include "heffte_scale.h"
 

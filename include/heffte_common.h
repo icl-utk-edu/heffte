@@ -15,12 +15,6 @@
 #include "heffte_geometry.h"
 #include "heffte_trace.h"
 
-#ifdef FFT_CUFFT // FFT_CUFFT is defined for the old interface only
-#include <cuda_runtime_api.h>
-#include <cuda.h>
-#include <cufft.h>
-#include <cufft.h>
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // HEFFTE  ALL2ALL options
