@@ -14,6 +14,7 @@
 #define FFT_PACK3D_H
 
 #include <string.h>
+#include "heffte_old_api_cuda.h"
 #include "heffte_pack3d.h"
 #include "heffte_utils.h"
 
