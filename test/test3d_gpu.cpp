@@ -8,6 +8,9 @@
 
 #include "testing.h"
 
+#include <cuda_runtime_api.h>
+#include <cuda.h>
+
 using namespace HEFFTE;
 
 /* ////////////////////////////////////////////////////////////////////////////
@@ -17,6 +20,8 @@ int main(int argc, char *argv[]) {
 
   MPI_Init(&argc, &argv);
   MPI_Comm fft_comm = MPI_COMM_WORLD;  // Change if need to compute FFT within a subcommunicator
+
+    heffte::init_tracing("test3d_gpu");
 
   int me, nprocs;
   MPI_Comm_size(fft_comm, &nprocs);
@@ -119,6 +124,8 @@ int main(int argc, char *argv[]) {
 
   // Print results and timing
   opts.heffte_timing(fft);
+
+  heffte::finalize_tracing();
 
   // Free memory
   delete fft;

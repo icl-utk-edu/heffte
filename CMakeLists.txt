@@ -152,7 +152,9 @@ if(HEFFTE_TIME_DETAILED)
 endif(HEFFTE_TIME_DETAILED)
 
 if(BUILD_GPU)
-  find_package(CUDA REQUIRED)
+    if (NOT Heffte_ENABLE_CUDA)
+        message(FATAL_ERROR "-DBUILD_GPU=ON requires -DHeffte_ENABLE_CUDA=ON")
+    endif()
 
   set( GPU_TARGET "Kepler Maxwell Pascal" CACHE STRING "CUDA architectures to compile for; one or more of Fermi, Kepler, Maxwell, Pascal, Volta, or valid sm_[0-9][0-9]" )
 
@@ -321,6 +323,8 @@ if(BUILD_GPU)
     src/heffte_fft3d.cpp
     src/heffte_pack3d.cu
     src/heffte_scale.cu
+    src/heffte_backend_cuda.cu
+    src/heffte_plan_logic.cpp
     src/heffte_reshape3d.cpp
     src/heffte_trace.cpp
     src/heffte_wrap.cpp
@@ -335,8 +339,14 @@ if(BUILD_GPU)
   set_target_properties(heffte_gpu PROPERTIES COMPILE_FLAGS "-DFFT_CUFFT")
   target_include_directories(heffte_gpu PUBLIC $<INSTALL_INTERFACE:include>)
 
-  target_link_libraries(heffte_gpu MPI::MPI_CXX)
-  cuda_add_cufft_to_target(heffte_gpu)
+    target_include_directories(heffte_gpu PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
+    target_include_directories(heffte_gpu PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/>)
+
+    target_link_libraries(heffte_gpu MPI::MPI_CXX)
+    cuda_add_cufft_to_target(heffte_gpu)
+    if (Heffte_ENABLE_FFTW)
+        target_link_libraries(heffte_gpu Heffte::FFTW)
+    endif()
 
   # install
   install(TARGETS heffte_gpu EXPORT HEFFTE_Targets DESTINATION lib)
