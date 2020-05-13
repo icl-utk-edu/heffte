@@ -110,7 +110,7 @@ public:
                    or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), scaling);
+        standard_transform(convert_to_standard(input), convert_to_standard(output), scaling);
     }
 
     //! \brief Overload utilizing a user provided buffer.
@@ -120,7 +120,7 @@ public:
                    or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), convert_to_standart(workspace), scaling);
+        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace), scaling);
     }
 
     /*!
@@ -169,7 +169,7 @@ public:
                    or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), scaling);
+        standard_transform(convert_to_standard(input), convert_to_standard(output), scaling);
     }
 
     //! \brief Overload utilizing a user provided buffer.
@@ -179,7 +179,7 @@ public:
                    or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), convert_to_standart(workspace), scaling);
+        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace), scaling);
     }
 
     /*!

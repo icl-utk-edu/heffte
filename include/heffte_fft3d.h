@@ -413,7 +413,7 @@ public:
                    or (is_zcomplex<input_type>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
+        standard_transform(convert_to_standard(input), convert_to_standard(output), forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
     }
 
     /*!
@@ -436,7 +436,7 @@ public:
                    or (is_zcomplex<input_type>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), convert_to_standart(workspace),
+        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace),
                            forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
     }
 
@@ -500,7 +500,7 @@ public:
                    or (is_zcomplex<output_type>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
+        standard_transform(convert_to_standard(input), convert_to_standard(output), backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
     }
 
     /*!
@@ -514,7 +514,7 @@ public:
                    or (is_zcomplex<output_type>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), convert_to_standart(workspace),
+        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace),
                            backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
     }
 
@@ -585,7 +585,7 @@ private:
      * \brief Performs the FFT assuming the input types match the C++ standard.
      *
      * The generic template API will convert the various input types into C++ standards
-     * using heffte::convert_to_standart() and will call one of these overloads.
+     * using heffte::convert_to_standard() and will call one of these overloads.
      * The three overloads of standard_transform() perform the operations planned by the constructor.
      *
      * \tparam scalar_type is either float or double, indicating the working precision
@@ -606,7 +606,6 @@ private:
     //! \brief Overload that allocates and deallocates the workspace.
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
-
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
         buffer_container<std::complex<scalar_type>> workspace(size_workspace());

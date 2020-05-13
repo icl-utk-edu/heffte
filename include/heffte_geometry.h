@@ -192,7 +192,7 @@ inline std::vector<std::array<int, 2>> get_factors(int const n){
 }
 
 /*!
- * \brief Factorize the MPI ranks into a 2-by-2 grid.
+ * \brief Factorize the MPI ranks into a 2D grid.
  *
  * Considers all possible factorizations of the total number of processors
  * and select the one with the lowest area which heuristically reduces the
@@ -271,7 +271,7 @@ inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int d
  * \param source is the current distribution of boxes across MPI ranks,
  *               and will be used as a reference when remapping boxes to ranks
  *
- * \returns a sorted list of boxes that describes
+ * \returns a sorted list of non-overlapping pencils which union is the \b world box
  */
 inline std::vector<box3d> make_pencils(box3d const world, std::array<int, 2> const proc_grid, int const dimension, std::vector<box3d> const &source){
     // trivial case, the grid is already in a pencil format
