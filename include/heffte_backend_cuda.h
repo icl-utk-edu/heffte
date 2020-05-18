@@ -374,9 +374,9 @@ public:
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
-        dist((dimension == 0) ? size : 1),
-        blocks((dimension == 1) ? box.size[2] : 1),
-        block_stride(box.size[0] * box.size[1]),
+        dist((dimension == box.order[0]) ? size : 1),
+        blocks((dimension == box.order[1]) ? box.osize(2) : 1),
+        block_stride(box.osize(0) * box.osize(1)),
         total_size(box.count())
     {}
 
@@ -537,11 +537,11 @@ public:
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
-        blocks((dimension == 1) ? box.size[2] : 1),
-        rdist((dimension == 0) ? size : 1),
-        cdist((dimension == 0) ? size/2 + 1 : 1),
-        rblock_stride(box.size[0] * box.size[1]),
-        cblock_stride(box.size[0] * (box.size[1]/2 + 1)),
+        blocks((dimension == box.order[1]) ? box.osize(2) : 1),
+        rdist((dimension == box.order[0]) ? size : 1),
+        cdist((dimension == box.order[0]) ? size/2 + 1 : 1),
+        rblock_stride(box.osize(0) * box.osize(1)),
+        cblock_stride(box.osize(0) * (box.osize(1)/2 + 1)),
         rsize(box.count()),
         csize(box.r2c(dimension).count())
     {}
