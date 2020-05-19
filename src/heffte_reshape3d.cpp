@@ -989,7 +989,36 @@ void compute_overlap_map_direct_pack(int me, int nprocs, box3d const source, std
                               + (overlap.low[source.order[0]] - source.low[source.order[0]]));
 
             plans.push_back({{overlap.osize(0), overlap.osize(1), overlap.osize(2)}, // fast, mid, and slow sizes
-                             source.osize(0), source.osize(1) * source.osize(0)}); // line and plane strides
+                             source.osize(0), source.osize(1) * source.osize(0), // line and plane strides
+                             0, 0, {0, 0, 0}});  // ignore the transpose parameters
+            sizes.push_back(overlap.count());
+        }
+    }
+}
+
+void compute_overlap_map_transpose_pack(int me, int nprocs, box3d const destination, std::vector<box3d> const &boxes,
+                                        std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d> &plans){
+    for(int i=0; i<nprocs; i++){
+        int iproc = (i + me) % nprocs;
+        box3d overlap = destination.collide(boxes[iproc]);
+        if (not overlap.empty()){
+            proc.push_back(iproc);
+            offset.push_back((overlap.low[destination.order[2]] - destination.low[destination.order[2]]) * destination.osize(0) * destination.osize(1)
+                              + (overlap.low[destination.order[1]] - destination.low[destination.order[1]]) * destination.osize(0)
+                              + (overlap.low[destination.order[0]] - destination.low[destination.order[0]]));
+
+            // figure out the map between the fast-mid-slow directions of the destination and the fast-mid-slow directions of the source
+            std::array<int, 3> map = {-1, -1, -1};
+            for(int j=0; j<3; j++)
+                for(int i=0; i<3; i++)
+                    if (destination.order[i] == boxes[iproc].order[j])
+                        map[j] = i;
+
+            plans.push_back({{overlap.osize(0), overlap.osize(1), overlap.osize(2)}, // fast, mid, and slow sizes
+                             destination.osize(0), destination.osize(1) * destination.osize(0), // destination line and plane strides
+                             overlap.size[boxes[iproc].order[0]], // strides for the buffer from the received data
+                             overlap.size[boxes[iproc].order[0]] * overlap.size[boxes[iproc].order[1]],
+                             map});  // map of the sizes of the overlap to the fast, mid and slow directions of the input
             sizes.push_back(overlap.count());
         }
     }

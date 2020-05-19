@@ -114,6 +114,16 @@ class Reshape3d {
 
 namespace heffte {
 
+/*!
+ * \brief Generates an unpack plan (alltoallv case) where the boxes and the destination do not have the same order.
+ *
+ * This method does not make any MPI calls, but it uses the set of boxes the define the current distribution of the indexes
+ * and computes the overlap and the proc, offset, and sizes vectors for the receive stage of an all-to-all-v communication patterns.
+ * In addition, a set of unpack plans is created where the order of the boxes and the destination are different,
+ * which will transpose the data. The plan has to be used in conjunction with the transpose packer.
+ */
+void compute_overlap_map_transpose_pack(int me, int nprocs, box3d const destination, std::vector<box3d> const &boxes,
+                                        std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d> &plans);
 
 /*!
  * \brief Base reshape interface.
