@@ -619,9 +619,8 @@ void test_1d_reorder(){
 
 void test_in_node_transpose(){
     using scalar_type = double;
-    current_test<scalar_type, using_nompi> name("unpack transpose");
+    current_test<scalar_type, using_nompi> name("reshape transpose");
 
-    transpose_packer<tag::cpu> packer;
     std::vector<int> proc, offset, sizes; // dummy variables, only needed to call the overlap map method
     std::vector<heffte::pack_plan_3d> plans;
 
@@ -632,7 +631,7 @@ void test_in_node_transpose(){
     // test 1, transpose the data to order (1, 2, 0)
     box3d destination1({0, 0, 0}, {1, 2, 3}, {1, 2, 0});
     heffte::compute_overlap_map_transpose_pack(0, 1, destination1, {inbox}, proc, offset, sizes, plans);
-    packer.unpack(plans[0], input.data(), result.data());
+    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(input.data(), result.data(), nullptr);
 
     std::vector<scalar_type> reference = {1.0, 3.0, 5.0, 7.0,  9.0, 11.0, 13.0, 15.0, 17.0, 19.0, 21.0, 23.0,
                                           2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0};
@@ -642,7 +641,7 @@ void test_in_node_transpose(){
     box3d destination2({0, 0, 0}, {1, 2, 3}, {2, 1, 0});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination2, {inbox}, proc, offset, sizes, plans);
-    packer.unpack(plans[0], input.data(), result.data());
+    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(input.data(), result.data(), nullptr);
 
     reference = {1.0,  7.0, 13.0, 19.0,  3.0,  9.0, 15.0, 21.0,  5.0, 11.0, 17.0, 23.0,
                  2.0,  8.0, 14.0, 20.0,  4.0, 10.0, 16.0, 22.0,  6.0, 12.0, 18.0, 24.0};
@@ -651,14 +650,14 @@ void test_in_node_transpose(){
     // flip back the data
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, inbox, {destination2}, proc, offset, sizes, plans);
-    packer.unpack(plans[0], reference.data(), result.data());
+    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(reference.data(), result.data(), nullptr);
     sassert(match(result, input));
 
     // test 3, transpose the data to order (0, 2, 1)
     box3d destination3({0, 0, 0}, {1, 2, 3}, {0, 2, 1});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination3, {inbox}, proc, offset, sizes, plans);
-    packer.unpack(plans[0], input.data(), result.data());
+    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(input.data(), result.data(), nullptr);
 
     reference = {1.0, 2.0,  7.0,  8.0, 13.0, 14.0, 19.0, 20.0,
                  3.0, 4.0,  9.0, 10.0, 15.0, 16.0, 21.0, 22.0,

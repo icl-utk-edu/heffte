@@ -271,6 +271,51 @@ make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                          std::vector<box3d> const &output_boxes,
                          MPI_Comm const);
 
+/*!
+ * \brief Special case of the reshape that does not involve MPI communication but applies a transpose instead.
+ *
+ * The operations is implemented as a single unpack operation using the transpose_packer with the same location tag.
+ */
+template<typename location_tag>
+class reshape3d_transpose : public reshape3d_base{
+public:
+    //! \brief Constructor using the provided unpack plan.
+    reshape3d_transpose(pack_plan_3d const cplan) :
+        reshape3d_base(cplan.size[0] * cplan.size[1] * cplan.size[2], cplan.size[0] * cplan.size[1] * cplan.size[2]),
+        plan(cplan)
+        {}
+
+    //! \brief Apply the reshape operations, single precision overload.
+    void apply(float const source[], float destination[], float workspace[]) const override final{
+        transpose(source, destination, workspace);
+    }
+    //! \brief Apply the reshape operations, double precision overload.
+    void apply(double const source[], double destination[], double workspace[]) const override final{
+        transpose(source, destination, workspace);
+    }
+    //! \brief Apply the reshape operations, single precision complex overload.
+    void apply(std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
+        transpose(source, destination, workspace);
+    }
+    //! \brief Apply the reshape operations, double precision complex overload.
+    void apply(std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
+        transpose(source, destination, workspace);
+    }
+
+private:
+    template<typename scalar_type>
+    void transpose(scalar_type const *source, scalar_type *destination, scalar_type *workspace) const{
+        if (source == destination){ // in-place transpose will need workspace
+            std::copy_n(source, size_intput(), workspace);
+            transpose_packer<location_tag>().unpack(plan, workspace, destination);
+        }else{
+            transpose_packer<location_tag>().unpack(plan, source, destination);
+        }
+    }
+
+    pack_plan_3d const plan;
+};
+
 }
 
 #endif
