@@ -69,7 +69,7 @@ struct box3d{
     //! \brief Creates a box that holds the intersection of this box and the \b other.
     box3d collide(box3d const other) const{
         return box3d({std::max(low[0], other.low[0]), std::max(low[1], other.low[1]), std::max(low[2], other.low[2])},
-                     {std::min(high[0], other.high[0]), std::min(high[1], other.high[1]), std::min(high[2], other.high[2])});
+                     {std::min(high[0], other.high[0]), std::min(high[1], other.high[1]), std::min(high[2], other.high[2])}, order);
     }
     //! \brief Returns the box that is reduced in the given dimension according to the real-to-complex symmetry.
     box3d r2c(int dimension) const{

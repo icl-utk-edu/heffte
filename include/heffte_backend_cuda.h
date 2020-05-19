@@ -684,11 +684,11 @@ void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_st
 template<> struct direct_packer<tag::gpu>{
     template<typename scalar_type>
     void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        cuda::direct_pack(plan.nfast, plan.nmid, plan.nslow, plan.line_stride, plan.plane_stride, data, buffer);
+        cuda::direct_pack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
     }
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        cuda::direct_unpack(plan.nfast, plan.nmid, plan.nslow, plan.line_stride, plan.plane_stride, buffer, data);
+        cuda::direct_unpack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
     }
 };
 

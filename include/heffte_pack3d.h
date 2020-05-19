@@ -248,12 +248,8 @@ namespace heffte {
  * \brief Holds the plan for a pack/unpack operation.
  */
 struct pack_plan_3d{
-    //! \brief Number of elements in the fast direction.
-    int nfast;
-    //! \brief Number of elements in the middle direction.
-    int nmid;
-    //! \brief Number of elements in the slow direction.
-    int nslow;
+    //! \brief Number of elements in the three directions.
+    std::array<int, 3> size;
     //! \brief Stride of the lines.
     int line_stride;
     //! \brief Stride of the planes.
@@ -264,9 +260,9 @@ struct pack_plan_3d{
  * \brief Writes a plan to the stream, useful for debugging.
  */
 inline std::ostream & operator << (std::ostream &os, pack_plan_3d const &plan){
-    os << "nfast = " << plan.nfast << "\n";
-    os << "nmid  = " << plan.nmid << "\n";
-    os << "nslow = " << plan.nslow << "\n";
+    os << "nfast = " << plan.size[0] << "\n";
+    os << "nmid  = " << plan.size[1] << "\n";
+    os << "nslow = " << plan.size[2] << "\n";
     os << "line_stride = "  << plan.line_stride << "\n";
     os << "plane_stride = " << plan.plane_stride << "\n";
     os << "\n";
@@ -296,18 +292,18 @@ template<> struct direct_packer<tag::cpu>{
     template<typename scalar_type>
     void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
         scalar_type* buffer_iterator = buffer;
-        for(int slow = 0; slow < plan.nslow; slow++){
-            for(int mid = 0; mid < plan.nmid; mid++){
-                buffer_iterator = std::copy_n(&data[slow * plan.plane_stride + mid * plan.line_stride], plan.nfast, buffer_iterator);
+        for(int slow = 0; slow < plan.size[2]; slow++){
+            for(int mid = 0; mid < plan.size[1]; mid++){
+                buffer_iterator = std::copy_n(&data[slow * plan.plane_stride + mid * plan.line_stride], plan.size[0], buffer_iterator);
             }
         }
     }
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        for(int slow = 0; slow < plan.nslow; slow++){
-            for(int mid = 0; mid < plan.nmid; mid++){
-                std::copy_n(&buffer[(slow * plan.nmid + mid) * plan.nfast],
-                            plan.nfast, &data[slow * plan.plane_stride + mid * plan.line_stride]);
+        for(int slow = 0; slow < plan.size[2]; slow++){
+            for(int mid = 0; mid < plan.size[1]; mid++){
+                std::copy_n(&buffer[(slow * plan.size[1] + mid) * plan.size[0]],
+                            plan.size[0], &data[slow * plan.plane_stride + mid * plan.line_stride]);
             }
         }
     }

@@ -173,6 +173,53 @@ void test_gpu(MPI_Comm const comm){
 }
 #endif
 
+template<typename scalar_type>
+void test_direct_reordered(MPI_Comm const comm){
+    assert(mpi::comm_size(comm) == 4); // the rest is designed for 4 ranks
+    current_test<scalar_type> test("-np " + std::to_string(mpi::comm_size(comm)) + "  direct_packer (unordered)", comm);
+
+    box3d ordered_world({0, 0, 0}, {8, 9, 10});
+
+    auto ordered_inboxes  = split_world(ordered_world, {1, 2, 2});
+    auto ordered_outboxes = split_world(ordered_world, {2, 2, 1});
+
+    int const me = heffte::mpi::comm_rank(comm);
+    auto input     = get_subdata<scalar_type>(ordered_world, ordered_inboxes[me]);
+    auto reference = get_subdata<scalar_type>(ordered_world, ordered_outboxes[me]);
+    std::vector<scalar_type> result(ordered_outboxes[me].count());
+
+    box3d world({0, 0, 0}, {9, 10, 8}, {2, 0, 1});
+
+    std::vector<box3d> inboxes, outboxes;
+    for(auto b : split_world(world, {2, 2, 1})) inboxes.push_back({b.low, b.high, world.order});
+    std::vector<box3d> temp = split_world(world, {2, 1, 2}); // need to swap the middle two entries
+    for(auto i : std::vector<int>{0, 2, 1, 3}) outboxes.push_back({temp[i].low, temp[i].high, world.order});
+
+    #ifdef Heffte_ENABLE_FFTW
+    {
+        auto reshape = make_reshape3d_alltoallv<backend::fftw>(inboxes, outboxes, comm);
+        std::vector<scalar_type> workspace(reshape->size_workspace());
+        reshape->apply(input.data(), result.data(), workspace.data());
+
+        tassert(match(result, reference));
+    }
+    #endif
+
+    #ifdef Heffte_ENABLE_CUDA
+    {
+        auto reshape = make_reshape3d_alltoallv<backend::cufft>(inboxes, outboxes, comm);
+        cuda::vector<scalar_type> workspace(reshape->size_workspace());
+
+        auto cuinput = cuda::load(input);
+        cuda::vector<scalar_type> curesult(ordered_outboxes[me].count());
+
+        reshape->apply(cuinput.data(), curesult.data(), workspace.data());
+
+        tassert(match(curesult, reference));
+    }
+    #endif
+}
+
 void perform_tests_cpu(){
     MPI_Comm const comm = MPI_COMM_WORLD;
 
@@ -250,10 +297,20 @@ void perform_tests_gpu(){
     #endif
 }
 
+void perform_tests_reorder(){
+    MPI_Comm const comm = MPI_COMM_WORLD;
+
+    if (mpi::comm_size(comm) == 4){
+        test_direct_reordered<double>(comm);
+        test_direct_reordered<std::complex<float>>(comm);
+    }
+}
+
 void perform_all_tests(){
     all_tests<> name("heffte reshape methods");
     perform_tests_cpu();
     perform_tests_gpu();
+    perform_tests_reorder();
 }
 
 int main(int argc, char *argv[]){

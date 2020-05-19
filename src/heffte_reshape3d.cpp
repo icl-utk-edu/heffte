@@ -973,19 +973,23 @@ std::vector<int> a2a_group(std::vector<int> const &send_proc, std::vector<int> c
     return result;
 }
 
-void compute_overlap_map(int me, int nprocs, box3d const source, std::vector<box3d> const &boxes,
-                         std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d> &plans){
+/*
+ * Assumes that all boxes have the same order which may be different from (0, 1, 2).
+ * The data-movement will be done from a contiguous buffer into the lines of a box.
+ */
+void compute_overlap_map_direct_pack(int me, int nprocs, box3d const source, std::vector<box3d> const &boxes,
+                                     std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d> &plans){
     for(int i=0; i<nprocs; i++){
         int iproc = (i + me) % nprocs;
         box3d overlap = source.collide(boxes[iproc]);
         if (not overlap.empty()){
             proc.push_back(iproc);
-            offset.push_back((overlap.low[2] - source.low[2]) * source.size[0] * source.size[1]
-                              + (overlap.low[1] - source.low[1]) * source.size[0]
-                              + (overlap.low[0] - source.low[0]));
+            offset.push_back((overlap.low[source.order[2]] - source.low[source.order[2]]) * source.osize(0) * source.osize(1)
+                              + (overlap.low[source.order[1]] - source.low[source.order[1]]) * source.osize(0)
+                              + (overlap.low[source.order[0]] - source.low[source.order[0]]));
 
-            plans.push_back({overlap.size[0], overlap.size[1], overlap.size[2], // fast, mid, and slow sizes
-                             source.size[0], source.size[1] * source.size[0]}); // line and plane strides
+            plans.push_back({{overlap.osize(0), overlap.osize(1), overlap.osize(2)}, // fast, mid, and slow sizes
+                             source.osize(0), source.osize(1) * source.osize(0)}); // line and plane strides
             sizes.push_back(overlap.count());
         }
     }
@@ -1082,13 +1086,18 @@ make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
     int nsend = count_collisions(output_boxes, inbox);
 
     if (nsend > 0) // if others need something from me, prepare the corresponding sizes and plans
-        compute_overlap_map(me, nprocs, input_boxes[me], output_boxes, send_proc, send_offset, send_size, packplan);
+        compute_overlap_map_direct_pack(me, nprocs, input_boxes[me], output_boxes, send_proc, send_offset, send_size, packplan);
 
     // number of ranks that I need data from
     int nrecv = count_collisions(input_boxes, outbox);
 
-    if (nrecv > 0) // if I need something from others, prepare the corresponding sizes and plans
-        compute_overlap_map(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
+    if (nrecv > 0){ // if I need something from others, prepare the corresponding sizes and plans
+        // the transpose logic is included in the unpack procedure, direct_packer does not transpose
+        if (std::is_same<packer<backend_tag>, direct_packer<backend_tag>>::value){
+            compute_overlap_map_direct_pack(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
+        }else{
+        }
+    }
 
     return std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>(new reshape3d_alltoallv<backend_tag, packer>(
         inbox.count(), outbox.count(),
