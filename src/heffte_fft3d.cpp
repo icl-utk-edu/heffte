@@ -2832,20 +2832,21 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
 
     // if there is messier combination of transforms, then we need internal buffers
     std::complex<scalar_type> *temp_buffer = workspace + size_comm_buffers();
-    { add_trace name("fft-1d x3");
+    { add_trace name("fft-1d");
     executor[0]->forward(effective_input, temp_buffer);
     }
 
     for(int i=1; i<last; i++){
-        if (shaper[i])
+        if (shaper[i]){
             shaper[i]->apply(temp_buffer, temp_buffer, workspace);
+        }
         add_trace name("fft-1d");
         executor[i]->forward(temp_buffer);
     }
     shaper[last]->apply(temp_buffer, output, workspace);
 
     for(int i=last; i<3; i++){
-        add_trace name("fft-1d x3");
+        add_trace name("fft-1d");
         executor[i]->forward(output);
     }
 

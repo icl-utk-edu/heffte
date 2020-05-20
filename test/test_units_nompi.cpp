@@ -56,12 +56,12 @@ void test_split_pencils(){
                                     {{1, 0, 0}, {1, 1, 5}}, {{1, 2, 0}, {1, 3, 5}}};
     // note that the order of the boxes moves fastest in the mid-dimension
     // this tests the reordering
-    std::vector<box3d> result = make_pencils(world, {2, 2}, 2, reference);
+    std::vector<box3d> result = make_pencils(world, {2, 2}, 2, reference, world.order);
     sassert(match(result, reference));
 
     std::vector<box3d> reference2 = {{{0, 0, 0}, {1, 1, 2}}, {{0, 2, 0}, {1, 3, 2}},
                                      {{0, 0, 3}, {1, 1, 5}}, {{0, 2, 3}, {1, 3, 5}}};
-    std::vector<box3d> result2 = make_pencils(world, {2, 2}, 0, reference);
+    std::vector<box3d> result2 = make_pencils(world, {2, 2}, 0, reference, world.order);
     sassert(match(result2, reference2));
 
     box3d const reconstructed_world = find_world(result);

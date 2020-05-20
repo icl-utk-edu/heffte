@@ -726,6 +726,14 @@ template<> struct data_scaling<tag::gpu>{
     }
 };
 
+/*!
+ * \brief Sets the default options for the cufft backend.
+ */
+template<> struct default_plan_options<backend::cufft>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = false;
+};
+
 }
 
 #endif

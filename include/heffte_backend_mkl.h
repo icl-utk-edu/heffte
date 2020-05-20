@@ -356,6 +356,14 @@ template<> struct one_dim_backend<backend::mkl>{
     }
 };
 
+/*!
+ * \brief Sets the default options for the mkl backend.
+ */
+template<> struct default_plan_options<backend::mkl>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = false;
+};
+
 }
 
 #endif

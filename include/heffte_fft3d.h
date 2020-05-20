@@ -373,7 +373,7 @@ public:
      * \param comm is the MPI communicator with all ranks that will participate in the FFT.
      */
     fft3d(box3d const inbox, box3d const outbox, MPI_Comm const comm) :
-        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1), mpi::comm_rank(comm), comm){
+        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, default_options<backend_tag>()), mpi::comm_rank(comm), comm){
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
 

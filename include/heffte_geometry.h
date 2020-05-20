@@ -272,10 +272,11 @@ inline std::vector<box3d> split_world(box3d const world, std::array<int, 3> cons
     auto slow = [=](int i)->int{ return world.low[2] + i * (world.size[2] / proc_grid[2]) + std::min(i, (world.size[2] % proc_grid[2])); };
 
     std::vector<box3d> result;
+    result.reserve(proc_grid[0] * proc_grid[1] * proc_grid[2]);
     for(int k = 0; k < proc_grid[2]; k++){
         for(int j = 0; j < proc_grid[1]; j++){
             for(int i = 0; i < proc_grid[0]; i++){
-                result.push_back({{fast(i), mid(j), slow(k)}, {fast(i+1)-1, mid(j+1)-1, slow(k+1)-1}});
+                result.push_back(box3d({fast(i), mid(j), slow(k)}, {fast(i+1)-1, mid(j+1)-1, slow(k+1)-1}, world.order));
             }
         }
     }
@@ -290,6 +291,17 @@ inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int d
         if (s.size[direction] != world.size[direction])
             return false;
     return true;
+}
+
+/*!
+ * \brief Returns the same shape, but sets a different order for each box.
+ */
+inline std::vector<box3d> reorder(std::vector<box3d> const &shape, std::array<int, 3> order){
+    std::vector<box3d> result;
+    result.reserve(shape.size());
+    for(auto const &b : shape)
+        result.push_back(box3d(b.low, b.high, order));
+    return result;
 }
 
 /*!
@@ -308,13 +320,19 @@ inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int d
  *                  for each pencil in the output list
  * \param source is the current distribution of boxes across MPI ranks,
  *               and will be used as a reference when remapping boxes to ranks
+ * \param order is the box index order (fast, mid, slow) that will be assigned to the result.
  *
  * \returns a sorted list of boxes that describes
  */
-inline std::vector<box3d> make_pencils(box3d const world, std::array<int, 2> const proc_grid, int const dimension, std::vector<box3d> const &source){
+inline std::vector<box3d> make_pencils(box3d const world,
+                                       std::array<int, 2> const proc_grid,
+                                       int const dimension,
+                                       std::vector<box3d> const &source,
+                                       std::array<int, 3> const order
+                                      ){
     // trivial case, the grid is already in a pencil format
     if (is_pencils(world, source, dimension))
-        return source;
+        return reorder(source, order);
 
     // create a list of boxes ordered in column major format (following the proc_grid box)
     std::vector<box3d> pencils;
@@ -345,7 +363,7 @@ inline std::vector<box3d> make_pencils(box3d const world, std::array<int, 2> con
         }
         assert( max_index < pencils.size() ); // if we found a box
         taken[max_index] = true;
-        result.push_back(pencils[max_index]);
+        result.push_back(box3d(pencils[max_index].low, pencils[max_index].high, order));
     }
 
     return result;

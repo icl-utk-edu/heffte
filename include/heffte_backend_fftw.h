@@ -351,6 +351,14 @@ template<> struct one_dim_backend<backend::fftw>{
     }
 };
 
+/*!
+ * \brief Sets the default options for the fftw backend.
+ */
+template<> struct default_plan_options<backend::fftw>{
+    //! \brief The reshape operations will also reorder the data.
+    static const bool use_reorder = true;
+};
+
 }
 
 #endif
