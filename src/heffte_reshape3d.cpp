@@ -1093,9 +1093,6 @@ std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>
 make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                          std::vector<box3d> const &output_boxes,
                          MPI_Comm const comm){
-    // if the input and output are the same, returns an empty reshape
-    if (match(input_boxes, output_boxes))
-        return std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>();
 
     int const me = mpi::comm_rank(comm);
     int const nprocs = mpi::comm_size(comm);
@@ -1125,6 +1122,7 @@ make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
         if (std::is_same<packer<backend_tag>, direct_packer<backend_tag>>::value){
             compute_overlap_map_direct_pack(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
         }else{
+            compute_overlap_map_transpose_pack(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
         }
     }
 
@@ -1142,9 +1140,15 @@ template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<float
 template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<double>(double const[], double[], double[]) const; \
 template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<std::complex<float>>(std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
 template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<std::complex<double>>(std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
+template void reshape3d_alltoallv<some_backend, transpose_packer>::apply_base<float>(float const[], float[], float[]) const; \
+template void reshape3d_alltoallv<some_backend, transpose_packer>::apply_base<double>(double const[], double[], double[]) const; \
+template void reshape3d_alltoallv<some_backend, transpose_packer>::apply_base<std::complex<float>>(std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
+template void reshape3d_alltoallv<some_backend, transpose_packer>::apply_base<std::complex<double>>(std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
  \
 template std::unique_ptr<reshape3d_alltoallv<some_backend, direct_packer>> \
 make_reshape3d_alltoallv<some_backend, direct_packer>(std::vector<box3d> const&, std::vector<box3d> const&, MPI_Comm const); \
+template std::unique_ptr<reshape3d_alltoallv<some_backend, transpose_packer>> \
+make_reshape3d_alltoallv<some_backend, transpose_packer>(std::vector<box3d> const&, std::vector<box3d> const&, MPI_Comm const); \
 
 
 #ifdef Heffte_ENABLE_FFTW

@@ -2696,8 +2696,8 @@ fft3d<backend_tag>::fft3d(logic_plan3d const &plan, int const this_mpi_rank, MPI
     scale_factor(1.0 / static_cast<double>(plan.index_count))
 {
     for(int i=0; i<4; i++){
-        forward_shaper[i]    = make_reshape3d_alltoallv<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
-        backward_shaper[3-i] = make_reshape3d_alltoallv<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
+        forward_shaper[i]    = make_reshape3d<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
+        backward_shaper[3-i] = make_reshape3d<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
     }
 
     fft0 = one_dim_backend<backend_tag>::make(plan.out_shape[0][this_mpi_rank], plan.fft_direction[0]);

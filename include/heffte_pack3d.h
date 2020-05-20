@@ -331,7 +331,7 @@ template<typename mode> struct transpose_packer{};
 template<> struct transpose_packer<tag::cpu>{
     template<typename scalar_type>
     void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        direct_packer<tag::cpu>(plan, data, buffer); // packing is done the same way as the direct_packer
+        direct_packer<tag::cpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
     }
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{

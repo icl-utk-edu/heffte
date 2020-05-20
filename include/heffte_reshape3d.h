@@ -316,6 +316,45 @@ private:
     pack_plan_3d const plan;
 };
 
+/*!
+ * \brief Factory method to create a reshape3d instance.
+ *
+ * Creates a reshape operation from the geometry defined by the input boxes to the geometry defined but the output boxes.
+ * The boxes are spread across the given MPI communicator where the boxes associated with the current MPI rank is located
+ * at input_boxes[mpi::comm_rank(comm)] and output_boxes[mpi::comm_rank(comm)].
+ *
+ * - If the input and output are the same, then an empty unique_ptr is created.
+ * - If the geometries differ only in the order, then a reshape3d_transpose instance is created.
+ * - In all other cases, a reshape3d_alltoallv instance is created using either direct_packer or transpose_packer.
+ *
+ * Assumes that the order of the input and output geometries are consistent, i.e.,
+ * input_boxes[i].order == input_boxes[j].order for all i, j.
+ */
+template<typename backend_tag>
+std::unique_ptr<reshape3d_base> make_reshape3d(std::vector<box3d> const &input_boxes,
+                                               std::vector<box3d> const &output_boxes,
+                                               MPI_Comm const comm){
+    if (match(input_boxes, output_boxes)){
+        if (input_boxes[0].ordered_same_as(output_boxes[0])){
+            return std::unique_ptr<reshape3d_base>();
+        }else{
+            int const me = mpi::comm_rank(comm);
+            std::vector<int> proc, offset, sizes;
+            std::vector<pack_plan_3d> plans;
+
+            compute_overlap_map_transpose_pack(0, 1, output_boxes[me], {input_boxes[me]}, proc, offset, sizes, plans);
+
+            return std::unique_ptr<reshape3d_base>(new reshape3d_transpose<typename backend::buffer_traits<backend_tag>::location>(plans[0]));
+        }
+    }else{
+        if (input_boxes[0].ordered_same_as(output_boxes[0])){
+            return make_reshape3d_alltoallv<backend_tag, direct_packer>(input_boxes, output_boxes, comm);
+        }else{
+            return make_reshape3d_alltoallv<backend_tag, transpose_packer>(input_boxes, output_boxes, comm);
+        }
+    }
+}
+
 }
 
 #endif
