@@ -26,7 +26,11 @@ void benchmark_fft(std::array<int,3> size_fft){
     std::vector<box3d> outboxes = heffte::split_world(world, proc_o);
 
     // Define 3D FFT plan
-    heffte::fft3d<backend_tag> fft(inboxes[me], outboxes[me], fft_comm);
+    auto options = heffte::default_options<backend_tag>();
+
+
+    heffte::fft3d<backend_tag> fft(inboxes[me], outboxes[me], fft_comm, options);
+
     std::array<int, 2> proc_grid = make_procgrid(nprocs);
     // writes out the proc_grid in the given dimension
     auto print_proc_grid = [&](int i){

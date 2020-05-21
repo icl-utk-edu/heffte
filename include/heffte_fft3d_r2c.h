@@ -67,9 +67,11 @@ public:
      * \param r2c_direction indicates the direction where the total set of coefficients will be reduced to hold only the non-conjugate pairs;
      *        selecting a dimension with odd number of indexes will result in (slightly) smaller final data set.
      * \param comm is the MPI communicator with all ranks that will participate in the FFT.
+     * \param options is a set of options that define the FFT plan, see heffte::plan_options for details.
      */
-    fft3d_r2c(box3d const inbox, box3d const outbox, int r2c_direction, MPI_Comm const comm) :
-        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, default_options<backend_tag>()),
+    fft3d_r2c(box3d const inbox, box3d const outbox, int r2c_direction, MPI_Comm const comm,
+              plan_options const options = default_options<backend_tag>()) :
+        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, options),
                   mpi::comm_rank(comm), comm){
         assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
