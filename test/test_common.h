@@ -136,4 +136,27 @@ inline bool approx(heffte::cuda::vector<T> const &a, std::vector<T> const &b, do
 }
 #endif
 
+//! \brief Converts a set of c-style strings into a single collection (deque) of c++ strings.
+inline std::deque<std::string> arguments(int argc, char *argv[]){
+    std::deque<std::string> args;
+    for(int i=0; i<argc; i++){
+        args.push_back(std::string(argv[i]));
+    }
+    return args;
+}
+
+//! \brief Sets the default options for the backend and then modifies those according to the passed arguments.
+template<typename backend_tag>
+heffte::plan_options args_to_options(std::deque<std::string> const &args){
+    heffte::plan_options options = heffte::default_options<backend_tag>();
+    for(auto const &s : args){
+        if (s == "-reorder"){
+            options.use_reorder = true;
+        }else if (s == "-no-reorder"){
+            options.use_reorder = false;
+        }
+    }
+    return options;
+}
+
 #endif

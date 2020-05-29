@@ -8,7 +8,7 @@
 #include "test_fft3d.h"
 
 template<typename backend_tag, typename precision_type>
-void benchmark_fft(std::array<int,3> size_fft){
+void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &args){
 
     int me, nprocs;
     MPI_Comm fft_comm = MPI_COMM_WORLD;  // Change if need to compute FFT within a subcommunicator
@@ -26,8 +26,7 @@ void benchmark_fft(std::array<int,3> size_fft){
     std::vector<box3d> outboxes = heffte::split_world(world, proc_o);
 
     // Define 3D FFT plan
-    auto options = heffte::default_options<backend_tag>();
-
+    heffte::plan_options options = args_to_options<backend_tag>(args);
 
     heffte::fft3d<backend_tag> fft(inboxes[me], outboxes[me], fft_comm, options);
 
@@ -145,14 +144,17 @@ int main(int argc, char *argv[]){
 
     if (argc < 6){
         if (mpi::world_rank(0)){
-            cout << "\nUsage:\n    mpirun -np x " << bench_executable << " <backend> <precision> <size-x> <size-y> <size-z>\n\n"
+            cout << "\nUsage:\n    mpirun -np x " << bench_executable << " <backend> <precision> <size-x> <size-y> <size-z> <args>\n\n"
                  << "    options\n"
                  << "        backend is the 1-D FFT library\n"
                  << "            available options for this build: " << backends << "\n"
                  << "        precision is either float or double\n"
                  << "        size-x/y/z are the 3D array dimensions \n\n"
+                 << "        args is a set of optional arguments that define algorithmic tweaks and variations\n"
+                 << "         -reorder: reorder the elements of the arrays so that each 1-D FFT will use contiguous data\n"
+                 << "         -no-reorder: some of the 1-D will be strided (non contiguous)\n"
                  << "Examples:\n"
-                 << "    mpirun -np 4 " << bench_executable << " fftw  double 128 128 128\n"
+                 << "    mpirun -np 4 " << bench_executable << " fftw  double 128 128 128 -no-reorder\n"
                  << "    mpirun -np 8 " << bench_executable << " cufft float  256 256 256\n\n";
         }
 
@@ -193,9 +195,9 @@ int main(int argc, char *argv[]){
     #ifdef Heffte_ENABLE_FFTW
     if (backend_string == "fftw"){
         if (precision_string == "float"){
-            benchmark_fft<backend::fftw, float>(size_fft);
+            benchmark_fft<backend::fftw, float>(size_fft, arguments(argc, argv));
         }else{
-            benchmark_fft<backend::fftw, double>(size_fft);
+            benchmark_fft<backend::fftw, double>(size_fft, arguments(argc, argv));
         }
         valid_backend = true;
     }
@@ -203,9 +205,9 @@ int main(int argc, char *argv[]){
     #ifdef Heffte_ENABLE_MKL
     if (backend_string == "mkl"){
         if (precision_string == "float"){
-            benchmark_fft<backend::mkl, float>(size_fft);
+            benchmark_fft<backend::mkl, float>(size_fft, arguments(argc, argv));
         }else{
-            benchmark_fft<backend::mkl, double>(size_fft);
+            benchmark_fft<backend::mkl, double>(size_fft, arguments(argc, argv));
         }
         valid_backend = true;
     }
@@ -213,9 +215,9 @@ int main(int argc, char *argv[]){
     #ifdef Heffte_ENABLE_CUDA
     if (backend_string == "cufft"){
         if (precision_string == "float"){
-            benchmark_fft<backend::cufft, float>(size_fft);
+            benchmark_fft<backend::cufft, float>(size_fft, arguments(argc, argv));
         }else{
-            benchmark_fft<backend::cufft, double>(size_fft);
+            benchmark_fft<backend::cufft, double>(size_fft, arguments(argc, argv));
         }
         valid_backend = true;
     }
