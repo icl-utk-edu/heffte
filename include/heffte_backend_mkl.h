@@ -130,9 +130,9 @@ public:
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
-        dist((dimension == 0) ? size : 1),
-        blocks((dimension == 1) ? box.size[2] : 1),
-        block_stride(box.size[0] * box.size[1]),
+        dist((dimension == box.order[0]) ? size : 1),
+        blocks((dimension == box.order[1]) ? box.osize(2) : 1),
+        block_stride(box.osize(0) * box.osize(1)),
         total_size(box.count())
     {}
 
@@ -271,11 +271,11 @@ public:
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
-        blocks((dimension == 1) ? box.size[2] : 1),
-        rdist((dimension == 0) ? size : 1),
-        cdist((dimension == 0) ? size/2 + 1 : 1),
-        rblock_stride(box.size[0] * box.size[1]),
-        cblock_stride(box.size[0] * (box.size[1]/2 + 1)),
+        blocks((dimension == box.order[1]) ? box.osize(2) : 1),
+        rdist((dimension == box.order[0]) ? size : 1),
+        cdist((dimension == box.order[0]) ? size/2 + 1 : 1),
+        rblock_stride(box.osize(0) * box.size(1)),
+        cblock_stride(box.osize(0) * (box.size(1)/2 + 1)),
         rsize(box.count()),
         csize(box.r2c(dimension).count())
     {}
@@ -354,6 +354,14 @@ template<> struct one_dim_backend<backend::mkl>{
     static std::unique_ptr<mkl_executor_r2c> make_r2c(box3d const box, int dimension){
         return std::unique_ptr<mkl_executor_r2c>(new mkl_executor_r2c(box, dimension));
     }
+};
+
+/*!
+ * \brief Sets the default options for the mkl backend.
+ */
+template<> struct default_plan_options<backend::mkl>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = false;
 };
 
 }

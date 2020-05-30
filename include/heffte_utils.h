@@ -341,14 +341,14 @@ template<typename scalar_type> struct define_standard_type<scalar_type, typename
  * \brief Converts an array of some type to an array of the C++ equivalent type.
  */
 template<typename scalar_type>
-typename define_standard_type<scalar_type>::type* convert_to_standart(scalar_type input[]){
+typename define_standard_type<scalar_type>::type* convert_to_standard(scalar_type input[]){
     return reinterpret_cast<typename define_standard_type<scalar_type>::type*>(input);
 }
 /*!
  * \brief Converts a const array of some type to a const array of the C++ equivalent type.
  */
 template<typename scalar_type>
-typename define_standard_type<scalar_type>::type const* convert_to_standart(scalar_type const input[]){
+typename define_standard_type<scalar_type>::type const* convert_to_standard(scalar_type const input[]){
     return reinterpret_cast<typename define_standard_type<scalar_type>::type const*>(input);
 }
 

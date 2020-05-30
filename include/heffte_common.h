@@ -198,6 +198,11 @@ enum class direction {
  */
 template<typename> struct one_dim_backend{};
 
+/*!
+ * \brief Defines a set of default plan options for a given backend.
+ */
+template<typename> struct default_plan_options{};
+
 }
 
 #endif   //  #ifndef HEFFTE_COMMON_H

@@ -56,12 +56,12 @@ void test_split_pencils(){
                                     {{1, 0, 0}, {1, 1, 5}}, {{1, 2, 0}, {1, 3, 5}}};
     // note that the order of the boxes moves fastest in the mid-dimension
     // this tests the reordering
-    std::vector<box3d> result = make_pencils(world, {2, 2}, 2, reference);
+    std::vector<box3d> result = make_pencils(world, {2, 2}, 2, reference, world.order);
     sassert(match(result, reference));
 
     std::vector<box3d> reference2 = {{{0, 0, 0}, {1, 1, 2}}, {{0, 2, 0}, {1, 3, 2}},
                                      {{0, 0, 3}, {1, 1, 5}}, {{0, 2, 3}, {1, 3, 5}}};
-    std::vector<box3d> result2 = make_pencils(world, {2, 2}, 0, reference);
+    std::vector<box3d> result2 = make_pencils(world, {2, 2}, 0, reference, world.order);
     sassert(match(result2, reference2));
 
     box3d const reconstructed_world = find_world(result);
@@ -93,6 +93,37 @@ template<typename scalar_type>
 std::vector<scalar_type> make_input(){
     std::vector<scalar_type> result(24);
     for(int i=0; i<24; i++) result[i] = static_cast<scalar_type>(i + 1);
+    return result;
+}
+
+/*
+ * Reorder a set of indexes with given size into the given order,
+ * the input order is assumed the canonical (0, 1, 2).
+ */
+template<typename scalar_type>
+std::vector<scalar_type> reorder_box(std::array<int, 3> size, std::array<int, 3> order, std::vector<scalar_type> const &input){
+    std::vector<scalar_type> result(input.size());
+
+    std::array<int, 3> max_iter = {size[order[0]], size[order[1]], size[order[2]]};
+    std::array<int, 3> iter = {0, 0, 0};
+    int &ti = (order[0] == 0) ? iter[0] : ((order[1] == 0) ? iter[1] : iter[2]);
+    int &tj = (order[0] == 1) ? iter[0] : ((order[1] == 1) ? iter[1] : iter[2]);
+    int &tk = (order[0] == 2) ? iter[0] : ((order[1] == 2) ? iter[1] : iter[2]);
+
+    int plane = size[order[0]] * size[order[1]];
+    int lane  = size[order[0]];
+
+    int oplane = size[0] * size[1];
+    int olane = size[0];
+
+    for(iter[2]=0; iter[2]<max_iter[2]; iter[2]++){
+        for(iter[1]=0; iter[1]<max_iter[1]; iter[1]++){
+            for(iter[0]=0; iter[0]<max_iter[0]; iter[0]++){
+                result[iter[2] * plane + iter[1] * lane + iter[0]] = input[tk * oplane + tj * olane + ti];
+            }
+        }
+    }
+
     return result;
 }
 
@@ -511,6 +542,129 @@ void test_gpu_scale(){}
 void test_cufft(){}
 #endif
 
+void test_1d_reorder(){
+    // includes both c2c and r2c cases
+    using rtype = double;
+    using ctype = std::complex<double>;
+    current_test<rtype, using_nompi> name("one-dimension reorder logic");
+
+    // make a box
+    box3d const box({0, 0, 0}, {1, 2, 3}, {2, 0, 1}); // sync this with make_input and make_fft methods
+
+    auto const rinput = reorder_box(box.size, box.order, make_input<rtype>());
+    auto const cinput = reorder_box(box.size, box.order, make_input<ctype>());
+
+    std::vector<std::vector<ctype>> rreference =
+        { make_fft2_r2c<ctype>(), make_fft0<ctype>(), make_fft1_r2c<ctype>() };
+    std::vector<std::vector<ctype>> creference =
+        { make_fft2<ctype>(), make_fft0<ctype>(), make_fft1<ctype>() };
+
+    for(size_t i=0; i<3; i++){
+        rreference[i] = reorder_box(box.r2c(box.order[i]).size, box.order, rreference[i]);
+        creference[i] = reorder_box(box.size, box.order, creference[i]);
+    }
+
+    #ifdef Heffte_ENABLE_FFTW
+    for(size_t i=0; i<3; i++){
+        heffte::fftw_executor fft(box, box.order[i]);
+
+        std::vector<ctype> cresult = cinput;
+        fft.forward(cresult.data());
+        sassert(approx(cresult, creference[i]));
+
+        fft.backward(cresult.data());
+        for(auto &r : cresult) r /= (2.0 + box.order[i]);
+        sassert(approx(cresult, cinput));
+
+        heffte::fftw_executor_r2c fft_r2c(box, box.order[i]);
+
+        std::vector<ctype> rresult(rreference[i].size());
+        fft_r2c.forward(rinput.data(), rresult.data());
+        sassert(approx(rresult, rreference[i]));
+
+        std::vector<rtype> brresult(rinput.size());
+        fft_r2c.backward(rresult.data(), brresult.data());
+        for(auto &r : brresult) r /= (2.0 + box.order[i]);
+        sassert(approx(brresult, rinput));
+    }
+    #endif
+
+    #ifdef Heffte_ENABLE_CUDA
+    for(size_t i=0; i<3; i++){
+        heffte::cufft_executor fft(box, box.order[i]);
+
+        auto cresult = cuda::load(cinput);
+        fft.forward(cresult.data());
+        sassert(approx(cresult, creference[i]));
+
+        fft.backward(cresult.data());
+        auto cpu_cresult = cuda::unload(cresult);
+        for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
+        sassert(approx(cpu_cresult, cinput));
+
+        heffte::cufft_executor_r2c fft_r2c(box, box.order[i]);
+
+        cuda::vector<ctype> rresult(rreference[i].size());
+        fft_r2c.forward(cuda::load(rinput).data(), rresult.data());
+        sassert(approx(rresult, rreference[i]));
+
+        cuda::vector<rtype> brresult(rinput.size());
+        fft_r2c.backward(rresult.data(), brresult.data());
+        auto cpu_brresult = cuda::unload(brresult);
+        for(auto &r : cpu_brresult) r /= (2.0 + box.order[i]);
+        sassert(approx(cpu_brresult, rinput));
+    }
+    #endif
+}
+
+void test_in_node_transpose(){
+    using scalar_type = double;
+    current_test<scalar_type, using_nompi> name("reshape transpose");
+
+    std::vector<int> proc, offset, sizes; // dummy variables, only needed to call the overlap map method
+    std::vector<heffte::pack_plan_3d> plans;
+
+    box3d inbox({0, 0, 0}, {1, 2, 3}, {0, 1, 2}); // reference box
+    auto const input = make_input<scalar_type>(); // reference input
+    std::vector<double> result(24); // result from a transpose operation
+
+    // test 1, transpose the data to order (1, 2, 0)
+    box3d destination1({0, 0, 0}, {1, 2, 3}, {1, 2, 0});
+    heffte::compute_overlap_map_transpose_pack(0, 1, destination1, {inbox}, proc, offset, sizes, plans);
+    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(input.data(), result.data(), nullptr);
+
+    std::vector<scalar_type> reference = {1.0, 3.0, 5.0, 7.0,  9.0, 11.0, 13.0, 15.0, 17.0, 19.0, 21.0, 23.0,
+                                          2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0};
+    sassert(match(result, reference));
+
+    // test 2, transpose the data to order (2, 1, 0)
+    box3d destination2({0, 0, 0}, {1, 2, 3}, {2, 1, 0});
+    plans.clear();
+    heffte::compute_overlap_map_transpose_pack(0, 1, destination2, {inbox}, proc, offset, sizes, plans);
+    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(input.data(), result.data(), nullptr);
+
+    reference = {1.0,  7.0, 13.0, 19.0,  3.0,  9.0, 15.0, 21.0,  5.0, 11.0, 17.0, 23.0,
+                 2.0,  8.0, 14.0, 20.0,  4.0, 10.0, 16.0, 22.0,  6.0, 12.0, 18.0, 24.0};
+    sassert(match(result, reference));
+
+    // flip back the data
+    plans.clear();
+    heffte::compute_overlap_map_transpose_pack(0, 1, inbox, {destination2}, proc, offset, sizes, plans);
+    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(reference.data(), result.data(), nullptr);
+    sassert(match(result, input));
+
+    // test 3, transpose the data to order (0, 2, 1)
+    box3d destination3({0, 0, 0}, {1, 2, 3}, {0, 2, 1});
+    plans.clear();
+    heffte::compute_overlap_map_transpose_pack(0, 1, destination3, {inbox}, proc, offset, sizes, plans);
+    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(input.data(), result.data(), nullptr);
+
+    reference = {1.0, 2.0,  7.0,  8.0, 13.0, 14.0, 19.0, 20.0,
+                 3.0, 4.0,  9.0, 10.0, 15.0, 16.0, 21.0, 22.0,
+                 5.0, 6.0, 11.0, 12.0, 17.0, 18.0, 23.0, 24.0};
+    sassert(match(result, reference));
+}
+
 #if defined(Heffte_ENABLE_FFTW) and defined(Heffte_ENABLE_CUDA)
 template<typename scalar_type>
 std::vector<scalar_type> make_data(box3d const world){
@@ -619,6 +773,9 @@ int main(int argc, char *argv[]){
     test_fftw();
     test_mkl();
     test_cufft();
+
+    test_1d_reorder();
+    test_in_node_transpose();
 
     test_cross_reference();
 

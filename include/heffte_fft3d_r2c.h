@@ -69,7 +69,8 @@ public:
      * \param comm is the MPI communicator with all ranks that will participate in the FFT.
      */
     fft3d_r2c(box3d const inbox, box3d const outbox, int r2c_direction, MPI_Comm const comm) :
-        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction), mpi::comm_rank(comm), comm){
+        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, default_options<backend_tag>()),
+                  mpi::comm_rank(comm), comm){
         assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
@@ -110,7 +111,7 @@ public:
                    or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), scaling);
+        standard_transform(convert_to_standard(input), convert_to_standard(output), scaling);
     }
 
     //! \brief Overload utilizing a user provided buffer.
@@ -120,7 +121,7 @@ public:
                    or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), convert_to_standart(workspace), scaling);
+        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace), scaling);
     }
 
     /*!
@@ -169,7 +170,7 @@ public:
                    or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), scaling);
+        standard_transform(convert_to_standard(input), convert_to_standard(output), scaling);
     }
 
     //! \brief Overload utilizing a user provided buffer.
@@ -179,7 +180,7 @@ public:
                    or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standart(input), convert_to_standart(output), convert_to_standart(workspace), scaling);
+        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace), scaling);
     }
 
     /*!
