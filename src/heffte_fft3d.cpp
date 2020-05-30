@@ -2696,8 +2696,8 @@ fft3d<backend_tag>::fft3d(logic_plan3d const &plan, int const this_mpi_rank, MPI
     scale_factor(1.0 / static_cast<double>(plan.index_count))
 {
     for(int i=0; i<4; i++){
-        forward_shaper[i]    = make_reshape3d_alltoallv<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
-        backward_shaper[3-i] = make_reshape3d_alltoallv<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
+        forward_shaper[i]    = make_reshape3d<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
+        backward_shaper[3-i] = make_reshape3d<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
     }
 
     fft0 = one_dim_backend<backend_tag>::make(plan.out_shape[0][this_mpi_rank], plan.fft_direction[0]);
@@ -2832,20 +2832,21 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
 
     // if there is messier combination of transforms, then we need internal buffers
     std::complex<scalar_type> *temp_buffer = workspace + size_comm_buffers();
-    { add_trace name("fft-1d x3");
+    { add_trace name("fft-1d");
     executor[0]->forward(effective_input, temp_buffer);
     }
 
     for(int i=1; i<last; i++){
-        if (shaper[i])
+        if (shaper[i]){
             shaper[i]->apply(temp_buffer, temp_buffer, workspace);
+        }
         add_trace name("fft-1d");
         executor[i]->forward(temp_buffer);
     }
     shaper[last]->apply(temp_buffer, output, workspace);
 
     for(int i=last; i<3; i++){
-        add_trace name("fft-1d x3");
+        add_trace name("fft-1d");
         executor[i]->forward(output);
     }
 

@@ -973,19 +973,52 @@ std::vector<int> a2a_group(std::vector<int> const &send_proc, std::vector<int> c
     return result;
 }
 
-void compute_overlap_map(int me, int nprocs, box3d const source, std::vector<box3d> const &boxes,
-                         std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d> &plans){
+/*
+ * Assumes that all boxes have the same order which may be different from (0, 1, 2).
+ * The data-movement will be done from a contiguous buffer into the lines of a box.
+ */
+void compute_overlap_map_direct_pack(int me, int nprocs, box3d const source, std::vector<box3d> const &boxes,
+                                     std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d> &plans){
     for(int i=0; i<nprocs; i++){
         int iproc = (i + me) % nprocs;
         box3d overlap = source.collide(boxes[iproc]);
         if (not overlap.empty()){
             proc.push_back(iproc);
-            offset.push_back((overlap.low[2] - source.low[2]) * source.size[0] * source.size[1]
-                              + (overlap.low[1] - source.low[1]) * source.size[0]
-                              + (overlap.low[0] - source.low[0]));
+            offset.push_back((overlap.low[source.order[2]] - source.low[source.order[2]]) * source.osize(0) * source.osize(1)
+                              + (overlap.low[source.order[1]] - source.low[source.order[1]]) * source.osize(0)
+                              + (overlap.low[source.order[0]] - source.low[source.order[0]]));
 
-            plans.push_back({overlap.size[0], overlap.size[1], overlap.size[2], // fast, mid, and slow sizes
-                             source.size[0], source.size[1] * source.size[0]}); // line and plane strides
+            plans.push_back({{overlap.osize(0), overlap.osize(1), overlap.osize(2)}, // fast, mid, and slow sizes
+                             source.osize(0), source.osize(1) * source.osize(0), // line and plane strides
+                             0, 0, {0, 0, 0}});  // ignore the transpose parameters
+            sizes.push_back(overlap.count());
+        }
+    }
+}
+
+void compute_overlap_map_transpose_pack(int me, int nprocs, box3d const destination, std::vector<box3d> const &boxes,
+                                        std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d> &plans){
+    for(int i=0; i<nprocs; i++){
+        int iproc = (i + me) % nprocs;
+        box3d overlap = destination.collide(boxes[iproc]);
+        if (not overlap.empty()){
+            proc.push_back(iproc);
+            offset.push_back((overlap.low[destination.order[2]] - destination.low[destination.order[2]]) * destination.osize(0) * destination.osize(1)
+                              + (overlap.low[destination.order[1]] - destination.low[destination.order[1]]) * destination.osize(0)
+                              + (overlap.low[destination.order[0]] - destination.low[destination.order[0]]));
+
+            // figure out the map between the fast-mid-slow directions of the destination and the fast-mid-slow directions of the source
+            std::array<int, 3> map = {-1, -1, -1};
+            for(int j=0; j<3; j++)
+                for(int i=0; i<3; i++)
+                    if (destination.order[i] == boxes[iproc].order[j])
+                        map[j] = i;
+
+            plans.push_back({{overlap.osize(0), overlap.osize(1), overlap.osize(2)}, // fast, mid, and slow sizes
+                             destination.osize(0), destination.osize(1) * destination.osize(0), // destination line and plane strides
+                             overlap.size[boxes[iproc].order[0]], // strides for the buffer from the received data
+                             overlap.size[boxes[iproc].order[0]] * overlap.size[boxes[iproc].order[1]],
+                             map});  // map of the sizes of the overlap to the fast, mid and slow directions of the input
             sizes.push_back(overlap.count());
         }
     }
@@ -1060,9 +1093,6 @@ std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>
 make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                          std::vector<box3d> const &output_boxes,
                          MPI_Comm const comm){
-    // if the input and output are the same, returns an empty reshape
-    if (match(input_boxes, output_boxes))
-        return std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>();
 
     int const me = mpi::comm_rank(comm);
     int const nprocs = mpi::comm_size(comm);
@@ -1082,13 +1112,19 @@ make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
     int nsend = count_collisions(output_boxes, inbox);
 
     if (nsend > 0) // if others need something from me, prepare the corresponding sizes and plans
-        compute_overlap_map(me, nprocs, input_boxes[me], output_boxes, send_proc, send_offset, send_size, packplan);
+        compute_overlap_map_direct_pack(me, nprocs, input_boxes[me], output_boxes, send_proc, send_offset, send_size, packplan);
 
     // number of ranks that I need data from
     int nrecv = count_collisions(input_boxes, outbox);
 
-    if (nrecv > 0) // if I need something from others, prepare the corresponding sizes and plans
-        compute_overlap_map(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
+    if (nrecv > 0){ // if I need something from others, prepare the corresponding sizes and plans
+        // the transpose logic is included in the unpack procedure, direct_packer does not transpose
+        if (std::is_same<packer<backend_tag>, direct_packer<backend_tag>>::value){
+            compute_overlap_map_direct_pack(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
+        }else{
+            compute_overlap_map_transpose_pack(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
+        }
+    }
 
     return std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>(new reshape3d_alltoallv<backend_tag, packer>(
         inbox.count(), outbox.count(),
@@ -1104,9 +1140,15 @@ template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<float
 template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<double>(double const[], double[], double[]) const; \
 template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<std::complex<float>>(std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
 template void reshape3d_alltoallv<some_backend, direct_packer>::apply_base<std::complex<double>>(std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
+template void reshape3d_alltoallv<some_backend, transpose_packer>::apply_base<float>(float const[], float[], float[]) const; \
+template void reshape3d_alltoallv<some_backend, transpose_packer>::apply_base<double>(double const[], double[], double[]) const; \
+template void reshape3d_alltoallv<some_backend, transpose_packer>::apply_base<std::complex<float>>(std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
+template void reshape3d_alltoallv<some_backend, transpose_packer>::apply_base<std::complex<double>>(std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
  \
 template std::unique_ptr<reshape3d_alltoallv<some_backend, direct_packer>> \
 make_reshape3d_alltoallv<some_backend, direct_packer>(std::vector<box3d> const&, std::vector<box3d> const&, MPI_Comm const); \
+template std::unique_ptr<reshape3d_alltoallv<some_backend, transpose_packer>> \
+make_reshape3d_alltoallv<some_backend, transpose_packer>(std::vector<box3d> const&, std::vector<box3d> const&, MPI_Comm const); \
 
 
 #ifdef Heffte_ENABLE_FFTW

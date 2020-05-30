@@ -27,11 +27,40 @@ namespace heffte {
  *
  * The box3d also defines a size field that holds the number of indexes in each direction,
  * for the example above size will be {1, 2, 3}.
+ *
+ * In addition to the low and high indexes, the box has orientation with respect to the i j k indexing,
+ * indicating which are the fast, middle and slow growing dimensions.
+ * For example, suppose we want to access the entries of a \b box stored in a \b data array
+ * \code
+ *  // if box.order is {0, 1, 2}
+ *  int const plane = box.size[0] * box.size[1];
+ *  int const lane  = box.size[0];
+ *  for(int i = box.low[0]; i <= box.high[0]; i++)
+ *      for(int j = box.low[1]; j <= box.high[1]; j++)
+ *          for(int k = box.low[2]; j <= box.high[2]; j++)
+ *              std::cout << data[k * plane + j * line + i] << "\n";
+ * \endcode
+ * However,
+ * \code
+ *  // if box.order is {2, 0, 1}
+ *  int const plane = box.size[box.order[0]] * box.size[box.order[1]];
+ *  int const lane  = box.size[box.order[0]];
+ *  for(int i = box.low[0]; i <= box.high[0]; i++)
+ *      for(int j = box.low[1]; j <= box.high[1]; j++)
+ *          for(int k = box.low[2]; j <= box.high[2]; j++)
+ *              std::cout << data[j * plane + i * line + k] << "\n";
+ * \endcode
+ *
+ * The order must always hold a permutation of the entries 0, 1, and 2.
  */
 struct box3d{
-    //! \brief Constructs a box from the low and high indexes, the span in each direction includes the low and high.
+    //! \brief Constructs a box from the low and high indexes, the span in each direction includes the low and high (uses default order).
     box3d(std::array<int, 3> clow, std::array<int, 3> chigh) :
-        low(clow), high(chigh), size({high[0] - low[0] + 1, high[1] - low[1] + 1, high[2] - low[2] + 1})
+        low(clow), high(chigh), size({high[0] - low[0] + 1, high[1] - low[1] + 1, high[2] - low[2] + 1}), order({0, 1, 2})
+    {}
+    //! \brief Constructs a box from the low and high indexes, also sets an order.
+    box3d(std::array<int, 3> clow, std::array<int, 3> chigh, std::array<int, 3> corder) :
+        low(clow), high(chigh), size({high[0] - low[0] + 1, high[1] - low[1] + 1, high[2] - low[2] + 1}), order(corder)
     {}
     //! \brief Returns true if the box contains no indexes.
     bool empty() const{ return (size[0] <= 0 or size[1] <= 0 or size[2] <= 0); }
@@ -40,33 +69,41 @@ struct box3d{
     //! \brief Creates a box that holds the intersection of this box and the \b other.
     box3d collide(box3d const other) const{
         return box3d({std::max(low[0], other.low[0]), std::max(low[1], other.low[1]), std::max(low[2], other.low[2])},
-                     {std::min(high[0], other.high[0]), std::min(high[1], other.high[1]), std::min(high[2], other.high[2])});
+                     {std::min(high[0], other.high[0]), std::min(high[1], other.high[1]), std::min(high[2], other.high[2])}, order);
     }
     //! \brief Returns the box that is reduced in the given dimension according to the real-to-complex symmetry.
     box3d r2c(int dimension) const{
         switch(dimension){
-            case 0: return box3d(low, {low[0] + size[0] / 2, high[1], high[2]});
-            case 1: return box3d(low, {high[0], low[1] + size[1] / 2, high[2]});
+            case 0: return box3d(low, {low[0] + size[0] / 2, high[1], high[2]}, order);
+            case 1: return box3d(low, {high[0], low[1] + size[1] / 2, high[2]}, order);
             default: // dimension == 2
-                return box3d(low, {high[0], high[1], low[2] + size[2] / 2});
+                return box3d(low, {high[0], high[1], low[2] + size[2] / 2}, order);
         }
     }
-    //! \brief Compares two boxes, returns \b true if all sizes and boundaries match.
+    //! \brief Compares two boxes, ignoring the order, returns \b true if all sizes and boundaries match.
     bool operator == (box3d const &other) const{
         return not (*this != other);
     }
-    //! \brief Compares two boxes, returns \b true if either of the box boundaries do not match.
+    //! \brief Compares two boxes, ignoring the order, returns \b true if either of the box boundaries do not match.
     bool operator != (box3d const &other) const{
         for(int i=0; i<3; i++)
             if (low[i] != other.low[i] or high[i] != other.high[i]) return true;
         return false;
     }
+    //! \brief Compares the order of two boxes, ignores the dimensions, returns \b true if the order is the same.
+    bool ordered_same_as(box3d const &other) const{
+        return (order[0] == other.order[0]) and (order[1] == other.order[1]) and (order[2] == other.order[2]);
+    }
+    //! \brief Get the ordered size of the dimension, i.e., size[order[dimension]].
+    int osize(int dimension) const{ return size[order[dimension]]; }
     //! \brief The three lowest indexes.
     std::array<int, 3> const low;
     //! \brief The three highest indexes.
     std::array<int, 3> const high;
     //! \brief The number of indexes in each direction.
     std::array<int, 3> const size;
+    //! \brief The order of the dimensions in the k * plane_stride + j * line_stride + i indexing.
+    std::array<int, 3> const order;
 };
 
 /*!
@@ -75,6 +112,7 @@ struct box3d{
 inline std::ostream & operator << (std::ostream &os, box3d const box){
     for(int i=0; i<3; i++)
         os << box.low[i] << "  " << box.high[i] << "  (" << box.size[i] << ")\n";
+    os << "(" << box.order[0] << "," << box.order[1] << "," << box.order[2] << ")\n";
     os << "\n";
     return os;
 }
@@ -83,17 +121,17 @@ inline std::ostream & operator << (std::ostream &os, box3d const box){
  * \brief Return the number of 1-D ffts contained in the box in the given dimension.
  */
 inline int fft1d_get_howmany(box3d const box, int const dimension){
-    if (dimension == 0) return box.size[1] * box.size[2];
-    if (dimension == 1) return box.size[0];
-    return box.size[0] * box.size[1];
+    if (dimension == box.order[0]) return box.osize(1) * box.osize(2);
+    if (dimension == box.order[1]) return box.osize(0);
+    return box.osize(0) * box.osize(1);
 }
 /*!
  * \brief Return the stride of the 1-D ffts contained in the box in the given dimension.
  */
 inline int fft1d_get_stride(box3d const box, int const dimension){
-    if (dimension == 0) return 1;
-    if (dimension == 1) return box.size[0];
-    return box.size[0] * box.size[1];
+    if (dimension == box.order[0]) return 1;
+    if (dimension == box.order[1]) return box.osize(0);
+    return box.osize(0) * box.osize(1);
 }
 
 /*!
@@ -234,10 +272,11 @@ inline std::vector<box3d> split_world(box3d const world, std::array<int, 3> cons
     auto slow = [=](int i)->int{ return world.low[2] + i * (world.size[2] / proc_grid[2]) + std::min(i, (world.size[2] % proc_grid[2])); };
 
     std::vector<box3d> result;
+    result.reserve(proc_grid[0] * proc_grid[1] * proc_grid[2]);
     for(int k = 0; k < proc_grid[2]; k++){
         for(int j = 0; j < proc_grid[1]; j++){
             for(int i = 0; i < proc_grid[0]; i++){
-                result.push_back({{fast(i), mid(j), slow(k)}, {fast(i+1)-1, mid(j+1)-1, slow(k+1)-1}});
+                result.push_back(box3d({fast(i), mid(j), slow(k)}, {fast(i+1)-1, mid(j+1)-1, slow(k+1)-1}, world.order));
             }
         }
     }
@@ -252,6 +291,17 @@ inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int d
         if (s.size[direction] != world.size[direction])
             return false;
     return true;
+}
+
+/*!
+ * \brief Returns the same shape, but sets a different order for each box.
+ */
+inline std::vector<box3d> reorder(std::vector<box3d> const &shape, std::array<int, 3> order){
+    std::vector<box3d> result;
+    result.reserve(shape.size());
+    for(auto const &b : shape)
+        result.push_back(box3d(b.low, b.high, order));
+    return result;
 }
 
 /*!
@@ -270,13 +320,19 @@ inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int d
  *                  for each pencil in the output list
  * \param source is the current distribution of boxes across MPI ranks,
  *               and will be used as a reference when remapping boxes to ranks
+ * \param order is the box index order (fast, mid, slow) that will be assigned to the result.
  *
  * \returns a sorted list of non-overlapping pencils which union is the \b world box
  */
-inline std::vector<box3d> make_pencils(box3d const world, std::array<int, 2> const proc_grid, int const dimension, std::vector<box3d> const &source){
+inline std::vector<box3d> make_pencils(box3d const world,
+                                       std::array<int, 2> const proc_grid,
+                                       int const dimension,
+                                       std::vector<box3d> const &source,
+                                       std::array<int, 3> const order
+                                      ){
     // trivial case, the grid is already in a pencil format
     if (is_pencils(world, source, dimension))
-        return source;
+        return reorder(source, order);
 
     // create a list of boxes ordered in column major format (following the proc_grid box)
     std::vector<box3d> pencils;
@@ -307,7 +363,7 @@ inline std::vector<box3d> make_pencils(box3d const world, std::array<int, 2> con
         }
         assert( max_index < pencils.size() ); // if we found a box
         taken[max_index] = true;
-        result.push_back(pencils[max_index]);
+        result.push_back(box3d(pencils[max_index].low, pencils[max_index].high, order));
     }
 
     return result;

@@ -248,27 +248,34 @@ namespace heffte {
  * \brief Holds the plan for a pack/unpack operation.
  */
 struct pack_plan_3d{
-    //! \brief Number of elements in the fast direction.
-    int nfast;
-    //! \brief Number of elements in the middle direction.
-    int nmid;
-    //! \brief Number of elements in the slow direction.
-    int nslow;
+    //! \brief Number of elements in the three directions.
+    std::array<int, 3> size;
     //! \brief Stride of the lines.
     int line_stride;
     //! \brief Stride of the planes.
     int plane_stride;
+    //! \brief Stride of the lines in the received buffer (transpose packing only).
+    int buff_line_stride;
+    //! \brief Stride of the planes in the received buffer (transpose packing only).
+    int buff_plane_stride;
+    //! \brief Maps the i,j,k indexes from input to the output (transpose packing only).
+    std::array<int, 3> map;
 };
 
 /*!
  * \brief Writes a plan to the stream, useful for debugging.
  */
 inline std::ostream & operator << (std::ostream &os, pack_plan_3d const &plan){
-    os << "nfast = " << plan.nfast << "\n";
-    os << "nmid  = " << plan.nmid << "\n";
-    os << "nslow = " << plan.nslow << "\n";
+    os << "nfast = " << plan.size[0] << "\n";
+    os << "nmid  = " << plan.size[1] << "\n";
+    os << "nslow = " << plan.size[2] << "\n";
     os << "line_stride = "  << plan.line_stride << "\n";
     os << "plane_stride = " << plan.plane_stride << "\n";
+    if (plan.buff_line_stride > 0){
+        os << "buff_line_stride = " << plan.buff_line_stride << "\n";
+        os << "buff_plane_stride = " << plan.buff_plane_stride << "\n";
+        os << "map = (" << plan.map[0] << ", " << plan.map[1] << ", " << plan.map[2] << ")\n";
+    }
     os << "\n";
     return os;
 }
@@ -296,18 +303,50 @@ template<> struct direct_packer<tag::cpu>{
     template<typename scalar_type>
     void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
         scalar_type* buffer_iterator = buffer;
-        for(int slow = 0; slow < plan.nslow; slow++){
-            for(int mid = 0; mid < plan.nmid; mid++){
-                buffer_iterator = std::copy_n(&data[slow * plan.plane_stride + mid * plan.line_stride], plan.nfast, buffer_iterator);
+        for(int slow = 0; slow < plan.size[2]; slow++){
+            for(int mid = 0; mid < plan.size[1]; mid++){
+                buffer_iterator = std::copy_n(&data[slow * plan.plane_stride + mid * plan.line_stride], plan.size[0], buffer_iterator);
             }
         }
     }
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        for(int slow = 0; slow < plan.nslow; slow++){
-            for(int mid = 0; mid < plan.nmid; mid++){
-                std::copy_n(&buffer[(slow * plan.nmid + mid) * plan.nfast],
-                            plan.nfast, &data[slow * plan.plane_stride + mid * plan.line_stride]);
+        for(int slow = 0; slow < plan.size[2]; slow++){
+            for(int mid = 0; mid < plan.size[1]; mid++){
+                std::copy_n(&buffer[(slow * plan.size[1] + mid) * plan.size[0]],
+                            plan.size[0], &data[slow * plan.plane_stride + mid * plan.line_stride]);
+            }
+        }
+    }
+};
+
+/*!
+ * \brief Defines the transpose packer without implementation, use the specializations to get the CPU implementation.
+ */
+template<typename mode> struct transpose_packer{};
+
+/*!
+ * \brief Transpose packer that packs sub-boxes without transposing, but unpacks applying a transpose operation.
+ */
+template<> struct transpose_packer<tag::cpu>{
+    template<typename scalar_type>
+    void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        direct_packer<tag::cpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
+    }
+    template<typename scalar_type>
+    void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
+        std::array<int, 3> iter = {0, 0, 0}; // iterates over the slow mid and fast directions of the destination
+
+        int &fast = iter[plan.map[0]]; // alias the directions of the source buffer
+        int &mid  = iter[plan.map[1]];
+        int &slow = iter[plan.map[2]];
+
+        for(iter[2] = 0; iter[2] < plan.size[2]; iter[2]++){
+            for(iter[1] = 0; iter[1] < plan.size[1]; iter[1]++){
+                for(iter[0] = 0; iter[0] < plan.size[0]; iter[0]++){
+                    data[iter[2] * plan.plane_stride + iter[1] * plan.line_stride + iter[0]]
+                        = buffer[ slow * plan.buff_plane_stride + mid * plan.buff_line_stride + fast ];
+                }
             }
         }
     }

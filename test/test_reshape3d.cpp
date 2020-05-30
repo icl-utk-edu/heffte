@@ -13,6 +13,10 @@ using default_cpu_backend = heffte::backend::fftw;
 using default_cpu_backend = heffte::backend::mkl;
 #endif
 
+#if defined(Heffte_ENABLE_FFTW) || defined(Heffte_ENABLE_MKL)
+#define HAS_CPU_BACKEND
+#endif
+
 /*
  * Simple unit test that checks the operation that gathers boxes across an mpi comm.
  */
@@ -173,6 +177,108 @@ void test_gpu(MPI_Comm const comm){
 }
 #endif
 
+template<typename scalar_type>
+void test_direct_reordered(MPI_Comm const comm){
+    assert(mpi::comm_size(comm) == 4); // the rest is designed for 4 ranks
+    current_test<scalar_type> test("-np " + std::to_string(mpi::comm_size(comm)) + "  direct_packer (unordered)", comm);
+
+    box3d ordered_world({0, 0, 0}, {8, 9, 10});
+
+    auto ordered_inboxes  = split_world(ordered_world, {1, 2, 2});
+    auto ordered_outboxes = split_world(ordered_world, {2, 2, 1});
+
+    int const me = heffte::mpi::comm_rank(comm);
+    auto input     = get_subdata<scalar_type>(ordered_world, ordered_inboxes[me]);
+    auto reference = get_subdata<scalar_type>(ordered_world, ordered_outboxes[me]);
+    std::vector<scalar_type> result(ordered_outboxes[me].count());
+
+    box3d world({0, 0, 0}, {9, 10, 8}, {2, 0, 1});
+
+    std::vector<box3d> inboxes, outboxes;
+    for(auto b : split_world(world, {2, 2, 1})) inboxes.push_back({b.low, b.high, world.order});
+    std::vector<box3d> temp = split_world(world, {2, 1, 2}); // need to swap the middle two entries
+    for(auto i : std::vector<int>{0, 2, 1, 3}) outboxes.push_back({temp[i].low, temp[i].high, world.order});
+
+    #ifdef Heffte_ENABLE_FFTW
+    {
+        auto reshape = make_reshape3d_alltoallv<backend::fftw>(inboxes, outboxes, comm);
+        std::vector<scalar_type> workspace(reshape->size_workspace());
+        reshape->apply(input.data(), result.data(), workspace.data());
+
+        tassert(match(result, reference));
+    }
+    #endif
+
+    #ifdef Heffte_ENABLE_CUDA
+    {
+        auto reshape = make_reshape3d_alltoallv<backend::cufft>(inboxes, outboxes, comm);
+        cuda::vector<scalar_type> workspace(reshape->size_workspace());
+
+        auto cuinput = cuda::load(input);
+        cuda::vector<scalar_type> curesult(ordered_outboxes[me].count());
+
+        reshape->apply(cuinput.data(), curesult.data(), workspace.data());
+
+        tassert(match(curesult, reference));
+    }
+    #endif
+}
+
+#ifdef HAS_CPU_BACKEND
+template<typename scalar_type>
+void test_reshape_transposed(MPI_Comm comm){
+    assert(mpi::comm_size(comm) == 4); // the rest is designed for 4 ranks
+    current_test<scalar_type> test("-np " + std::to_string(mpi::comm_size(comm)) + "  reshape transposed", comm);
+
+    box3d world({0, 0, 0}, {1, 2, 3});
+
+    std::vector<box3d> inboxes = split_world(world, {2, 1, 2});
+    std::vector<box3d> ordered_outboxes = split_world(world, {1, 1, 4});
+
+    int const me = heffte::mpi::comm_rank(comm);
+    std::vector<scalar_type> input = get_subdata<scalar_type>(world, inboxes[me]);
+
+
+    // the idea of the test is to try all combinations of order
+    // test that MPI reshape with direct packer + on-node transpose reshape is equivalent to MPI reshape with transpose packer
+    for(int i=0; i<3; i++){
+        for(int j=0; j<3; j++){
+            if (i != j){
+                int k = -1;
+                for(int kk=0; kk<3; kk++) if (kk != i and kk != j) k = kk;
+                std::array<int, 3> order = {i, j, k};
+                if (i == 0 and j == 1 and k == 2) continue; // no transpose, no need to check
+
+                std::vector<box3d> outboxes;
+                for(auto b : ordered_outboxes) outboxes.push_back(box3d(b.low, b.high, order));
+
+                auto mpi_tanspose_shaper  = make_reshape3d<default_cpu_backend>(inboxes, outboxes, comm);
+                auto mpi_direct_shaper    = make_reshape3d<default_cpu_backend>(inboxes, ordered_outboxes, comm);
+                auto cpu_transpose_shaper = make_reshape3d<default_cpu_backend>(ordered_outboxes, outboxes, comm);
+
+                std::vector<scalar_type> result(outboxes[me].count());
+                std::vector<scalar_type> reference(outboxes[me].count());
+                std::vector<scalar_type> workspace( // allocate one workspace vector for all reshape operations
+                    std::max(std::max(mpi_tanspose_shaper->size_workspace(), mpi_direct_shaper->size_workspace()), cpu_transpose_shaper->size_workspace())
+                );
+
+                mpi_direct_shaper->apply(input.data(), result.data(), workspace.data());
+                cpu_transpose_shaper->apply(result.data(), reference.data(), workspace.data());
+
+                std::fill(result.begin(), result.end(), 0.0); // clear the temporary
+                mpi_tanspose_shaper->apply(input.data(), result.data(), workspace.data());
+
+                tassert(match(result, reference));
+            }
+        }
+    }
+
+}
+#else
+template<typename scalar_type>
+void test_reshape_transposed(MPI_Comm){}
+#endif
+
 void perform_tests_cpu(){
     MPI_Comm const comm = MPI_COMM_WORLD;
 
@@ -250,10 +356,22 @@ void perform_tests_gpu(){
     #endif
 }
 
+void perform_tests_reorder(){
+    MPI_Comm const comm = MPI_COMM_WORLD;
+
+    if (mpi::comm_size(comm) == 4){
+        test_direct_reordered<double>(comm);
+        test_direct_reordered<std::complex<float>>(comm);
+        test_reshape_transposed<float>(comm);
+        test_reshape_transposed<std::complex<double>>(comm);
+    }
+}
+
 void perform_all_tests(){
     all_tests<> name("heffte reshape methods");
     perform_tests_cpu();
     perform_tests_gpu();
+    perform_tests_reorder();
 }
 
 int main(int argc, char *argv[]){

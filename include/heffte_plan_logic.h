@@ -8,6 +8,7 @@
 #define HEFFTE_PLAN_LOGIC_H
 
 #include "heffte_geometry.h"
+#include "heffte_common.h"
 
 namespace heffte {
 
@@ -46,15 +47,35 @@ inline std::array<bool, 3> pencil_directions(box3d const world, std::vector<box3
 }
 
 /*!
+ * \brief Defines a set of tweaks and options to use in the plan generation.
+ */
+struct plan_options{
+    template<typename backend_tag> plan_options(backend_tag const)
+        : use_reorder(default_plan_options<backend_tag>::use_reorder)
+    {}
+    //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
+    bool use_reorder;
+};
+
+/*!
+ * \brief Returns the default backend options associated with the given backend.
+ */
+template<typename backend_tag>
+plan_options default_options(){
+    return plan_options(backend_tag());
+}
+
+/*!
  * \brief Creates the logic plan with the provided user input.
  *
  * \param boxes is the current distribution of the data across the MPI comm
  * \param r2c_direction is the direction is the direction of shrinking of the data for an r2c transform
  *              the c2c case should use -1
+ * \param opts is a set of plan_options to use
  *
  * \returns the plan for reshape and 1-D fft transformations
  */
-logic_plan3d plan_operations(ioboxes const &boxes, int r2c_direction);
+logic_plan3d plan_operations(ioboxes const &boxes, int r2c_direction, plan_options const opts);
 
 }
 

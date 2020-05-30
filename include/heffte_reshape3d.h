@@ -114,6 +114,16 @@ class Reshape3d {
 
 namespace heffte {
 
+/*!
+ * \brief Generates an unpack plan (alltoallv case) where the boxes and the destination do not have the same order.
+ *
+ * This method does not make any MPI calls, but it uses the set of boxes the define the current distribution of the indexes
+ * and computes the overlap and the proc, offset, and sizes vectors for the receive stage of an all-to-all-v communication patterns.
+ * In addition, a set of unpack plans is created where the order of the boxes and the destination are different,
+ * which will transpose the data. The plan has to be used in conjunction with the transpose packer.
+ */
+void compute_overlap_map_transpose_pack(int me, int nprocs, box3d const destination, std::vector<box3d> const &boxes,
+                                        std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d> &plans);
 
 /*!
  * \brief Base reshape interface.
@@ -260,6 +270,90 @@ std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>
 make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                          std::vector<box3d> const &output_boxes,
                          MPI_Comm const);
+
+/*!
+ * \brief Special case of the reshape that does not involve MPI communication but applies a transpose instead.
+ *
+ * The operations is implemented as a single unpack operation using the transpose_packer with the same location tag.
+ */
+template<typename location_tag>
+class reshape3d_transpose : public reshape3d_base{
+public:
+    //! \brief Constructor using the provided unpack plan.
+    reshape3d_transpose(pack_plan_3d const cplan) :
+        reshape3d_base(cplan.size[0] * cplan.size[1] * cplan.size[2], cplan.size[0] * cplan.size[1] * cplan.size[2]),
+        plan(cplan)
+        {}
+
+    //! \brief Apply the reshape operations, single precision overload.
+    void apply(float const source[], float destination[], float workspace[]) const override final{
+        transpose(source, destination, workspace);
+    }
+    //! \brief Apply the reshape operations, double precision overload.
+    void apply(double const source[], double destination[], double workspace[]) const override final{
+        transpose(source, destination, workspace);
+    }
+    //! \brief Apply the reshape operations, single precision complex overload.
+    void apply(std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
+        transpose(source, destination, workspace);
+    }
+    //! \brief Apply the reshape operations, double precision complex overload.
+    void apply(std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
+        transpose(source, destination, workspace);
+    }
+
+private:
+    template<typename scalar_type>
+    void transpose(scalar_type const *source, scalar_type *destination, scalar_type *workspace) const{
+        if (source == destination){ // in-place transpose will need workspace
+            std::copy_n(source, size_intput(), workspace);
+            transpose_packer<location_tag>().unpack(plan, workspace, destination);
+        }else{
+            transpose_packer<location_tag>().unpack(plan, source, destination);
+        }
+    }
+
+    pack_plan_3d const plan;
+};
+
+/*!
+ * \brief Factory method to create a reshape3d instance.
+ *
+ * Creates a reshape operation from the geometry defined by the input boxes to the geometry defined but the output boxes.
+ * The boxes are spread across the given MPI communicator where the boxes associated with the current MPI rank is located
+ * at input_boxes[mpi::comm_rank(comm)] and output_boxes[mpi::comm_rank(comm)].
+ *
+ * - If the input and output are the same, then an empty unique_ptr is created.
+ * - If the geometries differ only in the order, then a reshape3d_transpose instance is created.
+ * - In all other cases, a reshape3d_alltoallv instance is created using either direct_packer or transpose_packer.
+ *
+ * Assumes that the order of the input and output geometries are consistent, i.e.,
+ * input_boxes[i].order == input_boxes[j].order for all i, j.
+ */
+template<typename backend_tag>
+std::unique_ptr<reshape3d_base> make_reshape3d(std::vector<box3d> const &input_boxes,
+                                               std::vector<box3d> const &output_boxes,
+                                               MPI_Comm const comm){
+    if (match(input_boxes, output_boxes)){
+        if (input_boxes[0].ordered_same_as(output_boxes[0])){
+            return std::unique_ptr<reshape3d_base>();
+        }else{
+            int const me = mpi::comm_rank(comm);
+            std::vector<int> proc, offset, sizes;
+            std::vector<pack_plan_3d> plans;
+
+            compute_overlap_map_transpose_pack(0, 1, output_boxes[me], {input_boxes[me]}, proc, offset, sizes, plans);
+
+            return std::unique_ptr<reshape3d_base>(new reshape3d_transpose<typename backend::buffer_traits<backend_tag>::location>(plans[0]));
+        }
+    }else{
+        if (input_boxes[0].ordered_same_as(output_boxes[0])){
+            return make_reshape3d_alltoallv<backend_tag, direct_packer>(input_boxes, output_boxes, comm);
+        }else{
+            return make_reshape3d_alltoallv<backend_tag, transpose_packer>(input_boxes, output_boxes, comm);
+        }
+    }
+}
 
 }
 
