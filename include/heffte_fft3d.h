@@ -371,9 +371,10 @@ public:
      * \param inbox is the box for the non-transformed data, i.e., the input for the forward() transform and the output of the backward() transform.
      * \param outbox is the box for the transformed data, i.e., the output for the forward() transform and the input of the backward() transform.
      * \param comm is the MPI communicator with all ranks that will participate in the FFT.
+     * \param options is a set of options that define the FFT plan, see heffte::plan_options for details.
      */
-    fft3d(box3d const inbox, box3d const outbox, MPI_Comm const comm) :
-        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, default_options<backend_tag>()), mpi::comm_rank(comm), comm){
+    fft3d(box3d const inbox, box3d const outbox, MPI_Comm const comm, plan_options const options = default_options<backend_tag>()) :
+        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, options), mpi::comm_rank(comm), comm){
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
 
