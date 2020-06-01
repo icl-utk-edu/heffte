@@ -1168,12 +1168,15 @@ void reshape3d_pointtopoint<backend_tag, packer>::apply_base(scalar_type const s
 
     // queue the receive messages, using asynchronous receive
     for(size_t i=0; i<requests.size(); i++){
+        heffte::add_trace name("irecv " + std::to_string(recv_size[i]) + " from " + std::to_string(recv_proc[i]));
         MPI_Irecv(recv_buffer + recv_loc[i], recv_size[i], mpi::type_from<scalar_type>(), recv_proc[i], 0, comm, &requests[i]);
     }
 
     // perform the send commands, using blocking send
     for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
+        { heffte::add_trace name("packing");
         packit.pack(packplan[i], &source[send_offset[i]], send_buffer);
+        }
 
         #ifdef Heffte_ENABLE_CUDA
         // the device_synchronize() is needed to flush the kernels of the asynchronous packing
@@ -1181,20 +1184,30 @@ void reshape3d_pointtopoint<backend_tag, packer>::apply_base(scalar_type const s
             cuda::synchronize_default_stream();
         #endif
 
+        { heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
         MPI_Send(send_buffer, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
+        }
     }
 
     if (self_to_self){ // if using self-to-self, do not invoke an MPI command
+        { heffte::add_trace name("self packing");
         packit.pack(packplan.back(), source + send_offset.back(), recv_buffer + recv_loc.back());
+        }
 
+        { heffte::add_trace name("self unpacking");
         packit.unpack(unpackplan.back(), recv_buffer + recv_loc.back(), destination + recv_offset.back());
+        }
     }
 
     for(size_t i=0; i<requests.size(); i++){
         int irecv;
+        { heffte::add_trace name("waitany");
         MPI_Waitany(requests.size(), requests.data(), &irecv, MPI_STATUS_IGNORE);
+        }
 
+        { heffte::add_trace name("unpacking from " + std::to_string(irecv));
         packit.unpack(unpackplan[irecv], recv_buffer + recv_loc[irecv], destination + recv_offset[irecv]);
+        }
     }
 }
 
