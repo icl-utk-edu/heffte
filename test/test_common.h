@@ -171,6 +171,10 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
             options.use_reorder = true;
         }else if (s == "-no-reorder"){
             options.use_reorder = false;
+        }else if (s == "-a2a"){
+            options.use_alltoall = true;
+        }else if (s == "-p2p"){
+            options.use_alltoall = false;
         }
     }
     return options;
