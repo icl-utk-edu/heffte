@@ -2696,8 +2696,8 @@ fft3d<backend_tag>::fft3d(logic_plan3d const &plan, int const this_mpi_rank, MPI
     scale_factor(1.0 / static_cast<double>(plan.index_count))
 {
     for(int i=0; i<4; i++){
-        forward_shaper[i]    = make_reshape3d<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm);
-        backward_shaper[3-i] = make_reshape3d<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm);
+        forward_shaper[i]    = make_reshape3d<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm, plan.options);
+        backward_shaper[3-i] = make_reshape3d<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm, plan.options);
     }
 
     fft0 = one_dim_backend<backend_tag>::make(plan.out_shape[0][this_mpi_rank], plan.fft_direction[0]);
@@ -2733,7 +2733,7 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
     int last = get_last_active(shaper);
 
     if (last < 1){ // no extra buffer case
-        add_trace name("less than 1");
+        add_trace name("reshape/copy");
         // move input -> output and apply all ffts
         // use either zeroth shaper or simple copy (or nothing in case of in-place transform)
         if (last == 0){
@@ -2751,12 +2751,15 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
     if (num_active == 1){ // one active and not shaper 0
         std::complex<scalar_type> *effective_input = output;
         if (input != output){
+            add_trace name("copy");
             data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer);
             effective_input = temp_buffer;
         }
         for(int i=0; i<last; i++)
             apply_fft(i, effective_input);
+        { add_trace name("reshape");
         shaper[last]->apply(effective_input, output, workspace);
+        }
         for(int i=last; i<3; i++)
             apply_fft(i, output);
         return;
@@ -2766,6 +2769,7 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
     int active_shaper = 0;
     if (shaper[0] or input != output){
         if (shaper[0]){
+            add_trace name("reshape");
             shaper[0]->apply(input, temp_buffer, workspace);
         }else{
             add_trace name("copy");
@@ -2778,17 +2782,23 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
             // note, at least one shaper must be active, otherwise last will catch it
             apply_fft(active_shaper++, output);
         }
+        { add_trace name("reshape");
         shaper[active_shaper]->apply(output, temp_buffer, workspace);
+        }
         active_shaper += 1;
     }
     apply_fft(active_shaper - 1, temp_buffer); // one reshape was applied above
 
     for(int i=active_shaper; i<last; i++){
-        if (shaper[i])
+        if (shaper[i]){
+            add_trace name("reshape");
             shaper[i]->apply(temp_buffer, temp_buffer, workspace);
+        }
         apply_fft(i, temp_buffer);
     }
+    { add_trace name("reshape");
     shaper[last]->apply(temp_buffer, output, workspace);
+    }
 
     for(int i=last; i<3; i++)
         apply_fft(i, output);
@@ -2818,6 +2828,7 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
     scalar_type* reshaped_input = reinterpret_cast<scalar_type*>(workspace);
     scalar_type const *effective_input = input; // either input or the result of reshape operation 0
     if (shaper[0]){
+        add_trace name("reshape");
         shaper[0]->apply(input, reshaped_input, reinterpret_cast<scalar_type*>(workspace + get_max_size(executor)));
         effective_input = reshaped_input;
     }
@@ -2838,12 +2849,15 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
 
     for(int i=1; i<last; i++){
         if (shaper[i]){
+            add_trace name("reshape");
             shaper[i]->apply(temp_buffer, temp_buffer, workspace);
         }
         add_trace name("fft-1d");
         executor[i]->forward(temp_buffer);
     }
+    { add_trace name("reshape");
     shaper[last]->apply(temp_buffer, output, workspace);
+    }
 
     for(int i=last; i<3; i++){
         add_trace name("fft-1d");
@@ -2869,8 +2883,10 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
     std::complex<scalar_type> *temp_buffer = workspace + size_comm_buffers();
 
     if (shaper[0]){
+        add_trace name("reshape");
         shaper[0]->apply(input, temp_buffer, workspace);
     }else{
+        add_trace name("copy");
         data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer);
     }
 
@@ -2878,8 +2894,10 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
         { add_trace name("fft-1d x3");
         executor[i]->backward(temp_buffer);
         }
-        if (shaper[i+1])
+        if (shaper[i+1]){
+            add_trace name("reshape");
             shaper[i+1]->apply(temp_buffer, temp_buffer, workspace);
+        }
     }
 
     // the result of the first two ffts and three reshapes is stored in temp_buffer
@@ -2890,6 +2908,7 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
         { add_trace name("fft-1d");
         executor[2]->backward(temp_buffer, real_buffer);
         }
+        add_trace name("reshape");
         shaper[3]->apply(real_buffer, output, reinterpret_cast<scalar_type*>(workspace));
     }else{
         add_trace name("fft-1d");

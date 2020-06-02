@@ -13,6 +13,28 @@
 namespace heffte {
 
 /*!
+ * \brief Defines a set of tweaks and options to use in the plan generation.
+ */
+struct plan_options{
+    template<typename backend_tag> plan_options(backend_tag const)
+        : use_reorder(default_plan_options<backend_tag>::use_reorder),
+          use_alltoall(true)
+    {}
+    //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
+    bool use_reorder;
+    //! \brief Defines whether to use point to point or all to all communications.
+    bool use_alltoall;
+};
+
+/*!
+ * \brief Returns the default backend options associated with the given backend.
+ */
+template<typename backend_tag>
+plan_options default_options(){
+    return plan_options(backend_tag());
+}
+
+/*!
  * \brief The logic plan incorporates the order and types of operations in a transform.
  *
  * The logic_plan is used to separate the logic of the order of basic operations (reshape or fft execute)
@@ -32,6 +54,8 @@ struct logic_plan3d{
     std::array<int, 3> fft_direction;
     //! \brief The total number of indexes in all directions.
     long long index_count;
+    //! \brief Extra options used in the plan creation.
+    plan_options const options;
 };
 
 /*!
@@ -44,25 +68,6 @@ inline std::array<bool, 3> pencil_directions(box3d const world, std::vector<box3
             is_pencil[i] = is_pencil[i] and (world.size[i] == b.size[i]);
     }
     return is_pencil;
-}
-
-/*!
- * \brief Defines a set of tweaks and options to use in the plan generation.
- */
-struct plan_options{
-    template<typename backend_tag> plan_options(backend_tag const)
-        : use_reorder(default_plan_options<backend_tag>::use_reorder)
-    {}
-    //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
-    bool use_reorder;
-};
-
-/*!
- * \brief Returns the default backend options associated with the given backend.
- */
-template<typename backend_tag>
-plan_options default_options(){
-    return plan_options(backend_tag());
 }
 
 /*!
