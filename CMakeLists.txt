@@ -74,7 +74,6 @@ endif()
 # other target properties
 target_compile_features(Heffte PUBLIC cxx_std_11)
 set_target_properties(Heffte PROPERTIES OUTPUT_NAME "heffte"
-                                        INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"
                                         CXX_EXTENSIONS OFF
                                         SOVERSION ${Heffte_VERSION_MAJOR}
                                         VERSION   ${PROJECT_VERSION})
@@ -362,3 +361,5 @@ if(BUILD_GPU)
     add_test(heffte_test_gpu ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
     ${CMAKE_CURRENT_BINARY_DIR}/test/test3d_gpu ${MPIEXEC_POSTFLAGS}  -g 64 64 64 -v -i 82783 -c point -verb -s )
 endif()
+
+include(cmake/set_rpath.cmake)
