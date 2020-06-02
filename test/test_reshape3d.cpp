@@ -253,7 +253,6 @@ void test_direct_reordered(MPI_Comm const comm){
     #endif
 }
 
-#ifdef HAS_CPU_BACKEND
 template<typename scalar_type, typename variant>
 void test_reshape_transposed(MPI_Comm comm){
     assert(mpi::comm_size(comm) == 4); // the rest is designed for 4 ranks
@@ -281,6 +280,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 std::vector<box3d> outboxes;
                 for(auto b : ordered_outboxes) outboxes.push_back(box3d(b.low, b.high, order));
 
+                #ifdef HAS_CPU_BACKEND
                 heffte::plan_options options = default_options<default_cpu_backend>();
                 options.use_alltoall = std::is_same<variant, using_alltoall>::value;
 
@@ -301,15 +301,36 @@ void test_reshape_transposed(MPI_Comm comm){
                 mpi_tanspose_shaper->apply(input.data(), result.data(), workspace.data());
 
                 tassert(match(result, reference));
+                #endif
+
+                #ifdef Heffte_ENABLE_CUDA
+                heffte::plan_options cuoptions = default_options<backend::cufft>();
+                cuoptions.use_alltoall = std::is_same<variant, using_alltoall>::value;
+
+                auto cumpi_tanspose_shaper = make_reshape3d<backend::cufft>(inboxes, outboxes, comm, cuoptions);
+                auto cumpi_direct_shaper   = make_reshape3d<backend::cufft>(inboxes, ordered_outboxes, comm, cuoptions);
+                auto cuda_transpose_shaper = make_reshape3d<backend::cufft>(ordered_outboxes, outboxes, comm, cuoptions);
+
+                cuda::vector<scalar_type> cuinput = cuda::load(input);
+                cuda::vector<scalar_type> curesult(outboxes[me].count());
+                cuda::vector<scalar_type> cureference(outboxes[me].count());
+                cuda::vector<scalar_type> cuworkspace( // allocate one workspace vector for all reshape operations
+                    std::max(std::max(cumpi_tanspose_shaper->size_workspace(), cumpi_direct_shaper->size_workspace()), cuda_transpose_shaper->size_workspace())
+                );
+
+                cumpi_direct_shaper->apply(cuinput.data(), curesult.data(), cuworkspace.data());
+                cuda_transpose_shaper->apply(curesult.data(), cureference.data(), cuworkspace.data());
+
+                curesult = cuda::vector<scalar_type>(outboxes[me].count());
+                cumpi_tanspose_shaper->apply(cuinput.data(), curesult.data(), cuworkspace.data());
+
+                tassert(match(curesult, cuda::unload(cureference)));
+                #endif
             }
         }
     }
 
 }
-#else
-template<typename scalar_type, typename variant>
-void test_reshape_transposed(MPI_Comm){}
-#endif
 
 void perform_tests_cpu(){
     MPI_Comm const comm = MPI_COMM_WORLD;

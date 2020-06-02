@@ -637,6 +637,13 @@ void test_in_node_transpose(){
                                           2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0};
     sassert(match(result, reference));
 
+    #ifdef Heffte_ENABLE_CUDA
+    auto gpu_input = cuda::load(input);
+    cuda::vector<scalar_type> gpu_result(24);
+    heffte::reshape3d_transpose<heffte::tag::gpu>(plans[0]).apply(gpu_input.data(), gpu_result.data(), nullptr);
+    sassert(match(gpu_result, reference));
+    #endif
+
     // test 2, transpose the data to order (2, 1, 0)
     box3d destination2({0, 0, 0}, {1, 2, 3}, {2, 1, 0});
     plans.clear();
@@ -647,11 +654,22 @@ void test_in_node_transpose(){
                  2.0,  8.0, 14.0, 20.0,  4.0, 10.0, 16.0, 22.0,  6.0, 12.0, 18.0, 24.0};
     sassert(match(result, reference));
 
+    #ifdef Heffte_ENABLE_CUDA
+    heffte::reshape3d_transpose<heffte::tag::gpu>(plans[0]).apply(gpu_input.data(), gpu_result.data(), nullptr);
+    sassert(match(gpu_result, reference));
+    #endif
+
     // flip back the data
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, inbox, {destination2}, proc, offset, sizes, plans);
     heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(reference.data(), result.data(), nullptr);
     sassert(match(result, input));
+
+    #ifdef Heffte_ENABLE_CUDA
+    gpu_input = cuda::load(reference);
+    heffte::reshape3d_transpose<heffte::tag::gpu>(plans[0]).apply(gpu_input.data(), gpu_result.data(), nullptr);
+    sassert(match(gpu_result, input));
+    #endif
 
     // test 3, transpose the data to order (0, 2, 1)
     box3d destination3({0, 0, 0}, {1, 2, 3}, {0, 2, 1});
@@ -663,6 +681,12 @@ void test_in_node_transpose(){
                  3.0, 4.0,  9.0, 10.0, 15.0, 16.0, 21.0, 22.0,
                  5.0, 6.0, 11.0, 12.0, 17.0, 18.0, 23.0, 24.0};
     sassert(match(result, reference));
+
+    #ifdef Heffte_ENABLE_CUDA
+    gpu_input = cuda::load(input);
+    heffte::reshape3d_transpose<heffte::tag::gpu>(plans[0]).apply(gpu_input.data(), gpu_result.data(), nullptr);
+    sassert(match(gpu_result, reference));
+    #endif
 }
 
 #if defined(Heffte_ENABLE_FFTW) and defined(Heffte_ENABLE_CUDA)

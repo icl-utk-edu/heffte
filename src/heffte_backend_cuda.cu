@@ -146,6 +146,54 @@ __global__ void direct_packer(int nfast, int nmid, int nslow, int line_stride, i
 }
 
 /*
+ * Launch this with one block per line of the destination.
+ */
+template<typename scalar_type, int num_threads, int tuple_size, int map0, int map1, int map2>
+__global__ void transpose_unpacker(int nfast, int nmid, int nslow, int line_stride, int plane_stide,
+                                   int buff_line_stride, int buff_plane_stride,
+                                   scalar_type const source[], scalar_type destination[]){
+
+    int block_index = blockIdx.x;
+    while(block_index < nmid * nslow){
+
+        int j = block_index % nmid;
+        int k = block_index / nmid;
+
+        int i = threadIdx.x;
+        while(i < nfast){
+            if (map0 == 0 and map1 == 1 and map2 == 2){
+                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (k * buff_plane_stride + j * buff_line_stride + i)];
+                if (tuple_size > 1)
+                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (k * buff_plane_stride + j * buff_line_stride + i) + 1];
+            }else if (map0 == 0 and map1 == 2 and map2 == 1){
+                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (j * buff_plane_stride + k * buff_line_stride + i)];
+                if (tuple_size > 1)
+                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (j * buff_plane_stride + k * buff_line_stride + i) + 1];
+            }else if (map0 == 1 and map1 == 0 and map2 == 2){
+                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (k * buff_plane_stride + i * buff_line_stride + j)];
+                if (tuple_size > 1)
+                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (k * buff_plane_stride + i * buff_line_stride + j) + 1];
+            }else if (map0 == 1 and map1 == 2 and map2 == 0){
+                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (i * buff_plane_stride + k * buff_line_stride + j)];
+                if (tuple_size > 1)
+                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (i * buff_plane_stride + k * buff_line_stride + j) + 1];
+            }else if (map0 == 2 and map1 == 1 and map2 == 0){
+                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (i * buff_plane_stride + j * buff_line_stride + k)];
+                if (tuple_size > 1)
+                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (i * buff_plane_stride + j * buff_line_stride + k) + 1];
+            }else if (map0 == 2 and map1 == 0 and map2 == 1){
+                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (j * buff_plane_stride + i * buff_line_stride + k)];
+                if (tuple_size > 1)
+                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (j * buff_plane_stride + i * buff_line_stride + k) + 1];
+            }
+            i += num_threads;
+        }
+
+        block_index += gridDim.x;
+    }
+}
+
+/*
  * Call with one thread per entry.
  */
 template<typename scalar_type, int num_threads>
@@ -225,6 +273,44 @@ void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_st
             reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
 }
 
+template<typename scalar_type>
+void transpose_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stride,
+                      int buff_line_stride, int buff_plane_stride, int map0, int map1, int map2,
+                      scalar_type const source[], scalar_type destination[]){
+    using prec = typename precision<scalar_type>::type;
+    if (map0 == 0 and map1 == 1 and map2 == 2){
+        transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 0, 1, 2>
+                <<<std::min(nmid * nslow, 65536), max_threads>>>
+                (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
+                 reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
+    }else if (map0 == 0 and map1 == 2 and map2 == 1){
+        transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 0, 2, 1>
+                <<<std::min(nmid * nslow, 65536), max_threads>>>
+                (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
+                 reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
+    }else if (map0 == 1 and map1 == 0 and map2 == 2){
+        transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 1, 0, 2>
+                <<<std::min(nmid * nslow, 65536), max_threads>>>
+                (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
+                 reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
+    }else if (map0 == 1 and map1 == 2 and map2 == 0){
+        transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 1, 2, 0>
+                <<<std::min(nmid * nslow, 65536), max_threads>>>
+                (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
+                 reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
+    }else if (map0 == 2 and map1 == 0 and map2 == 1){
+        transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 2, 0, 1>
+                <<<std::min(nmid * nslow, 65536), max_threads>>>
+                (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
+                 reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
+    }else if (map0 == 2 and map1 == 1 and map2 == 0){
+        transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 2, 1, 0>
+                <<<std::min(nmid * nslow, 65536), max_threads>>>
+                (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
+                 reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
+    }
+}
+
 template void direct_pack<float>(int, int, int, int, int, float const source[], float destination[]);
 template void direct_pack<double>(int, int, int, int, int, double const source[], double destination[]);
 template void direct_pack<std::complex<float>>(int, int, int, int, int, std::complex<float> const source[], std::complex<float> destination[]);
@@ -234,6 +320,11 @@ template void direct_unpack<float>(int, int, int, int, int, float const source[]
 template void direct_unpack<double>(int, int, int, int, int, double const source[], double destination[]);
 template void direct_unpack<std::complex<float>>(int, int, int, int, int, std::complex<float> const source[], std::complex<float> destination[]);
 template void direct_unpack<std::complex<double>>(int, int, int, int, int, std::complex<double> const source[], std::complex<double> destination[]);
+
+template void transpose_unpack<float>(int, int, int, int, int, int, int, int, int, int, float const source[], float destination[]);
+template void transpose_unpack<double>(int, int, int, int, int, int, int, int, int, int, double const source[], double destination[]);
+template void transpose_unpack<std::complex<float>>(int, int, int, int, int, int, int, int, int, int, std::complex<float> const source[], std::complex<float> destination[]);
+template void transpose_unpack<std::complex<double>>(int, int, int, int, int, int, int, int, int, int, std::complex<double> const source[], std::complex<double> destination[]);
 
 template<typename scalar_type>
 void scale_data(int num_entries, scalar_type *data, double scale_factor){

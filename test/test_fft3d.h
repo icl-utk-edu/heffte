@@ -202,6 +202,7 @@ void test_fft3d_vectors(MPI_Comm comm){
     std::array<heffte::scale, 3> fscale = {heffte::scale::none, heffte::scale::symmetric, heffte::scale::full};
     std::array<heffte::scale, 3> bscale = {heffte::scale::full, heffte::scale::symmetric, heffte::scale::none};
 
+    for(int reorder = 0; reorder < 2; reorder++){
     for(int alltoall = 0; alltoall < 2; alltoall++){
     for(int i=0; i<3; i++){
         std::array<int, 3> split = {1, 1, 1};
@@ -234,6 +235,7 @@ void test_fft3d_vectors(MPI_Comm comm){
         auto reference_fft       = rescale(world, get_subbox(world, outbox, world_fft), fscale[i]);
 
         heffte::plan_options options = default_options<backend_tag>();
+        options.use_reorder = (reorder == 0);
         options.use_alltoall = (alltoall == 0);
         heffte::fft3d<backend_tag> fft(inbox, outbox, comm, options);
 
@@ -249,6 +251,7 @@ void test_fft3d_vectors(MPI_Comm comm){
         tassert(approx(backward_scaled_rresult, local_real_input));
     }
     } // variants point-to-point and all-to-all
+    } // variants with and without reorder
 }
 
 template<typename backend_tag, typename scalar_type, int h0, int h1, int h2>
@@ -268,6 +271,7 @@ void test_fft3d_arrays(MPI_Comm comm){
     auto world_complex = convert_to_output(world_input); // if using real input, convert to the complex output type
     auto world_fft     = forward_fft<backend_tag>(world, world_input); // compute reference fft
 
+    for(int reorder = 0; reorder < 2; reorder++){
     for(int alltoall = 0; alltoall < 2; alltoall++){
     for(int i=0; i<3; i++){
         // split the world into processors
@@ -287,6 +291,7 @@ void test_fft3d_arrays(MPI_Comm comm){
         output_container forward(local_input.size()); // computed solution
 
         heffte::plan_options options = default_options<backend_tag>();
+        options.use_reorder = (reorder == 0);
         options.use_alltoall = (alltoall == 0);
         heffte::fft3d<backend_tag> fft(boxes[me], boxes[me], comm, options);
 
@@ -326,6 +331,7 @@ void test_fft3d_arrays(MPI_Comm comm){
         tassert(approx(get_complex_subbox(world, boxes[me], world_input), cbackward_result));
     }
     } // variants point-to-point and all-to-all
+    } // variants with and without reorder
 }
 
 
