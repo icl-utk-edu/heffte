@@ -181,7 +181,8 @@ logic_plan3d plan_operations(ioboxes const &boxes, int r2c_direction, plan_optio
         {boxes.in, shape_fft0, shape1, shape2},
         {shape0,   shape1,     shape2, boxes.out},
         fft_direction,
-        world_in.count()
+        world_in.count(),
+        opts
            };
 }
 

@@ -72,6 +72,12 @@ template<> std::string get_variant<double>(){ return "double"; }
 template<> std::string get_variant<std::complex<float>>(){ return "ccomplex"; }
 template<> std::string get_variant<std::complex<double>>(){ return "zcomplex"; }
 
+struct using_alltoall{};
+struct using_pointtopoint{};
+template<typename reshape_variant> std::string get_description(){ return ""; }
+template<> std::string get_description<using_alltoall>(){ return "heffte::reshape3d_alltoallv"; }
+template<> std::string get_description<using_pointtopoint>(){ return "heffte::reshape3d_pointtopoint"; }
+
 template<typename scalar_variant = int, typename mpi_tag = using_mpi, typename backend_tag = void>
 struct current_test{
     current_test(std::string const &name, MPI_Comm const comm) : test_comm(comm){
@@ -105,6 +111,17 @@ inline bool match(std::vector<T> const &a, std::vector<T> const &b){
     if (a.size() != b.size()) return false;
     for(size_t i=0; i<a.size(); i++)
         if (a[i] != b[i]) return false;
+    return true;
+}
+template<typename T>
+inline bool match_verbose(std::vector<T> const &a, std::vector<T> const &b){
+    if (a.size() != b.size()) return false;
+    for(size_t i=0; i<a.size(); i++){
+        if (a[i] != b[i]){
+            cout << " mismatch in entry i = " << i << "  with a[i] = " << a[i] << " and b[i] = " << b[i] << endl;
+            return false;
+        }
+    }
     return true;
 }
 
@@ -154,6 +171,10 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
             options.use_reorder = true;
         }else if (s == "-no-reorder"){
             options.use_reorder = false;
+        }else if (s == "-a2a"){
+            options.use_alltoall = true;
+        }else if (s == "-p2p"){
+            options.use_alltoall = false;
         }
     }
     return options;

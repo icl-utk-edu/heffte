@@ -153,6 +153,8 @@ int main(int argc, char *argv[]){
                  << "        args is a set of optional arguments that define algorithmic tweaks and variations\n"
                  << "         -reorder: reorder the elements of the arrays so that each 1-D FFT will use contiguous data\n"
                  << "         -no-reorder: some of the 1-D will be strided (non contiguous)\n"
+                 << "         -a2a: use MPI_Alltoallv() communication method\n"
+                 << "         -p2p: use MPI_Send() and MPI_Irecv() communication methods\n"
                  << "Examples:\n"
                  << "    mpirun -np 4 " << bench_executable << " fftw  double 128 128 128 -no-reorder\n"
                  << "    mpirun -np 8 " << bench_executable << " cufft float  256 256 256\n\n";
