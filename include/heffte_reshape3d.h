@@ -393,7 +393,7 @@ private:
     template<typename scalar_type>
     void transpose(scalar_type const *source, scalar_type *destination, scalar_type *workspace) const{
         if (source == destination){ // in-place transpose will need workspace
-            std::copy_n(source, size_intput(), workspace);
+            data_manipulator<location_tag>::copy_n(source, size_intput(), workspace);
             transpose_packer<location_tag>().unpack(plan, workspace, destination);
         }else{
             transpose_packer<location_tag>().unpack(plan, source, destination);

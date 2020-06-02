@@ -294,6 +294,16 @@ inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int d
 }
 
 /*!
+ * \brief Returns true if the shape forms slabs in the given directions.
+ */
+inline bool is_slab(box3d const world, std::vector<box3d> const &shape, int direction1, int direction2){
+    for(auto s : shape)
+        if (s.size[direction1] != world.size[direction1] or s.size[direction2] != world.size[direction2])
+            return false;
+    return true;
+}
+
+/*!
  * \brief Returns the same shape, but sets a different order for each box.
  */
 inline std::vector<box3d> reorder(std::vector<box3d> const &shape, std::array<int, 3> order){
@@ -301,6 +311,46 @@ inline std::vector<box3d> reorder(std::vector<box3d> const &shape, std::array<in
     result.reserve(shape.size());
     for(auto const &b : shape)
         result.push_back(box3d(b.low, b.high, order));
+    return result;
+}
+
+/*!
+ * \brief Reorders the new boxes to maximize the overlap with the old boxes
+ *
+ * A reshape operation from an old to a new configuration will require as much
+ * MPI communication as the lack of overlap between the two box sets,
+ * hence using a heuristic algorithms, in an attempt to find a reordering
+ * of the boxes to increase the overlap with the old and new.
+ * Also assigns the given order to the result.
+ *
+ * \param new_boxes is a set of new boxes to be reordered
+ * \param old_boxes is the current box configuration
+ * \param order is the new order to be assigned to the result boxes
+ */
+inline std::vector<box3d> maximize_overlap(std::vector<box3d> const &new_boxes,
+                                           std::vector<box3d> const &old_boxes,
+                                           std::array<int, 3> const order){
+    std::vector<box3d> result;
+    result.reserve(new_boxes.size());
+    std::vector<bool> taken(new_boxes.size(), false);
+
+    for(size_t i=0; i<new_boxes.size(); i++){
+        // for each box in the result, find the box among the new_boxes
+        // that has not been taken and has the largest overlap with the corresponding old box
+        int max_overlap = -1;
+        size_t max_index = new_boxes.size();
+        for(size_t j=0; j<new_boxes.size(); j++){
+            int overlap = old_boxes[i].collide(new_boxes[j]).count();
+            if (not taken[j] and overlap > max_overlap){
+                max_overlap = overlap;
+                max_index = j;
+            }
+        }
+        assert( max_index < new_boxes.size() ); // if we found a box
+        taken[max_index] = true;
+        result.push_back(box3d(new_boxes[max_index].low, new_boxes[max_index].high, order));
+    }
+
     return result;
 }
 
@@ -344,29 +394,42 @@ inline std::vector<box3d> make_pencils(box3d const world,
         pencils = split_world(world, {proc_grid[0], proc_grid[1], 1});
     }
 
-    // assign each of the pencils to the position in result that will maximize the overlap
-    std::vector<box3d> result;
-    result.reserve(pencils.size());
-    std::vector<bool> taken(pencils.size(), false);
+    return maximize_overlap(pencils, source, order);
+}
 
-    for(size_t i=0; i<pencils.size(); i++){
-        // for each box in the result, find the box among the pencils
-        // that has not been taken and has the largest overlap with the corresponding source box
-        int max_overlap = -1;
-        size_t max_index = pencils.size();
-        for(size_t j=0; j<pencils.size(); j++){
-            int overlap = source[i].collide(pencils[j]).count();
-            if (not taken[j] and overlap > max_overlap){
-                max_overlap = overlap;
-                max_index = j;
-            }
+/*!
+ * \brief Breaks the wold into a set of slabs that span the given dimensions
+ *
+ * The method is near identical to make_pencils, but the slabs span two dimensions.
+ */
+inline std::vector<box3d> make_slabs(box3d const world, int num_slabs,
+                                     int const dimension1, int const dimension2,
+                                     std::vector<box3d> const &source,
+                                     std::array<int, 3> const order
+                                     ){
+    assert( dimension1 != dimension2 );
+    std::vector<box3d> slabs;
+    if (dimension1 == 0){
+        if (dimension2 == 1){
+            slabs = split_world(world, {1, 1, num_slabs});
+        }else{
+            slabs = split_world(world, {1, num_slabs, 1});
         }
-        assert( max_index < pencils.size() ); // if we found a box
-        taken[max_index] = true;
-        result.push_back(box3d(pencils[max_index].low, pencils[max_index].high, order));
+    }else if (dimension1 == 1){
+        if (dimension2 == 0){
+            slabs = split_world(world, {1, 1, num_slabs});
+        }else{
+            slabs = split_world(world, {num_slabs, 1, 1});
+        }
+    }else{ // third dimension
+        if (dimension2 == 0){
+            slabs = split_world(world, {1, num_slabs, 1});
+        }else{
+            slabs = split_world(world, {num_slabs, 1, 1});
+        }
     }
 
-    return result;
+    return maximize_overlap(slabs, source, order);
 }
 
 /*!
