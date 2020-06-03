@@ -675,6 +675,15 @@ void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stid
  */
 template<typename scalar_type>
 void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]);
+/*!
+ * \brief Performs a tranpose-unpack operation for data sitting on the GPU device.
+ *
+ * Launches a CUDA kernel.
+ */
+template<typename scalar_type>
+void transpose_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide,
+                      int buff_line_stride, int buff_plane_stride, int map0, int map1, int map2,
+                      scalar_type const source[], scalar_type destination[]);
 
 }
 
@@ -702,7 +711,8 @@ template<> struct transpose_packer<tag::gpu>{
     }
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        throw std::runtime_error("transpose_packer<tag::gpu> is currently not implemented");
+        cuda::transpose_unpack<scalar_type>(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
+                                            plan.buff_line_stride, plan.buff_plane_stride, plan.map[0], plan.map[1], plan.map[2], buffer, data);
     }
 };
 
