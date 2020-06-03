@@ -335,20 +335,66 @@ template<> struct transpose_packer<tag::cpu>{
     }
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        std::array<int, 3> iter = {0, 0, 0}; // iterates over the slow mid and fast directions of the destination
+        constexpr int stride = 256 / sizeof(scalar_type);
+        if (plan.map[0] == 0 and plan.map[1] == 1){
+            for(int i=0; i<plan.size[2]; i++)
+                for(int j=0; j<plan.size[1]; j++)
+                    for(int k=0; k<plan.size[0]; k++)
+                        data[i * plan.plane_stride + j * plan.line_stride + k]
+                            = buffer[ i * plan.buff_plane_stride + j * plan.buff_line_stride + k ];
 
-        int &fast = iter[plan.map[0]]; // alias the directions of the source buffer
-        int &mid  = iter[plan.map[1]];
-        int &slow = iter[plan.map[2]];
+        }else if (plan.map[0] == 0 and plan.map[1] == 2){
+            for(int bi=0; bi<plan.size[2]; bi+=stride)
+                for(int bj=0; bj<plan.size[1]; bj+=stride)
+                    for(int bk=0; bk<plan.size[0]; bk+=stride)
+                        for(int i=bi; i<std::min(bi + stride, plan.size[2]); i++)
+                            for(int j=bj; j<std::min(bj + stride, plan.size[1]); j++)
+                                for(int k=bk; k<std::min(bk + stride, plan.size[0]); k++)
+                                    data[i * plan.plane_stride + j * plan.line_stride + k]
+                                        = buffer[ j * plan.buff_plane_stride + i * plan.buff_line_stride + k ];
 
-        for(iter[2] = 0; iter[2] < plan.size[2]; iter[2]++){
-            for(iter[1] = 0; iter[1] < plan.size[1]; iter[1]++){
-                for(iter[0] = 0; iter[0] < plan.size[0]; iter[0]++){
-                    data[iter[2] * plan.plane_stride + iter[1] * plan.line_stride + iter[0]]
-                        = buffer[ slow * plan.buff_plane_stride + mid * plan.buff_line_stride + fast ];
-                }
-            }
+        }else if (plan.map[0] == 1 and plan.map[1] == 0){
+            for(int bi=0; bi<plan.size[2]; bi+=stride)
+                for(int bj=0; bj<plan.size[1]; bj+=stride)
+                    for(int bk=0; bk<plan.size[0]; bk+=stride)
+                        for(int i=bi; i<std::min(bi + stride, plan.size[2]); i++)
+                            for(int j=bj; j<std::min(bj + stride, plan.size[1]); j++)
+                                for(int k=bk; k<std::min(bk + stride, plan.size[0]); k++)
+                                    data[i * plan.plane_stride + j * plan.line_stride + k]
+                                        = buffer[ i * plan.buff_plane_stride + k * plan.buff_line_stride + j ];
+
+        }else if (plan.map[0] == 1 and plan.map[1] == 2){
+            for(int bi=0; bi<plan.size[2]; bi+=stride)
+                for(int bj=0; bj<plan.size[1]; bj+=stride)
+                    for(int bk=0; bk<plan.size[0]; bk+=stride)
+                        for(int i=bi; i<std::min(bi + stride, plan.size[2]); i++)
+                            for(int j=bj; j<std::min(bj + stride, plan.size[1]); j++)
+                                for(int k=bk; k<std::min(bk + stride, plan.size[0]); k++)
+                                    data[i * plan.plane_stride + j * plan.line_stride + k]
+                                        = buffer[ k * plan.buff_plane_stride + i * plan.buff_line_stride + j ];
+
+        }else if (plan.map[0] == 2 and plan.map[1] == 0){
+            for(int bi=0; bi<plan.size[2]; bi+=stride)
+                for(int bj=0; bj<plan.size[1]; bj+=stride)
+                    for(int bk=0; bk<plan.size[0]; bk+=stride)
+                        for(int i=bi; i<std::min(bi + stride, plan.size[2]); i++)
+                            for(int j=bj; j<std::min(bj + stride, plan.size[1]); j++)
+                                for(int k=bk; k<std::min(bk + stride, plan.size[0]); k++)
+                                    data[i * plan.plane_stride + j * plan.line_stride + k]
+                                        = buffer[ j * plan.buff_plane_stride + k * plan.buff_line_stride + i ];
+
+        }else{ // if (plan.map[0] == 2 and plan.map[1] == 1){
+            for(int bi=0; bi<plan.size[2]; bi+=stride)
+                for(int bj=0; bj<plan.size[1]; bj+=stride)
+                    for(int bk=0; bk<plan.size[0]; bk+=stride)
+                        for(int i=bi; i<std::min(bi + stride, plan.size[2]); i++)
+                            for(int j=bj; j<std::min(bj + stride, plan.size[1]); j++)
+                                for(int k=bk; k<std::min(bk + stride, plan.size[0]); k++)
+                                    data[i * plan.plane_stride + j * plan.line_stride + k]
+                                        = buffer[ k * plan.buff_plane_stride + j * plan.buff_line_stride + i ];
+
         }
+
     }
 };
 
