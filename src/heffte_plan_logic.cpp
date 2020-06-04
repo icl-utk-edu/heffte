@@ -51,6 +51,20 @@ inline bool order_is_identical(std::vector<box3d> const &shape){
     return true;
 }
 
+/*!
+ * \brief Swaps the entries so that the dimension will come first.
+ */
+std::array<int, 3> new_order(std::array<int, 3> current_order, int dimension){
+    if (current_order[0] != dimension){
+        for(int i=1; i<3; i++){
+            if (current_order[i] == dimension){
+                std::swap(current_order[0], current_order[i]);
+                break;
+            }
+        }
+    }
+    return current_order;
+}
 
 /*!
  * \brief Creates the next box geometry that corresponds to pencils in the given dimension.
@@ -81,11 +95,11 @@ inline std::vector<box3d> next_pencils_shape(box3d const world,
             if (boxes_out[0].order[0] == dimension){ // even the order is good
                 return boxes_out;
             }else{
-                return reorder(boxes_out, {dimension, (dimension + 1) % 3, (dimension + 2) % 3});
+                return reorder(boxes_out, new_order(boxes_out.front().order, dimension));
             }
         }else{
-            return make_pencils(world, proc_grid, dimension, source,
-                                {dimension, (dimension + 1) % 3, (dimension + 2) % 3});
+            std::array<int, 3> order = new_order(source.front().order, dimension);
+            return make_pencils(world, proc_grid, dimension, source, order);
         }
     }else{
         return (is_pencils(world_out, boxes_out, test_directions) ?
