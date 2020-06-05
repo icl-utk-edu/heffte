@@ -226,6 +226,9 @@ inline std::vector<std::array<int, 2>> get_factors(int const n){
         if (n % i == 0)
             result.push_back({i, n / i});
     }
+    if (n == 1) {
+        result.push_back({1, 1});
+    }
     return result;
 }
 
