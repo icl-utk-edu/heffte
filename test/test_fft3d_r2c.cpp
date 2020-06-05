@@ -42,7 +42,7 @@ void test_fft3d_r2c_arrays(MPI_Comm comm){
     box3d const rworld = {{0, 0, 0}, {h0, h1, h2}};
     auto world_input = make_data<scalar_type>(rworld);
 
-    for(int alltoall = 0; alltoall < 2; alltoall++){
+    for(auto const &options : make_all_options<backend_tag>()){
     for(int dim = 0; dim < 3; dim++){
         box3d const cworld = rworld.r2c(dim);
         auto world_fft     = get_subbox(rworld, cworld, forward_fft<backend_tag>(rworld, world_input));
@@ -67,8 +67,6 @@ void test_fft3d_r2c_arrays(MPI_Comm comm){
             auto reference_fft = get_subbox(cworld, cboxes[me], world_fft); // reference solution
             output_container forward(reference_fft.size()); // computed solution
 
-            heffte::plan_options options = default_options<backend_tag>();
-            options.use_alltoall = (alltoall == 0);
             heffte::fft3d_r2c<backend_tag> fft(rboxes[me], cboxes[me], dim, comm, options);
             output_container workspace(fft.size_workspace());
 
@@ -83,7 +81,7 @@ void test_fft3d_r2c_arrays(MPI_Comm comm){
             tassert(approx(local_input, backward_result)); // compare with the original input
         }
     }
-    } // variants point-to-point and all-to-all
+    } // different option variants
 }
 
 template<typename backend_tag, typename scalar_type, int h0, int h1, int h2>
@@ -106,7 +104,7 @@ void test_fft3d_r2c_vectors(MPI_Comm comm){
     std::array<heffte::scale, 3> fscale = {heffte::scale::none, heffte::scale::symmetric, heffte::scale::full};
     std::array<heffte::scale, 3> bscale = {heffte::scale::full, heffte::scale::symmetric, heffte::scale::none};
 
-    for(int alltoall = 0; alltoall < 2; alltoall++){
+    for(auto const &options : make_all_options<backend_tag>()){
     for(int dim = 0; dim < 3; dim++){
         box3d const cworld = rworld.r2c(dim);
         auto world_fft     = get_subbox(rworld, cworld, forward_fft<backend_tag>(rworld, world_input));
@@ -142,8 +140,6 @@ void test_fft3d_r2c_vectors(MPI_Comm comm){
             auto local_input   = input_maker<backend_tag, scalar_type>::select(rworld, inbox, world_input);
             auto reference_fft = rescale(rworld, get_subbox(cworld, outbox, world_fft), fscale[i]);
 
-            heffte::plan_options options = default_options<backend_tag>();
-            options.use_alltoall = (alltoall == 0);
             heffte::fft3d_r2c<backend_tag> fft(inbox, outbox, dim, comm, options);
 
             auto result = fft.forward(local_input, fscale[i]);
@@ -154,7 +150,7 @@ void test_fft3d_r2c_vectors(MPI_Comm comm){
             tassert(approx(local_input, backward_scaled_result));
         }
     }
-    } // variants point-to-point and all-to-all
+    } // different option variants
 }
 
 void perform_tests(MPI_Comm const comm){

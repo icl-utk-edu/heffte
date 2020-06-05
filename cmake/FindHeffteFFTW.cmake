@@ -69,7 +69,7 @@ if (NOT FFTW_LIBRARIES)
         PREFIX ${FFTW_ROOT}
         VAR FFTW_LIBRARIES
         REQUIRED "fftw3" "fftw3f"
-        OPTIONAL "fftw3_threads" "fftw3f_threads"
+        OPTIONAL "fftw3_threads" "fftw3f_threads" "fftw3_omp" "fftw3f_omp"
                                )
 endif()
 

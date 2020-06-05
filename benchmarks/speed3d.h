@@ -155,9 +155,12 @@ int main(int argc, char *argv[]){
                  << "         -no-reorder: some of the 1-D will be strided (non contiguous)\n"
                  << "         -a2a: use MPI_Alltoallv() communication method\n"
                  << "         -p2p: use MPI_Send() and MPI_Irecv() communication methods\n"
+                 << "         -pencils: use pencil reshape logic\n"
+                 << "         -slabs: use slab reshape logic\n"
                  << "Examples:\n"
-                 << "    mpirun -np 4 " << bench_executable << " fftw  double 128 128 128 -no-reorder\n"
-                 << "    mpirun -np 8 " << bench_executable << " cufft float  256 256 256\n\n";
+                 << "    mpirun -np  4 " << bench_executable << " fftw  double 128 128 128 -no-reorder\n"
+                 << "    mpirun -np  8 " << bench_executable << " cufft float  256 256 256\n"
+                 << "    mpirun -np 12 " << bench_executable << " fftw  double 512 512 512 -p2p -slabs\n\n";
         }
 
         MPI_Finalize();

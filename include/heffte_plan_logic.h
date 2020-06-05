@@ -18,12 +18,15 @@ namespace heffte {
 struct plan_options{
     template<typename backend_tag> plan_options(backend_tag const)
         : use_reorder(default_plan_options<backend_tag>::use_reorder),
-          use_alltoall(true)
+          use_alltoall(true),
+          use_pencils(true)
     {}
     //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
     bool use_reorder;
     //! \brief Defines whether to use point to point or all to all communications.
     bool use_alltoall;
+    //! \brief Defines whether to use pencil or slab data distribution in the reshape steps.
+    bool use_pencils;
 };
 
 /*!
