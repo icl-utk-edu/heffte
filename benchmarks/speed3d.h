@@ -22,6 +22,13 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     std::array<int,3> proc_i = heffte::proc_setup_min_surface(world, nprocs);
     std::array<int,3> proc_o = heffte::proc_setup_min_surface(world, nprocs);
 
+    // Check if user in/out processor grids are pencil-shaped, useful for performance comparison with other libraries
+    if (io_pencils(args)){
+        std::array<int, 2> proc_grid = make_procgrid(nprocs);
+        proc_i = {1, proc_grid[0], proc_grid[1]};
+        proc_o = {1, proc_grid[0], proc_grid[1]};
+    }
+
     std::vector<box3d> inboxes  = heffte::split_world(world, proc_i);
     std::vector<box3d> outboxes = heffte::split_world(world, proc_o);
 
@@ -157,6 +164,7 @@ int main(int argc, char *argv[]){
                  << "         -p2p: use MPI_Send() and MPI_Irecv() communication methods\n"
                  << "         -pencils: use pencil reshape logic\n"
                  << "         -slabs: use slab reshape logic\n"
+                 << "         -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries \n"
                  << "Examples:\n"
                  << "    mpirun -np  4 " << bench_executable << " fftw  double 128 128 128 -no-reorder\n"
                  << "    mpirun -np  8 " << bench_executable << " cufft float  256 256 256\n"

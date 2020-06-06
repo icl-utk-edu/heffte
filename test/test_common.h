@@ -201,4 +201,12 @@ std::vector<heffte::plan_options> make_all_options(){
     return result;
 }
 
+//! \brief If input and output grid of processors are pencils, useful for comparison with other libraries
+bool io_pencils(std::deque<std::string> const &args){
+    for(auto &s : args)
+        if (s == "-io_pencils")
+            return true;
+    return false;
+}
+
 #endif

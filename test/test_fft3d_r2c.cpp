@@ -30,7 +30,7 @@ void test_fft3d_r2c_arrays(MPI_Comm comm){
 
     // works with ranks 2 and 12 only
     int const num_ranks = mpi::comm_size(comm);
-    assert(num_ranks == 2 or num_ranks == 12);
+    assert(num_ranks == 1 or num_ranks == 2 or num_ranks == 12);
     current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d_r2c", comm);
 
     double correction = 1.0; // single precision is less stable, especially for larger problems with 12 mpi ranks
@@ -159,6 +159,20 @@ void perform_tests(MPI_Comm const comm){
     int const me = mpi::comm_rank(comm);
 
     switch(num_ranks){
+        case 1:
+            #ifdef Heffte_ENABLE_FFTW
+            test_fft3d_r2c_arrays<backend::fftw, float, 3, 4, 5>(comm);
+            test_fft3d_r2c_arrays<backend::fftw, double, 3, 4, 5>(comm);
+            #endif
+            #ifdef Heffte_ENABLE_MKL
+            test_fft3d_r2c_arrays<backend::mkl, float, 3, 4, 5>(comm);
+            test_fft3d_r2c_arrays<backend::mkl, double, 3, 4, 5>(comm);
+            #endif
+            #ifdef Heffte_ENABLE_CUDA
+            test_fft3d_r2c_arrays<backend::cufft, float, 3, 4, 5>(comm);
+            test_fft3d_r2c_arrays<backend::cufft, double, 3, 4, 5>(comm);
+            #endif
+            break;
         case 2:
             #ifdef Heffte_ENABLE_FFTW
             test_fft3d_r2c_const_dest2<backend::fftw>(comm);
