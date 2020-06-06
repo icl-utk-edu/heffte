@@ -12,6 +12,26 @@ void perform_tests(MPI_Comm const comm){
     int const num_ranks = mpi::comm_size(comm);
 
     switch(num_ranks){
+        case 1:
+            #ifdef Heffte_ENABLE_FFTW
+            test_fft3d_arrays<backend::fftw, float, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend::fftw, double, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend::fftw, std::complex<float>, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend::fftw, std::complex<double>, 6, 7, 5>(comm);
+            #endif
+            #ifdef Heffte_ENABLE_MKL
+            test_fft3d_arrays<backend::mkl, float, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend::mkl, double, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend::mkl, std::complex<float>, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend::mkl, std::complex<double>, 6, 7, 5>(comm);
+            #endif
+            #ifdef Heffte_ENABLE_CUDA
+            test_fft3d_arrays<backend::cufft, float, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend::cufft, double, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend::cufft, std::complex<float>, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend::cufft, std::complex<double>, 6, 7, 5>(comm);
+            #endif
+            break;
         case 2:
             #ifdef Heffte_ENABLE_FFTW
             test_fft3d_const_dest2<backend::fftw>(comm);

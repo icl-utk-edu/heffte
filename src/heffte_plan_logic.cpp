@@ -109,6 +109,37 @@ inline std::vector<box3d> next_pencils_shape(box3d const world,
 }
 
 /*!
+ * \brief Similar to next_pencils_shape() but handles a special case of the r2c transformation.
+ */
+inline std::vector<box3d> next_pencils_shape0(box3d const world,
+                                              std::array<int, 2> const proc_grid,
+                                              int const dimension,
+                                              int const r2c_direction,
+                                              std::vector<box3d> const &source,
+                                              bool const use_reorder,
+                                              box3d const world_out,
+                                              std::vector<int> const test_directions,
+                                              std::vector<box3d> const &boxes_out){
+    if (r2c_direction != -1 and is_pencils(world_out, boxes_out, test_directions)){
+        // shape0 will have to match the output boxes but before the r2c index shrink is applied
+        std::vector<box3d> non_r2c_boxes_out;
+        if (r2c_direction == 0){
+            for(auto const &b : boxes_out) non_r2c_boxes_out.push_back(
+                box3d({world.low[0], b.low[1], b.low[2]}, {world.high[0], b.high[1], b.high[2]}, b.order));
+        }else if (r2c_direction == 1){
+            for(auto const &b : boxes_out) non_r2c_boxes_out.push_back(
+                box3d({b.low[0], world.low[1], b.low[2]}, {b.high[0], world.high[1], b.high[2]}, b.order));
+        }else if (r2c_direction == 2){
+            for(auto const &b : boxes_out) non_r2c_boxes_out.push_back(
+                box3d({b.low[0], b.low[1], world.low[2]}, {b.high[0], b.high[1], world.high[2]}, b.order));
+        }
+        return next_pencils_shape(world, proc_grid, dimension, source, use_reorder, world, test_directions, non_r2c_boxes_out);
+    }else{
+        return next_pencils_shape(world, proc_grid, dimension, source, use_reorder, world_out, test_directions, boxes_out);
+    }
+}
+
+/*!
  * \brief Creates a plan of reshape operations using pencil decomposition.
  *
  * Note that this algorithm will still recognize and utilize the case when the input or output boxes
@@ -152,8 +183,8 @@ logic_plan3d plan_pencil_reshapes(box3d world_in, box3d world_out, ioboxes const
 
     // shape 0 comes right before fft 0
     // if the final configuration uses pencils in all directions, just jump to that
-    std::vector<box3d> shape0 = next_pencils_shape(world_in, proc_grid, fft_direction[0], boxes.in, opts.use_reorder,
-                                                   world_out, {0, 1, 2}, boxes.out);
+    std::vector<box3d> shape0 = next_pencils_shape0(world_in, proc_grid, fft_direction[0], r2c_direction, boxes.in, opts.use_reorder,
+                                                    world_out, {0, 1, 2}, boxes.out);
 
     // shape fft0 comes right after fft 0
     std::vector<box3d> shape_fft0 = apply_r2c(shape0, r2c_direction);

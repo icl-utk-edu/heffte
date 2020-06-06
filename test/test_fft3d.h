@@ -257,7 +257,7 @@ void test_fft3d_arrays(MPI_Comm comm){
 
     // works with ranks 2 and 12 only
     int const num_ranks = mpi::comm_size(comm);
-    assert(num_ranks == 2 or num_ranks == 12);
+    assert(num_ranks == 1 or num_ranks == 2 or num_ranks == 12);
     current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d", comm);
 
     int const me = mpi::comm_rank(comm);
