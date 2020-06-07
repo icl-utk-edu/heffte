@@ -373,19 +373,20 @@ void perform_tests_cpu(){
         // note that the number of boxes must match the comm size
         // that is the product of the last three of the box dimensions
         case 4:
-            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::mkl>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::mkl>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::mkl>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::mkl>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::mkl, using_alltoall>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::mkl, using_alltoall>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::mkl, using_alltoall>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::mkl, using_alltoall>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::mkl, using_pointtopoint>(comm);
             test_cpu<10, 20, 17, 2, 2, 1, double, default_cpu_backend, using_pointtopoint>(comm);
             test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, default_cpu_backend, using_pointtopoint>(comm);
             test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, default_cpu_backend, using_pointtopoint>(comm);
             break;
         case 12:
-            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::mkl>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::mkl>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::mkl>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::mkl>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::mkl, using_alltoall>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::mkl, using_alltoall>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::mkl, using_alltoall>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::mkl, using_alltoall>(comm);
             test_cpu<13, 13, 10, 3, 4, 1, float, default_cpu_backend, using_pointtopoint>(comm);
             test_cpu<16, 21, 17, 2, 3, 2, double, default_cpu_backend, using_pointtopoint>(comm);
             test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, default_cpu_backend, using_pointtopoint>(comm);

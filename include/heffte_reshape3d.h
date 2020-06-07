@@ -14,6 +14,7 @@
 #include "heffte_plan_logic.h"
 #include "heffte_backend_fftw.h"
 #include "heffte_backend_cuda.h"
+#include "heffte_backend_mkl.h"
 
 
 namespace HEFFTE {

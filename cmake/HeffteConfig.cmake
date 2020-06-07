@@ -6,6 +6,12 @@ if (@Heffte_ENABLE_FFTW@)
     set_target_properties(Heffte::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES @FFTW_INCLUDES@)
 endif()
 
+if (@Heffte_ENABLE_MKL@)
+    add_library(Heffte::MKL INTERFACE IMPORTED GLOBAL)
+    target_link_libraries(Heffte::MKL INTERFACE @Heffte_MKL_LIBRARIES@)
+    set_target_properties(Heffte::MKL PROPERTIES INTERFACE_INCLUDE_DIRECTORIES @Heffte_MKL_INCLUDES@)
+endif()
+
 if (NOT TARGET MPI::MPI_CXX)
     if (NOT MPI_CXX_COMPILER)
         set(MPI_CXX_COMPILER @MPI_CXX_COMPILER@)
