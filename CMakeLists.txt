@@ -4,13 +4,15 @@ project("Heffte" VERSION 0.2.1 LANGUAGES CXX)
 
 option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            OFF)
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
+option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
 option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
 # check if at least one backend has been enabled
 if (NOT Heffte_ENABLE_FFTW AND
-    NOT Heffte_ENABLE_CUDA
+    NOT Heffte_ENABLE_CUDA AND
+    NOT Heffte_ENABLE_MKL
     )
     message(FATAL_ERROR "HeFFTe requires at least one enabled backend!")
 endif()
@@ -31,9 +33,9 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/heffte_config.cmake.h"
 # find common dependencies
 find_package(MPI REQUIRED) # always a dependency
 
-if (Heffte_ENABLE_FFTW)
+if (Heffte_ENABLE_FFTW OR Heffte_ENABLE_MKL)
     # allow cmake to use custom modules (e.g. FindFFTW)
-    set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+    list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 endif()
 
 # libheffte source files list (does not include the cuda kernels)
@@ -69,6 +71,11 @@ target_link_libraries(Heffte MPI::MPI_CXX)
 if (Heffte_ENABLE_FFTW)
     find_package(HeffteFFTW REQUIRED)
     target_link_libraries(Heffte Heffte::FFTW)
+endif()
+
+if (Heffte_ENABLE_MKL)
+    find_package(HeffteMKL REQUIRED)
+    target_link_libraries(Heffte Heffte::MKL)
 endif()
 
 # other target properties
