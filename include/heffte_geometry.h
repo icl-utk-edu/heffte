@@ -14,6 +14,16 @@
 namespace heffte {
 
 /*!
+ * \ingroup fft3d
+ * \addtogroup fft3dgeometry Box-geometry operations
+ *
+ * HeFFTe operates with indexes that are distributed in boxes across the mpi ranks.
+ * Several methods help manipulate such vectors of boxes,
+ * note that in each instance the order of the boxes in a single vector should always match.
+ */
+
+/*!
+ * \ingroup fft3d
  * \brief A generic container that describes a 3d box of indexes.
  *
  * The box is defined by three low and three high indexes and holds all indexes from low to high
@@ -107,6 +117,7 @@ struct box3d{
 };
 
 /*!
+ * \ingroup fft3dmisc
  * \brief Debugging info, writes out the box to a stream.
  */
 inline std::ostream & operator << (std::ostream &os, box3d const box){
@@ -118,6 +129,7 @@ inline std::ostream & operator << (std::ostream &os, box3d const box){
 }
 
 /*!
+ * \ingroup fft3dbackend
  * \brief Return the number of 1-D ffts contained in the box in the given dimension.
  */
 inline int fft1d_get_howmany(box3d const box, int const dimension){
@@ -126,6 +138,7 @@ inline int fft1d_get_howmany(box3d const box, int const dimension){
     return box.osize(0) * box.osize(1);
 }
 /*!
+ * \ingroup fft3dbackend
  * \brief Return the stride of the 1-D ffts contained in the box in the given dimension.
  */
 inline int fft1d_get_stride(box3d const box, int const dimension){
@@ -135,6 +148,7 @@ inline int fft1d_get_stride(box3d const box, int const dimension){
 }
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Pair of lists of input-output boxes as used by the heffte::fft3d.
  *
  * The strict contains all inboxes and outboxes for the ranks associated with the geometry of a heffte::fft3d transformation.
@@ -147,11 +161,12 @@ struct ioboxes{
 };
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Returns the box that encapsulates all other boxes.
  *
  * Searches through the world.in boxes and computes the highest and lowest of all entries.
  *
- * \param world the collection of all input and output boxes.
+ * \param boxes the collection of all input and output boxes.
  */
 inline box3d find_world(std::vector<box3d> const &boxes){
     std::array<int, 3> low  = boxes[0].low;
@@ -166,6 +181,7 @@ inline box3d find_world(std::vector<box3d> const &boxes){
 }
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Compares two vectors of boxes, returns true if all boxes match.
  */
 inline bool match(std::vector<box3d> const &shape0, std::vector<box3d> const &shape1){
@@ -177,6 +193,7 @@ inline bool match(std::vector<box3d> const &shape0, std::vector<box3d> const &sh
 }
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Returns true if the geometry of the world is as expected.
  *
  * Runs simple checks to ensure that the inboxes will fill the world.
@@ -205,6 +222,7 @@ inline bool world_complete(std::vector<box3d> const &boxes, box3d const world){
 }
 
 /*!
+ * \brief fft3dmisc
  * \brief Generate all possible factors of a number.
  *
  * Taking an integer \b n, generates a list of all possible way that
@@ -233,6 +251,7 @@ inline std::vector<std::array<int, 2>> get_factors(int const n){
 }
 
 /*!
+ * \ingroup fft3dmisc
  * \brief Factorize the MPI ranks into a 2D grid.
  *
  * Considers all possible factorizations of the total number of processors
@@ -259,6 +278,7 @@ inline std::array<int, 2> make_procgrid(int const num_procs){
 }
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Splits the world box into a set of boxes that will be assigned to a process in the process grid.
  *
  * \param world is a box describing all indexes of consideration,
@@ -287,6 +307,7 @@ inline std::vector<box3d> split_world(box3d const world, std::array<int, 3> cons
 }
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Returns true if the shape forms pencils in the given direction.
  */
 inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int direction){
@@ -297,6 +318,7 @@ inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int d
 }
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Returns true if the shape forms slabs in the given directions.
  */
 inline bool is_slab(box3d const world, std::vector<box3d> const &shape, int direction1, int direction2){
@@ -307,6 +329,7 @@ inline bool is_slab(box3d const world, std::vector<box3d> const &shape, int dire
 }
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Returns the same shape, but sets a different order for each box.
  */
 inline std::vector<box3d> reorder(std::vector<box3d> const &shape, std::array<int, 3> order){
@@ -318,7 +341,8 @@ inline std::vector<box3d> reorder(std::vector<box3d> const &shape, std::array<in
 }
 
 /*!
- * \brief Reorders the new boxes to maximize the overlap with the old boxes
+ * \ingroup fft3dgeometry
+ * \brief Shuffle the new boxes to maximize the overlap with the old boxes
  *
  * A reshape operation from an old to a new configuration will require as much
  * MPI communication as the lack of overlap between the two box sets,
@@ -358,6 +382,7 @@ inline std::vector<box3d> maximize_overlap(std::vector<box3d> const &new_boxes,
 }
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Breaks the wold into a grid of pencils and orders the pencils to the ranks that will minimize communication
  *
  * A pencil is a box with one dimension that matches the entire world,
@@ -401,6 +426,7 @@ inline std::vector<box3d> make_pencils(box3d const world,
 }
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Breaks the wold into a set of slabs that span the given dimensions
  *
  * The method is near identical to make_pencils, but the slabs span two dimensions.
@@ -436,6 +462,7 @@ inline std::vector<box3d> make_slabs(box3d const world, int num_slabs,
 }
 
 /*!
+ * \ingroup fft3dgeometry
  * \brief Creates a grid of mpi-ranks that will minimize the area of each of the boxes.
  *
  * Given the world box of indexes, generate the dimensions of a 3d grid of mpi-ranks,
@@ -487,6 +514,7 @@ inline std::array<int, 3> proc_setup_min_surface(box3d const world, int num_proc
 
 namespace mpi {
 /*!
+ * \ingroup hefftempi
  * \brief Gather all boxes across all ranks in the comm.
  *
  * Constructs an \b ioboxes struct with input and output boxes collected from all ranks.

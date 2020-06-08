@@ -13,9 +13,27 @@
 
 #include <cufft.h>
 
+/*!
+ * \ingroup fft3d
+ * \addtogroup hefftecuda Backend cufft
+ *
+ * Wrappers and template specializations related to the cuFFT backend.
+ * Requires CMake option:
+ * \code
+ *  -D Heffte_ENABLE_CUDA=ON
+ * \endcode
+ *
+ * In addition to the cuFFT wrappers, this also includes a series of kernels
+ * for packing/unpacking/scaling the data, as well as a simple container
+ * that wraps around CUDA arrays for RAII style of resource management.
+ */
+
 namespace heffte{
 
-//! \brief Replace with the C++ 2014 std::exchange later.
+/*!
+ * \ingroup fft3dmisc
+ * \brief Replace with the C++ 2014 std::exchange later.
+ */
 template<class T, class U = T>
 T c11_exchange(T& obj, U&& new_value)
 {
@@ -25,15 +43,18 @@ T c11_exchange(T& obj, U&& new_value)
 }
 
 /*!
+ * \ingroup hefftecuda
  * \brief Cuda specific methods, vector-like container, error checking, etc.
  */
 namespace cuda {
 
     /*!
+     * \ingroup hefftecuda
      * \brief Checks the status of a cuda command and in case of a failure, converts it to a C++ exception.
      */
     void check_error(cudaError_t status, std::string const &function_name);
     /*!
+     * \ingroup hefftecuda
      * \brief Checks the status of a cufft command and in case of a failure, converts it to a C++ exception.
      */
     inline void check_error(cufftResult status, std::string const &function_name){
@@ -42,11 +63,13 @@ namespace cuda {
     }
 
     /*!
+     * \ingroup hefftecuda
      * \brief Wrapper around cudaStreamSynchronize(nullptr).
      */
     void synchronize_default_stream();
 
     /*!
+     * \ingroup hefftecuda
      * \brief Container that wraps around a raw cuda array.
      */
     template<typename scalar_type> class vector{
@@ -112,6 +135,7 @@ namespace cuda {
     };
 
     /*!
+     * \ingroup hefftecuda
      * \brief Captures ownership of the data in the raw-pointer.
      *
      * The advantage of the factory function over using the constructor is the ability
@@ -123,17 +147,20 @@ namespace cuda {
     }
 
     /*!
+     * \ingroup hefftecuda
      * \brief Copy data from the vector to the pointer, data size is equal to the vector size.
      */
     template<typename scalar_type>
     void copy_pntr(vector<scalar_type> const &x, scalar_type data[]);
     /*!
+     * \ingroup hefftecuda
      * \brief Copy data from the pointer to the vector, data size is equal to the vector size.
      */
     template<typename scalar_type>
     void copy_pntr(scalar_type const data[], vector<scalar_type> &x);
 
     /*!
+     * \ingroup hefftecuda
      * \brief Copy the data from a buffer on the CPU to a cuda::vector.
      *
      * \tparam scalar_type of the vector entries.
@@ -146,6 +173,7 @@ namespace cuda {
     template<typename scalar_type>
     vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries);
     /*!
+     * \ingroup hefftecuda
      * \brief Similar to cuda::load() but loads the data from a std::vector
      */
     template<typename scalar_type>
@@ -153,17 +181,20 @@ namespace cuda {
         return load(cpu_data.data(), cpu_data.size());
     }
     /*!
+     * \ingroup hefftecuda
      * \brief Similar to cuda::load() but loads the data from a std::vector into a pointer.
      */
     template<typename scalar_type>
     void load(std::vector<scalar_type> const &cpu_data, scalar_type gpu_data[]);
     /*!
+     * \ingroup hefftecuda
      * \brief Similar to cuda::load() but loads the data from a std::vector
      */
     template<typename scalar_type>
     void load(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data);
 
     /*!
+     * \ingroup hefftecuda
      * \brief Load method that copies two std::vectors, used in template general code.
      *
      * This is never executed.
@@ -173,6 +204,7 @@ namespace cuda {
     template<typename scalar_type>
     void load(std::vector<scalar_type> const &a, std::vector<scalar_type> &b){ b = a; }
     /*!
+     * \ingroup hefftecuda
      * \brief Unload method that copies two std::vectors, used in template general code.
      *
      * This is never executed.
@@ -183,12 +215,14 @@ namespace cuda {
     std::vector<scalar_type> unload(std::vector<scalar_type> const &a){ return a; }
 
     /*!
+     * \ingroup hefftecuda
      * \brief Copy number of entries from the GPU pointer into the vector.
      */
     template<typename scalar_type>
     std::vector<scalar_type> unload(scalar_type const gpu_pointer[], size_t num_entries);
 
     /*!
+     * \ingroup hefftecuda
      * \brief Copy the data from a cuda::vector to a cpu buffer
      *
      * \tparam scalar_type of the vector entries
@@ -200,6 +234,7 @@ namespace cuda {
     void unload(vector<scalar_type> const &gpu_data, scalar_type *cpu_data);
 
     /*!
+     * \ingroup hefftecuda
      * \brief Similar to unload() but copies the data into a std::vector.
      */
     template<typename scalar_type>
@@ -210,6 +245,7 @@ namespace cuda {
     }
 
     /*!
+     * \ingroup hefftecuda
      * \brief Convert real numbers to complex when both are located on the GPU device.
      *
      * Launches a CUDA kernel.
@@ -217,6 +253,7 @@ namespace cuda {
     template<typename precision_type>
     void convert(int num_entries, precision_type const source[], std::complex<precision_type> destination[]);
     /*!
+     * \ingroup hefftecuda
      * \brief Convert complex numbers to real when both are located on the GPU device.
      *
      * Launches a CUDA kernel.
@@ -225,6 +262,7 @@ namespace cuda {
     void convert(int num_entries, std::complex<precision_type> const source[], precision_type destination[]);
 
     /*!
+     * \ingroup hefftecuda
      * \brief Scales real data (double or float) by the scaling factor.
      */
     template<typename scalar_type>
@@ -232,6 +270,7 @@ namespace cuda {
 }
 
 /*!
+ * \ingroup hefftecuda
  * \brief Data manipulations on the GPU end.
  */
 template<> struct data_manipulator<tag::gpu>{
@@ -267,13 +306,20 @@ template<> struct data_manipulator<tag::gpu>{
 };
 
 namespace backend{
-    //! \brief Type-tag for the cuFFT backend
+    /*!
+     * \ingroup hefftecuda
+     * \brief Type-tag for the cuFFT backend
+     */
     struct cufft{};
 
-    //! \brief Indicate that the cuFFT backend has been enabled.
+    /*!
+     * \ingroup hefftecuda
+     * \brief Indicate that the cuFFT backend has been enabled.
+     */
     template<> struct is_enabled<cufft> : std::true_type{};
 
     /*!
+     * \ingroup hefftecuda
      * \brief Defines the location type-tag and the cuda container.
      */
     template<>
@@ -285,21 +331,25 @@ namespace backend{
     };
 
     /*!
+     * \ingroup hefftecuda
      * \brief Returns the human readable name of the FFTW backend.
      */
     template<> inline std::string name<cufft>(){ return "cufft"; }
 }
 
 /*!
+ * \ingroup hefftecuda
  * \brief Recognize the cuFFT single precision complex type.
  */
 template<> struct is_ccomplex<cufftComplex> : std::true_type{};
 /*!
+ * \ingroup hefftecuda
  * \brief Recognize the cuFFT double precision complex type.
  */
 template<> struct is_zcomplex<cufftDoubleComplex> : std::true_type{};
 
 /*!
+ * \ingroup hefftecuda
  * \brief Base plan for cufft, using only the specialization for float and double complex.
  *
  * Similar to heffte::plan_fftw but applies to the cufft backend.
@@ -307,6 +357,7 @@ template<> struct is_zcomplex<cufftDoubleComplex> : std::true_type{};
 template<typename> struct plan_cufft{};
 
 /*!
+ * \ingroup hefftecuda
  * \brief Plan for the single precision complex transform.
  */
 template<> struct plan_cufft<std::complex<float>>{
@@ -335,7 +386,10 @@ private:
     //! \brief The cufft opaque structure (pointer to struct).
     mutable cufftHandle plan;
 };
-//! \brief Specialization for double complex.
+/*!
+ * \ingroup hefftecuda
+ * \brief Specialization for double complex.
+ */
 template<> struct plan_cufft<std::complex<double>>{
     //! \brief Identical to the float-complex specialization.
     plan_cufft(int size, int batch, int stride, int dist){
@@ -357,6 +411,7 @@ private:
 };
 
 /*!
+ * \ingroup hefftecuda
  * \brief Wrapper around the cuFFT API.
  *
  * A single class that manages the plans and executions of cuFFT
@@ -450,6 +505,7 @@ private:
 };
 
 /*!
+ * \ingroup hefftecuda
  * \brief Plan for the r2c single precision transform.
  */
 template<> struct plan_cufft<float>{
@@ -489,6 +545,7 @@ private:
 };
 
 /*!
+ * \ingroup hefftecuda
  * \brief Plan for the r2c single precision transform.
  */
 template<> struct plan_cufft<double>{
@@ -520,6 +577,7 @@ private:
 };
 
 /*!
+ * \ingroup hefftecuda
  * \brief Wrapper to cuFFT API for real-to-complex transform with shortening of the data.
  *
  * Serves the same purpose of heffte::cufft_executor but only real input is accepted
@@ -639,6 +697,7 @@ private:
 };
 
 /*!
+ * \ingroup hefftecuda
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
  *
  * The struct is specialized for each backend.
@@ -662,6 +721,7 @@ template<> struct one_dim_backend<backend::cufft>{
 namespace cuda { // packer logic
 
 /*!
+ * \ingroup hefftecuda
  * \brief Performs a direct-pack operation for data sitting on the GPU device.
  *
  * Launches a CUDA kernel.
@@ -669,6 +729,7 @@ namespace cuda { // packer logic
 template<typename scalar_type>
 void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]);
 /*!
+ * \ingroup hefftecuda
  * \brief Performs a direct-unpack operation for data sitting on the GPU device.
  *
  * Launches a CUDA kernel.
@@ -676,6 +737,7 @@ void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stid
 template<typename scalar_type>
 void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]);
 /*!
+ * \ingroup hefftecuda
  * \brief Performs a tranpose-unpack operation for data sitting on the GPU device.
  *
  * Launches a CUDA kernel.
@@ -688,13 +750,16 @@ void transpose_unpack(int nfast, int nmid, int nslow, int line_stride, int plane
 }
 
 /*!
+ * \ingroup hefftepacking
  * \brief Simple packer that copies sub-boxes without transposing the order of the indexes.
  */
 template<> struct direct_packer<tag::gpu>{
+    //! \brief Execute the planned pack operation.
     template<typename scalar_type>
     void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
         cuda::direct_pack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
     }
+    //! \brief Execute the planned unpack operation.
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
         cuda::direct_unpack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
@@ -702,13 +767,16 @@ template<> struct direct_packer<tag::gpu>{
 };
 
 /*!
- * \brief GPU version of the transpose packer (no implementation yet)
+ * \ingroup hefftepacking
+ * \brief GPU version of the transpose packer.
  */
 template<> struct transpose_packer<tag::gpu>{
+    //! \brief Execute the planned pack operation.
     template<typename scalar_type>
     void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
         direct_packer<tag::gpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
     }
+    //! \brief Execute the planned transpose-unpack operation.
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
         cuda::transpose_unpack<scalar_type>(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
@@ -717,6 +785,7 @@ template<> struct transpose_packer<tag::gpu>{
 };
 
 /*!
+ * \ingroup hefftecuda
  * \brief Specialization for the CPU case.
  */
 template<> struct data_scaling<tag::gpu>{
@@ -737,6 +806,7 @@ template<> struct data_scaling<tag::gpu>{
 };
 
 /*!
+ * \ingroup hefftecuda
  * \brief Sets the default options for the cufft backend.
  */
 template<> struct default_plan_options<backend::cufft>{

@@ -9,6 +9,7 @@
 namespace heffte {
 
 /*!
+ * \ingroup fft3dplan
  * \brief Returns either 0, 1, 2, so that it does not match any of the current values.
  */
 inline int get_any_valid(std::array<int, 3> current){
@@ -22,6 +23,7 @@ inline int get_any_valid(std::array<int, 3> current){
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief Checks if using pencils in multiple directions simultaneously.
  */
 inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, std::vector<int> const directions){
@@ -30,6 +32,7 @@ inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, std::
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief Applies the r2c direction reduction to the set of boxes.
  */
 inline std::vector<box3d> apply_r2c(std::vector<box3d> const &shape, int r2c_direction){
@@ -40,6 +43,7 @@ inline std::vector<box3d> apply_r2c(std::vector<box3d> const &shape, int r2c_dir
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief Checks whether all boxes in the shape have the same order.
  */
 inline bool order_is_identical(std::vector<box3d> const &shape){
@@ -52,6 +56,7 @@ inline bool order_is_identical(std::vector<box3d> const &shape){
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief Swaps the entries so that the dimension will come first.
  */
 std::array<int, 3> new_order(std::array<int, 3> current_order, int dimension){
@@ -67,6 +72,7 @@ std::array<int, 3> new_order(std::array<int, 3> current_order, int dimension){
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief Creates the next box geometry that corresponds to pencils in the given dimension.
  *
  * Similar to heffte::make_pencils(), splits the \b world into a two dimensional processor grid
@@ -109,6 +115,7 @@ inline std::vector<box3d> next_pencils_shape(box3d const world,
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief Similar to next_pencils_shape() but handles a special case of the r2c transformation.
  */
 inline std::vector<box3d> next_pencils_shape0(box3d const world,
@@ -140,6 +147,7 @@ inline std::vector<box3d> next_pencils_shape0(box3d const world,
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief Creates a plan of reshape operations using pencil decomposition.
  *
  * Note that this algorithm will still recognize and utilize the case when the input or output boxes
@@ -221,6 +229,7 @@ logic_plan3d plan_pencil_reshapes(box3d world_in, box3d world_out, ioboxes const
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief If \b use_reorder is false, then returns a copy of the slabs, otherwise changes the order so that dimension comes first.
  */
 std::vector<box3d> reorder_slabs(std::vector<box3d> const &slabs, int dimension, bool use_reorder){
@@ -232,6 +241,7 @@ std::vector<box3d> reorder_slabs(std::vector<box3d> const &slabs, int dimension,
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief Creates a plan of reshape operations using slab decomposition.
  */
 logic_plan3d plan_slab_reshapes(box3d world_in, box3d world_out, ioboxes const &boxes, int r2c_direction, plan_options const opts){

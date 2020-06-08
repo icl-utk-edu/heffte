@@ -13,6 +13,7 @@
 namespace heffte {
 
 /*!
+ * \ingroup fft3d
  * \brief Similar to heffte::fft3d, but computed fewer redundant coefficients when the input is real.
  *
  * \par Overview
