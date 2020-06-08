@@ -242,9 +242,23 @@ template <class T>
 
 }
 
+/*!
+ * \ingroup fft3d
+ * \addtogroup hefftepacking Packing/Unpacking operations
+ *
+ * MPI communications assume that the data is located in contiguous arrays;
+ * however, the blocks that need to be transmitted in an FFT algorithm
+ * correspond to sub-boxes of a three dimensional array, which is never contiguous.
+ * Thus, packing and unpacking operations are needed to copy the sub-box into contiguous arrays.
+ * Furthermore, some backends (e.g., fftw3) work much faster with contiguous FFT
+ * transforms, thus it is beneficial to transpose the data between backend calls.
+ * Combing unpack and transpose operations reduces data movement.
+ */
+
 namespace heffte {
 
 /*!
+ * \ingroup hefftepacking
  * \brief Holds the plan for a pack/unpack operation.
  */
 struct pack_plan_3d{
@@ -263,6 +277,7 @@ struct pack_plan_3d{
 };
 
 /*!
+ * \ingroup hefftepacking
  * \brief Writes a plan to the stream, useful for debugging.
  */
 inline std::ostream & operator << (std::ostream &os, pack_plan_3d const &plan){
@@ -281,6 +296,7 @@ inline std::ostream & operator << (std::ostream &os, pack_plan_3d const &plan){
 }
 
 /*!
+ * \ingroup hefftepacking
  * \brief The packer needs to know whether the data will be on the CPU or GPU devices.
  *
  * Specializations of this template will define the type alias \b mode
@@ -292,14 +308,17 @@ struct packer_backend{};
 // typename struct packer_backend<cuda>{ using mode = tag::gpu; } // specialization can differentiate between gpu and cpu backends
 
 /*!
+ * \ingroup hefftepacking
  * \brief Defines the direct packer without implementation, use the specializations to get the CPU or GPU implementation.
  */
 template<typename mode> struct direct_packer{};
 
 /*!
+ * \ingroup hefftepacking
  * \brief Simple packer that copies sub-boxes without transposing the order of the indexes.
  */
 template<> struct direct_packer<tag::cpu>{
+    //! \brief Execute the planned pack operation.
     template<typename scalar_type>
     void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
         scalar_type* buffer_iterator = buffer;
@@ -309,6 +328,7 @@ template<> struct direct_packer<tag::cpu>{
             }
         }
     }
+    //! \brief Execute the planned unpack operation.
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
         for(int slow = 0; slow < plan.size[2]; slow++){
@@ -321,18 +341,27 @@ template<> struct direct_packer<tag::cpu>{
 };
 
 /*!
+ * \ingroup hefftepacking
  * \brief Defines the transpose packer without implementation, use the specializations to get the CPU implementation.
  */
 template<typename mode> struct transpose_packer{};
 
 /*!
+ * \ingroup hefftepacking
  * \brief Transpose packer that packs sub-boxes without transposing, but unpacks applying a transpose operation.
  */
 template<> struct transpose_packer<tag::cpu>{
+    //! \brief Execute the planned pack operation.
     template<typename scalar_type>
     void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
         direct_packer<tag::cpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
     }
+    /*!
+     * \brief Execute the planned unpack operation.
+     *
+     * Note that this will transpose the data in the process.
+     * The transpose is done in blocks to maximize cache reuse.
+     */
     template<typename scalar_type>
     void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
         constexpr int stride = 256 / sizeof(scalar_type);
@@ -399,6 +428,7 @@ template<> struct transpose_packer<tag::cpu>{
 };
 
 /*!
+ * \ingroup hefftepacking
  * \brief Apply scaling to the CPU data.
  *
  * Similar to the packer, the scaling factors are divided into CPU and GPU variants
@@ -407,10 +437,12 @@ template<> struct transpose_packer<tag::cpu>{
 template<typename mode> struct data_scaling{};
 
 /*!
+ * \ingroup hefftepacking
  * \brief Specialization for the CPU case.
  */
 template<> struct data_scaling<tag::cpu>{
     /*!
+     * \ingroup hefftepacking
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type>
@@ -418,6 +450,7 @@ template<> struct data_scaling<tag::cpu>{
         for(int i=0; i<num_entries; i++) data[i] *= scale_factor;
     }
     /*!
+     * \ingroup hefftepacking
      * \brief Complex by real scaling.
      *
      * Depending on the compiler and type of operation, C++ complex numbers can have bad

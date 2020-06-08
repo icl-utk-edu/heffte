@@ -11,7 +11,32 @@
 #include "heffte_reshape3d.h"
 #include "heffte_plan_logic.h"
 
+/*!
+ * \defgroup fft3d Fast Fourier Transform
+ *
+ * \par HeFFTe C++11 API
+ * Encapsulates all classes and method for the C++11 API, most notably:
+ * - namespace \ref heffte
+ * - class heffte::fft3d
+ * - class heffte::fft3d_r2c
+ * - class heffte::box3d
+ * - enum heffte::scale
+ */
+
+/*!
+ * \defgroup oldapi Fast Fourier Transform C++98
+ *
+ * \par HeFFTe C++98 API
+ * Encapsulates all classes and method for the C++11 API, most notably:
+ * - namespace \ref HEFFTE
+ * - class HEFFTE::FFT3d
+ */
+
 #ifdef Heffte_ENABLE_FFTW
+/*!
+ * \ingroup oldapi
+ * \brief The C++98 API is contained in the HEFFTE namespace.
+ */
 namespace HEFFTE {
 
   /*!
@@ -75,6 +100,13 @@ namespace HEFFTE {
 
 #endif
 
+/*!
+ * \ingroup oldapi
+ * \brief Defines a three dimensional distributed fast Fourier transform.
+ *
+ * \tparam U is either float or double indicating the precision of the transform
+ *         (actually, not sure how this relates to \b T in FFT3d::compute)
+ */
 template <class U>
 class FFT3d {
  public:
@@ -234,9 +266,31 @@ class FFT3d {
 }
 #endif
 
+/*!
+ * \ingroup fft3d
+ * \addtogroup fft3dcomplex Complex types
+ *
+ * By default, HeFFTe works with the C++ native std::complex types,
+ * by many backends and client codes favor their own complex types.
+ * While the types are binary compatible, i.e., arrays of one type can be
+ * safely converted with reinterpret_cast, having to manually make those
+ * conversions is far from user-friendly.
+ * Thus, HeFFTe also accepts the complex types defined by the enabled backend libraries,
+ * and the user can indicate their own custom complex types that are
+ * binary compatible with std::complex of single or double precision.
+ *
+ * In addition, HeFFTe provides definition of the correct input and
+ * output types for different transforms, see also \ref HeffteFFT3DCompatibleTypes "compatible types".
+ */
+
+/*!
+ * \ingroup fft3d
+ * \brief Namespace containing all HeFFTe methods and classes.
+ */
 namespace heffte {
 
 /*!
+ * \ingroup fft3dcomplex
  * \brief Defines the relationship between pairs of input-output types in the FFT algorithms.
  *
  * The main class and specializations define a member type that defines the output complex number
@@ -246,10 +300,11 @@ namespace heffte {
  * \tparam scalar_type defines the input to a discrete Fourier transform algorithm
  */
 template<typename scalar_type> struct fft_output{
-    //! \brief The output for a complex type is the same type.
+    //! \brief The output type corresponding to the scalar_type.
     using type = scalar_type;
 };
 /*!
+ * \ingroup fft3dcomplex
  * \brief Specialization mapping float to std::complex<float>.
  */
 template<> struct fft_output<float>{
@@ -257,6 +312,7 @@ template<> struct fft_output<float>{
     using type = std::complex<float>;
 };
 /*!
+ * \ingroup fft3dcomplex
  * \brief Specialization mapping double to std::complex<double>.
  */
 template<> struct fft_output<double>{
@@ -265,6 +321,7 @@ template<> struct fft_output<double>{
 };
 
 /*!
+ * \ingroup fft3d
  * \brief Indicates the scaling factor to apply on the result of an FFT operation.
  *
  * See the description of heffte::fft3d for details.
@@ -272,13 +329,14 @@ template<> struct fft_output<double>{
 enum class scale{
     //! \brief No scale, leave the result unperturbed similar to the FFTW API.
     none,
-    //! \brief Apply the full scale of 1 over the number of elements in the world box.
+    //! \brief Apply the full scale, divide by the number of elements in the world box.
     full,
     //! \brief Symmetric scaling, apply the square-root of the full scaling.
     symmetric
 };
 
 /*!
+ * \ingroup fft3d
  * \brief Defines the plan for a 3-dimensional discrete Fourier transform performed on a MPI distributed data.
  *
  * \par Overview

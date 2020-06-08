@@ -14,13 +14,30 @@
 #define FFT_FFTW3
 #include "fftw3.h"
 
+/*!
+ * \ingroup fft3d
+ * \addtogroup hefftefftw Backend fftw3
+ *
+ * Wrappers and template specializations related to the FFTW backend.
+ * Requires CMake option:
+ * \code
+ *  -D Heffte_ENABLE_FFTW=ON
+ * \endcode
+ */
+
 namespace heffte{
 
 namespace backend{
-    //! \brief Type-tag for the FFTW backend
+    /*!
+     * \ingroup hefftefftw
+     * \brief Type-tag for the FFTW backend
+     */
     struct fftw{};
 
-    //! \brief Indicate that the FFTW backend has been enabled.
+    /*!
+     * \ingroup hefftefftw
+     * \brief Indicate that the FFTW backend has been enabled.
+     */
     template<> struct is_enabled<fftw> : std::true_type{};
 
 // Specialization is not necessary since the default behavior assumes CPU parameters.
@@ -31,21 +48,25 @@ namespace backend{
 //     };
 
     /*!
+     * \ingroup hefftefftw
      * \brief Returns the human readable name of the FFTW backend.
      */
     template<> inline std::string name<fftw>(){ return "fftw"; }
 }
 
 /*!
+ * \ingroup hefftefftw
  * \brief Recognize the FFTW single precision complex type.
  */
 template<> struct is_ccomplex<fftwf_complex> : std::true_type{};
 /*!
+ * \ingroup hefftefftw
  * \brief Recognize the FFTW double precision complex type.
  */
 template<> struct is_zcomplex<fftw_complex> : std::true_type{};
 
 /*!
+ * \ingroup hefftefftw
  * \brief Base plan for fftw, using only the specialization for float and double complex.
  *
  * FFTW3 library uses plans for forward and backward fft transforms.
@@ -55,6 +76,7 @@ template<> struct is_zcomplex<fftw_complex> : std::true_type{};
 template<typename, direction> struct plan_fftw{};
 
 /*!
+ * \ingroup hefftefftw
  * \brief Plan for the single precision complex transform.
  *
  * \tparam dir indicates a forward or backward transform
@@ -82,7 +104,10 @@ struct plan_fftw<std::complex<float>, dir>{
     //! \brief The FFTW3 opaque structure (pointer to struct).
     fftwf_plan plan;
 };
-//! \brief Specialization for double complex.
+/*!
+ * \ingroup hefftefftw
+ * \brief Specialization for double complex.
+ */
 template<direction dir>
 struct plan_fftw<std::complex<double>, dir>{
     //! \brief Identical to the float-complex specialization.
@@ -101,6 +126,7 @@ struct plan_fftw<std::complex<double>, dir>{
 };
 
 /*!
+ * \ingroup hefftefftw
  * \brief Wrapper around the FFTW3 API.
  *
  * A single class that manages the plans and executions of fftw3
@@ -195,7 +221,10 @@ private:
     mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::backward>> zbackward;
 };
 
-//! \brief Specialization for r2c single precision.
+/*!
+ * \ingroup hefftefftw
+ * \brief Specialization for r2c single precision.
+ */
 template<direction dir>
 struct plan_fftw<float, dir>{
     /*!
@@ -225,7 +254,10 @@ struct plan_fftw<float, dir>{
     //! \brief Identical to the float-complex specialization.
     fftwf_plan plan;
 };
-//! \brief Specialization for r2c double precision.
+/*!
+ * \ingroup hefftefftw
+ * \brief Specialization for r2c double precision.
+ */
 template<direction dir>
 struct plan_fftw<double, dir>{
     //! \brief Identical to the float-complex specialization.
@@ -249,6 +281,7 @@ struct plan_fftw<double, dir>{
 };
 
 /*!
+ * \ingroup hefftefftw
  * \brief Wrapper to fftw3 API for real-to-complex transform with shortening of the data.
  *
  * Serves the same purpose of heffte::fftw_executor but only real input is accepted
@@ -331,6 +364,7 @@ private:
 };
 
 /*!
+ * \ingroup hefftefftw
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
  *
  * The struct is specialized for each backend.
@@ -352,6 +386,7 @@ template<> struct one_dim_backend<backend::fftw>{
 };
 
 /*!
+ * \ingroup hefftefftw
  * \brief Sets the default options for the fftw backend.
  */
 template<> struct default_plan_options<backend::fftw>{

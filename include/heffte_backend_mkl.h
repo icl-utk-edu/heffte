@@ -14,31 +14,52 @@
 #define FFT_MKL
 #include "mkl_dfti.h"
 
+/*!
+ * \ingroup fft3d
+ * \addtogroup hefftemkl Backend mkl
+ *
+ * Wrappers and template specializations related to the MKL backend.
+ * Requires CMake option:
+ * \code
+ *  -D Heffte_ENABLE_MKL=ON
+ * \endcode
+ */
+
 namespace heffte{
 
 namespace backend{
-    //! \brief Type-tag for the MKL backend
+    /*!
+     * \ingroup hefftemkl
+     * \brief Type-tag for the MKL backend
+     */
     struct mkl{};
 
-    //! \brief Indicate that the MKL backend has been enabled.
+    /*!
+     * \ingroup hefftemkl
+     * \brief Indicate that the MKL backend has been enabled.
+     */
     template<> struct is_enabled<mkl> : std::true_type{};
 
     /*!
+     * \ingroup hefftemkl
      * \brief Returns the human readable name of the MKL backend.
      */
     template<> inline std::string name<mkl>(){ return "mkl"; }
 }
 
 /*!
+ * \ingroup hefftemkl
  * \brief Recognize the MKL single precision complex type.
  */
 template<> struct is_ccomplex<float _Complex> : std::true_type{};
 /*!
+ * \ingroup hefftemkl
  * \brief Recognize the MKL double precision complex type.
  */
 template<> struct is_zcomplex<double _Complex> : std::true_type{};
 
 /*!
+ * \ingroup hefftemkl
  * \brief Base plan for mkl, using only the specialization for float and double complex.
  *
  * MKL library uses a unique plan type for forward and backward fft transforms.
@@ -48,6 +69,10 @@ template<> struct is_zcomplex<double _Complex> : std::true_type{};
 
 template<typename> struct plan_mkl{};
 
+/*!
+ * \ingroup hefftemkl
+ * \brief Checks the status of a call to the MKL backend.
+ */
 inline void check_error(MKL_LONG status, std::string const &function_name){
     if (status != 0){
         throw std::runtime_error(function_name + " failed with status: " + std::to_string(status));
@@ -55,6 +80,7 @@ inline void check_error(MKL_LONG status, std::string const &function_name){
 }
 
 /*!
+ * \ingroup hefftemkl
  * \brief Plan for single precision complex transform.
  */
 template<>
@@ -88,7 +114,8 @@ struct plan_mkl<std::complex<float>>{
 };
 
 /*!
-//! \brief Specialization for double complex.
+ * \ingroup hefftemkl
+ * \brief Specialization for double complex.
  */
 template<>
 struct plan_mkl<std::complex<double>>{
@@ -123,6 +150,7 @@ struct plan_mkl<std::complex<double>>{
 
 
 /*!
+ * \ingroup hefftemkl
  * \brief Wrapper around the MKL API.
  *
  * A single class that manages the plans and executions of mkl
@@ -216,11 +244,15 @@ private:
 };
 
 /*!
+ * \ingroup hefftemkl
  * \brief Unlike the C2C plan R2C is non-symmetric and it requires that the direction is build into the plan.
  */
 template<typename, direction> struct plan_mkl_r2c{};
 
-//! \brief Specialization for r2c single precision.
+/*!
+ * \ingroup hefftemkl
+ * \brief Specialization for r2c single precision.
+ */
 template<direction dir>
 struct plan_mkl_r2c<float, dir>{
     /*!
@@ -229,6 +261,8 @@ struct plan_mkl_r2c<float, dir>{
      * \param size is the number of entries in a 1-D transform
      * \param howmanyffts is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
+     * \param rdist is the distance between successive 1-D transforms in the real array
+     * \param cdist is the distance between successive 1-D transforms in the complex array
      */
     plan_mkl_r2c(int size, int howmanyffts, int stride, int rdist, int cdist) : plan(nullptr){
         check_error( DftiCreateDescriptor(&plan, DFTI_SINGLE, DFTI_REAL, 1, (MKL_LONG) size), "mkl create r2c");
@@ -257,7 +291,10 @@ struct plan_mkl_r2c<float, dir>{
     DFTI_DESCRIPTOR_HANDLE plan;
 };
 
-//! \brief Specialization for r2c double precision.
+/*!
+ * \ingroup hefftemkl
+ * \brief Specialization for r2c double precision.
+ */
 template<direction dir>
 struct plan_mkl_r2c<double, dir>{
     //! \brief Identical to the float-complex specialization.
@@ -287,6 +324,7 @@ struct plan_mkl_r2c<double, dir>{
 };
 
 /*!
+ * \ingroup hefftemkl
  * \brief Wrapper to mkl API for real-to-complex transform with shortening of the data.
  *
  * Serves the same purpose of heffte::mkl_executor but only real input is accepted
@@ -369,6 +407,7 @@ private:
 };
 
 /*!
+ * \ingroup hefftemkl
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
  *
  * The struct is specialized for each backend.
@@ -390,6 +429,7 @@ template<> struct one_dim_backend<backend::mkl>{
 };
 
 /*!
+ * \ingroup hefftemkl
  * \brief Sets the default options for the mkl backend.
  */
 template<> struct default_plan_options<backend::mkl>{
