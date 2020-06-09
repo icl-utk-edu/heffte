@@ -18,6 +18,18 @@ void check_error(cudaError_t status, std::string const &function_name){
         throw std::runtime_error(function_name + " failed with message: " + cudaGetErrorString(status));
 }
 
+int device_count(){
+    int count;
+    check_error(cudaGetDeviceCount(&count), "cudaGetDeviceCount()" );
+    return count;
+}
+
+void device_set(int active_device){
+    if (active_device < 0 or active_device > device_count())
+        throw std::runtime_error("device_set() called with invalid cuda device id");
+    check_error(cudaSetDevice(active_device), "cudaSetDevice()");
+}
+
 void synchronize_default_stream(){
     check_error(cudaStreamSynchronize(nullptr), "device synch"); // synch the default stream
 }

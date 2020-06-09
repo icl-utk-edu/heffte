@@ -64,6 +64,20 @@ namespace cuda {
 
     /*!
      * \ingroup hefftecuda
+     * \brief Wrapper around cudaGetDeviceCount()
+     */
+    int device_count();
+
+    /*!
+     * \ingroup hefftecuda
+     * \brief Wrapper around cudaSetDevice()
+     *
+     * \param active_device is the new active cuda device for this thread, see the Nvidia documentation for cudaSetDevice()
+     */
+    void device_set(int active_device);
+
+    /*!
+     * \ingroup hefftecuda
      * \brief Wrapper around cudaStreamSynchronize(nullptr).
      */
     void synchronize_default_stream();
