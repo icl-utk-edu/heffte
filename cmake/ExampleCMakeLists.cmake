@@ -13,4 +13,12 @@ if (Heffte_FFTW_FOUND)
 
     add_executable(heffte_example_vectors heffte_example_vectors.cpp)
     target_link_libraries(heffte_example_vectors Heffte::Heffte)
+
+    add_executable(heffte_example_r2c heffte_example_r2c.cpp)
+    target_link_libraries(heffte_example_r2c Heffte::Heffte)
+endif()
+
+if (Heffte_CUDA_FOUND)
+    add_executable(heffte_example_cuda heffte_example_cuda.cpp)
+    target_link_libraries(heffte_example_cuda Heffte::Heffte)
 endif()
