@@ -7,4 +7,7 @@ find_package(Heffte @PROJECT_VERSION@ REQUIRED PATHS "@CMAKE_INSTALL_PREFIX@")
 if (Heffte_FFTW_FOUND)
     add_executable(heffte_example_fftw heffte_example_fftw.cpp)
     target_link_libraries(heffte_example_fftw Heffte::Heffte)
+
+    add_executable(heffte_example_options heffte_example_options.cpp)
+    target_link_libraries(heffte_example_options Heffte::Heffte)
 endif()
