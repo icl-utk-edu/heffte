@@ -32,6 +32,12 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     std::vector<box3d> inboxes  = heffte::split_world(world, proc_i);
     std::vector<box3d> outboxes = heffte::split_world(world, proc_o);
 
+    #ifdef Heffte_ENABLE_CUDA
+    if (std::is_same<backend_tag, backend::cufft>::value and has_mps(args)){
+        heffte::cuda::device_set(me % heffte::cuda::device_count());
+    }
+    #endif
+
     // Define 3D FFT plan
     heffte::plan_options options = args_to_options<backend_tag>(args);
 
@@ -165,6 +171,7 @@ int main(int argc, char *argv[]){
                  << "         -pencils: use pencil reshape logic\n"
                  << "         -slabs: use slab reshape logic\n"
                  << "         -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries \n"
+                 << "         -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices\n"
                  << "Examples:\n"
                  << "    mpirun -np  4 " << bench_executable << " fftw  double 128 128 128 -no-reorder\n"
                  << "    mpirun -np  8 " << bench_executable << " cufft float  256 256 256\n"
