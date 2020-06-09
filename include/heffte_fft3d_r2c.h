@@ -79,13 +79,13 @@ public:
     }
 
     //! \brief Returns the size of the inbox defined in the constructor.
-    int size_inbox() const{ return pinbox.count(); }
+    int size_inbox() const{ return pinbox->count(); }
     //! \brief Returns the size of the outbox defined in the constructor.
-    int size_outbox() const{ return poutbox.count(); }
+    int size_outbox() const{ return poutbox->count(); }
     //! \brief Returns the inbox.
-    box3d inbox() const{ return pinbox; }
+    box3d inbox() const{ return *pinbox; }
     //! \brief Returns the outbox.
-    box3d outbox() const{ return poutbox; }
+    box3d outbox() const{ return *poutbox; }
     //! \brief Returns the workspace size that will be used, size is measured in complex numbers.
     size_t size_workspace() const{
         return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper))
@@ -223,8 +223,8 @@ private:
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], std::complex<scalar_type> workspace[], scale) const;
 
-    box3d const pinbox, poutbox;
-    double const scale_factor;
+    std::unique_ptr<box3d> pinbox, poutbox;
+    double scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
 

@@ -465,13 +465,13 @@ public:
     }
 
     //! \brief Returns the size of the inbox defined in the constructor.
-    int size_inbox() const{ return pinbox.count(); }
+    int size_inbox() const{ return pinbox->count(); }
     //! \brief Returns the size of the outbox defined in the constructor.
-    int size_outbox() const{ return poutbox.count(); }
+    int size_outbox() const{ return poutbox->count(); }
     //! \brief Returns the inbox.
-    box3d inbox() const{ return pinbox; }
+    box3d inbox() const{ return *pinbox; }
     //! \brief Returns the outbox.
-    box3d outbox() const{ return poutbox; }
+    box3d outbox() const{ return *poutbox; }
 
     /*!
      * \brief Performs a forward Fourier transform using two arrays.
@@ -737,8 +737,8 @@ private:
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
 
-    box3d const pinbox, poutbox; // inbox/output for this process
-    double const scale_factor;
+    std::unique_ptr<box3d> pinbox, poutbox; // inbox/output for this process
+    double scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
 
