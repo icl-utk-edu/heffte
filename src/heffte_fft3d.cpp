@@ -94,13 +94,13 @@ FFT3d<float>::FFT3d(MPI_Comm user_comm);
 template <class U>
 FFT3d<U>::~FFT3d()
 {
-  delete memory;
-  delete error;
-
   if (setupflag) deallocate_setup();
   if (setupflag_r2c) deallocate_setup_r2c();
 
   if (memoryflag) deallocate_setup_memory();
+
+  delete memory;
+  delete error;
 }
 
 template
