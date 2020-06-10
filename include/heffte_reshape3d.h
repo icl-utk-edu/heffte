@@ -22,7 +22,8 @@ namespace HEFFTE {
   /*!
    * The class Reshape3d is in charge of data reshape, starting from the input data to the first
    * direction, and going to every direction to finalize by reshaping the computed FFT into the output
-   * shape. Objects can be created as follows: new Reshape3d(MPI_Comm user_comm)
+   * shape. Objects can be created as follows: new Reshape3d(MPI_Comm user_comm).
+   * Data is \b transposed and received such that the following FFT computation is done with \b contiguous-memory data.
    * @param user_comm  MPI communicator for the P procs which own the data
    */
 

@@ -40,14 +40,11 @@
 namespace HEFFTE {
 
   /*!
-   * The class FFT3d is the main function of HEFFTE library, it is in charge of creating the plans for
-   * the 1D FFT computations, as well as the plans for data reshaping. It also calls the appropriate routines
-   * for execution and transposition. Objects can be created as follows: new FFT3d<T>(MPI_Comm user_comm)
-   * @param user_comm  MPI communicator for the P procs which own the data
+   * To allow multiple precision data, objects of class FFT3d are created using templates with data traits. We define an FFT
+  object as new FFT3d<T>(MPI_Comm user_comm), where the template traits allows to select the right precision and map to
+  the corresponding 1D backend data-type (fftw_complex, cufftDoubleComplex, etc).
    */
- //------------------------------------------------------------------------------
-
-
+//------------------------------------------------------------------------------
  // Traits to lookup CUFFT data type. Default is cufftDoubleComplex
  #if defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
 
@@ -102,10 +99,41 @@ namespace HEFFTE {
 
 /*!
  * \ingroup oldapi
- * \brief Defines a three dimensional distributed fast Fourier transform.
+ * \brief Constructor of 3D FFT objects for the C++98 interface (heffte v0.2).
  *
- * \tparam U is either float or double indicating the precision of the transform
- *         (actually, not sure how this relates to \b T in FFT3d::compute)
+ * \par Overview
+ * This class is part of the HEFFTE namespace, it provides the frontend for FFT computation and MPI communication using data transposition at each stage of data exchange.
+ * It is an older version of the class with same name within the namespace "heffte".
+ * It uses a setup function to define a plan, which stablish the sequence of 1D computation and the data transpositions to be performed on a MPI distributed data.
+ * It allows the following backends: KISS, FFTW2, FFTW3, MKL and CUFFT. 
+ * As opposed to heffte::FFT3d, this class does not support multiple backends at the same time, and forward and backward (inverse) transforms can only be performed with the same precision established for the input geometry.
+ *
+ * \par Boxes and Data Distribution
+ * Data is organized in three dimensional boxes, which are defined with 2 arrays of size 3, each containing the vertices of a 3D box. The first array contains low indices (smaller value in each dimension), and the other contains the high indices.
+ * We provide a function named heffte_grid_setup, to define these boxes. Typically, users provide this information accordint to their data structure.
+ * The following conventions are observed:
+ * - global indexing starts at 0
+ * - the boxes do not overlap (input can overlap with output, but the individual in/out boxed do not).
+ * - input and output boxes may be the same but do not have to overlap.
+ * - data is assumed to be filled contiguously in memory starting in the first direction.
+ *
+ * \par Data exchange
+ * Data is interchanged between processors using functions for packing, MPI communication and unpacking.
+ * This class, always unpack the data such that the next FFT computation is done using \b contiguous-memory data.
+ *
+ * \par Data types
+ * This class allows single and double precision data, which must have an extra feature defined: the \b datum.
+ * A \b datum specifies the number of coordinates that the value has, being 1 for real and 2 for complex numbers.
+ * The datum value is useful and easy way to re-use kernels for both precisions with minimal modifications. It also serves to generalize the input data-type.
+ *
+ * \par Complex Numbers
+ * By default, this class works with real values. Standard casting is performed from and to data-types from 1D backends, such as fftw_complex or cufftDoubleComplex.
+ *
+ * \par Scaling
+ * Applying a forward and inverse DFT operations will leave the result as the original data multiplied
+ * by the total number of entries in the world box. Thus, the forward and backward operations are not
+ * truly inversing, unless the correct scaling is applied. By default, HeFFTe does not apply scaling.
+ * To apply scaling, set the value of fft->scaled = 1.
  */
 template <class U>
 class FFT3d {
@@ -396,7 +424,7 @@ enum class scale{
  * \par Scaling
  * Applying a forward and inverse DFT operations will leave the result as the original data multiplied
  * by the total number of entries in the world box. Thus, the forward and backward operations are not
- * truly inverses, unless the correct scaling is applied. By default, HeFFTe does not apply scaling,
+ * truly inversing, unless the correct scaling is applied. By default, HeFFTe does not apply scaling,
  * but the methods accept an optional parameter with three different options, see also heffte::scale.
  * <table>
  * <tr><td> Forward </td><td> Inverse </td></tr>
@@ -629,7 +657,7 @@ private:
      * - better code organization, e.g., we don't clutter the fft class with messy analysis logic
      *   and we do not have to repeat the logic again for the fft3d_r2c class
      * - simpler interface, e.g., the user provides only high-level geometry data
-     *   and we (internally) ensure that the plan is build on the correct communicator
+     *   and we (internally) ensure that the plan is built on the correct communicator
      * - stricter enforcement of const, e.g., we can have const variables that require multiple
      *   analysis steps before they can be initialized.
      *
