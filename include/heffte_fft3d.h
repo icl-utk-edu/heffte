@@ -106,7 +106,7 @@ namespace HEFFTE {
  * It is an older version of the class with same name within the namespace "heffte".
  * It uses a setup function to define a plan, which stablish the sequence of 1D computation and the data transpositions to be performed on a MPI distributed data.
  * It allows the following backends: KISS, FFTW2, FFTW3, MKL and CUFFT. 
- * As opposed to heffte::FFT3d, this class does not support multiple backends at the same time, and forward and backward (inverse) transforms can only be performed with the same precision established for the input geometry.
+ * As opposed to heffte::fft3d, this class does not support multiple backends at the same time, and forward and backward (inverse) transforms can only be performed with the same precision established for the input geometry.
  *
  * \par Boxes and Data Distribution
  * Data is organized in three dimensional boxes, which are defined with 2 arrays of size 3, each containing the vertices of a 3D box. The first array contains low indices (smaller value in each dimension), and the other contains the high indices.
