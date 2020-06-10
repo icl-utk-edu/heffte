@@ -214,7 +214,7 @@ private:
         if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, dist));
     }
 
-    mutable int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
     mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::forward>> cforward;
     mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::backward>> cbackward;
     mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::forward>> zforward;
@@ -355,8 +355,8 @@ private:
         if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, rdist, cdist));
     }
 
-    mutable int size, howmanyffts, stride, blocks;
-    mutable int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
+    int size, howmanyffts, stride, blocks;
+    int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
     mutable std::unique_ptr<plan_fftw<float, direction::forward>> sforward;
     mutable std::unique_ptr<plan_fftw<double, direction::forward>> dforward;
     mutable std::unique_ptr<plan_fftw<float, direction::backward>> sbackward;

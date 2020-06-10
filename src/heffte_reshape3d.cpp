@@ -69,9 +69,6 @@ Reshape3d<float>::Reshape3d(MPI_Comm user_comm);
 template <class U>
 Reshape3d<U>::~Reshape3d()
 {
-  delete memory;
-  delete error;
-
   // free new MPI communicator for collective comm
 
   if (collective) {
@@ -111,6 +108,9 @@ Reshape3d<U>::~Reshape3d()
     memory->sfree(sendbuf, memory_type);
     memory->sfree(recvbuf, memory_type);
   }
+
+  delete memory;
+  delete error;
 }
 template
 Reshape3d<double>::~Reshape3d();

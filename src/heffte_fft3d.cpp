@@ -94,13 +94,13 @@ FFT3d<float>::FFT3d(MPI_Comm user_comm);
 template <class U>
 FFT3d<U>::~FFT3d()
 {
-  delete memory;
-  delete error;
-
   if (setupflag) deallocate_setup();
   if (setupflag_r2c) deallocate_setup_r2c();
 
   if (memoryflag) deallocate_setup_memory();
+
+  delete memory;
+  delete error;
 }
 
 template
@@ -2695,7 +2695,7 @@ namespace heffte {
 
 template<typename backend_tag>
 fft3d<backend_tag>::fft3d(logic_plan3d const &plan, int const this_mpi_rank, MPI_Comm const comm) :
-    pinbox(plan.in_shape[0][this_mpi_rank]), poutbox(plan.out_shape[3][this_mpi_rank]),
+    pinbox(new box3d(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d(plan.out_shape[3][this_mpi_rank])),
     scale_factor(1.0 / static_cast<double>(plan.index_count))
 {
     for(int i=0; i<4; i++){

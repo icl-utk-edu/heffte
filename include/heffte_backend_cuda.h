@@ -398,7 +398,7 @@ template<> struct plan_cufft<std::complex<float>>{
 
 private:
     //! \brief The cufft opaque structure (pointer to struct).
-    mutable cufftHandle plan;
+    cufftHandle plan;
 };
 /*!
  * \ingroup hefftecuda
@@ -421,7 +421,7 @@ template<> struct plan_cufft<std::complex<double>>{
 
 private:
     //! \brief Identical to the float-complex specialization.
-    mutable cufftHandle plan;
+    cufftHandle plan;
 };
 
 /*!
@@ -513,7 +513,7 @@ private:
         if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(size, howmanyffts, stride, dist));
     }
 
-    mutable int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
     mutable std::unique_ptr<plan_cufft<std::complex<float>>> ccomplex_plan;
     mutable std::unique_ptr<plan_cufft<std::complex<double>>> zcomplex_plan;
 };
@@ -555,7 +555,7 @@ template<> struct plan_cufft<float>{
 
 private:
     //! \brief The cufft opaque structure (pointer to struct).
-    mutable cufftHandle plan;
+    cufftHandle plan;
 };
 
 /*!
@@ -587,7 +587,7 @@ template<> struct plan_cufft<double>{
 
 private:
     //! \brief The cufft opaque structure (pointer to struct).
-    mutable cufftHandle plan;
+    cufftHandle plan;
 };
 
 /*!
@@ -702,8 +702,8 @@ private:
         if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(dir, size, howmanyffts, stride, rdist, cdist));
     }
 
-    mutable int size, howmanyffts, stride, blocks;
-    mutable int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
+    int size, howmanyffts, stride, blocks;
+    int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
     mutable std::unique_ptr<plan_cufft<float>> sforward;
     mutable std::unique_ptr<plan_cufft<double>> dforward;
     mutable std::unique_ptr<plan_cufft<float>> sbackward;

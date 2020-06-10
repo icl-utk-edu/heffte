@@ -1,5 +1,7 @@
-HEFFTE: User manual                
+HEFFTE: User manual
 ===================
+
+(C++98 interface, see the updated manual in doxygen/install.md)
 
 * * *
 
