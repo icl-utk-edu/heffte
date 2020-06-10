@@ -59,6 +59,10 @@ public:
      * \brief Alias to the container template associated with the backend (allows for RAII memory management).
      */
     template<typename T> using buffer_container = typename backend::buffer_traits<backend_tag>::template container<T>;
+    //! \brief Container of real values corresponding to the complex type T.
+    template<typename T> using real_buffer_container = buffer_container<typename define_standard_type<T>::type::value_type>;
+    //! \brief Container of the output type corresponding to T, see \ref HeffteFFT3DCompatibleTypes "the table of compatible input and output types".
+    template<typename T> using output_buffer_container = buffer_container<typename fft_output<T>::type>;
 
     /*!
      * \brief Constructor creating a plan for FFT transform across the given communicator and using the box geometry.
@@ -79,13 +83,13 @@ public:
     }
 
     //! \brief Returns the size of the inbox defined in the constructor.
-    int size_inbox() const{ return pinbox.count(); }
+    int size_inbox() const{ return pinbox->count(); }
     //! \brief Returns the size of the outbox defined in the constructor.
-    int size_outbox() const{ return poutbox.count(); }
+    int size_outbox() const{ return poutbox->count(); }
     //! \brief Returns the inbox.
-    box3d inbox() const{ return pinbox; }
+    box3d inbox() const{ return *pinbox; }
     //! \brief Returns the outbox.
-    box3d outbox() const{ return poutbox; }
+    box3d outbox() const{ return *poutbox; }
     //! \brief Returns the workspace size that will be used, size is measured in complex numbers.
     size_t size_workspace() const{
         return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper))
@@ -144,7 +148,7 @@ public:
      * \throws std::invalid_argument is the size of the \b input is less than size_inbox().
      */
     template<typename input_type>
-    buffer_container<typename fft_output<input_type>::type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
+    output_buffer_container<input_type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
         if (input.size() < size_inbox())
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
         static_assert(std::is_same<input_type, float>::value or std::is_same<input_type, double>::value,
@@ -190,7 +194,7 @@ public:
      * \brief Variant of backward() that uses buffer_container for RAII style of resource management.
      */
     template<typename scalar_type>
-    buffer_container<typename define_standard_type<scalar_type>::type::value_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
+    real_buffer_container<scalar_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
         buffer_container<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());
@@ -223,8 +227,8 @@ private:
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], std::complex<scalar_type> workspace[], scale) const;
 
-    box3d const pinbox, poutbox;
-    double const scale_factor;
+    std::unique_ptr<box3d> pinbox, poutbox;
+    double scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
 

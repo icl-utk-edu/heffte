@@ -69,9 +69,6 @@ Reshape3d<float>::Reshape3d(MPI_Comm user_comm);
 template <class U>
 Reshape3d<U>::~Reshape3d()
 {
-  delete memory;
-  delete error;
-
   // free new MPI communicator for collective comm
 
   if (collective) {
@@ -111,6 +108,9 @@ Reshape3d<U>::~Reshape3d()
     memory->sfree(sendbuf, memory_type);
     memory->sfree(recvbuf, memory_type);
   }
+
+  delete memory;
+  delete error;
 }
 template
 Reshape3d<double>::~Reshape3d();
@@ -149,6 +149,7 @@ Reshape3d<float>::~Reshape3d();
  * @param o_hi Integer array of size 3, upper-input bounds of data I own on each of 3 directions
  * @param nqty Number of datums per element
  * @param user_permute Permutation in storage order of indices on output
+ * It can be 0 (orders no permuted), or a positive value of 1 or 2, corresponding to the number of counter-clockwise permutations done to the indices (i,j,k).
  * @param user_memoryflag user provides buffer memory (flag=0) or system does (flag=1)
  * @return user_sendsize = Size of send buffer, caller may choose to provide it
  * @return user_recvsize = Size of recv buffer, caller may choose to provide it

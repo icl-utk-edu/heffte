@@ -94,13 +94,13 @@ FFT3d<float>::FFT3d(MPI_Comm user_comm);
 template <class U>
 FFT3d<U>::~FFT3d()
 {
-  delete memory;
-  delete error;
-
   if (setupflag) deallocate_setup();
   if (setupflag_r2c) deallocate_setup_r2c();
 
   if (memoryflag) deallocate_setup_memory();
+
+  delete memory;
+  delete error;
 }
 
 template
@@ -118,6 +118,7 @@ FFT3d<float>::~FFT3d();
  * @param o_lo Integer array of size 3, lower-input bounds of data I own on each of 3 directions
  * @param o_hi Integer array of size 3, upper-input bounds of data I own on each of 3 directions
  * @param user_permute Permutation in storage order of indices on output
+ * It can be 0 (orders no permuted), or a positive value of 1 or 2, respectively corresponding, to the number of counter-clockwise permutations done to the indices (i,j,k).
  * @return user_fftsize = Size of in/out FFT arrays required from caller
  * @return user_sendsize = Size of send buffer, caller may choose to provide it
  * @return user_recvsize = Size of recv buffer, caller may choose to provide it
@@ -733,7 +734,8 @@ void FFT3d<U>::deallocate_setup_memory()
 
 
 /**
- * Perform a 3D C2C FFT
+ * Perform a 3D complex-to-complex FFT
+ * For this case, types T and U are the same.
  * @param in Address of input data on this proc
  * @param out Address of output data on this proc (can be same as in)
  * @param flag  -1 for forward FFT, 1 for inverse FFT
@@ -956,7 +958,8 @@ void FFT3d<float>::compute(float *in, float *out, int flag);
 
 
 /**
- * Perform a 3D R2C FFT
+ * Perform a 3D real-to-complex FFT
+ * In theory, the input type (U) is real and the output type (T) is complex. However, as stated in the class description, they are both defined as float or double plus a datum value. And casting is performed from and to the backend's datatypes.
  * @param in Address of input data on this proc
  * @param out Address of output data on this proc (can be same as in)
  */
@@ -2692,7 +2695,7 @@ namespace heffte {
 
 template<typename backend_tag>
 fft3d<backend_tag>::fft3d(logic_plan3d const &plan, int const this_mpi_rank, MPI_Comm const comm) :
-    pinbox(plan.in_shape[0][this_mpi_rank]), poutbox(plan.out_shape[3][this_mpi_rank]),
+    pinbox(new box3d(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d(plan.out_shape[3][this_mpi_rank])),
     scale_factor(1.0 / static_cast<double>(plan.index_count))
 {
     for(int i=0; i<4; i++){

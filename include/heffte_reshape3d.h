@@ -22,7 +22,8 @@ namespace HEFFTE {
   /*!
    * The class Reshape3d is in charge of data reshape, starting from the input data to the first
    * direction, and going to every direction to finalize by reshaping the computed FFT into the output
-   * shape. Objects can be created as follows: new Reshape3d(MPI_Comm user_comm)
+   * shape. Objects can be created as follows: new Reshape3d(MPI_Comm user_comm).
+   * Data is \b transposed and received such that the following FFT computation is done with \b contiguous-memory data.
    * @param user_comm  MPI communicator for the P procs which own the data
    */
 
@@ -297,7 +298,7 @@ template<typename backend_tag, template<typename device> class packer = direct_p
 std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>
 make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                          std::vector<box3d> const &output_boxes,
-                         MPI_Comm const);
+                         MPI_Comm const comm);
 
 /*!
  * \ingroup hefftereshape
@@ -390,7 +391,7 @@ template<typename backend_tag, template<typename device> class packer = direct_p
 std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer>>
 make_reshape3d_pointtopoint(std::vector<box3d> const &input_boxes,
                             std::vector<box3d> const &output_boxes,
-                            MPI_Comm const);
+                            MPI_Comm const comm);
 
 /*!
  * \ingroup hefftereshape

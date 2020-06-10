@@ -245,7 +245,7 @@ private:
 
 /*!
  * \ingroup hefftemkl
- * \brief Unlike the C2C plan R2C is non-symmetric and it requires that the direction is build into the plan.
+ * \brief Unlike the C2C plan R2C is non-symmetric and it requires that the direction is built into the plan.
  */
 template<typename, direction> struct plan_mkl_r2c{};
 
