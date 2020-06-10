@@ -42,7 +42,7 @@ User can also link to sophisticate visualization software, such as *Vampir*. Sim
 SCOREP_WRAPPER=off SCOREP_WRAPPER_ARGS=--cuda cmake -DCMAKE_CXX_COMPILER="scorep-mpicxx" -DHeffte_ENABLE_CUDA=ON ... 
 ~~~
 
-Visualization can provide useful insights on how kernels are performing and compare CPU GPU versions, as in the following figure, where we show a profile obtained with Vampir using 32 nodes and a 3D FFT of size 1024x1024x1024.
+Visualization can provide useful insights on how kernels are performing and compare CPU versus GPU versions, as in the following figure, where we show a profile obtained with Vampir using 32 nodes and a 3D FFT of size 1024x1024x1024.
 
 ![heffte_kernels](https://bitbucket.org/aayala32/logos/raw/be7a2ac8c7c0d70083db2f1c109afa71224f63e8/heffte_kernels.png)
 
