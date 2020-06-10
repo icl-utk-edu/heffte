@@ -209,4 +209,11 @@ bool io_pencils(std::deque<std::string> const &args){
     return false;
 }
 
+bool has_mps(std::deque<std::string> const &args){
+    for(auto &s : args)
+        if (s == "-mps")
+            return true;
+    return false;
+}
+
 #endif
