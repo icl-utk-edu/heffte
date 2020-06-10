@@ -112,11 +112,22 @@ using std::cout; // remove when things get more stable
 using std::endl; // make sure it is not added to a release
 
 /*!
+ * \ingroup fft3d
+ * \addtogroup hefftempi Helper wrappers around MPI methods
+ *
+ * HeFFTe is using the C-style of API for the message passing interface (MPI).
+ * A set of inline wrappers allow for easier inclusion into C++ methods
+ * which helps preserve const-correctness and simplifies variable initialization.
+ */
+
+/*!
+ * \ingroup hefftempi
  * \brief Wrappers to miscellaneous MPI methods giving a more C++-ish interface.
  */
 namespace mpi {
 
 /*!
+ * \ingroup hefftempi
  * \brief Returns the rank of this process within the specified \b comm.
  *
  * \param comm is an MPI communicator associated with the process.
@@ -124,18 +135,55 @@ namespace mpi {
  * \returns the rank of the process within the \b comm
  *
  * Uses MPI_Comm_rank().
+ *
+ * Example:
+ * \code
+ *  int const me = mpi::comm_rank(comm); // good C++ style
+ * \endcode
+ * as opposed to:
+ * \code
+ *  int me; // uninitialized variable, cannot be const
+ *  MPI_Comm_rank(comm, &me); // initialization takes a second line, bad C++ style
+ * \endcode
  */
 inline int comm_rank(MPI_Comm const comm){
     int me;
     MPI_Comm_rank(comm, &me);
     return me;
 }
-//! \brief Returns \b true if this process has the \b me rank within the MPI_COMM_WORLD (useful for debugging).
-inline bool world_rank(int me){ return (comm_rank(MPI_COMM_WORLD) == me); }
-//! \brief Returns the rank of this process within the MPI_COMM_WORLD (useful for debugging).
+/*!
+ * \ingroup hefftempi
+ * \brief Returns \b true if this process has the \b me rank within the MPI_COMM_WORLD (useful for debugging).
+ *
+ * \param rank within the world communicator
+ * \return true if the rank of this processor matches the given \b rank
+ *
+ * Useful for debugging, e.g., cout statements can be easily constrained to a single processor, e.g.,
+ * \code
+ *  if (mpi::world_rank(3)){
+ *      cout << ....; // something about the state
+ *  }
+ * \endcode
+ */
+inline bool world_rank(int rank){ return (comm_rank(MPI_COMM_WORLD) == rank); }
+/*!
+ * \ingroup hefftempi
+ * \brief Returns the rank of this process within the MPI_COMM_WORLD (useful for debugging).
+ *
+ * Useful for debugging.
+ */
 inline int world_rank(){ return comm_rank(MPI_COMM_WORLD); }
 
-//! \brief Write the message and the data from the vector-like \b x, performed only on rank \b me (if positive), otherwise using all ranks.
+/*!
+ * \ingroup hefftempi
+ * \brief Write the message and the data from the vector-like \b x, performed only on rank \b me (if positive), otherwise using all ranks.
+ *
+ * Very useful for debugging purposes, when a vector or vector-like object has to be inspected for a single MPI rank.
+ * \tparam vector_like is an object that can be used for ranged for-loop, e.g., std::vector or std::array
+ * \param me the rank to write to cout
+ * \param x is the data to be written out
+ * \param message will be written on the line before \b x, helps identify what \b x should contain, e.g., result or reference data
+ */
 template<typename vector_like>
 void dump(int me, vector_like const &x, std::string const &message){
     if (me < 0 or world_rank(me)){
@@ -146,6 +194,7 @@ void dump(int me, vector_like const &x, std::string const &message){
 }
 
 /*!
+ * \ingroup hefftempi
  * \brief Returns the size of the specified communicator.
  *
  * \param comm is an MPI communicator associated with the process.
@@ -160,6 +209,7 @@ inline int comm_size(MPI_Comm const comm){
     return nprocs;
 }
 /*!
+ * \ingroup hefftempi
  * \brief Creates a new sub-communicator from the provided processes in \b comm.
  *
  * \param ranks is a list of ranks associated with the \b comm.
@@ -181,6 +231,7 @@ inline MPI_Comm new_comm_form_group(std::vector<int> const &ranks, MPI_Comm cons
 }
 
 /*!
+ * \ingroup hefftempi
  * \brief Calls free on the MPI comm.
  *
  * \param comm is the communicator to be deleted, cannot be used after this call.
@@ -197,9 +248,11 @@ inline void comm_free(MPI_Comm const comm){
 }
 
 /*!
+ * \ingroup hefftempi
  * \brief Returns the MPI equivalent of the \b scalar C++ type.
  *
- * This template cannot be instantiated which indicated an unknown conversion from C++ to MPI type.
+ * This template cannot be instantiated directly, only the specializations are useful.
+ * Direct instantiation indicates an unknown conversion from a C++ to an MPI type.
  * \tparam scalar a C++ scalar type, e.g., float, double, std::complex<float>, etc.
  *
  * \returns the MPI equivalent, e.g., MPI_FLOAT, MPI_DOUBLE, MPI_C_COMPLEX, etc.
@@ -210,20 +263,36 @@ template<typename scalar> inline MPI_Datatype type_from(){
     static_assert(!std::is_same<scalar, scalar>::value, "The C++ type has unknown MPI equivalent.");
     return MPI_BYTE; // come compilers complain about lack of return statement.
 }
-//! \brief Specialization to hand the int type.
+/*!
+ * \ingroup hefftempi
+ * \brief Specialization to hand the int type.
+ */
 template<> inline MPI_Datatype type_from<int>(){ return MPI_INT; }
-//! \brief Specialization to hand the float type.
+/*!
+ * \ingroup hefftempi
+ * \brief Specialization to hand the float type.
+ */
 template<> inline MPI_Datatype type_from<float>(){ return MPI_FLOAT; }
-//! \brief Specialization to hand the double type.
+/*!
+ * \ingroup hefftempi
+ * \brief Specialization to hand the double type.
+ */
 template<> inline MPI_Datatype type_from<double>(){ return MPI_DOUBLE; }
-//! \brief Specialization to hand the single-precision complex type.
+/*!
+ * \ingroup hefftempi
+ * \brief Specialization to hand the single-precision complex type.
+ */
 template<> inline MPI_Datatype type_from<std::complex<float>>(){ return MPI_C_COMPLEX; }
-//! \brief Specialization to hand the double-precision complex type.
+/*!
+ * \ingroup hefftempi
+ * \brief Specialization to hand the double-precision complex type.
+ */
 template<> inline MPI_Datatype type_from<std::complex<double>>(){ return MPI_C_DOUBLE_COMPLEX; }
 
 }
 
 /*!
+ * \ingroup fft3d
  * \brief Struct to specialize to allow HeFFTe to recognize custom single precision complex types.
  *
  * Specializations of this struct will allow HeFFTe to recognize custom complex types
@@ -252,6 +321,7 @@ template<> inline MPI_Datatype type_from<std::complex<double>>(){ return MPI_C_D
  */
 template<typename scalar_type> struct is_ccomplex : std::false_type{};
 /*!
+ * \ingroup fft3d
  * \brief Struct to specialize to allow HeFFTe to recognize custom double precision complex types.
  *
  * Specializations of this struct will allow HeFFTe to recognize custom complex types
@@ -270,15 +340,18 @@ template<typename scalar_type> struct is_ccomplex : std::false_type{};
 template<typename scalar_type> struct is_zcomplex : std::false_type{};
 
 /*!
+ * \ingroup fft3dcomplex
  * \brief By default, HeFFTe recognizes std::complex<float>.
  */
 template<> struct is_ccomplex<std::complex<float>> : std::true_type{};
 /*!
+ * \ingroup fft3dcomplex
  * \brief By default, HeFFTe recognizes std::complex<double>.
  */
 template<> struct is_zcomplex<std::complex<double>> : std::true_type{};
 
 /*!
+ * \ingroup fft3dcomplex
  * \brief Struct to specialize that returns the C++ equivalent of each type.
  *
  * Given a type that is either float, double, or recognized by the heffte::is_ccomplex
@@ -312,28 +385,36 @@ template<> struct is_zcomplex<std::complex<double>> : std::true_type{};
 template<typename, typename = void> struct define_standard_type{};
 
 /*!
+ * \ingroup fft3dcomplex
  * \brief Type float is equivalent to float.
  */
 template<> struct define_standard_type<float, void>{
+    //! \brief Float is equivalent to float.
     using type = float;
 };
 /*!
+ * \ingroup fft3dcomplex
  * \brief Type double is equivalent to double.
  */
 template<> struct define_standard_type<double, void>{
+    //! \brief Double is equivalent to double.
     using type = double;
 };
 
 /*!
+ * \ingroup fft3dcomplex
  * \brief Every type with specialization of heffte::is_ccomplex to std::true_type is equivalent to std::complex<float>.
  */
 template<typename scalar_type> struct define_standard_type<scalar_type, typename std::enable_if<is_ccomplex<scalar_type>::value>::type>{
+    //! \brief If heffte::is_ccomplex is true_type, then the type is equivalent to std::complex<float>.
     using type =  std::complex<float>;
 };
 /*!
+ * \ingroup fft3dcomplex
  * \brief Every type with specialization of heffte::is_zcomplex to std::true_type is equivalent to std::complex<double>.
  */
 template<typename scalar_type> struct define_standard_type<scalar_type, typename std::enable_if<is_zcomplex<scalar_type>::value>::type>{
+    //! \brief If heffte::is_ccomplex is true_type, then the type is equivalent to std::complex<double>.
     using type =  std::complex<double>;
 };
 
@@ -345,6 +426,7 @@ typename define_standard_type<scalar_type>::type* convert_to_standard(scalar_typ
     return reinterpret_cast<typename define_standard_type<scalar_type>::type*>(input);
 }
 /*!
+ * \ingroup fft3dcomplex
  * \brief Converts a const array of some type to a const array of the C++ equivalent type.
  */
 template<typename scalar_type>
@@ -353,6 +435,14 @@ typename define_standard_type<scalar_type>::type const* convert_to_standard(scal
 }
 
 /*!
+ * \ingroup fft3d
+ * \addtogroup fft3dmisc Miscellaneous helpers
+ *
+ * Simple helper templates.
+ */
+
+/*!
+ * \ingroup fft3dmisc
  * \brief Return the index of the last active (non-null) unique_ptr.
  *
  * The method returns -1 if all shapers are null.
@@ -365,6 +455,7 @@ int get_last_active(std::array<std::unique_ptr<some_class>, 4> const &shaper){
 }
 
 /*!
+ * \ingroup fft3dmisc
  * \brief Return the number of active (non-null) unique_ptr.
  */
 template<typename some_class>
@@ -375,6 +466,7 @@ int count_active(std::array<std::unique_ptr<some_class>, 4> const &shaper){
 }
 
 /*!
+ * \ingroup fft3dmisc
  * \brief Returns the max of the box_size() for each of the executors.
  */
 template<typename some_class>
@@ -383,6 +475,7 @@ size_t get_max_size(std::array<some_class*, 3> const executors){
 }
 
 /*!
+ * \ingroup fft3dmisc
  * \brief Returns the max of the box_size() for each of the executors.
  */
 template<typename some_class_r2c, typename some_class>

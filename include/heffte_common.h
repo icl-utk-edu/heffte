@@ -85,6 +85,14 @@ void scale_ffts_gpu(int n, T *data, T fnorm);
 namespace heffte {
 
 /*!
+ * \ingroup fft3d
+ * \addtogroup fft3dbackend Backend common wrappers
+ *
+ * Sub-module that encompasses all backend wrappers and meta data.
+ */
+
+/*!
+ * \ingroup fft3dbackend
  * \brief Contains internal type-tags.
  *
  * Empty structs do not generate run-time code,
@@ -94,12 +102,14 @@ namespace heffte {
 namespace tag {
 
 /*!
+ * \ingroup fft3dbackend
  * \brief Indicates the use of cpu backend and that all input/output data and arrays will be bound to the cpu.
  *
  * Examples of cpu backends are FFTW and MKL.
  */
 struct cpu{};
 /*!
+ * \ingroup fft3dbackend
  * \brief Indicates the use of gpu backend and that all input/output data and arrays will be bound to the gpu device.
  *
  * Example of gpu backend is cuFFT.
@@ -109,12 +119,14 @@ struct gpu{};
 }
 
 /*!
+ * \ingroup fft3dbackend
  * \brief Contains methods for data manipulation either on the CPU or GPU.
  */
 template<typename location_tag> struct data_manipulator{};
 
 /*!
- * \brief Data manipulations on the CPU end.
+ * \ingroup fft3dbackend
+ * \brief Specialization for manipulations on the CPU end.
  */
 template<> struct data_manipulator<tag::cpu>{
     /*!
@@ -147,11 +159,13 @@ template<> struct data_manipulator<tag::cpu>{
 };
 
 /*!
+ * \ingroup fft3dbackend
  * \brief Contains type tags and templates metadata for the various backends.
  */
 namespace backend {
 
     /*!
+     * \ingroup fft3dbackend
      * \brief Allows to define whether a specific backend interface has been enabled.
      *
      * Defaults to std::false_type, but specializations for each enabled backend
@@ -163,6 +177,7 @@ namespace backend {
 
 
     /*!
+     * \ingroup fft3dbackend
      * \brief Defines the container for the temporary buffers.
      *
      * Specialization for each backend will define whether the raw-arrays are associated
@@ -178,6 +193,7 @@ namespace backend {
     };
 
     /*!
+     * \ingroup fft3dbackend
      * \brief Returns the human readable name of the backend.
      */
     template<typename backend_tag>
@@ -185,7 +201,8 @@ namespace backend {
 }
 
 /*!
- * \brief Indicates the direction of the FFT.
+ * \ingroup fft3dmisc
+ * \brief Indicates the direction of the FFT (internal use only).
  */
 enum class direction {
     //! \brief Forward DFT transform.
@@ -195,11 +212,13 @@ enum class direction {
 };
 
 /*!
+ * \ingroup fft3dbackend
  * \brief Indicates the structure that will be used by the fft backend.
  */
 template<typename> struct one_dim_backend{};
 
 /*!
+ * \ingroup fft3dbackend
  * \brief Defines a set of default plan options for a given backend.
  */
 template<typename> struct default_plan_options{};

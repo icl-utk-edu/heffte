@@ -10,12 +10,29 @@
 #include "heffte_geometry.h"
 #include "heffte_common.h"
 
+/*!
+ * \ingroup fft3d
+ * \addtogroup fft3dplan Plan transformation logic
+ *
+ * Implements the analysis of the input and output distribution of the boxes
+ * and creates the corresponding plan for reshape and 1-D FFT operations.
+ */
+
 namespace heffte {
 
 /*!
+ * \ingroup fft3d
  * \brief Defines a set of tweaks and options to use in the plan generation.
+ *
+ * Example usage:
+ * \code
+ *  heffte::plan_options options = heffte::default_options<heffte::backend::fftw>();
+ *  options.use_alltoall = false; // forces the use of point-to-point communication
+ *  heffte::fft3d<heffte::backend::fftw> fft3d(inbox, outbox, comm, options);
+ * \endcode
  */
 struct plan_options{
+    //! \brief Constructor, initializes all options with the default values for the given backend tag.
     template<typename backend_tag> plan_options(backend_tag const)
         : use_reorder(default_plan_options<backend_tag>::use_reorder),
           use_alltoall(true),
@@ -30,6 +47,7 @@ struct plan_options{
 };
 
 /*!
+ * \ingroup fft3d
  * \brief Returns the default backend options associated with the given backend.
  */
 template<typename backend_tag>
@@ -38,6 +56,7 @@ plan_options default_options(){
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief The logic plan incorporates the order and types of operations in a transform.
  *
  * The logic_plan is used to separate the logic of the order of basic operations (reshape or fft execute)
@@ -46,14 +65,25 @@ plan_options default_options(){
  * the transposition of indexing can be done in sufficiently robust and complex logic without
  * clutter of the main classes or unnecessary repetition of code.
  *
- * Node that reshape operation \b i will be performed only if in_shape[i] and out_shape[i] are different.
+ * Node that a reshape operation \b i will be performed only if in_shape[i] and out_shape[i] are different.
+ *
+ * Specifically:
+ * - in_shape[0] is the set of input boxes
+ * - out_shape[0] is the geometry to be used for the fist 1-D FFT operation which will happen in fft_direction[0]
+ * - in_shape[1] is either out_shape[0] or, in the r2c case, the boxes with reduced dimension
+ * - in_shape[i] -> out_shape[i] for i = 1, 2, will hold the intermediate shapes
+ * - in_shape[i] may be equal to out_shape[i] for any i = 0, 1, 2, 3
+ * - 1-D FFT transforms will be applied to out_shape[1] and out_shape[2] in directions fft_direction[0] and fft_direction[1]
+ * - out_shape[3] is the set of output boxes
+ * - index_count is the produce of all indexes, used in scaling
+ * - options will hold a copy of the set of options used in the construction
  */
 struct logic_plan3d{
     //! \brief Holds the input shapes for the 4 forward reshapes (backwards reverses in and out).
     std::vector<box3d> in_shape[4];
     //! \brief Holds the output shapes for the 4 forward reshapes (backwards reverses in and out).
     std::vector<box3d> out_shape[4];
-    //! \brief Direction of the 1-D fft.
+    //! \brief Direction of the 1-D FFT transforms.
     std::array<int, 3> fft_direction;
     //! \brief The total number of indexes in all directions.
     long long index_count;
@@ -62,7 +92,8 @@ struct logic_plan3d{
 };
 
 /*!
- * \brief Returns true for each direction where the boxes form pencils (size matches the world size).
+ * \ingroup fft3dplan
+ * \brief Returns true for each direction where the boxes form pencils (i.e., where the size matches the world size).
  */
 inline std::array<bool, 3> pencil_directions(box3d const world, std::vector<box3d> const &boxes){
     std::array<bool, 3> is_pencil = {true, true, true};
@@ -74,16 +105,17 @@ inline std::array<bool, 3> pencil_directions(box3d const world, std::vector<box3
 }
 
 /*!
+ * \ingroup fft3dplan
  * \brief Creates the logic plan with the provided user input.
  *
  * \param boxes is the current distribution of the data across the MPI comm
  * \param r2c_direction is the direction is the direction of shrinking of the data for an r2c transform
  *              the c2c case should use -1
- * \param opts is a set of plan_options to use
+ * \param options is a set of heffte::plan_options to use
  *
  * \returns the plan for reshape and 1-D fft transformations
  */
-logic_plan3d plan_operations(ioboxes const &boxes, int r2c_direction, plan_options const opts);
+logic_plan3d plan_operations(ioboxes const &boxes, int r2c_direction, plan_options const options);
 
 }
 

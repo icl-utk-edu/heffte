@@ -15,10 +15,10 @@
 About
 =====
 
-The Highly Efficient FFT for Exascale (HEFFTE) library is being developed as part of the Exascale
+The Highly Efficient FFT for Exascale (HeFFTe) library is being developed as part of the Exascale
 Computing Project (ECP), which is a joint project of the U.S. Department of Energy's Office of
-Science and National Nuclear Security Administration (NNSA). HEFFT will deliver highly efficient FFT
-computation on heterogeneous systems, targeting the upcoming exascale machines.
+Science and National Nuclear Security Administration (NNSA). HeFFTe delivers algorithms for
+distributed fast-Fourier transforms in on a heterogeneous systems, targeting the upcoming exascale machines.
 
 
 * * *
@@ -26,22 +26,22 @@ computation on heterogeneous systems, targeting the upcoming exascale machines.
 Documentation
 =============
 
-* Installation and a Doxygen documentation on how to use the library can be found in the *doc* folder of this repository.
-* [HEFFTE Website and Papers](https://www.icl.utk.edu/publications/fft-ecp-fast-fourier-transform)
+* Installation and a Doxygen documentation can be done with the CMake options `-D Heffte_ENABLE_DOXYGEN=ON`
+* [HeFFTe Website and Papers](https://www.icl.utk.edu/publications/fft-ecp-fast-fourier-transform)
 
 * * *
 
 Getting Help
 ============
 
-For assistance with HEFFTE, email *heffte@icl.utk.edu*.
+For assistance with HeFFTe, email *heffte@icl.utk.edu* or start a [Bitbucket Issue](https://bitbucket.org/icl/heffte/issues?status=new&status=open)
 
 * * *
 
 Contributing
 ============
 
-The HEFFTE project welcomes contributions from new developers.
+The HeFFTe project welcomes contributions from new developers.
 Contributions can be offered through the standard Bitbucket pull request model.
 We ask that you complete and submit a contributor agreement.
 
@@ -50,7 +50,7 @@ We ask that you complete and submit a contributor agreement.
 Resources
 =========
 
-* Visit the [HEFFTE website](http://icl.utk.edu/fft/) for more information about the HEFFTE project.
+* Visit the [HeFFTe website](http://icl.utk.edu/fft/) for more information about the HeFFTe project.
 * Visit the [ECP website](https://exascaleproject.org) to find out more about the DOE Exascale Computing Initiative.
 
 * * *

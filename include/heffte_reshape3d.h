@@ -113,10 +113,27 @@ class Reshape3d {
 
 }
 
+/*!
+ * \ingroup fft3d
+ * \addtogroup hefftereshape Reshape operations
+ *
+ * A reshape operation is one that modifies the distribution of the indexes
+ * across an MPI communicator. In a special case, the reshape can correspond
+ * to a simple in-node data transpose (i.e., no communication).
+ *
+ * The reshape operations inherit from a common heffte::reshape3d_base class
+ * that defines the apply method for different data-types and the sizes
+ * of the input, output, and scratch workspace.
+ * Reshape objects are usually wrapped in std::unique_ptr containers,
+ * which handles the polymorphic calls at runtime and also indicates
+ * the special case of no-reshape when the container is empty.
+ */
+
 namespace heffte {
 
 /*!
- * \brief Generates an unpack plan (alltoallv case) where the boxes and the destination do not have the same order.
+ * \ingroup hefftereshape
+ * \brief Generates an unpack plan where the boxes and the destination do not have the same order.
  *
  * This method does not make any MPI calls, but it uses the set of boxes the define the current distribution of the indexes
  * and computes the overlap and the proc, offset, and sizes vectors for the receive stage of an all-to-all-v communication patterns.
@@ -127,6 +144,7 @@ void compute_overlap_map_transpose_pack(int me, int nprocs, box3d const destinat
                                         std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d> &plans);
 
 /*!
+ * \ingroup hefftereshape
  * \brief Base reshape interface.
  */
 class reshape3d_base{
@@ -159,6 +177,7 @@ protected:
 };
 
 /*!
+ * \ingroup hefftereshape
  * \brief Returns the maximum workspace size used by the shapers.
  */
 inline size_t get_workspace_size(std::array<std::unique_ptr<reshape3d_base>, 4> const &shapers){
@@ -168,10 +187,18 @@ inline size_t get_workspace_size(std::array<std::unique_ptr<reshape3d_base>, 4> 
 }
 
 /*!
+ * \ingroup hefftereshape
  * \brief Reshape algorithm based on the MPI_Alltoallv() method.
  *
+ * The communication plan for the reshape requires complex initialization,
+ * which is put outside of the class into a factory method.
+ * An instance of the class can be created only via the factory method
+ * heffte::make_reshape3d_alltoallv()
+ * which allows for stronger const correctness and reduces memory footprint.
+ *
  * \tparam backend_tag is the heffte backend
- * \tparam packer the packer algorithms to use in arranging the sub-boxes into the global send/recv buffer
+ * \tparam packer the packer algorithms to use in arranging the sub-boxes into the global send/recv buffer,
+ *         will work with either heffte::direct_packer or heffte::transpose_packer
  */
 template<typename backend_tag, template<typename device> class packer>
 class reshape3d_alltoallv : public reshape3d_base{
@@ -247,6 +274,7 @@ private:
 };
 
 /*!
+ * \ingroup hefftereshape
  * \brief Factory method that all the necessary work to establish the communication patterns.
  *
  * The purpose of the factory method is to isolate the initialization code and ensure that the internal
@@ -272,7 +300,11 @@ make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                          MPI_Comm const);
 
 /*!
+ * \ingroup hefftereshape
  * \brief Reshape algorithm based on the MPI_Send() and MPI_Irecv() methods.
+ *
+ * Similar to heffte::reshape3d_alltoallv, this class handles a point-to-point reshape
+ * and the initialization can be done only with the heffte::make_reshape3d_pointtopoint() factory.
  *
  * \tparam backend_tag is the heffte backend
  * \tparam packer the packer algorithms to use in arranging the sub-boxes into the global send/recv buffer
@@ -335,6 +367,7 @@ private:
 };
 
 /*!
+ * \ingroup hefftereshape
  * \brief Factory method that all the necessary work to establish the communication patterns.
  *
  * The purpose of the factory method is to isolate the initialization code and ensure that the internal
@@ -360,6 +393,7 @@ make_reshape3d_pointtopoint(std::vector<box3d> const &input_boxes,
                             MPI_Comm const);
 
 /*!
+ * \ingroup hefftereshape
  * \brief Special case of the reshape that does not involve MPI communication but applies a transpose instead.
  *
  * The operations is implemented as a single unpack operation using the transpose_packer with the same location tag.
@@ -405,6 +439,7 @@ private:
 };
 
 /*!
+ * \ingroup hefftereshape
  * \brief Factory method to create a reshape3d instance.
  *
  * Creates a reshape operation from the geometry defined by the input boxes to the geometry defined but the output boxes.
