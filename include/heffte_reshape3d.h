@@ -298,7 +298,7 @@ template<typename backend_tag, template<typename device> class packer = direct_p
 std::unique_ptr<reshape3d_alltoallv<backend_tag, packer>>
 make_reshape3d_alltoallv(std::vector<box3d> const &input_boxes,
                          std::vector<box3d> const &output_boxes,
-                         MPI_Comm const);
+                         MPI_Comm const comm);
 
 /*!
  * \ingroup hefftereshape
@@ -391,7 +391,7 @@ template<typename backend_tag, template<typename device> class packer = direct_p
 std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer>>
 make_reshape3d_pointtopoint(std::vector<box3d> const &input_boxes,
                             std::vector<box3d> const &output_boxes,
-                            MPI_Comm const);
+                            MPI_Comm const comm);
 
 /*!
  * \ingroup hefftereshape

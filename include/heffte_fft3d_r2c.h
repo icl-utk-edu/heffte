@@ -59,6 +59,10 @@ public:
      * \brief Alias to the container template associated with the backend (allows for RAII memory management).
      */
     template<typename T> using buffer_container = typename backend::buffer_traits<backend_tag>::template container<T>;
+    //! \brief Container of real values corresponding to the complex type T.
+    template<typename T> using real_buffer_container = buffer_container<typename define_standard_type<T>::type::value_type>;
+    //! \brief Container of the output type corresponding to T, see \ref HeffteFFT3DCompatibleTypes "the table of compatible input and output types".
+    template<typename T> using output_buffer_container = buffer_container<typename fft_output<T>::type>;
 
     /*!
      * \brief Constructor creating a plan for FFT transform across the given communicator and using the box geometry.
@@ -144,7 +148,7 @@ public:
      * \throws std::invalid_argument is the size of the \b input is less than size_inbox().
      */
     template<typename input_type>
-    buffer_container<typename fft_output<input_type>::type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
+    output_buffer_container<input_type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
         if (input.size() < size_inbox())
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
         static_assert(std::is_same<input_type, float>::value or std::is_same<input_type, double>::value,
@@ -190,7 +194,7 @@ public:
      * \brief Variant of backward() that uses buffer_container for RAII style of resource management.
      */
     template<typename scalar_type>
-    buffer_container<typename define_standard_type<scalar_type>::type::value_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
+    real_buffer_container<scalar_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
         buffer_container<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());

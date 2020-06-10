@@ -99,13 +99,13 @@ namespace HEFFTE {
 
 /*!
  * \ingroup oldapi
- * \brief Constructor of 3D FFT objects for the C++98 interface (heffte v0.2).
+ * \brief Constructor of 3D FFT objects for the C++98 interface (heffte v1.0).
  *
  * \par Overview
  * This class is part of the HEFFTE namespace, it provides the frontend for FFT computation and MPI communication using data transposition at each stage of data exchange.
  * It is an older version of the class with same name within the namespace "heffte".
  * It uses a setup function to define a plan, which stablish the sequence of 1D computation and the data transpositions to be performed on a MPI distributed data.
- * It allows the following backends: KISS, FFTW2, FFTW3, MKL and CUFFT. 
+ * It allows the following backends: KISS, FFTW2, FFTW3, MKL and CUFFT.
  * As opposed to heffte::fft3d, this class does not support multiple backends at the same time, and forward and backward (inverse) transforms can only be performed with the same precision established for the input geometry.
  *
  * \par Boxes and Data Distribution
@@ -417,6 +417,8 @@ enum class scale{
  * <tr><td> Backend </td><td> Type </td><td> C++ Equivalent </td></tr>
  * <tr><td rowspan=2> FFTW3 </td><td> fftwf_complex </td><td> std::complex<float> </td></tr>
  * <tr>                          <td> fftw_complex </td><td> std::complex<double> </td></tr>
+ * <tr><td rowspan=2> MKL   </td><td> float _Complex </td><td> std::complex<float> </td></tr>
+ * <tr>                          <td> double _Complex </td><td> std::complex<double> </td></tr>
  * <tr><td rowspan=2> cuFFT </td><td> cufftComplex </td><td> std::complex<float> </td></tr>
  * <tr>                          <td> cufftDoubleComplex </td><td> std::complex<double> </td></tr>
  * </table>
@@ -446,6 +448,11 @@ public:
      * The CPU backends use std::vector while the GPU backends use heffte::cuda::vector.
      */
     template<typename T> using buffer_container = typename backend::buffer_traits<backend_tag>::template container<T>;
+    //! \brief Container of real values corresponding to the complex type T.
+    template<typename T> using real_buffer_container = buffer_container<typename define_standard_type<T>::type::value_type>;
+    //! \brief Container of the output type corresponding to T, see \ref HeffteFFT3DCompatibleTypes "the table of compatible input and output types".
+    template<typename T> using output_buffer_container = buffer_container<typename fft_output<T>::type>;
+
     /*!
      * \brief Type-tag that is either tag::cpu or tag::gpu to indicate the location of the data.
      */
@@ -552,7 +559,7 @@ public:
      * \endcode
      */
     template<typename input_type>
-    buffer_container<typename fft_output<input_type>::type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
+    output_buffer_container<input_type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
         if (input.size() < size_inbox())
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
         buffer_container<typename fft_output<input_type>::type> output(size_outbox());
@@ -620,10 +627,10 @@ public:
     }
 
     /*!
-     * \brief Perform complex-to-real backward FFT using vector API.
+     * \brief Perform complex-to-real backward FFT using vector API (truncates the complex part).
      */
     template<typename scalar_type>
-    buffer_container<typename define_standard_type<scalar_type>::type::value_type> backward_real(buffer_container<scalar_type> const &input, scale scaling = scale::none){
+    real_buffer_container<scalar_type> backward_real(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
         buffer_container<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());
