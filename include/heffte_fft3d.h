@@ -743,6 +743,16 @@ private:
         buffer_container<std::complex<scalar_type>> workspace(size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
+    //! \brief Applies the scaling factor to the data.
+    template<typename scalar_type>
+    void apply_scale(direction dir, scale scaling, scalar_type data[]) const{
+        if (scaling != scale::none){
+            add_trace name("scale");
+            data_manipulator<location_tag>::scale(
+                (dir == direction::forward) ? size_outbox() : size_inbox(),
+                data, get_scale_factor(scaling));
+        }
+    }
 
     std::unique_ptr<box3d> pinbox, poutbox; // inbox/output for this process
     double scale_factor;

@@ -57,6 +57,7 @@ void fft3d_r2c<backend_tag>::standard_transform(scalar_type const input[], std::
         executor_r2c->forward(effective_input, output);
         executor[0]->forward(output);
         executor[1]->forward(output);
+        apply_scale(direction::forward, scaling, output);
         return;
     }
 
@@ -83,10 +84,7 @@ void fft3d_r2c<backend_tag>::standard_transform(scalar_type const input[], std::
         executor[i]->forward(output);
     }
 
-    if (scaling != scale::none){
-        add_trace name("scale");
-        data_manipulator<location_tag>::scale(size_outbox(), output, get_scale_factor(scaling));
-    }
+    apply_scale(direction::forward, scaling, output);
 }
 
 template<typename backend_tag>
@@ -130,10 +128,7 @@ void fft3d_r2c<backend_tag>::standard_transform(std::complex<scalar_type> const 
         executor_r2c->backward(temp_buffer, output);
     }
 
-    if (scaling != scale::none){
-        add_trace name("scale");
-        data_manipulator<location_tag>::scale(size_inbox(), output, get_scale_factor(scaling));
-    }
+    apply_scale(direction::backward, scaling, output);
 }
 
 #ifdef Heffte_ENABLE_FFTW

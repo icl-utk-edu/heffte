@@ -110,27 +110,50 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     }
     #endif
     output.resize(input.size()); // match the size of the original input
-    tassert(approx(output, input));
+
+    precision_type err = 0.0;
+    for(size_t i=0; i<input.size(); i++)
+        err = std::max(err, std::abs(input[i] - output[i]));
+    precision_type mpi_max_err = 0.0;
+    MPI_Allreduce(&err, &mpi_max_err, 1, mpi::type_from<precision_type>(), MPI_MAX, fft_comm);
+
+    if (mpi_max_err > precision<std::complex<precision_type>>::tolerance){
+        // benchmark failed, the error is too much
+        if (me == 0){
+            cout << "------------------------------- \n"
+                 << "ERROR: observed error after heFFTe benchmark exceeds the tolerance\n"
+                 << "       tolerance: " << precision<std::complex<precision_type>>::tolerance
+                 << "  error: " << mpi_max_err << endl;
+        }
+        return;
+    }
 
     // Print results
     if(me==0){
         t_max = t_max / (2.0 * ntest);
         double const fftsize  = 1.0 * world.count();
         double const floprate = 5.0 * fftsize * std::log(fftsize) * 1e-9 / std::log(2.0) / t_max;
-        cout << "------------------------------- \n";
+        long long mem_usage = static_cast<long long>(fft.size_inbox()) + static_cast<long long>(fft.size_outbox())
+                            + static_cast<long long>(fft.size_workspace());
+        mem_usage *= sizeof(std::complex<precision_type>);
+        mem_usage /= 1024ll * 1024ll; // convert to MB
+        cout << "\n----------------------------------------------------------------------------- \n";
         cout << "heFFTe performance test\n";
-        cout << "------------------------------- \n";
-        cout << "Backend: " << backend::name<backend_tag>() << endl;
-        cout << "Size: " << world.size[0] << "x" << world.size[1] << "x" << world.size[2] << endl;
-        cout << "Nprc: " << nprocs << endl;
+        cout << "----------------------------------------------------------------------------- \n";
+        cout << "Backend:   " << backend::name<backend_tag>() << "\n";
+        cout << "Size:      " << world.size[0] << "x" << world.size[1] << "x" << world.size[2] << "\n";
+        cout << "MPI ranks: " << setw(4) << nprocs << "\n";
         cout << "Grids: ";
         print_proc_grid(-1);
         for(int i=0; i<4; i++)
             if (not match(plan.in_shape[i], plan.out_shape[i])) print_proc_grid((i<3) ? plan.fft_direction[i] : i);
         cout << "\n";
-        cout << "Time: " << t_max << " (s)" << endl;
-        cout << "Perf: " << floprate << " GFlops/s" << endl;
-        cout << "Tolr: " << precision<std::complex<precision_type>>::tolerance << endl;
+        cout << "Time per run: " << t_max << " (s)\n";
+        cout << "Performance:  " << floprate << " GFlops/s\n";
+        cout << "Memory usage: " << mem_usage << "MB/rank\n";
+        cout << "Tolerance:    " << precision<std::complex<precision_type>>::tolerance << "\n";
+        cout << "Max error:    " << mpi_max_err << "\n";
+        cout << endl;
     }
 }
 

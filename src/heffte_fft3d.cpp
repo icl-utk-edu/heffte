@@ -2746,6 +2746,8 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
         }
         for(int i=0; i<3; i++)
             apply_fft(i, output);
+
+        apply_scale(dir, scaling, output);
         return;
     }
 
@@ -2765,6 +2767,8 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
         }
         for(int i=last; i<3; i++)
             apply_fft(i, output);
+
+        apply_scale(dir, scaling, output);
         return;
     }
 
@@ -2806,13 +2810,7 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
     for(int i=last; i<3; i++)
         apply_fft(i, output);
 
-
-    if (scaling != scale::none){
-        add_trace name("scale");
-        data_manipulator<location_tag>::scale(
-            (dir == direction::forward) ? size_outbox() : size_inbox(),
-            output, get_scale_factor(scaling));
-    }
+    apply_scale(dir, scaling, output);
 }
 template<typename backend_tag>
 template<typename scalar_type> // real to complex case
@@ -2841,6 +2839,7 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
         executor[0]->forward(effective_input, output);
         executor[1]->forward(output);
         executor[2]->forward(output);
+        apply_scale(direction::forward, scaling, output);
         return;
     }
 
@@ -2867,10 +2866,7 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
         executor[i]->forward(output);
     }
 
-    if (scaling != scale::none){
-        add_trace name("scale");
-        data_manipulator<location_tag>::scale(size_outbox(), output, get_scale_factor(scaling));
-    }
+    apply_scale(direction::forward, scaling, output);
 }
 template<typename backend_tag>
 template<typename scalar_type> // complex to real case
@@ -2918,10 +2914,7 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
         executor[2]->backward(temp_buffer, output);
     }
 
-    if (scaling != scale::none){
-        add_trace name("scale");
-        data_manipulator<location_tag>::scale(size_inbox(), output, get_scale_factor(scaling));
-    }
+    apply_scale(direction::backward, scaling, output);
 }
 
 #ifdef Heffte_ENABLE_FFTW

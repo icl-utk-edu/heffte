@@ -1210,6 +1210,11 @@ void reshape3d_pointtopoint<backend_tag, packer>::apply_base(scalar_type const s
         packit.unpack(unpackplan[irecv], recv_buffer + recv_loc[irecv], destination + recv_offset[irecv]);
         }
     }
+
+    #ifdef Heffte_ENABLE_CUDA
+    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value)
+        cuda::synchronize_default_stream();
+    #endif
 }
 
 template<typename backend_tag, template<typename device> class packer>
