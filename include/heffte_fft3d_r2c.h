@@ -227,6 +227,17 @@ private:
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], std::complex<scalar_type> workspace[], scale) const;
 
+    //! \brief Applies the scaling factor to the data.
+    template<typename scalar_type>
+    void apply_scale(direction dir, scale scaling, scalar_type data[]) const{
+        if (scaling != scale::none){
+            add_trace name("scale");
+            data_manipulator<location_tag>::scale(
+                (dir == direction::forward) ? size_outbox() : size_inbox(),
+                data, get_scale_factor(scaling));
+        }
+    }
+
     std::unique_ptr<box3d> pinbox, poutbox;
     double scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
