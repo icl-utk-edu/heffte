@@ -5,8 +5,8 @@
        @date
 */
 
-#ifndef FFT_FFT3D_R2C_H
-#define FFT_FFT3D_R2C_H
+#ifndef HEFFTE_FFT3D_R2C_H
+#define HEFFTE_FFT3D_R2C_H
 
 #include "heffte_fft3d.h"
 

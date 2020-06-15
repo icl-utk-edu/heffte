@@ -11,7 +11,6 @@
 
 #ifdef Heffte_ENABLE_MKL
 
-#define FFT_MKL
 #include "mkl_dfti.h"
 
 /*!
