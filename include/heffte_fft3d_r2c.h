@@ -149,7 +149,7 @@ public:
      */
     template<typename input_type>
     output_buffer_container<input_type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
-        if (input.size() < size_inbox())
+        if (input.size() < static_cast<size_t>(size_inbox()))
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
         static_assert(std::is_same<input_type, float>::value or std::is_same<input_type, double>::value,
                       "The input to forward() must be real, i.e., either float or double.");

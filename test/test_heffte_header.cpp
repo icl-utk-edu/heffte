@@ -19,7 +19,7 @@ void assert_move_and_not_copy(){
     static_assert(not std::is_copy_assignable<T>::value, "class T is copy assignable (will leak memory)");
 }
 
-int main(int argc, char *argv[]){
+int main(int, char**){
 
     /*
      * Tests if the single header can be included and compiled without

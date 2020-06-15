@@ -132,13 +132,13 @@ void fft3d_r2c<backend_tag>::standard_transform(std::complex<scalar_type> const 
 }
 
 #ifdef Heffte_ENABLE_FFTW
-heffte_instantiate_fft3d_r2c(backend::fftw);
+heffte_instantiate_fft3d_r2c(backend::fftw)
 #endif
 #ifdef Heffte_ENABLE_MKL
-heffte_instantiate_fft3d_r2c(backend::mkl);
+heffte_instantiate_fft3d_r2c(backend::mkl)
 #endif
 #ifdef Heffte_ENABLE_CUDA
-heffte_instantiate_fft3d_r2c(backend::cufft);
+heffte_instantiate_fft3d_r2c(backend::cufft)
 #endif
 
 }

@@ -288,7 +288,7 @@ public:
      */
     template<typename input_type>
     output_buffer_container<input_type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
-        if (input.size() < size_inbox())
+        if (input.size() < static_cast<size_t>(size_inbox()))
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
         buffer_container<typename fft_output<input_type>::type> output(size_outbox());
         forward(input.data(), output.data(), scaling);
@@ -347,7 +347,7 @@ public:
     buffer_container<scalar_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
-        if (input.size() < size_outbox())
+        if (input.size() < static_cast<size_t>(size_outbox()))
             throw std::invalid_argument("The input vector is smaller than size_outbox(), i.e., not enough entries provided to fill the outbox.");
         buffer_container<scalar_type> result(size_inbox());
         backward(input.data(), result.data(), scaling);

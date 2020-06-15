@@ -59,8 +59,8 @@ void test_fft3d_r2c_arrays(MPI_Comm comm){
             std::vector<box3d> rboxes = heffte::split_world(rworld, split);
             std::vector<box3d> cboxes = heffte::split_world(cworld, split);
 
-            assert(rboxes.size() == num_ranks);
-            assert(cboxes.size() == num_ranks);
+            assert(rboxes.size() == static_cast<size_t>(num_ranks));
+            assert(cboxes.size() == static_cast<size_t>(num_ranks));
 
             // get the local input as a cuda::vector or std::vector
             auto local_input = input_maker<backend_tag, scalar_type>::select(rworld, rboxes[me], world_input);
@@ -120,8 +120,8 @@ void test_fft3d_r2c_vectors(MPI_Comm comm){
             std::vector<box3d> rboxes = heffte::split_world(rworld, split);
             std::vector<box3d> cboxes = heffte::split_world(cworld, split);
 
-            assert(rboxes.size() == num_ranks);
-            assert(cboxes.size() == num_ranks);
+            assert(rboxes.size() == static_cast<size_t>(num_ranks));
+            assert(cboxes.size() == static_cast<size_t>(num_ranks));
 
             // get a semi-random inbox and outbox
             // makes sure that the boxes do not have to match
@@ -156,7 +156,6 @@ void test_fft3d_r2c_vectors(MPI_Comm comm){
 void perform_tests(MPI_Comm const comm){
     all_tests<> name("heffte::fft_r2c class");
     int const num_ranks = mpi::comm_size(comm);
-    int const me = mpi::comm_rank(comm);
 
     switch(num_ranks){
         case 1:
