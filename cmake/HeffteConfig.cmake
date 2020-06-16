@@ -1,6 +1,6 @@
 include("${CMAKE_CURRENT_LIST_DIR}/HeffteTargets.cmake")
 
-if (@Heffte_ENABLE_MKL@ AND NOT TARGET Heffte::FFTW)
+if (@Heffte_ENABLE_FFTW@ AND NOT TARGET Heffte::FFTW)
     add_library(Heffte::FFTW INTERFACE IMPORTED GLOBAL)
     target_link_libraries(Heffte::FFTW INTERFACE @FFTW_LIBRARIES@)
     set_target_properties(Heffte::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES @FFTW_INCLUDES@)
