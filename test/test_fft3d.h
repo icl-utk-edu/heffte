@@ -65,7 +65,7 @@ std::vector<typename fft_output<scalar_type>::type> get_complex_subbox(box3d con
 #ifdef Heffte_ENABLE_FFTW
 template<typename scalar_type>
 std::vector<scalar_type> compute_fft_fftw(box3d const world, std::vector<scalar_type> const &input){
-    assert(input.size() == world.count());
+    assert(input.size() == static_cast<size_t>(world.count()));
     std::vector<scalar_type> result = input;
     for(int i=0; i<3; i++)
         heffte::fftw_executor(world, i).forward(result.data());
@@ -135,7 +135,7 @@ struct input_maker<backend::mkl, scalar_type>{
 #ifdef Heffte_ENABLE_CUDA
 template<typename scalar_type>
 cuda::vector<scalar_type> compute_fft_cufft(box3d const world, cuda::vector<scalar_type> const &input){
-    assert(input.size() == world.count());
+    assert(input.size() == static_cast<size_t>(world.count()));
     cuda::vector<scalar_type> result = input;
     for(int i=0; i<3; i++)
         heffte::cufft_executor(world, i).forward(result.data());
@@ -212,7 +212,7 @@ void test_fft3d_vectors(MPI_Comm comm){
             split = {2, 2, 2};
         }
         std::vector<box3d> boxes = heffte::split_world(world, split);
-        assert(boxes.size() == num_ranks);
+        assert(boxes.size() == static_cast<size_t>(num_ranks));
 
         // get a semi-random inbox and outbox
         // makes sure that the boxes do not have to match
@@ -277,7 +277,7 @@ void test_fft3d_arrays(MPI_Comm comm){
             split[i] = 3;
         }
         std::vector<box3d> boxes = heffte::split_world(world, split);
-        assert(boxes.size() == num_ranks);
+        assert(boxes.size() == static_cast<size_t>(num_ranks));
 
         // get the local input as a cuda::vector or std::vector
         auto local_input = input_maker<backend_tag, scalar_type>::select(world, boxes[me], world_input);

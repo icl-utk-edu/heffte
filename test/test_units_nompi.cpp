@@ -782,7 +782,7 @@ void test_cross_reference(){
 void test_cross_reference(){}
 #endif
 
-int main(int argc, char *argv[]){
+int main(int, char**){
 
     all_tests<using_nompi> name("Non-MPI Tests");
 

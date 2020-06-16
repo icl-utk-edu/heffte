@@ -400,9 +400,9 @@ void perform_tests_cpu(){
 }
 
 void perform_tests_gpu(){
+    #ifdef Heffte_ENABLE_CUDA
     MPI_Comm const comm = MPI_COMM_WORLD;
 
-    #ifdef Heffte_ENABLE_CUDA
     switch(mpi::comm_size(comm)) {
         // note that the number of boxes must match the comm size
         // that is the product of the last three of the box dimensions
