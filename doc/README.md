@@ -79,7 +79,7 @@ To evaluate scalability and make performance comparison with other parallel FFT 
 
 ~~~
 mpirun -n 12 ./speed3d_r2c fftw double 512 256 512 -p2p -pencils -no-reorder
-mpirun -n 5 --map-by node  ./speed3d_c2c mkl single 1024 256 512  -a2a -slabs -reorder
+mpirun -n 5 --map-by node  ./speed3d_c2c mkl float 1024 256 512  -a2a -slabs -reorder
 mpirun -n 2 ./speed3d_c2c cufft double 512 256 512  -mps -a2a
 ~~~
 

@@ -5,8 +5,8 @@
        @date
 */
 
-#ifndef FFT_FFT3D_R2C_H
-#define FFT_FFT3D_R2C_H
+#ifndef HEFFTE_FFT3D_R2C_H
+#define HEFFTE_FFT3D_R2C_H
 
 #include "heffte_fft3d.h"
 
@@ -149,7 +149,7 @@ public:
      */
     template<typename input_type>
     output_buffer_container<input_type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
-        if (input.size() < size_inbox())
+        if (input.size() < static_cast<size_t>(size_inbox()))
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
         static_assert(std::is_same<input_type, float>::value or std::is_same<input_type, double>::value,
                       "The input to forward() must be real, i.e., either float or double.");
@@ -226,6 +226,17 @@ private:
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], std::complex<scalar_type> workspace[], scale) const;
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], std::complex<scalar_type> workspace[], scale) const;
+
+    //! \brief Applies the scaling factor to the data.
+    template<typename scalar_type>
+    void apply_scale(direction dir, scale scaling, scalar_type data[]) const{
+        if (scaling != scale::none){
+            add_trace name("scale");
+            data_manipulator<location_tag>::scale(
+                (dir == direction::forward) ? size_outbox() : size_inbox(),
+                data, get_scale_factor(scaling));
+        }
+    }
 
     std::unique_ptr<box3d> pinbox, poutbox;
     double scale_factor;

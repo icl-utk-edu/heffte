@@ -7,7 +7,6 @@
 #ifndef HEFFTE_PLAN_LOGIC_H
 #define HEFFTE_PLAN_LOGIC_H
 
-#include "heffte_geometry.h"
 #include "heffte_common.h"
 
 /*!

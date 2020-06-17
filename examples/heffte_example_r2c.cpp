@@ -62,7 +62,7 @@ void compute_dft(MPI_Comm comm){
     auto output = fft.forward(input);
 
     // verify that the output has the correct size
-    assert(output.size() == fft.size_outbox());
+    assert(output.size() == static_cast<size_t>(fft.size_outbox()));
 
     // in the r2c case, the result from a backward transform is always real
     // thus inverse is std::vector<float>

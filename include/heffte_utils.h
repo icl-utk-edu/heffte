@@ -22,89 +22,9 @@
 #include <string>
 #include <deque>
 #include <fstream>
-#include <stdio.h>
 #include <mpi.h>
 
 #include "heffte_config.h"
-
-// Chosing library for 1D FFTs
-#if defined(FFT_MKL) || defined(FFT_MKL_OMP)
-  #include "mkl_dfti.h"
-
-#elif defined(FFT_FFTW2)
-  #if defined(FFTW_SIZE)
-    #include "sfftw.h"
-    #include "dfftw.h"
-  #else
-    #include "fftw.h"
-  #endif
-
-#elif defined(FFT_CUFFTW)
-  #include "cufftw.h"
-#endif
-
-// Timing vector
-#define NTIMING_VARIABLES 10
-extern double timing_array[NTIMING_VARIABLES];
-
-// ==============================================================================
-
-static int i0=0, i1=1;
-static double m1=-1e0, p0=0e0, p1=1e0;
-
-typedef enum {
-    PARAM_BLACS_CTX,
-    PARAM_RANK,
-    PARAM_M,
-    PARAM_N,
-    PARAM_NB,
-    PARAM_SEED,
-    PARAM_VALIDATE,
-    PARAM_NRHS,
-    PARAM_NP,
-    PARAM_NQ
-} params_enum_t;
-
-void setup_params( int params[], int argc, char* argv[] );
-
-void scalapack_pdplrnt( double *A,
-                        int m, int n,
-                        int mb, int nb,
-                        int myrow, int mycol,
-                        int nprow, int npcol,
-                        int mloc,
-                        int seed );
-
-void scalapack_pdplghe( double *A,
-                        int m, int n,
-                        int mb, int nb,
-                        int myrow, int mycol,
-                        int nprow, int npcol,
-                        int mloc,
-                        int seed );
-
-// Tools for error handling
-#if defined(FFT_CUFFTW) || defined(FFT_CUFFT) || defined(FFT_CUFFT_M) || defined(FFT_CUFFT_R)
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#else
-#ifndef Heffte_ENABLE_CUDA
-/// For integers x >= 0, y > 0, returns x rounded up to multiple of y.
-/// That is, ceil(x/y)*y.
-/// For x == 0, this is 0.
-/// This implementation does not assume y is a power of 2.
-static inline int fft_ceildiv( int x, int y )
-{
-    return (x + y - 1)/y;
-}
-static inline int fft_roundup( int x, int y )
-{
-    return fft_ceildiv( x, y ) * y;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#endif
-#endif
 
 namespace heffte {
 

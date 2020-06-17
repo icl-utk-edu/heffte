@@ -11,7 +11,6 @@
 
 #ifdef Heffte_ENABLE_FFTW
 
-#define FFT_FFTW3
 #include "fftw3.h"
 
 /*!
