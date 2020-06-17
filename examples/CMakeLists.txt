@@ -17,3 +17,8 @@ if (Heffte_ENABLE_CUDA)
     add_executable(heffte_example_cuda heffte_example_cuda.cpp)
     target_link_libraries(heffte_example_cuda Heffte)
 endif()
+
+if (Heffte_ENABLE_FFTW AND CMAKE_C_COMPILER)
+    add_executable(heffte_example_c heffte_example_c.c)
+    target_link_libraries(heffte_example_c Heffte)
+endif()
