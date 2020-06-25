@@ -9,6 +9,10 @@ option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
 option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
+if (CMAKE_C_COMPILER)
+    enable_language(C)
+endif()
+
 # check if at least one backend has been enabled
 if (NOT Heffte_ENABLE_FFTW AND
     NOT Heffte_ENABLE_CUDA AND
@@ -41,6 +45,7 @@ endif()
 # libheffte source files list (does not include the cuda kernels)
 set(Heffte_common_sources
     include/heffte.h
+    include/heffte_c.h
     include/heffte_utils.h
     include/heffte_trace.h
     include/heffte_geometry.h
@@ -50,6 +55,7 @@ set(Heffte_common_sources
     include/heffte_reshape3d.h
     include/heffte_fft3d.h
     include/heffte_fft3d_r2c.h
+    src/heffte_c.cpp
     src/heffte_plan_logic.cpp
     src/heffte_reshape3d.cpp
     src/heffte_fft3d.cpp

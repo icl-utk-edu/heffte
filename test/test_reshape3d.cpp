@@ -1,6 +1,6 @@
 /** @class */
 /*
-    -- HEFFTE (version 0.2) --
+    -- heFFTe --
        Univ. of Tennessee, Knoxville
        @date
 */

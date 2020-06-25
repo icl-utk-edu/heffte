@@ -1,5 +1,5 @@
 /*
-    -- heFFTe (version 0.2) --
+    -- heFFTe --
        Univ. of Tennessee, Knoxville
        @date
        Performance test for 3D FFTs using heFFTe

@@ -1,8 +1,8 @@
 /*
-    -- heFFTe (version 0.2) --
+    -- heFFTe --
        Univ. of Tennessee, Knoxville
        @date
-       Performance test for 3D FFTs using heFFTe
+       Performance test for 3D FFTs using heFFTe to compute 3D complex-to-complex transforms 
 */
 
 #define BENCH_INPUT std::complex<precision_type>

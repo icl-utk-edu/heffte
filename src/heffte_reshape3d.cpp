@@ -1,9 +1,9 @@
 /**
  * @class
- * CPU functions of HEFFT
+ * heFFTe kernels for data reshape - communication frameworks
  */
  /*
-     -- HEFFTE (version 0.2) --
+    -- heFFTe --
         Univ. of Tennessee, Knoxville
         @date
  */
