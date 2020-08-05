@@ -31,18 +31,6 @@
 namespace heffte{
 
 /*!
- * \ingroup fft3dmisc
- * \brief Replace with the C++ 2014 std::exchange later.
- */
-template<class T, class U = T>
-T c11_exchange(T& obj, U&& new_value)
-{
-    T old_value = std::move(obj);
-    obj = std::forward<U>(new_value);
-    return old_value;
-}
-
-/*!
  * \ingroup hefftecuda
  * \brief Cuda specific methods, vector-like container, error checking, etc.
  */

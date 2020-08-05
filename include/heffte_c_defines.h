@@ -67,6 +67,13 @@
  */
 #define Heffte_BACKEND_CUFFT 10
 #endif
+#ifdef Heffte_ENABLE_ROCM
+/*!
+ * \ingroup cfft
+ * \brief Set the use of the rocfft backend.
+ */
+#define Heffte_BACKEND_ROCFFT 11
+#endif
 
 /*!
  * \ingroup cfft

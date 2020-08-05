@@ -273,5 +273,8 @@ heffte_instantiate_fft3d(backend::mkl)
 #ifdef Heffte_ENABLE_CUDA
 heffte_instantiate_fft3d(backend::cufft)
 #endif
+#ifdef Heffte_ENABLE_ROCM
+heffte_instantiate_fft3d(backend::rocfft)
+#endif
 
 }
