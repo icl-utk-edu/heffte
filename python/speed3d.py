@@ -9,20 +9,15 @@ import cmath
 import numpy as np
 from mpi4py import MPI
 from heffte import *
-# from heffte import fft3d
 
 #? syntax 
 
 # * Allocate and initialize data 
 def make_data():
     global work, work2
-    # a = np.arange(fftsize) + 1
-    # work = np.array([complex(x) for x in a])
     work = np.zeros(fftsize, np.float32)
-    work2 = np.zeros(2*fftsize, np.float32)
     for i in np.arange(fftsize):
         work[i] = i+1
-    # work = np.array([float(x) for x in a])
 
 # =============
 #* Main program 

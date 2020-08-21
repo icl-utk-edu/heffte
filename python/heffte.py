@@ -37,12 +37,12 @@ heffte_plan_options._fields_ = [ ("use_reorder", c_int), ("use_alltoall", c_int)
 heffte_backend = {'fftw': 1, 'mkl': 2, 'cufft': 10}
 heffte_scale   = {'none': 0, 'full': 1, 'symmetric': 2}
 
-class heffte_options():
-    def __init__(self, b_type='fftw'):
+# class heffte_options():
+#     def __init__(self, b_type='fftw'):
 
-        if( b_type not in [*heffte_backend]):
-            raise OSError( str(b_type) + "-backend is not allowed on heFFTe!" )
-        self.backend = b_type
+#         if( b_type not in [*heffte_backend]):
+#             raise OSError( str(b_type) + "-backend is not allowed on heFFTe!" )
+#         self.backend = b_type
 
 class fft3d:
 
@@ -50,7 +50,7 @@ class fft3d:
             inbox_low, inbox_high, inbox_order,
             outbox_low, outbox_high, outbox_order):
 
-        # load heffte.so
+        # Load heffte.so
         try:
             self.lib = CDLL("libheffte.so", RTLD_GLOBAL)
         except:
@@ -58,7 +58,7 @@ class fft3d:
             traceback.print_exception(etype, value, tb)
             raise OSError("Could not load heFFTe dynamic library")
 
-        # define ctypes API for each library method
+        # Define ctypes API for each library method
         if MPI._sizeof(comm) == sizeof(c_int): MPI_Comm = c_int
         else: MPI_Comm = c_void_p
         self.comm_ptr = MPI._addressof(comm)
