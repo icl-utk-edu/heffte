@@ -4,13 +4,11 @@
     Univ. of Tennessee, Knoxville
 
 Env setup:
-    Define where libheffte.so is located:
-        export heffte_lib_path=/ccs/home/aayala/tmprl/heffte/build_x_cpu
-        export fftw_lib_path=/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/xl-16.1.1-5/fftw-3.3.8-azzdjlzx2j6dpqvzdir2nwvxypohyfq4/lib
-    Set env:
-        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$heffte_lib_path
-        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$fftw_lib_path
-        export PYTHONPATH=$PYTHONPATH:$heffte_lib_path
+    export heffte_lib_path=/ccs/home/aayala/tmprl/heffte/build_x_cpu
+    export fftw_lib_path=/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/xl-16.1.1-5/fftw-3.3.8-azzdjlzx2j6dpqvzdir2nwvxypohyfq4/lib
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$heffte_lib_path
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$fftw_lib_path
+    export PYTHONPATH=$PYTHONPATH:$heffte_lib_path
 
 Run R2C test:
         jsrun -n2 python speed3d.py
