@@ -8,14 +8,16 @@ import sys, math
 import cmath 
 import numpy as np
 from mpi4py import MPI
-from heffte import *
+import heffte
 
 #? syntax 
 
 # * Allocate and initialize data 
+
 def make_data():
     global work, work2
     work = np.zeros(fftsize, np.float32)
+    work2 = np.zeros(2*fftsize, np.float32)
     for i in np.arange(fftsize):
         work[i] = i+1
 
@@ -23,21 +25,32 @@ def make_data():
 #* Main program 
 # =============
 # MPI setup
-fft_comm = MPI.COMM_WORLD
-me = fft_comm.rank
-nprocs = fft_comm.size
+mpi_comm = MPI.COMM_WORLD
+me = mpi_comm.rank
+nprocs = mpi_comm.size
 
-# parse command-line args
+# define cube geometry
+size_fft = [2, 2, 2] # = [nx, ny, nz]
+world = heffte.box3d([0, 0, 0], [size_fft[0]-1, size_fft[1]-1, size_fft[2]-1])
+fftsize = world.count()
 
-# define global parameters
-global fft, fftsize
+# create a processor grid (if user does not have one)
+proc_i = heffte.proc_setup(world, nprocs)
+proc_o = heffte.proc_setup(world, nprocs)
 
-fftsize = 8
-full_low = np.array([0, 0, 0], dtype=np.int32)
-full_high = np.array([1, 1, 1], dtype=np.int32)
-order = np.array([0, 1, 2], dtype=np.int32)
+# distribute sub boxes among processors
+inboxes  = heffte.split_world(world, proc_i)
+outboxes = heffte.split_world(world, proc_o)
 
-fft = fft3d(fft_comm, heffte_backend['fftw'], full_low, full_high, order, full_low, full_high, order)
+# create plan
+fft = heffte.fft3d(heffte.backend.fftw, inboxes[me], outboxes[me], mpi_comm)
+
+# NOTE: If user has a different split function to define low and high vertices, can do as follows:
+#    low_me = [x,x,x]
+#    high_me = [x,x,x]
+#    order_me = [x,x,x]
+#    fft = heffte.fft3d(heffte.backend.fftw, heffte.box3d(low_me, high_me), heffte.box3d(low_me, high_me), mpi_comm)
+#    fft = heffte.fft3d(heffte.backend.fftw, heffte.box3d(low_me, high_me, order_me), heffte.box3d(low_me, high_me, order_me), mpi_comm)
 
 # Initialize data
 make_data()
@@ -45,12 +58,12 @@ make_data()
 print("Initial data:")
 print(work)
 
-fft_comm.Barrier()
+mpi_comm.Barrier()
 time1 = MPI.Wtime()
 
-fft.forward(work, work2, heffte_scale['full'])
+fft.forward(work, work2, heffte.scale.none)
 
-fft_comm.Barrier()
+mpi_comm.Barrier()
 time2 = MPI.Wtime()
 t_exec = time2 - time1
 Gflops = 5*fftsize*math.log(fftsize) / t_exec / 1E9

@@ -31,9 +31,15 @@ class heffte_plan_options(Structure):
     pass
 heffte_plan_options._fields_ = [ ("use_reorder", c_int), ("use_alltoall", c_int), ("use_pencils", c_int) ]
 
+class backend:
+    fftw = 1
+    mkl = 2
+    cufft = 10
 
-heffte_backend = {'fftw': 1, 'mkl': 2, 'cufft': 10}
-heffte_scale   = {'none': 0, 'full': 1, 'symmetric': 2}
+class scale:
+    none = 0
+    full = 1
+    symmetric = 2
 
 # class heffte_options():
 #     def __init__(self, b_type='fftw'):
@@ -42,11 +48,21 @@ heffte_scale   = {'none': 0, 'full': 1, 'symmetric': 2}
 #             raise OSError( str(b_type) + "-backend is not allowed on heFFTe!" )
 #         self.backend = b_type
 
-class fft3d:
+class box3d:
+    def __init__(self, clow, chigh, corder = np.array([0,1,2])):
+        self.low = np.array(clow, dtype = np.int32)
+        self.high = np.array(chigh, dtype = np.int32)
+        self.size = self.high - self.low + 1
+        self.order = np.array(corder, dtype = np.int32)
 
-    def __init__(self, comm,  backend, 
-            inbox_low, inbox_high, inbox_order,
-            outbox_low, outbox_high, outbox_order):
+    def empty(self):
+        return (np.max(self.size) <= 0)
+
+    def count(self):
+        return (np.prod(self.size))
+
+class fft3d:
+    def __init__(self, backend, inbox, outbox, comm):
 
         # Load heffte.so
         try:
@@ -85,19 +101,19 @@ class fft3d:
         self.plan = LP_plan()
         options = heffte_plan_options(0,1,1)
 
-        tmp = self.lib.heffte_plan_create(backend, inbox_low, inbox_high, inbox_order,
-                                    outbox_low, outbox_high, outbox_order,
+        tmp = self.lib.heffte_plan_create(backend, inbox.low, inbox.high, inbox.order,
+                                    outbox.low, outbox.high, outbox.order,
                                     self.comm_value, options, self.plan)
 
-        # if(tmp == 0):
-            # print("----------------------------------")
-            # print("FFT plan successfully created.")
+        if(tmp == 0):
+            print("----------------------------------")
+            print("FFT plan successfully created.")
 
     def __del__(self):
         self.lib.heffte_plan_destroy(self.plan)
         self.lib = None
 
-    def forward(self, input, output, scale):
+    def forward(self, input, output, scale=0):
         if "numpy" not in str(type(input)) or "numpy" not in str(type(output)):
             print( "Input/Output data must be numpy arrays for computing the FFT.")
             sys.exit()
@@ -105,8 +121,46 @@ class fft3d:
         c_in  = input.ctypes.data_as(POINTER(c_float))
         c_out = output.ctypes.data_as(c_void_p)
 
+        print("scale = " + str(scale) )
         self.lib.heffte_forward_s2c(self.plan, c_in, c_out, scale)
 
         print("---------------------------")
         print("\nComputed FFT:")
         print(output.view(dtype=np.complex64))
+
+
+# Create a processor grid using the minimum surface algorithm
+def proc_setup(world, num_procs):
+    assert(world.count() > 0)
+    all_indexes = world.size
+    
+    best_grid = [1, 1, num_procs]
+    surface = lambda x: np.sum( all_indexes/x * np.roll(all_indexes/x,-1) )
+    best_surface = surface([1, 1, num_procs])
+
+    for i in np.arange(1, num_procs+1):
+        if (num_procs % i == 0):
+            remainder = num_procs / i
+            for j in np.arange(1, remainder+1):
+                if (remainder % j == 0):
+                    candidate_grid = [i, j, remainder / j]
+                    candidate_surface = surface(candidate_grid)
+                    if (candidate_surface < best_surface):
+                        best_surface = candidate_surface
+                        best_grid    = candidate_grid
+
+    best_grid = np.array(best_grid, dtype=np.int32)
+    assert(np.prod(best_grid) == num_procs)
+    return best_grid
+
+def split_world(world, proc_grid):
+    fast = lambda i : world.low[0] + i * (world.size[0] / proc_grid[0]) + min(i, (world.size[0] % proc_grid[0]))
+    mid  = lambda i : world.low[1] + i * (world.size[1] / proc_grid[1]) + min(i, (world.size[1] % proc_grid[1]))
+    slow = lambda i : world.low[2] + i * (world.size[2] / proc_grid[2]) + min(i, (world.size[2] % proc_grid[2]))
+
+    result = []
+    for k in np.arange(proc_grid[2]):
+        for j in np.arange(proc_grid[1]):
+            for i in np.arange(proc_grid[0]):
+                result.append(box3d([fast(i), mid(j), slow(k)], [fast(i+1)-1, mid(j+1)-1, slow(k+1)-1], world.order))
+    return result    
