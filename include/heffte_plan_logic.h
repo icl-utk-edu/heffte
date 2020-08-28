@@ -46,6 +46,15 @@ struct plan_options{
 };
 
 /*!
+ * \ingroup heffterocm
+ * \brief Forces the reorder logic for the ROCM r2c variant.
+ */
+inline plan_options force_reorder(plan_options opts){
+    opts.use_reorder = true;
+    return opts;
+}
+
+/*!
  * \ingroup fft3d
  * \brief Returns the default backend options associated with the given backend.
  */

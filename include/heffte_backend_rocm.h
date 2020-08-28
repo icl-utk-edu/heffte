@@ -359,21 +359,21 @@ struct plan_rocfft{
      * \param cdist is the distance between the first entries of consecutive complex sequences
      */
     plan_rocfft(size_t size, size_t batch, size_t stride, size_t rdist, size_t cdist){
+
         rocfft_plan_description desc = nullptr;
         rocm::check_error( rocfft_plan_description_create(&desc), "rocm plan create");
 
         rocm::check_error(
             rocfft_plan_description_set_data_layout(
                 desc,
-                (dir == direction::forward) ? rocfft_array_type_real : rocfft_array_type_complex_interleaved,
-                (dir == direction::forward) ? rocfft_array_type_complex_interleaved : rocfft_array_type_real,
+                (dir == direction::forward) ? rocfft_array_type_real : rocfft_array_type_hermitian_interleaved,
+                (dir == direction::forward) ? rocfft_array_type_hermitian_interleaved : rocfft_array_type_real,
                 nullptr, nullptr,
                 1, &stride, (dir == direction::forward) ? rdist : cdist,
                 1, &stride, (dir == direction::forward) ? cdist : rdist
             ),
             "plan layout"
         );
-
 
         rocm::check_error(
         rocfft_plan_create(&plan, rocfft_placement_notinplace,
@@ -478,6 +478,7 @@ public:
         total_size(box.count())
     {}
 
+    //! \brief Perform an in-place FFT on the data in the given direction.
     template<typename precision_type, direction dir>
     void execute(std::complex<precision_type> data[]) const{
         //rocm::synchronize_default_stream();
@@ -560,39 +561,6 @@ private:
 
 /*!
  * \ingroup heffterocm
- * \brief Plan for the r2c single precision transform.
- */
-// template<direction dir>
-// struct plan_rocfft<double, dir>{
-//     //! \brief Identical to the float specialization.
-//     plan_rocfft(int size, int batch, int stride, int rdist, int cdist){
-// //         size_t work_size = 0;
-// //         cuda::check_error(cufftCreate(&plan), "plan_cufft<float>::cufftCreate()");
-// //
-// //         if (dir == direction::forward){
-// //             cuda::check_error(
-// //                 cufftMakePlanMany(plan, 1, &size, &size, stride, rdist, &size, stride, cdist, CUFFT_D2Z, batch, &work_size),
-// //                 "plan_cufft<float>::cufftMakePlanMany() (forward)"
-// //             );
-// //         }else{
-// //             cuda::check_error(
-// //                 cufftMakePlanMany(plan, 1, &size, &size, stride, cdist, &size, stride, rdist, CUFFT_Z2D, batch, &work_size),
-// //                 "plan_cufft<float>::cufftMakePlanMany() (backward)"
-// //             );
-// //         }
-//     }
-//     //! \brief Destructor, deletes the plan.
-// //    ~plan_cufft(){ cufftDestroy(plan); }
-//     //! \brief Custom conversion to the cufftHandle.
-// //    operator cufftHandle() const{ return plan; }
-//
-// private:
-//     //! \brief The cufft opaque structure (pointer to struct).
-// //    cufftHandle plan;
-// };
-
-/*!
- * \ingroup heffterocm
  * \brief Wrapper to cuFFT API for real-to-complex transform with shortening of the data.
  *
  * Serves the same purpose of heffte::cufft_executor but only real input is accepted
@@ -638,84 +606,46 @@ public:
             work_buff = rocm::vector<std::complex<precision_type>>(wsize);
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(work_buff.data()), wsize);
         }
+        rocm::vector<precision_type> copy_indata(indata, indata + real_size());
 
         for(int i=0; i<blocks; i++){
-            void *rdata = const_cast<void*>(reinterpret_cast<void const*>(indata + i * rblock_stride));
+            void *rdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata.data() + i * rblock_stride));
             void *cdata = reinterpret_cast<void*>(outdata + i * cblock_stride);
             rocm::check_error( rocfft_execute(
                 (std::is_same<precision_type, float>::value) ? *sforward : *dforward,
                 &rdata, &cdata, info), "rocfft execute");
         }
         rocfft_execution_info_destroy(info);
-
-//         make_plan(sforward, direction::forward);
-//         if (blocks == 1 or rblock_stride % 2 == 0){
-//             for(int i=0; i<blocks; i++){
-//                 cufftReal *rdata = const_cast<cufftReal*>(indata + i * rblock_stride);
-//                 cufftComplex* cdata = reinterpret_cast<cufftComplex*>(outdata + i * cblock_stride);
-//                 cuda::check_error(cufftExecR2C(*sforward, rdata, cdata), "cufft_executor::cufftExecR2C()");
-//             }
-//         }else{
-//             // need to create a temporary copy of the data since cufftExecR2C() requires aligned input
-//             cuda::vector<float> rdata(rblock_stride);
-//             for(int i=0; i<blocks; i++){
-//                 cuda::copy_pntr(indata + i * rblock_stride, rdata);
-//                 cufftComplex* cdata = reinterpret_cast<cufftComplex*>(outdata + i * cblock_stride);
-//                 cuda::check_error(cufftExecR2C(*sforward, rdata.data(), cdata), "cufft_executor::cufftExecR2C()");
-//             }
-//         }
     }
     //! \brief Backward transform, single precision.
-    void backward(std::complex<float> const indata[], float outdata[]) const{
-//         make_plan(sbackward, direction::backward);
-//         if (blocks == 1 or rblock_stride % 2 == 0){
-//             for(int i=0; i<blocks; i++){
-//                 cufftComplex* cdata = const_cast<cufftComplex*>(reinterpret_cast<cufftComplex const*>(indata + i * cblock_stride));
-//                 cuda::check_error(cufftExecC2R(*sbackward, cdata, outdata + i * rblock_stride), "cufft_executor::cufftExecC2R()");
-//             }
-//         }else{
-//             cuda::vector<float> odata(rblock_stride);
-//             for(int i=0; i<blocks; i++){
-//                 cufftComplex* cdata = const_cast<cufftComplex*>(reinterpret_cast<cufftComplex const*>(indata + i * cblock_stride));
-//                 cuda::check_error(cufftExecC2R(*sbackward, cdata, odata.data()), "cufft_executor::cufftExecC2R()");
-//                 cuda::copy_pntr(odata, outdata + i * rblock_stride);
-//             }
-//         }
-    }
-    //! \brief Forward transform, double precision.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
-//         make_plan(dforward, direction::forward);
-//         if (blocks == 1 or rblock_stride % 2 == 0){
-//             for(int i=0; i<blocks; i++){
-//                 cufftDoubleReal *rdata = const_cast<cufftDoubleReal*>(indata + i * rblock_stride);
-//                 cufftDoubleComplex* cdata = reinterpret_cast<cufftDoubleComplex*>(outdata + i * cblock_stride);
-//                 cuda::check_error(cufftExecD2Z(*dforward, rdata, cdata), "cufft_executor::cufftExecD2Z()");
-//             }
-//         }else{
-//             cuda::vector<double> rdata(rblock_stride);
-//             for(int i=0; i<blocks; i++){
-//                 cuda::copy_pntr(indata + i * rblock_stride, rdata);
-//                 cufftDoubleComplex* cdata = reinterpret_cast<cufftDoubleComplex*>(outdata + i * cblock_stride);
-//                 cuda::check_error(cufftExecD2Z(*dforward, rdata.data(), cdata), "cufft_executor::cufftExecD2Z()");
-//             }
-//         }
-    }
-    //! \brief Backward transform, double precision.
-    void backward(std::complex<double> const indata[], double outdata[]) const{
-//         make_plan(dbackward, direction::backward);
-//         if (blocks == 1 or rblock_stride % 2 == 0){
-//             for(int i=0; i<blocks; i++){
-//                 cufftDoubleComplex* cdata = const_cast<cufftDoubleComplex*>(reinterpret_cast<cufftDoubleComplex const*>(indata + i * cblock_stride));
-//                 cuda::check_error(cufftExecZ2D(*dbackward, cdata, outdata + i * rblock_stride), "cufft_executor::cufftExecZ2D()");
-//             }
-//         }else{
-//             cuda::vector<double> odata(rblock_stride);
-//             for(int i=0; i<blocks; i++){
-//                 cufftDoubleComplex* cdata = const_cast<cufftDoubleComplex*>(reinterpret_cast<cufftDoubleComplex const*>(indata + i * cblock_stride));
-//                 cuda::check_error(cufftExecZ2D(*dbackward, cdata, odata.data()), "cufft_executor::cufftExecZ2D()");
-//                 cuda::copy_pntr(odata, outdata + i * rblock_stride);
-//             }
-//         }
+    template<typename precision_type>
+    void backward(std::complex<precision_type> const indata[], precision_type outdata[]) const{
+        if (std::is_same<precision_type, float>::value){
+            make_plan(sbackward);
+        }else{
+            make_plan(dbackward);
+        }
+
+        rocfft_execution_info info;
+        rocfft_execution_info_create(&info);
+
+        size_t wsize = (std::is_same<precision_type, float>::value) ? sbackward->size_work() : dbackward->size_work();
+        rocm::vector<std::complex<precision_type>> work_buff;
+
+        if (wsize > 0){
+            work_buff = rocm::vector<std::complex<precision_type>>(wsize);
+            rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(work_buff.data()), wsize);
+        }
+        rocm::vector<std::complex<precision_type>> copy_indata(indata, indata + complex_size());
+
+        for(int i=0; i<blocks; i++){
+            void *cdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata.data() + i * cblock_stride));
+            void *rdata = reinterpret_cast<void*>(outdata + i * rblock_stride);
+            rocm::check_error( rocfft_execute(
+                (std::is_same<precision_type, float>::value) ? *sbackward : *dbackward,
+                &cdata, &rdata, info), "rocfft execute");
+        }
+        rocfft_execution_info_destroy(info);
     }
 
     //! \brief Returns the size of the box with real data.
@@ -853,7 +783,7 @@ template<> struct data_scaling<tag::gpu>{
  */
 template<> struct default_plan_options<backend::rocfft>{
     //! \brief The reshape operations will not transpose the data.
-    static const bool use_reorder = false;
+    static const bool use_reorder = true;
 };
 
 }

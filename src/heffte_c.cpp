@@ -124,8 +124,8 @@ namespace heffte{
                 return call_returnable_c_template(reinterpret_cast<heffte::fft3d_r2c<heffte::backend::cufft> const*>(plan->fft), fname(), args...);
             #endif
             #ifdef Heffte_ENABLE_ROCM
-//             if (plan->backend_type == Heffte_BACKEND_ROCFFT)
-//                 return call_returnable_c_template(reinterpret_cast<heffte::fft3d_r2c<heffte::backend::rocfft> const*>(plan->fft), fname(), args...);
+            if (plan->backend_type == Heffte_BACKEND_ROCFFT)
+                return call_returnable_c_template(reinterpret_cast<heffte::fft3d_r2c<heffte::backend::rocfft> const*>(plan->fft), fname(), args...);
             #endif
         }else{
             #ifdef Heffte_ENABLE_FFTW
@@ -292,9 +292,9 @@ int heffte_plan_create_r2c(int backend, int const inbox_low[3], int const inbox_
     }
     #endif
     #ifdef Heffte_ENABLE_ROCM
-//     if (backend == Heffte_BACKEND_ROCFFT){
-//         (*plan)->fft = reinterpret_cast<void*>(new heffte::fft3d_r2c<heffte::backend::rocfft>(inbox, outbox, r2c_direction, comm, cpp_opts));
-//     }
+    if (backend == Heffte_BACKEND_ROCFFT){
+        (*plan)->fft = reinterpret_cast<void*>(new heffte::fft3d_r2c<heffte::backend::rocfft>(inbox, outbox, r2c_direction, comm, cpp_opts));
+    }
     #endif
 
     }catch(std::runtime_error &){
@@ -322,8 +322,8 @@ int heffte_plan_destroy(heffte_plan plan){
             delete reinterpret_cast<heffte::fft3d_r2c<heffte::backend::cufft>*>(plan->fft);
         #endif
         #ifdef Heffte_ENABLE_ROCM
-//         if (plan->backend_type == Heffte_BACKEND_ROCFFT)
-//             delete reinterpret_cast<heffte::fft3d_r2c<heffte::backend::rocfft>*>(plan->fft);
+        if (plan->backend_type == Heffte_BACKEND_ROCFFT)
+            delete reinterpret_cast<heffte::fft3d_r2c<heffte::backend::rocfft>*>(plan->fft);
         #endif
     }else{
         #ifdef Heffte_ENABLE_FFTW

@@ -676,7 +676,8 @@ void test_rocfft_1d_r2c(){
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
 
-    for(size_t i=0; i<reference.size(); i++){
+    //for(size_t i=0; i<reference.size(); i++){
+    for(size_t i=0; i<1; i++){
         heffte::rocfft_executor_r2c fft(box, i);
 
         rocm::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
@@ -696,8 +697,8 @@ void test_rocfft(){
     test_rocfft_1d_real<double>();
     test_rocfft_1d_complex<std::complex<float>>();
     test_rocfft_1d_complex<std::complex<double>>();
-    //test_rocfft_1d_r2c<float>();
-    //test_rocfft_1d_r2c<double>();
+    test_rocfft_1d_r2c<float>();
+    test_rocfft_1d_r2c<double>();
 }
 #else
 void test_rocm_vector(){} // skip rocm
@@ -792,17 +793,19 @@ void test_1d_reorder(){
         for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
         sassert(approx(cpu_cresult, cinput));
 
-//         heffte::cufft_executor_r2c fft_r2c(box, box.order[i]);
-//
-//         cuda::vector<ctype> rresult(rreference[i].size());
-//         fft_r2c.forward(cuda::load(rinput).data(), rresult.data());
-//         sassert(approx(rresult, rreference[i]));
-//
-//         cuda::vector<rtype> brresult(rinput.size());
-//         fft_r2c.backward(rresult.data(), brresult.data());
-//         auto cpu_brresult = cuda::unload(brresult);
-//         for(auto &r : cpu_brresult) r /= (2.0 + box.order[i]);
-//         sassert(approx(cpu_brresult, rinput));
+        if (i == 0){
+            heffte::rocfft_executor_r2c fft_r2c(box, box.order[i]);
+
+            rocm::vector<ctype> rresult(rreference[i].size());
+            fft_r2c.forward(rocm::load(rinput).data(), rresult.data());
+            sassert(approx(rresult, rreference[i]));
+
+            rocm::vector<rtype> brresult(rinput.size());
+            fft_r2c.backward(rresult.data(), brresult.data());
+            auto cpu_brresult = rocm::unload(brresult);
+            for(auto &r : cpu_brresult) r /= (2.0 + box.order[i]);
+            sassert(approx(cpu_brresult, rinput));
+        }
     }
     #endif
 }
@@ -993,61 +996,58 @@ void test_cross_reference_type(){
         }
     }
 }
-// template<typename scalar_type>
-// void test_cross_reference_r2c(){
-//     current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
-//
-//     for(int case_counter = 0; case_counter < 2; case_counter++){
-//         // due to alignment issues on the cufft side
-//         // need to check the case when both size[0] and size[1] are odd
-//         //                        when at least one is even
-//         box3d box = (case_counter == 0) ?
-//                     box3d({0, 0, 0}, {42, 70, 21}) :
-//                     box3d({0, 0, 0}, {41, 50, 21});
-//
-//         auto input = make_data<scalar_type>(box);
-//         cuda::vector<scalar_type> cuinput = cuda::load(input);
-//
-//         for(int i=0; i<3; i++){
-//             heffte::fftw_executor_r2c  fft_cpu(box, i);
-//             heffte::cufft_executor_r2c fft_gpu(box, i);
-//
-//             std::vector<typename fft_output<scalar_type>::type> result(fft_cpu.complex_size());
-//             cuda::vector<typename fft_output<scalar_type>::type> curesult(fft_gpu.complex_size());
-//
-//             fft_cpu.forward(input.data(), result.data());
-//             fft_gpu.forward(cuinput.data(), curesult.data());
-//
-//             if (std::is_same<scalar_type, float>::value){
-//                 sassert(approx(curesult, result, 0.005)); // float complex is not well conditioned
-//             }else{
-//                 sassert(approx(curesult, result));
-//             }
-//
-//             std::vector<scalar_type> inverse(fft_cpu.real_size());
-//             cuda::vector<scalar_type> cuinverse(fft_gpu.real_size());
-//
-//             fft_cpu.backward(result.data(), inverse.data());
-//             fft_gpu.backward(curesult.data(), cuinverse.data());
-//
-//             data_scaling<tag::cpu>::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
-//             data_scaling<tag::gpu>::apply(cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
-//
-//             if (std::is_same<scalar_type, float>::value){
-//                 sassert(approx(inverse, input));
-//                 sassert(approx(cuinverse, input));
-//             }else{
-//                 sassert(approx(inverse, input));
-//                 sassert(approx(cuinverse, input));
-//             }
-//         }
-//     }
-// }
+template<typename scalar_type>
+void test_cross_reference_r2c(){
+    current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
+
+    for(int case_counter = 0; case_counter < 2; case_counter++){
+        // due to alignment issues on the cufft side
+        // need to check the case when both size[0] and size[1] are odd
+        //                        when at least one is even
+        box3d box = (case_counter == 0) ?
+                    box3d({0, 0, 0}, {42, 70, 21}) :
+                    box3d({0, 0, 0}, {41, 50, 21});
+
+        auto input = make_data<scalar_type>(box);
+        rocm::vector<scalar_type> cuinput = rocm::load(input);
+
+        //for(int i=0; i<3; i++){
+        for(int i=0; i<1; i++){
+            heffte::fftw_executor_r2c  fft_cpu(box, i);
+            heffte::rocfft_executor_r2c fft_gpu(box, i);
+
+            std::vector<typename fft_output<scalar_type>::type> result(fft_cpu.complex_size());
+            rocm::vector<typename fft_output<scalar_type>::type> curesult(fft_gpu.complex_size());
+
+            fft_cpu.forward(input.data(), result.data());
+            fft_gpu.forward(cuinput.data(), curesult.data());
+
+            if (std::is_same<scalar_type, float>::value){
+                sassert(approx(curesult, result, 0.005)); // float complex is not well conditioned
+            }else{
+                sassert(approx(curesult, result));
+            }
+            sassert(approx(cuinput, input)); // checks const-correctness
+
+            std::vector<scalar_type> inverse(fft_cpu.real_size());
+            rocm::vector<scalar_type> cuinverse(fft_gpu.real_size());
+
+            fft_cpu.backward(result.data(), inverse.data());
+            fft_gpu.backward(curesult.data(), cuinverse.data());
+
+            data_scaling<tag::cpu>::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling<tag::gpu>::apply(cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
+
+            sassert(approx(inverse, input));
+            sassert(approx(cuinverse, input));
+        }
+    }
+}
 void test_cross_reference_fftw_rocm(){
     test_cross_reference_type<std::complex<float>>();
     test_cross_reference_type<std::complex<double>>();
-//     test_cross_reference_r2c<float>();
-//     test_cross_reference_r2c<double>();
+    test_cross_reference_r2c<float>();
+    test_cross_reference_r2c<double>();
 }
 #else
 void test_cross_reference_fftw_rocm(){}
