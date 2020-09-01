@@ -223,8 +223,8 @@ void perform_tests(int backend, MPI_Comm const comm){
     hassert(heffte_plan_create_r2c(backend, full_low, full_high, NULL, r2c_low, r2c_high, NULL, 2, comm, NULL, &plan) == Heffte_SUCCESS);
 
     hassert(heffte_size_inbox(plan) == 32);
-    hassert(heffte_size_outbox(plan) == (me == 0) ? 32 : 16);
-    hassert(heffte_size_workspace(plan) == (me == 0) ? 96 : 88);
+    hassert(heffte_size_outbox(plan) == ((me == 0) ? 32 : 16));
+    hassert(heffte_size_workspace(plan) == ((me == 0) ? 96 : 88));
     hassert(heffte_get_backend(plan) == backend);
     hassert(heffte_is_r2c(plan));
 
@@ -388,8 +388,8 @@ void perform_tests_gpu(int backend, MPI_Comm const comm){
     hassert(heffte_plan_create_r2c(backend, full_low, full_high, NULL, r2c_low, r2c_high, NULL, 2, comm, NULL, &plan) == Heffte_SUCCESS);
 
     hassert(heffte_size_inbox(plan) == 32);
-    hassert(heffte_size_outbox(plan) == (me == 0) ? 32 : 16);
-    hassert(heffte_size_workspace(plan) == (me == 0) ? 96 : 88);
+    hassert(heffte_size_outbox(plan) == ((me == 0) ? 32 : 16));
+    hassert(heffte_size_workspace(plan) == ((me == 0) ? 96 : 88));
     hassert(heffte_get_backend(plan) == backend);
     hassert(heffte_is_r2c(plan));
 
