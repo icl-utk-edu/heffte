@@ -7,6 +7,13 @@
 
 #include "test_fft3d.h"
 
+#ifdef Heffte_ENABLE_CUDA
+using gpu_backend = heffte::backend::cufft;
+#endif
+#ifdef Heffte_ENABLE_ROCM
+using gpu_backend = heffte::backend::rocfft;
+#endif
+
 template<typename backend_tag, typename precision_type>
 void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &args){
 
@@ -69,11 +76,11 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     std::copy(input.begin(), input.end(), output.begin());
 
     std::complex<precision_type> *output_array = output.data();
-    #ifdef Heffte_ENABLE_CUDA
-    cuda::vector<std::complex<precision_type>> cuda_output;
-    if (std::is_same<backend_tag, backend::cufft>::value){
-        cuda_output = cuda::load(output);
-        output_array = cuda_output.data();
+    #ifdef Heffte_ENABLE_GPU
+    gpu::vector<std::complex<precision_type>> gpu_output;
+    if (std::is_same<backend_tag, gpu_backend>::value){
+        gpu_output = gpu::load(output);
+        output_array = gpu_output.data();
     }
     #endif
 
@@ -103,10 +110,10 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
 	MPI_Reduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, 0, fft_comm);
 
     // Validate result
-    #ifdef Heffte_ENABLE_CUDA
-    if (std::is_same<backend_tag, backend::cufft>::value){
+    #ifdef Heffte_ENABLE_GPU
+    if (std::is_same<backend_tag, gpu_backend>::value){
         // unload from the GPU, if it was stored there
-        output = cuda::unload(cuda_output);
+        output = gpu::unload(gpu_output);
     }
     #endif
     output.resize(input.size()); // match the size of the original input
@@ -157,6 +164,20 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     }
 }
 
+template<typename backend_tag>
+bool perform_benchmark(std::string const &precision_string, std::string const &backend_string, std::string const &backend_name,
+                       std::array<int,3> size_fft, std::deque<std::string> const &args){
+    if (backend_string == backend_name){
+        if (precision_string == "float"){
+            benchmark_fft<backend_tag, float>(size_fft, args);
+        }else{
+            benchmark_fft<backend_tag, double>(size_fft, args);
+        }
+        return true;
+    }
+    return false;
+}
+
 int main(int argc, char *argv[]){
 
     MPI_Init(&argc, &argv);
@@ -173,6 +194,9 @@ int main(int argc, char *argv[]){
     #endif
     #ifdef Heffte_ENABLE_CUDA
     backends += "cufft ";
+    #endif
+    #ifdef Heffte_ENABLE_ROCM
+    backends += "rocfft ";
     #endif
     #ifdef Heffte_ENABLE_MKL
     backends += "mkl ";
@@ -236,34 +260,16 @@ int main(int argc, char *argv[]){
 
     bool valid_backend = false;
     #ifdef Heffte_ENABLE_FFTW
-    if (backend_string == "fftw"){
-        if (precision_string == "float"){
-            benchmark_fft<backend::fftw, float>(size_fft, arguments(argc, argv));
-        }else{
-            benchmark_fft<backend::fftw, double>(size_fft, arguments(argc, argv));
-        }
-        valid_backend = true;
-    }
+    valid_backend = valid_backend or perform_benchmark<backend::fftw>(precision_string, backend_string, "fftw", size_fft, arguments(argc, argv));
     #endif
     #ifdef Heffte_ENABLE_MKL
-    if (backend_string == "mkl"){
-        if (precision_string == "float"){
-            benchmark_fft<backend::mkl, float>(size_fft, arguments(argc, argv));
-        }else{
-            benchmark_fft<backend::mkl, double>(size_fft, arguments(argc, argv));
-        }
-        valid_backend = true;
-    }
+    valid_backend = valid_backend or perform_benchmark<backend::mkl>(precision_string, backend_string, "mkl", size_fft, arguments(argc, argv));
     #endif
     #ifdef Heffte_ENABLE_CUDA
-    if (backend_string == "cufft"){
-        if (precision_string == "float"){
-            benchmark_fft<backend::cufft, float>(size_fft, arguments(argc, argv));
-        }else{
-            benchmark_fft<backend::cufft, double>(size_fft, arguments(argc, argv));
-        }
-        valid_backend = true;
-    }
+    valid_backend = valid_backend or perform_benchmark<backend::cufft>(precision_string, backend_string, "cufft", size_fft, arguments(argc, argv));
+    #endif
+    #ifdef Heffte_ENABLE_ROCM
+    valid_backend = valid_backend or perform_benchmark<backend::rocfft>(precision_string, backend_string, "rocfft", size_fft, arguments(argc, argv));
     #endif
 
     if (not valid_backend){
