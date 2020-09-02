@@ -27,7 +27,8 @@ Documentation
 =============
 
 * Installation and a Doxygen documentation can be done with the CMake options `-D Heffte_ENABLE_DOXYGEN=ON`
-* [Online Doxygen Documentation](https://mkstoyanov.bitbucket.io/heffte/)
+* [Online Documentation](https://mkstoyanov.bitbucket.io/heffte/)
+* [HeFFTe installation](https://mkstoyanov.bitbucket.io/heffte/md_doxygen_installation.html)
 * [HeFFTe Website and Papers](https://www.icl.utk.edu/publications/fft-ecp-fast-fourier-transform)
 
 * * *
