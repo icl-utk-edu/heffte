@@ -132,7 +132,7 @@ help:
 	cp ./include/heffte_config.cmake.h ./include/heffte_config.h
 	sed -i -e 's|@Heffte_VERSION_MAJOR@|1|g' ./include/heffte_config.h
 	sed -i -e 's|@Heffte_VERSION_MINOR@|0|g' ./include/heffte_config.h
-	sed -i -e 's|@Heffte_VERSION_PATCH@|0|g' ./include/heffte_config.h
+	sed -i -e 's|@Heffte_VERSION_PATCH@|1|g' ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_TRACING|#undef Heffte_ENABLE_TRACING|g' ./include/heffte_config.h
 
 .PHONY.: with_fftw no_fftw with_cufft no_cufft
