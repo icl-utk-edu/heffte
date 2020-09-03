@@ -39,9 +39,9 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     std::vector<box3d> inboxes  = heffte::split_world(world, proc_i);
     std::vector<box3d> outboxes = heffte::split_world(world, proc_o);
 
-    #ifdef Heffte_ENABLE_CUDA
-    if (std::is_same<backend_tag, backend::cufft>::value and has_mps(args)){
-        heffte::cuda::device_set(me % heffte::cuda::device_count());
+    #ifdef Heffte_ENABLE_GPU
+    if (std::is_same<backend_tag, gpu_backend>::value and has_mps(args)){
+        heffte::gpu::device_set(me % heffte::gpu::device_count());
     }
     #endif
 
