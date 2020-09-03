@@ -14,8 +14,12 @@
 #cmakedefine Heffte_ENABLE_FFTW
 #cmakedefine Heffte_ENABLE_MKL
 #cmakedefine Heffte_ENABLE_CUDA
+#cmakedefine Heffte_ENABLE_ROCM
 
 #cmakedefine Heffte_ENABLE_TRACING
 
+#if defined(Heffte_ENABLE_CUDA) || defined(Heffte_ENABLE_ROCM)
+#define Heffte_ENABLE_GPU
+#endif
 
 #endif  /* HEFFTE_CONFIG_H */

@@ -16,6 +16,10 @@
 #include <cuda_runtime_api.h>
 #include <cuda.h>
 #endif
+#ifdef Heffte_ENABLE_ROCM
+#define __HIP_PLATFORM_HCC__
+#include <hip/hip_runtime.h>
+#endif
 
 // if the condition fails, call MPI_Abort() and print the file and line
 #define hassert(condition) \
@@ -219,8 +223,8 @@ void perform_tests(int backend, MPI_Comm const comm){
     hassert(heffte_plan_create_r2c(backend, full_low, full_high, NULL, r2c_low, r2c_high, NULL, 2, comm, NULL, &plan) == Heffte_SUCCESS);
 
     hassert(heffte_size_inbox(plan) == 32);
-    hassert(heffte_size_outbox(plan) == (me == 0) ? 32 : 16);
-    hassert(heffte_size_workspace(plan) == (me == 0) ? 96 : 88);
+    hassert(heffte_size_outbox(plan) == ((me == 0) ? 32 : 16));
+    hassert(heffte_size_workspace(plan) == ((me == 0) ? 96 : 88));
     hassert(heffte_get_backend(plan) == backend);
     hassert(heffte_is_r2c(plan));
 
@@ -270,12 +274,33 @@ void perform_tests(int backend, MPI_Comm const comm){
     free(zinput);
 }
 
+#ifdef Heffte_ENABLE_GPU
+// perform CUDA/ROCM tests
 #ifdef Heffte_ENABLE_CUDA
-// perform CUDA tests
-void perform_tests_cuda(int backend, MPI_Comm const comm){
-    // CUDA uses a smaller test, CPU tests cover all code CUDA ensures proper work with GPU arrays
+    #define gpuMalloc cudaMalloc
+    #define gpuFree cudaFree
+    #define gpuMemcpy cudaMemcpy
+    #define gpuSuccess cudaSuccess
+    #define gpuMemcpyHostToDevice cudaMemcpyHostToDevice
+    #define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
+#else
+    #define gpuMalloc hipMalloc
+    #define gpuFree hipFree
+    #define gpuMemcpy hipMemcpy
+    #define gpuSuccess hipSuccess
+    #define gpuMemcpyHostToDevice hipMemcpyHostToDevice
+    #define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
+#endif
+void perform_tests_gpu(int backend, MPI_Comm const comm){
+    // The GPU tests a fewer since the C interface only wraps around C++
+    // and all cases of the wrappers calls can be tested with the CPU backend
+    // The GPU tests focus primarily on passing GPU-allocated arrays
+    #ifdef Heffte_ENABLE_CUDA
     if (backend != Heffte_BACKEND_CUFFT){
-        printf("Test must run with Heffte_BACKEND_CUFFT!\n");
+    #else
+    if (backend != Heffte_BACKEND_ROCFFT){
+    #endif
+        printf("Test must run with a GPU backend!\n");
         MPI_Abort(comm, 1);
     }
 
@@ -297,17 +322,17 @@ void perform_tests_cuda(int backend, MPI_Comm const comm){
     double *dresult = NULL;
 
     double *cuda_dinput;
-    hassert( cudaMalloc((void**) &cuda_dinput, 32 * sizeof(double)) == cudaSuccess );
-    hassert( cudaMemcpy(cuda_dinput, dinput, 32 * sizeof(double), cudaMemcpyHostToDevice) == cudaSuccess );
+    hassert( gpuMalloc((void**) &cuda_dinput, 32 * sizeof(double)) == gpuSuccess );
+    hassert( gpuMemcpy(cuda_dinput, dinput, 32 * sizeof(double), gpuMemcpyHostToDevice) == gpuSuccess );
     double *cuda_zinput;
-    hassert( cudaMalloc((void**) &cuda_zinput, 64 * sizeof(double)) == cudaSuccess );
-    hassert( cudaMemcpy(cuda_zinput, zinput, 64 * sizeof(double), cudaMemcpyHostToDevice) == cudaSuccess );
+    hassert( gpuMalloc((void**) &cuda_zinput, 64 * sizeof(double)) == gpuSuccess );
+    hassert( gpuMemcpy(cuda_zinput, zinput, 64 * sizeof(double), gpuMemcpyHostToDevice) == gpuSuccess );
     double *cuda_zoutput;
-    hassert( cudaMalloc((void**) &cuda_zoutput, 64 * sizeof(double)) == cudaSuccess );
+    hassert( gpuMalloc((void**) &cuda_zoutput, 64 * sizeof(double)) == gpuSuccess );
     double *cuda_dresult;
-    hassert( cudaMalloc((void**) &cuda_dresult, 64 * sizeof(double)) == cudaSuccess );
+    hassert( gpuMalloc((void**) &cuda_dresult, 64 * sizeof(double)) == gpuSuccess );
     double *cuda_workspace;
-    hassert( cudaMalloc((void**) &cuda_workspace, 2 * 96 * sizeof(double)) == cudaSuccess );
+    hassert( gpuMalloc((void**) &cuda_workspace, 2 * 96 * sizeof(double)) == gpuSuccess );
 
     int full_low[3] = {0, 0, 0};
     int full_high[3] = {3, 3, 3};
@@ -337,21 +362,21 @@ void perform_tests_cuda(int backend, MPI_Comm const comm){
     hassert(!heffte_is_r2c(plan));
 
     heffte_forward_z2z(plan, cuda_zinput, cuda_zoutput, Heffte_SCALE_NONE);
-    hassert( cudaMemcpy(zoutput, cuda_zoutput, 64 * sizeof(double), cudaMemcpyDeviceToHost) == cudaSuccess );
+    hassert( gpuMemcpy(zoutput, cuda_zoutput, 64 * sizeof(double), gpuMemcpyDeviceToHost) == gpuSuccess );
     hassert(approx_zoutput(zoutput, zrefoutput) == Heffte_SUCCESS);
 
     dresult = calloc(64, sizeof(double));
     heffte_backward_z2z(plan, cuda_zoutput, cuda_dresult, Heffte_SCALE_FULL);
-    hassert( cudaMemcpy(dresult, cuda_dresult, 64 * sizeof(double), cudaMemcpyDeviceToHost) == cudaSuccess );
+    hassert( gpuMemcpy(dresult, cuda_dresult, 64 * sizeof(double), gpuMemcpyDeviceToHost) == gpuSuccess );
     hassert(approx_dinput(dresult, zinput) == Heffte_SUCCESS);
     free(dresult);
 
     heffte_forward_z2z_buffered(plan, cuda_zinput, cuda_zoutput, cuda_workspace, Heffte_SCALE_FULL);
 
     dresult = calloc(64, sizeof(double));
-    hassert( cudaMemcpy(cuda_dresult, dresult, 64 * sizeof(double), cudaMemcpyHostToDevice) == cudaSuccess );
+    hassert( gpuMemcpy(cuda_dresult, dresult, 64 * sizeof(double), gpuMemcpyHostToDevice) == gpuSuccess );
     heffte_backward_z2z_buffered(plan, cuda_zoutput, cuda_dresult, cuda_workspace, Heffte_SCALE_NONE);
-    hassert( cudaMemcpy(dresult, cuda_dresult, 64 * sizeof(double), cudaMemcpyDeviceToHost) == cudaSuccess );
+    hassert( gpuMemcpy(dresult, cuda_dresult, 64 * sizeof(double), gpuMemcpyDeviceToHost) == gpuSuccess );
     hassert(approx_dinput(dresult, zinput) == Heffte_SUCCESS);
     free(dresult);
 
@@ -365,40 +390,40 @@ void perform_tests_cuda(int backend, MPI_Comm const comm){
     hassert(heffte_plan_create_r2c(backend, full_low, full_high, NULL, r2c_low, r2c_high, NULL, 2, comm, NULL, &plan) == Heffte_SUCCESS);
 
     hassert(heffte_size_inbox(plan) == 32);
-    hassert(heffte_size_outbox(plan) == (me == 0) ? 32 : 16);
-    hassert(heffte_size_workspace(plan) == (me == 0) ? 96 : 88);
+    hassert(heffte_size_outbox(plan) == ((me == 0) ? 32 : 16));
+    hassert(heffte_size_workspace(plan) == ((me == 0) ? 96 : 88));
     hassert(heffte_get_backend(plan) == backend);
     hassert(heffte_is_r2c(plan));
 
     // forward and backward variants (double precision)
     heffte_forward_d2z(plan, cuda_dinput, cuda_zoutput, Heffte_SCALE_NONE);
-    hassert( cudaMemcpy(zoutput, cuda_zoutput, 64 * sizeof(double), cudaMemcpyDeviceToHost) == cudaSuccess );
+    hassert( gpuMemcpy(zoutput, cuda_zoutput, 64 * sizeof(double), gpuMemcpyDeviceToHost) == gpuSuccess );
     hassert(approx_zoutput(zoutput, zrefoutput) == Heffte_SUCCESS);
 
     dresult = calloc(64, sizeof(double));
-    hassert( cudaMemcpy(cuda_dresult, dresult, 64 * sizeof(double), cudaMemcpyHostToDevice) == cudaSuccess );
+    hassert( gpuMemcpy(cuda_dresult, dresult, 64 * sizeof(double), gpuMemcpyHostToDevice) == gpuSuccess );
     heffte_backward_z2d(plan, cuda_zoutput, cuda_dresult, Heffte_SCALE_FULL);
-    hassert( cudaMemcpy(dresult, cuda_dresult, 64 * sizeof(double), cudaMemcpyDeviceToHost) == cudaSuccess );
+    hassert( gpuMemcpy(dresult, cuda_dresult, 64 * sizeof(double), gpuMemcpyDeviceToHost) == gpuSuccess );
     hassert(approx_dinput(dresult, dinput) == Heffte_SUCCESS);
     free(dresult);
 
     heffte_forward_d2z_buffered(plan, cuda_dinput, cuda_zoutput, cuda_workspace, Heffte_SCALE_SYMMETRIC);
 
     dresult = calloc(64, sizeof(double));
-    hassert( cudaMemcpy(cuda_dresult, dresult, 64 * sizeof(double), cudaMemcpyHostToDevice) == cudaSuccess );
+    hassert( gpuMemcpy(cuda_dresult, dresult, 64 * sizeof(double), gpuMemcpyHostToDevice) == gpuSuccess );
     heffte_backward_z2d_buffered(plan, cuda_zoutput, cuda_dresult, cuda_workspace, Heffte_SCALE_SYMMETRIC);
-    hassert( cudaMemcpy(dresult, cuda_dresult, 64 * sizeof(double), cudaMemcpyDeviceToHost) == cudaSuccess );
+    hassert( gpuMemcpy(dresult, cuda_dresult, 64 * sizeof(double), gpuMemcpyDeviceToHost) == gpuSuccess );
     hassert(approx_dinput(dresult, dinput) == Heffte_SUCCESS);
     free(dresult);
 
     hassert(heffte_plan_destroy(plan) == Heffte_SUCCESS);
 
     // clean up the arrays
-    hassert( cudaFree(cuda_workspace) == cudaSuccess );
-    hassert( cudaFree(cuda_dresult) == cudaSuccess );
-    hassert( cudaFree(cuda_zoutput) == cudaSuccess );
-    hassert( cudaFree(cuda_dinput) == cudaSuccess );
-    hassert( cudaFree(cuda_zinput) == cudaSuccess );
+    hassert( gpuFree(cuda_workspace) == gpuSuccess );
+    hassert( gpuFree(cuda_dresult) == gpuSuccess );
+    hassert( gpuFree(cuda_zoutput) == gpuSuccess );
+    hassert( gpuFree(cuda_dinput) == gpuSuccess );
+    hassert( gpuFree(cuda_zinput) == gpuSuccess );
 
     free(zoutput);
     free(zrefoutput);
@@ -430,8 +455,12 @@ int main(int argc, char **argv){
     if (me == 0) printf("        Heffte_BACKEND_MKL         OK\n");
     #endif
     #ifdef Heffte_ENABLE_CUDA
-    perform_tests_cuda(Heffte_BACKEND_CUFFT, MPI_COMM_WORLD);
+    perform_tests_gpu(Heffte_BACKEND_CUFFT, MPI_COMM_WORLD);
     if (me == 0) printf("        Heffte_BACKEND_CUFFT       OK\n");
+    #endif
+    #ifdef Heffte_ENABLE_ROCM
+    perform_tests_gpu(Heffte_BACKEND_ROCFFT, MPI_COMM_WORLD);
+    if (me == 0) printf("        Heffte_BACKEND_ROCFFT      OK\n");
     #endif
 
     if (me == 0){

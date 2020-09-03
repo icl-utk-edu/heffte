@@ -542,6 +542,170 @@ void test_gpu_scale(){}
 void test_cufft(){}
 #endif
 
+#ifdef Heffte_ENABLE_ROCM
+template<typename scalar_type>
+void test_rocm_vector_type(size_t num_entries){
+    static_assert(std::is_copy_constructible<rocm::vector<scalar_type>>::value, "Lost copy-constructor for rocm::vector");
+    static_assert(std::is_move_constructible<rocm::vector<scalar_type>>::value, "Lost move-constructor for rocm::vector");
+    static_assert(std::is_copy_assignable<rocm::vector<scalar_type>>::value, "Lost copy-assign for rocm::vector");
+    static_assert(std::is_move_assignable<rocm::vector<scalar_type>>::value, "Lost move-assign for rocm::vector");
+
+    current_test<scalar_type, using_nompi> name("rocm::vector");
+    std::vector<scalar_type> source(num_entries);
+    std::iota(source.begin(), source.end(), 0); // fill source with 0, 1, 2, 3, 4 ...
+    rocm::vector<scalar_type> v1 = rocm::load(source);
+    sassert(v1.size() == source.size());
+    rocm::vector<scalar_type> v2 = v1; // test copy constructor
+    sassert(v1.size() == v2.size());
+    std::vector<scalar_type> dest = rocm::unload(v2);
+    sassert(match(dest, source));
+
+    { // test move constructor
+        rocm::vector<scalar_type> t = std::move(v2);
+        dest = std::vector<scalar_type>(); // reset the destination
+        dest = rocm::unload(t);
+        sassert(match(dest, source));
+    }
+
+    sassert(v2.empty()); // test empty and reset to null after move
+    v2 = std::move(v1);  // test move assignment
+    sassert(v1.empty()); // test if moved out of v1
+
+    dest = std::vector<scalar_type>(); // reset the destination
+    dest = rocm::unload(v2);
+    sassert(match(dest, source));
+
+    v1 = rocm::load(source);
+    v2 = rocm::vector<scalar_type>(v1.data(), v1.data() + num_entries / 2);
+    sassert(v2.size() == num_entries / 2);
+    dest = rocm::unload(v2);
+    source.resize(num_entries / 2);
+    sassert(match(dest, source));
+
+    size_t num_v2 = v2.size();
+    scalar_type *raw_array = v2.release();
+    sassert(v2.empty());
+    v2 = rocm::capture(std::move(raw_array), num_v2);
+    sassert(raw_array == nullptr);
+    sassert(not v2.empty());
+}
+
+void test_rocm_vector(){
+    test_rocm_vector_type<float>(11);
+    test_rocm_vector_type<double>(40);
+    test_rocm_vector_type<std::complex<float>>(73);
+    test_rocm_vector_type<std::complex<double>>(13);
+}
+void test_rocm_scale(){
+    using namespace heffte;
+    current_test<int, using_nompi> name("rocm::scaling");
+    std::vector<float> x = {1.0, 33.0, 88.0, -11.0, 2.0};
+    std::vector<float> y = x;
+    for(auto &v : y) v *= 3.0;
+    auto gx = rocm::load(x);
+    data_scaling<tag::gpu>::apply(gx.size(), gx.data(), 3.0);
+    x = rocm::unload(gx);
+    sassert(approx(x, y));
+
+    std::vector<std::complex<double>> cx = {{1.0, -11.0}, {33.0, 8.0}, {88.0, -11.0}, {2.0, -9.0}};
+    std::vector<std::complex<double>> cy = cx;
+    for(auto &v : cy) v /= 1.33;
+    auto gcx = rocm::load(cx);
+    data_scaling<tag::gpu>::apply(gcx.size(), gcx.data(), 1.0 / 1.33);
+    cx = rocm::unload(gcx);
+    sassert(approx(cx, cy));
+}
+template<typename scalar_type>
+void test_rocfft_1d_complex(){
+    current_test<scalar_type, using_nompi> name("rocfft one-dimension");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::rocfft_executor fft(box, i);
+
+        auto curesult = rocm::load(input);
+        fft.forward(curesult.data());
+        sassert(approx(curesult, reference[i]));
+
+        fft.backward(curesult.data());
+        auto result = rocm::unload(curesult);
+        for(auto &r : result) r /= (2.0 + i);
+        sassert(approx(result, input));
+    }
+}
+template<typename scalar_type>
+void test_rocfft_1d_real(){
+    current_test<scalar_type, using_nompi> name("rocfft one-dimension");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+
+    for(size_t i=0; i<reference.size(); i++){
+        heffte::rocfft_executor fft(box, i);
+
+        rocm::vector<typename fft_output<scalar_type>::type> curesult(input.size());
+        auto cuinput = rocm::load(input);
+        fft.forward(cuinput.data(), curesult.data());
+        sassert(approx(curesult, reference[i]));
+
+        rocm::vector<scalar_type> cuback_result(curesult.size());
+        fft.backward(curesult.data(), cuback_result.data());
+        auto back_result = rocm::unload(cuback_result);
+        for(auto &r : back_result) r /= (2.0 + i);
+        sassert(approx(back_result, input));
+    }
+}
+template<typename scalar_type>
+void test_rocfft_1d_r2c(){
+    current_test<scalar_type, using_nompi> name("rocfft one-dimension r2c");
+
+    // make a box
+    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
+
+    auto const input = make_input<scalar_type>();
+    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
+        { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
+
+    //for(size_t i=0; i<reference.size(); i++){
+    for(size_t i=0; i<1; i++){
+        heffte::rocfft_executor_r2c fft(box, i);
+
+        rocm::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
+        auto cuinput = rocm::load(input);
+        fft.forward(cuinput.data(), result.data());
+        sassert(approx(result, reference[i], 0.01));
+
+        rocm::vector<scalar_type> back_result(fft.real_size());
+        fft.backward(result.data(), back_result.data());
+        data_scaling<tag::gpu>::apply(back_result.size(), back_result.data(), 1.0 / (2.0 + i));
+        sassert(approx(back_result, input, 0.01));
+    }
+}
+
+void test_rocfft(){
+    test_rocfft_1d_real<float>();
+    test_rocfft_1d_real<double>();
+    test_rocfft_1d_complex<std::complex<float>>();
+    test_rocfft_1d_complex<std::complex<double>>();
+    test_rocfft_1d_r2c<float>();
+    test_rocfft_1d_r2c<double>();
+}
+#else
+void test_rocm_vector(){} // skip rocm
+void test_rocm_scale(){}
+void test_rocfft(){}
+#endif
+
 void test_1d_reorder(){
     // includes both c2c and r2c cases
     using rtype = double;
@@ -615,10 +779,42 @@ void test_1d_reorder(){
         sassert(approx(cpu_brresult, rinput));
     }
     #endif
+
+    #ifdef Heffte_ENABLE_ROCM
+    for(size_t i=0; i<3; i++){
+        heffte::rocfft_executor fft(box, box.order[i]);
+
+        auto cresult = rocm::load(cinput);
+        fft.forward(cresult.data());
+        sassert(approx(cresult, creference[i]));
+
+        fft.backward(cresult.data());
+        auto cpu_cresult = rocm::unload(cresult);
+        for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
+        sassert(approx(cpu_cresult, cinput));
+
+        if (i == 0){
+            heffte::rocfft_executor_r2c fft_r2c(box, box.order[i]);
+
+            rocm::vector<ctype> rresult(rreference[i].size());
+            fft_r2c.forward(rocm::load(rinput).data(), rresult.data());
+            sassert(approx(rresult, rreference[i]));
+
+            rocm::vector<rtype> brresult(rinput.size());
+            fft_r2c.backward(rresult.data(), brresult.data());
+            auto cpu_brresult = rocm::unload(brresult);
+            for(auto &r : cpu_brresult) r /= (2.0 + box.order[i]);
+            sassert(approx(cpu_brresult, rinput));
+        }
+    }
+    #endif
 }
 
+template<typename backend_tag>
 void test_in_node_transpose(){
     using scalar_type = double;
+    using vcontainer = typename test_traits<backend_tag>::template container<scalar_type>;
+    using ltag = typename backend::buffer_traits<backend_tag>::location;
     current_test<scalar_type, using_nompi> name("reshape transpose");
 
     std::vector<int> proc, offset, sizes; // dummy variables, only needed to call the overlap map method
@@ -626,70 +822,64 @@ void test_in_node_transpose(){
 
     box3d inbox({0, 0, 0}, {1, 2, 3}, {0, 1, 2}); // reference box
     auto const input = make_input<scalar_type>(); // reference input
-    std::vector<double> result(24); // result from a transpose operation
 
     // test 1, transpose the data to order (1, 2, 0)
     box3d destination1({0, 0, 0}, {1, 2, 3}, {1, 2, 0});
     heffte::compute_overlap_map_transpose_pack(0, 1, destination1, {inbox}, proc, offset, sizes, plans);
-    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(input.data(), result.data(), nullptr);
 
     std::vector<scalar_type> reference = {1.0, 3.0, 5.0, 7.0,  9.0, 11.0, 13.0, 15.0, 17.0, 19.0, 21.0, 23.0,
                                           2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0};
-    sassert(match(result, reference));
 
-    #ifdef Heffte_ENABLE_CUDA
-    auto gpu_input = cuda::load(input);
-    cuda::vector<scalar_type> gpu_result(24);
-    heffte::reshape3d_transpose<heffte::tag::gpu>(plans[0]).apply(gpu_input.data(), gpu_result.data(), nullptr);
-    sassert(match(gpu_result, reference));
-    #endif
+    auto active_intput = test_traits<backend_tag>::load(input);
+    vcontainer result(24);
+    heffte::reshape3d_transpose<ltag>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
+
+    sassert(match(result, reference));
 
     // test 2, transpose the data to order (2, 1, 0)
     box3d destination2({0, 0, 0}, {1, 2, 3}, {2, 1, 0});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination2, {inbox}, proc, offset, sizes, plans);
-    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(input.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     reference = {1.0,  7.0, 13.0, 19.0,  3.0,  9.0, 15.0, 21.0,  5.0, 11.0, 17.0, 23.0,
                  2.0,  8.0, 14.0, 20.0,  4.0, 10.0, 16.0, 22.0,  6.0, 12.0, 18.0, 24.0};
     sassert(match(result, reference));
 
-    #ifdef Heffte_ENABLE_CUDA
-    heffte::reshape3d_transpose<heffte::tag::gpu>(plans[0]).apply(gpu_input.data(), gpu_result.data(), nullptr);
-    sassert(match(gpu_result, reference));
-    #endif
-
     // flip back the data
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, inbox, {destination2}, proc, offset, sizes, plans);
-    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(reference.data(), result.data(), nullptr);
+    auto active_reference = test_traits<backend_tag>::load(reference);
+    heffte::reshape3d_transpose<ltag>(plans[0]).apply(active_reference.data(), result.data(), nullptr);
     sassert(match(result, input));
-
-    #ifdef Heffte_ENABLE_CUDA
-    gpu_input = cuda::load(reference);
-    heffte::reshape3d_transpose<heffte::tag::gpu>(plans[0]).apply(gpu_input.data(), gpu_result.data(), nullptr);
-    sassert(match(gpu_result, input));
-    #endif
 
     // test 3, transpose the data to order (0, 2, 1)
     box3d destination3({0, 0, 0}, {1, 2, 3}, {0, 2, 1});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination3, {inbox}, proc, offset, sizes, plans);
-    heffte::reshape3d_transpose<heffte::tag::cpu>(plans[0]).apply(input.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     reference = {1.0, 2.0,  7.0,  8.0, 13.0, 14.0, 19.0, 20.0,
                  3.0, 4.0,  9.0, 10.0, 15.0, 16.0, 21.0, 22.0,
                  5.0, 6.0, 11.0, 12.0, 17.0, 18.0, 23.0, 24.0};
     sassert(match(result, reference));
+}
 
+void test_transpose(){
+    #ifdef Heffte_ENABLE_FFTW
+    test_in_node_transpose<backend::fftw>();
+    #endif
+    #ifdef Heffte_ENABLE_MKL
+    test_in_node_transpose<backend::mkl>();
+    #endif
     #ifdef Heffte_ENABLE_CUDA
-    gpu_input = cuda::load(input);
-    heffte::reshape3d_transpose<heffte::tag::gpu>(plans[0]).apply(gpu_input.data(), gpu_result.data(), nullptr);
-    sassert(match(gpu_result, reference));
+    test_in_node_transpose<backend::cufft>();
+    #endif
+    #ifdef Heffte_ENABLE_ROCM
+    test_in_node_transpose<backend::rocfft>();
     #endif
 }
 
-#if defined(Heffte_ENABLE_FFTW) and defined(Heffte_ENABLE_CUDA)
 template<typename scalar_type>
 std::vector<scalar_type> make_data(box3d const world){
     std::minstd_rand park_miller(4242);
@@ -700,6 +890,7 @@ std::vector<scalar_type> make_data(box3d const world){
         r = static_cast<scalar_type>(unif(park_miller));
     return result;
 }
+#if defined(Heffte_ENABLE_FFTW) and defined(Heffte_ENABLE_CUDA)
 template<typename scalar_type>
 void test_cross_reference_type(){
     current_test<scalar_type, using_nompi> name("cufft - fftw reference");
@@ -772,14 +963,94 @@ void test_cross_reference_r2c(){
         }
     }
 }
-void test_cross_reference(){
+void test_cross_reference_fftw_cuda(){
     test_cross_reference_type<std::complex<float>>();
     test_cross_reference_type<std::complex<double>>();
     test_cross_reference_r2c<float>();
     test_cross_reference_r2c<double>();
 }
 #else
-void test_cross_reference(){}
+void test_cross_reference_fftw_cuda(){}
+#endif
+
+#if defined(Heffte_ENABLE_FFTW) and defined(Heffte_ENABLE_ROCM)
+template<typename scalar_type>
+void test_cross_reference_type(){
+    current_test<scalar_type, using_nompi> name("rocfft - fftw reference");
+
+    box3d box = {{0, 0, 0}, {42, 75, 23}};
+    auto input = make_data<scalar_type>(box);
+    auto rocinput = rocm::load(input);
+
+    for(int i=0; i<3; i++){
+        heffte::fftw_executor  fft_cpu(box, i);
+        heffte::rocfft_executor fft_gpu(box, i);
+
+        fft_cpu.forward(input.data());
+        fft_gpu.forward(rocinput.data());
+
+        if (std::is_same<scalar_type, std::complex<float>>::value){
+            sassert(approx(rocinput, input, 0.0005)); // float complex is not well conditioned
+        }else{
+            sassert(approx(rocinput, input, 0.1));
+        }
+    }
+}
+template<typename scalar_type>
+void test_cross_reference_r2c(){
+    current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
+
+    for(int case_counter = 0; case_counter < 2; case_counter++){
+        // due to alignment issues on the cufft side
+        // need to check the case when both size[0] and size[1] are odd
+        //                        when at least one is even
+        box3d box = (case_counter == 0) ?
+                    box3d({0, 0, 0}, {42, 70, 21}) :
+                    box3d({0, 0, 0}, {41, 50, 21});
+
+        auto input = make_data<scalar_type>(box);
+        rocm::vector<scalar_type> cuinput = rocm::load(input);
+
+        //for(int i=0; i<3; i++){
+        for(int i=0; i<1; i++){
+            heffte::fftw_executor_r2c  fft_cpu(box, i);
+            heffte::rocfft_executor_r2c fft_gpu(box, i);
+
+            std::vector<typename fft_output<scalar_type>::type> result(fft_cpu.complex_size());
+            rocm::vector<typename fft_output<scalar_type>::type> curesult(fft_gpu.complex_size());
+
+            fft_cpu.forward(input.data(), result.data());
+            fft_gpu.forward(cuinput.data(), curesult.data());
+
+            if (std::is_same<scalar_type, float>::value){
+                sassert(approx(curesult, result, 0.005)); // float complex is not well conditioned
+            }else{
+                sassert(approx(curesult, result));
+            }
+            sassert(approx(cuinput, input)); // checks const-correctness
+
+            std::vector<scalar_type> inverse(fft_cpu.real_size());
+            rocm::vector<scalar_type> cuinverse(fft_gpu.real_size());
+
+            fft_cpu.backward(result.data(), inverse.data());
+            fft_gpu.backward(curesult.data(), cuinverse.data());
+
+            data_scaling<tag::cpu>::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling<tag::gpu>::apply(cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
+
+            sassert(approx(inverse, input));
+            sassert(approx(cuinverse, input));
+        }
+    }
+}
+void test_cross_reference_fftw_rocm(){
+    test_cross_reference_type<std::complex<float>>();
+    test_cross_reference_type<std::complex<double>>();
+    test_cross_reference_r2c<float>();
+    test_cross_reference_r2c<double>();
+}
+#else
+void test_cross_reference_fftw_rocm(){}
 #endif
 
 int main(int, char**){
@@ -794,14 +1065,19 @@ int main(int, char**){
     test_cuda_vector();
     test_gpu_scale();
 
+    test_rocm_vector();
+    test_rocm_scale();
+
     test_fftw();
     test_mkl();
     test_cufft();
+    test_rocfft();
 
     test_1d_reorder();
-    test_in_node_transpose();
+    test_transpose();
 
-    test_cross_reference();
+    test_cross_reference_fftw_cuda();
+    test_cross_reference_fftw_rocm();
 
     return 0;
 }
