@@ -292,7 +292,9 @@ void perform_tests(int backend, MPI_Comm const comm){
     #define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
 #endif
 void perform_tests_gpu(int backend, MPI_Comm const comm){
-    // CUDA uses a smaller test, CPU tests cover all code CUDA ensures proper work with GPU arrays
+    // The GPU tests a fewer since the C interface only wraps around C++
+    // and all cases of the wrappers calls can be tested with the CPU backend
+    // The GPU tests focus primarily on passing GPU-allocated arrays
     #ifdef Heffte_ENABLE_CUDA
     if (backend != Heffte_BACKEND_CUFFT){
     #else

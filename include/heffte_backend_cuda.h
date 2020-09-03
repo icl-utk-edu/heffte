@@ -38,7 +38,7 @@ namespace cuda {
 
     /*!
      * \ingroup hefftecuda
-     * \brief Checks the status of a cuda command and in case of a failure, converts it to a C++ exception.
+     * \brief Checks the status of a CUDA command and in case of a failure, converts it to a C++ exception.
      */
     void check_error(cudaError_t status, std::string const &function_name);
     /*!
@@ -60,7 +60,7 @@ namespace cuda {
      * \ingroup hefftecuda
      * \brief Wrapper around cudaSetDevice()
      *
-     * \param active_device is the new active cuda device for this thread, see the Nvidia documentation for cudaSetDevice()
+     * \param active_device is the new active CUDA device for this thread, see the Nvidia documentation for cudaSetDevice()
      */
     void device_set(int active_device);
 
@@ -72,7 +72,7 @@ namespace cuda {
 
     /*!
      * \ingroup hefftecuda
-     * \brief Container that wraps around a raw cuda array.
+     * \brief Container that wraps around a raw CUDA array.
      */
     template<typename scalar_type> class vector{
     public:
@@ -126,7 +126,7 @@ namespace cuda {
         }
 
     protected:
-        //! \brief Allocate a new cuda array with the given size.
+        //! \brief Allocate a new CUDA array with the given size.
         static scalar_type* alloc(size_t new_size);
 
     private:
@@ -740,7 +740,7 @@ template<typename scalar_type>
 void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]);
 /*!
  * \ingroup hefftecuda
- * \brief Performs a tranpose-unpack operation for data sitting on the GPU device.
+ * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
  *
  * Launches a CUDA kernel.
  */

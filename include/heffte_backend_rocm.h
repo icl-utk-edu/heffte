@@ -60,7 +60,7 @@ namespace rocm {
      * \ingroup heffterocm
      * \brief Wrapper around hipSetDevice()
      *
-     * \param active_device is the new active cuda device for this thread, see the AMD documentation for hipSetDevice()
+     * \param active_device is the new active ROCM device for this thread, see the AMD documentation for hipSetDevice()
      */
     void device_set(int active_device);
 
@@ -72,7 +72,7 @@ namespace rocm {
 
     /*!
      * \ingroup heffterocm
-     * \brief Container that wraps around a raw cuda array.
+     * \brief Container that wraps around a raw ROCM array.
      */
     template<typename scalar_type> class vector{
     public:
@@ -126,7 +126,7 @@ namespace rocm {
         }
 
     protected:
-        //! \brief Allocate a new cuda array with the given size.
+        //! \brief Allocate a new ROCM array with the given size.
         static scalar_type* alloc(size_t new_size);
 
     private:
@@ -225,11 +225,11 @@ namespace rocm {
 
     /*!
      * \ingroup heffterocm
-     * \brief Copy the data from a cuda::vector to a cpu buffer
+     * \brief Copy the data from a rocm::vector to a cpu buffer
      *
      * \tparam scalar_type of the vector entries
      *
-     * \param gpu_data is the cuda::vector to holding the data to unload
+     * \param gpu_data is the rocm::vector to holding the data to unload
      * \param cpu_data is a buffer with size at least \b gpu_data.size() that sits in the CPU
      */
     template<typename scalar_type>
@@ -250,7 +250,7 @@ namespace rocm {
      * \ingroup heffterocm
      * \brief Convert real numbers to complex when both are located on the GPU device.
      *
-     * Launches a CUDA kernel.
+     * Launches a ROCM kernel.
      */
     template<typename precision_type>
     void convert(int num_entries, precision_type const source[], std::complex<precision_type> destination[]);
@@ -258,7 +258,7 @@ namespace rocm {
      * \ingroup heffterocm
      * \brief Convert complex numbers to real when both are located on the GPU device.
      *
-     * Launches a CUDA kernel.
+     * Launches a ROCM kernel.
      */
     template<typename precision_type>
     void convert(int num_entries, std::complex<precision_type> const source[], precision_type destination[]);
@@ -277,7 +277,7 @@ namespace rocm {
  */
 template<> struct data_manipulator<tag::gpu>{
     /*!
-     * \brief Equivalent to std::copy_n() but using CUDA arrays.
+     * \brief Equivalent to std::copy_n() but using ROCM arrays.
      */
     template<typename scalar_type>
     static void copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]);
@@ -322,13 +322,13 @@ namespace backend{
 
     /*!
      * \ingroup heffterocm
-     * \brief Defines the location type-tag and the cuda container.
+     * \brief Defines the location type-tag and the ROCM container.
      */
     template<>
     struct buffer_traits<rocfft>{
         //! \brief The rocfft library uses data on the gpu device.
         using location = tag::gpu;
-        //! \brief The data is managed by the cuda vector container.
+        //! \brief The data is managed by the ROCM vector container.
         template<typename T> using container = heffte::rocm::vector<T>;
     };
 
@@ -710,7 +710,7 @@ template<typename scalar_type>
 void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]);
 /*!
  * \ingroup heffterocm
- * \brief Performs a tranpose-unpack operation for data sitting on the GPU device.
+ * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
  *
  * Launches a HIP kernel.
  */

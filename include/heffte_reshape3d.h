@@ -137,7 +137,7 @@ public:
         apply_base(source, destination, workspace);
     }
 
-    //! \brief Templated apply algorithm for all scalar types.
+    //! \brief Templated reshape3d_alltoallv::apply() algorithm for all scalar types.
     template<typename scalar_type>
     void apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
 
@@ -246,11 +246,11 @@ public:
         apply_base(source, destination, workspace);
     }
 
-    //! \brief Templated apply algorithm for all scalar types.
+    //! \brief Templated reshape3d_pointtopoint::apply() algorithm for all scalar types.
     template<typename scalar_type>
     void apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
 
-    //! \brief Templated apply algorithm for all scalar types.
+    //! \brief Templated reshape3d_pointtopoint::apply() algorithm for all scalar types.
     template<typename scalar_type>
     void rocm_send_recv(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
 
