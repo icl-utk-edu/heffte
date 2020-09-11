@@ -102,6 +102,10 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
         heffte::add_trace("mark backward begin");
         fft.backward(output_array, output_array, workspace.data());
     }
+    #ifdef Heffte_ENABLE_GPU
+    if (std::is_same<backend_tag, gpu_backend>::value)
+        gpu::synchronize_default_stream();
+    #endif
     t += MPI_Wtime();
     MPI_Barrier(fft_comm);
 
