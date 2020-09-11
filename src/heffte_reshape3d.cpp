@@ -153,7 +153,7 @@ reshape3d_alltoallv<backend_tag, packer>::reshape3d_alltoallv(
                         std::vector<pack_plan_3d> &&cpackplan, std::vector<pack_plan_3d> &&cunpackplan
                                                                 ) :
     reshape3d_base(cinput_size, coutput_size),
-    comm(mpi::new_comm_form_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
+    comm(mpi::new_comm_from_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
     send_total(std::accumulate(send_size.begin(), send_size.end(), 0)),
