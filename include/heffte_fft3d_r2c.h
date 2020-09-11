@@ -76,7 +76,11 @@ public:
      */
     fft3d_r2c(box3d const inbox, box3d const outbox, int r2c_direction, MPI_Comm const comm,
               plan_options const options = default_options<backend_tag>()) :
-        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, options),
+        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction,
+                                  #ifdef Heffte_ENABLE_ROCM
+                                  (std::is_same<backend_tag, backend::rocfft>::value) ? force_reorder(options) :
+                                  #endif
+                                  options),
                   mpi::comm_rank(comm), comm){
         assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");

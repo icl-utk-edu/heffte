@@ -140,5 +140,8 @@ heffte_instantiate_fft3d_r2c(backend::mkl)
 #ifdef Heffte_ENABLE_CUDA
 heffte_instantiate_fft3d_r2c(backend::cufft)
 #endif
+#ifdef Heffte_ENABLE_ROCM
+heffte_instantiate_fft3d_r2c(backend::rocfft)
+#endif
 
 }

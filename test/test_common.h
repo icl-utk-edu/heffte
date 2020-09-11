@@ -126,7 +126,7 @@ inline bool match_verbose(std::vector<T> const &a, std::vector<T> const &b){
 }
 
 template<typename T> struct precision{};
-template<> struct precision<float>{ static constexpr float tolerance = 1.E-6; };
+template<> struct precision<float>{ static constexpr float tolerance = 2.E-4; };
 template<> struct precision<double>{ static constexpr double tolerance = 1.E-11; };
 template<> struct precision<std::complex<float>>{ static constexpr float tolerance = 2.E-4; };
 template<> struct precision<std::complex<double>>{ static constexpr double tolerance = 1.E-11; };
@@ -142,7 +142,17 @@ inline bool approx(std::vector<T> const &a, std::vector<T> const &b, double corr
     return true;
 }
 
+template<typename backend_tag>
+struct test_traits{
+    template<typename T> using container = typename backend::buffer_traits<backend_tag>::template container<T>;
+    template<typename T>
+    static container<T> load(std::vector<T> const &x){ return x; }
+    template<typename T>
+    static std::vector<T> unload(container<T> const &x){ return x; }
+};
+
 #ifdef Heffte_ENABLE_CUDA
+using gpu_backend = heffte::backend::cufft;
 template<typename T>
 inline bool match(heffte::cuda::vector<T> const &a, std::vector<T> const &b){
     return match(cuda::unload(a), b);
@@ -151,6 +161,31 @@ template<typename T>
 inline bool approx(heffte::cuda::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
     return approx(cuda::unload(a), b, correction);
 }
+template<> struct test_traits<backend::cufft>{
+    template<typename T> using container = cuda::vector<T>;
+    template<typename T>
+    static container<T> load(std::vector<T> const &x){ return cuda::load(x); }
+    template<typename T>
+    static std::vector<T> unload(container<T> const &x){ return cuda::unload(x); }
+};
+#endif
+#ifdef Heffte_ENABLE_ROCM
+using gpu_backend = heffte::backend::rocfft;
+template<typename T>
+inline bool match(heffte::rocm::vector<T> const &a, std::vector<T> const &b){
+    return match(rocm::unload(a), b);
+}
+template<typename T>
+inline bool approx(heffte::rocm::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
+    return approx(rocm::unload(a), b, correction);
+}
+template<> struct test_traits<backend::rocfft>{
+    template<typename T> using container = rocm::vector<T>;
+    template<typename T>
+    static container<T> load(std::vector<T> const &x){ return rocm::load(x); }
+    template<typename T>
+    static std::vector<T> unload(container<T> const &x){ return rocm::unload(x); }
+};
 #endif
 
 //! \brief Converts a set of c-style strings into a single collection (deque) of c++ strings.

@@ -169,6 +169,43 @@ std::vector<scalar_type> rescale(box3d const world, cuda::vector<scalar_type> co
 }
 #endif
 
+#ifdef Heffte_ENABLE_ROCM
+template<typename scalar_type>
+rocm::vector<scalar_type> compute_fft_rocfft(box3d const world, rocm::vector<scalar_type> const &input){
+    assert(input.size() == static_cast<size_t>(world.count()));
+    rocm::vector<scalar_type> result = input;
+    for(int i=0; i<3; i++)
+        heffte::rocfft_executor(world, i).forward(result.data());
+    return result;
+}
+template<typename scalar_type>
+rocm::vector<typename fft_output<scalar_type>::type> compute_fft_rocm(box3d const world, rocm::vector<scalar_type> const &input){
+    rocm::vector<typename fft_output<scalar_type>::type> result(input.size());
+    rocm::convert(input.size(), input.data(), result.data());
+    return compute_fft_rocfft(world, result);
+}
+template<typename scalar_type>
+rocm::vector<std::complex<scalar_type>> compute_fft_rocm(box3d const world, rocm::vector<std::complex<scalar_type>> const &input){
+    return compute_fft_rocfft(world, input);
+}
+template<typename scalar_type>
+struct perform_fft<backend::rocfft, scalar_type>{
+    static std::vector<typename fft_output<scalar_type>::type> forward(box3d const world, std::vector<scalar_type> const &input){
+        return rocm::unload(compute_fft_rocm(world, rocm::load(input)));
+    }
+};
+template<typename scalar_type>
+struct input_maker<backend::rocfft, scalar_type>{
+    static rocm::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
+        return rocm::load(get_subbox(world, box, input));
+    }
+};
+template<typename scalar_type>
+std::vector<scalar_type> rescale(box3d const world, rocm::vector<scalar_type> const &data, scale scaling){
+    return rescale(world, rocm::unload(data), scaling);
+}
+#endif
+
 template<typename backend_tag, typename scalar_type>
 std::vector<typename fft_output<scalar_type>::type> forward_fft(box3d const world, std::vector<scalar_type> const &input){
     return perform_fft<backend_tag, scalar_type>::forward(world, input);

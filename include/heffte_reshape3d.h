@@ -13,6 +13,7 @@
 #include "heffte_plan_logic.h"
 #include "heffte_backend_fftw.h"
 #include "heffte_backend_cuda.h"
+#include "heffte_backend_rocm.h"
 #include "heffte_backend_mkl.h"
 
 /*!
@@ -32,6 +33,14 @@
  */
 
 namespace heffte {
+
+#ifdef Heffte_ENABLE_CUDA
+namespace gpu { using namespace cuda; }
+#else
+#ifdef Heffte_ENABLE_ROCM
+namespace gpu { using namespace rocm; }
+#endif
+#endif
 
 /*!
  * \ingroup hefftereshape
@@ -128,7 +137,7 @@ public:
         apply_base(source, destination, workspace);
     }
 
-    //! \brief Templated apply algorithm for all scalar types.
+    //! \brief Templated reshape3d_alltoallv::apply() algorithm for all scalar types.
     template<typename scalar_type>
     void apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
 
@@ -237,9 +246,13 @@ public:
         apply_base(source, destination, workspace);
     }
 
-    //! \brief Templated apply algorithm for all scalar types.
+    //! \brief Templated reshape3d_pointtopoint::apply() algorithm for all scalar types.
     template<typename scalar_type>
     void apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
+
+    //! \brief Templated reshape3d_pointtopoint::apply() algorithm for all scalar types.
+    template<typename scalar_type>
+    void rocm_send_recv(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
 
 private:
     /*!

@@ -134,10 +134,15 @@ void test_cpu(MPI_Comm const comm){
     tassert(match(output_data, reference_data));
 }
 
-#ifdef Heffte_ENABLE_CUDA
+#if defined(Heffte_ENABLE_CUDA) or defined(Heffte_ENABLE_ROCM)
 // splits the world box into a set of boxes with gird given by proc_grid
 template<int hfast, int hmid, int hslow, int pfast, int pmid, int pslow, typename scalar_type, typename backend_tag, typename variant>
 void test_gpu(MPI_Comm const comm){
+    #ifdef Heffte_ENABLE_CUDA
+    using gpu_vector = cuda::vector<scalar_type>;
+    #else
+    using gpu_vector = rocm::vector<scalar_type>;
+    #endif
     /*
      * similar to the CPU case, but the data is located on the GPU
      */
@@ -164,18 +169,22 @@ void test_gpu(MPI_Comm const comm){
 
     // create caches for a reshape algorithm, including creating a new mpi comm
     auto reshape = make_test_reshape3d<backend_tag, variant>(boxes, rotate_boxes, comm);
-    cuda::vector<scalar_type> workspace(reshape->size_workspace());
+    gpu_vector workspace(reshape->size_workspace());
 
     auto input_data     = get_subdata<scalar_type>(world, boxes[me]);
+    #ifdef Heffte_ENABLE_CUDA
     auto cuinput_data   = cuda::load(input_data);
+    #else
+    auto cuinput_data   = rocm::load(input_data);
+    #endif
     auto reference_data = get_subdata<scalar_type>(world, rotate_boxes[me]);
-    auto output_data    = cuda::vector<scalar_type>(rotate_boxes[me].count());
+    auto output_data    = gpu_vector(rotate_boxes[me].count());
 
     if (std::is_same<scalar_type, float>::value){
         // sometimes, run two tests to make sure there is no internal corruption
         // there is no need to do that for every data type
         reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
-        output_data = cuda::vector<scalar_type>(rotate_boxes[me].count());
+        output_data = gpu_vector(rotate_boxes[me].count());
         reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
     }else{
         reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
@@ -228,26 +237,25 @@ void test_direct_reordered(MPI_Comm const comm){
     }
     #endif
 
-    #ifdef Heffte_ENABLE_CUDA
+    #ifdef Heffte_ENABLE_GPU
     {
-        auto reshape = make_reshape3d_alltoallv<backend::cufft>(inboxes, outboxes, comm);
-        cuda::vector<scalar_type> workspace(reshape->size_workspace());
+        auto reshape = make_reshape3d_alltoallv<gpu_backend>(inboxes, outboxes, comm);
+        gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
-        auto cuinput = cuda::load(input);
-        cuda::vector<scalar_type> curesult(ordered_outboxes[me].count());
+        auto cuinput = gpu::load(input);
+        gpu::vector<scalar_type> curesult(ordered_outboxes[me].count());
 
         reshape->apply(cuinput.data(), curesult.data(), workspace.data());
 
         tassert(match(curesult, reference));
     }{
-        auto reshape = make_reshape3d_pointtopoint<backend::cufft>(inboxes, outboxes, comm);
-        cuda::vector<scalar_type> workspace(reshape->size_workspace());
+        auto reshape = make_reshape3d_pointtopoint<gpu_backend>(inboxes, outboxes, comm);
+        gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
-        auto cuinput = cuda::load(input);
-        cuda::vector<scalar_type> curesult(ordered_outboxes[me].count());
+        auto cuinput = gpu::load(input);
+        gpu::vector<scalar_type> curesult(ordered_outboxes[me].count());
 
         reshape->apply(cuinput.data(), curesult.data(), workspace.data());
-
         tassert(match(curesult, reference));
     }
     #endif
@@ -303,28 +311,28 @@ void test_reshape_transposed(MPI_Comm comm){
                 tassert(match(result, reference));
                 #endif
 
-                #ifdef Heffte_ENABLE_CUDA
-                heffte::plan_options cuoptions = default_options<backend::cufft>();
+                #ifdef Heffte_ENABLE_GPU
+                heffte::plan_options cuoptions = default_options<gpu_backend>();
                 cuoptions.use_alltoall = std::is_same<variant, using_alltoall>::value;
 
-                auto cumpi_tanspose_shaper = make_reshape3d<backend::cufft>(inboxes, outboxes, comm, cuoptions);
-                auto cumpi_direct_shaper   = make_reshape3d<backend::cufft>(inboxes, ordered_outboxes, comm, cuoptions);
-                auto cuda_transpose_shaper = make_reshape3d<backend::cufft>(ordered_outboxes, outboxes, comm, cuoptions);
+                auto cumpi_tanspose_shaper = make_reshape3d<gpu_backend>(inboxes, outboxes, comm, cuoptions);
+                auto cumpi_direct_shaper   = make_reshape3d<gpu_backend>(inboxes, ordered_outboxes, comm, cuoptions);
+                auto cuda_transpose_shaper = make_reshape3d<gpu_backend>(ordered_outboxes, outboxes, comm, cuoptions);
 
-                cuda::vector<scalar_type> cuinput = cuda::load(input);
-                cuda::vector<scalar_type> curesult(outboxes[me].count());
-                cuda::vector<scalar_type> cureference(outboxes[me].count());
-                cuda::vector<scalar_type> cuworkspace( // allocate one workspace vector for all reshape operations
+                gpu::vector<scalar_type> cuinput = gpu::load(input);
+                gpu::vector<scalar_type> curesult(outboxes[me].count());
+                gpu::vector<scalar_type> cureference(outboxes[me].count());
+                gpu::vector<scalar_type> cuworkspace( // allocate one workspace vector for all reshape operations
                     std::max(std::max(cumpi_tanspose_shaper->size_workspace(), cumpi_direct_shaper->size_workspace()), cuda_transpose_shaper->size_workspace())
                 );
 
                 cumpi_direct_shaper->apply(cuinput.data(), curesult.data(), cuworkspace.data());
                 cuda_transpose_shaper->apply(curesult.data(), cureference.data(), cuworkspace.data());
 
-                curesult = cuda::vector<scalar_type>(outboxes[me].count());
+                curesult = gpu::vector<scalar_type>(outboxes[me].count());
                 cumpi_tanspose_shaper->apply(cuinput.data(), curesult.data(), cuworkspace.data());
 
-                tassert(match(curesult, cuda::unload(cureference)));
+                tassert(match(curesult, gpu::unload(cureference)));
                 #endif
             }
         }
@@ -400,31 +408,31 @@ void perform_tests_cpu(){
 }
 
 void perform_tests_gpu(){
-    #ifdef Heffte_ENABLE_CUDA
+    #if defined(Heffte_ENABLE_CUDA) or defined(Heffte_ENABLE_ROCM)
     MPI_Comm const comm = MPI_COMM_WORLD;
 
     switch(mpi::comm_size(comm)) {
         // note that the number of boxes must match the comm size
         // that is the product of the last three of the box dimensions
         case 4:
-            test_gpu<10, 13, 10, 2, 2, 1, float, heffte::backend::cufft, using_alltoall>(comm);
-            test_gpu<10, 20, 17, 2, 2, 1, double, heffte::backend::cufft, using_alltoall>(comm);
-            test_gpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::cufft, using_alltoall>(comm);
-            test_gpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::cufft, using_alltoall>(comm);
-            test_gpu<10, 13, 10, 2, 2, 1, float, heffte::backend::cufft, using_pointtopoint>(comm);
-            test_gpu<10, 20, 17, 2, 2, 1, double, heffte::backend::cufft, using_pointtopoint>(comm);
-            test_gpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::cufft, using_pointtopoint>(comm);
-            test_gpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::cufft, using_pointtopoint>(comm);
+            test_gpu<10, 13, 10, 2, 2, 1, float, gpu_backend, using_alltoall>(comm);
+            test_gpu<10, 20, 17, 2, 2, 1, double, gpu_backend, using_alltoall>(comm);
+            test_gpu<30, 10, 10, 2, 2, 1, std::complex<float>, gpu_backend, using_alltoall>(comm);
+            test_gpu<11, 10, 13, 2, 2, 1, std::complex<double>, gpu_backend, using_alltoall>(comm);
+            test_gpu<10, 13, 10, 2, 2, 1, float, gpu_backend, using_pointtopoint>(comm);
+            test_gpu<10, 20, 17, 2, 2, 1, double, gpu_backend, using_pointtopoint>(comm);
+            test_gpu<30, 10, 10, 2, 2, 1, std::complex<float>, gpu_backend, using_pointtopoint>(comm);
+            test_gpu<11, 10, 13, 2, 2, 1, std::complex<double>, gpu_backend, using_pointtopoint>(comm);
             break;
         case 12:
-            test_gpu<13, 13, 10, 3, 4, 1, float, heffte::backend::cufft, using_alltoall>(comm);
-            test_gpu<16, 21, 17, 2, 3, 2, double, heffte::backend::cufft, using_alltoall>(comm);
-            test_gpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::cufft, using_alltoall>(comm);
-            test_gpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::cufft, using_alltoall>(comm);
-            test_gpu<13, 13, 10, 3, 4, 1, float, heffte::backend::cufft, using_pointtopoint>(comm);
-            test_gpu<16, 21, 17, 2, 3, 2, double, heffte::backend::cufft, using_pointtopoint>(comm);
-            test_gpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::cufft, using_pointtopoint>(comm);
-            test_gpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::cufft, using_pointtopoint>(comm);
+            test_gpu<13, 13, 10, 3, 4, 1, float, gpu_backend, using_alltoall>(comm);
+            test_gpu<16, 21, 17, 2, 3, 2, double, gpu_backend, using_alltoall>(comm);
+            test_gpu<38, 13, 20, 1, 4, 3, std::complex<float>, gpu_backend, using_alltoall>(comm);
+            test_gpu<41, 17, 15, 3, 2, 2, std::complex<double>, gpu_backend, using_alltoall>(comm);
+            test_gpu<13, 13, 10, 3, 4, 1, float, gpu_backend, using_pointtopoint>(comm);
+            test_gpu<16, 21, 17, 2, 3, 2, double, gpu_backend, using_pointtopoint>(comm);
+            test_gpu<38, 13, 20, 1, 4, 3, std::complex<float>, gpu_backend, using_pointtopoint>(comm);
+            test_gpu<41, 17, 15, 3, 2, 2, std::complex<double>, gpu_backend, using_pointtopoint>(comm);
             break;
         default:
             // unknown test

@@ -132,16 +132,18 @@ help:
 	cp ./include/heffte_config.cmake.h ./include/heffte_config.h
 	sed -i -e 's|@Heffte_VERSION_MAJOR@|1|g' ./include/heffte_config.h
 	sed -i -e 's|@Heffte_VERSION_MINOR@|0|g' ./include/heffte_config.h
-	sed -i -e 's|@Heffte_VERSION_PATCH@|0|g' ./include/heffte_config.h
+	sed -i -e 's|@Heffte_VERSION_PATCH@|1|g' ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_TRACING|#undef Heffte_ENABLE_TRACING|g' ./include/heffte_config.h
 
 .PHONY.: with_fftw no_fftw with_cufft no_cufft
 # set heffte_config.h with and without fftw
 with_fftw: ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_FFTW|#define Heffte_ENABLE_FFTW|g' ./include/heffte_config.h
+	sed -i -e 's|#cmakedefine Heffte_ENABLE_ROCM|#undef Heffte_ENABLE_ROCM|g' ./include/heffte_config.h
 
 no_fftw: ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_FFTW|#undef Heffte_ENABLE_FFTW|g' ./include/heffte_config.h
+	sed -i -e 's|#cmakedefine Heffte_ENABLE_ROCM|#undef Heffte_ENABLE_ROCM|g' ./include/heffte_config.h
 
 # set heffte_config.h with and without cufft
 with_mkl: ./include/heffte_config.h $(FFTW)

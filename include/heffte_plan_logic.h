@@ -46,6 +46,15 @@ struct plan_options{
 };
 
 /*!
+ * \ingroup heffterocm
+ * \brief Forces the reorder logic for the ROCM r2c variant.
+ */
+inline plan_options force_reorder(plan_options opts){
+    opts.use_reorder = true;
+    return opts;
+}
+
+/*!
  * \ingroup fft3d
  * \brief Returns the default backend options associated with the given backend.
  */
@@ -96,7 +105,7 @@ struct logic_plan3d{
  */
 inline std::array<bool, 3> pencil_directions(box3d const world, std::vector<box3d> const &boxes){
     std::array<bool, 3> is_pencil = {true, true, true};
-    for(auto const b : boxes){
+    for(auto const &b : boxes){
         for(int i=0; i<3; i++)
             is_pencil[i] = is_pencil[i] and (world.size[i] == b.size[i]);
     }

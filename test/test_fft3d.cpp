@@ -7,118 +7,63 @@
 
 #include "test_fft3d.h"
 
-void perform_tests(MPI_Comm const comm){
-    all_tests<> name("heffte::fft class");
+template<typename backend_tag>
+void test_fft3d_cases(MPI_Comm const comm){
     int const num_ranks = mpi::comm_size(comm);
 
     switch(num_ranks){
         case 1:
-            #ifdef Heffte_ENABLE_FFTW
-            test_fft3d_arrays<backend::fftw, float, 5, 6, 7>(comm);
-            test_fft3d_arrays<backend::fftw, double, 5, 6, 7>(comm);
-            test_fft3d_arrays<backend::fftw, std::complex<float>, 5, 6, 7>(comm);
-            test_fft3d_arrays<backend::fftw, std::complex<double>, 6, 7, 5>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_MKL
-            test_fft3d_arrays<backend::mkl, float, 5, 6, 7>(comm);
-            test_fft3d_arrays<backend::mkl, double, 5, 6, 7>(comm);
-            test_fft3d_arrays<backend::mkl, std::complex<float>, 5, 6, 7>(comm);
-            test_fft3d_arrays<backend::mkl, std::complex<double>, 6, 7, 5>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_arrays<backend::cufft, float, 5, 6, 7>(comm);
-            test_fft3d_arrays<backend::cufft, double, 5, 6, 7>(comm);
-            test_fft3d_arrays<backend::cufft, std::complex<float>, 5, 6, 7>(comm);
-            test_fft3d_arrays<backend::cufft, std::complex<double>, 6, 7, 5>(comm);
-            #endif
+            test_fft3d_arrays<backend_tag, float, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend_tag, double, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend_tag, std::complex<float>, 5, 6, 7>(comm);
+            test_fft3d_arrays<backend_tag, std::complex<double>, 6, 7, 5>(comm);
             break;
         case 2:
-            #ifdef Heffte_ENABLE_FFTW
-            test_fft3d_const_dest2<backend::fftw>(comm);
-            test_fft3d_arrays<backend::fftw, float, 9, 9, 9>(comm);
-            test_fft3d_arrays<backend::fftw, double, 9, 9, 9>(comm);
-            test_fft3d_arrays<backend::fftw, std::complex<float>, 9, 9, 9>(comm);
-            test_fft3d_arrays<backend::fftw, std::complex<double>, 9, 9, 9>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_MKL
-            test_fft3d_const_dest2<backend::mkl>(comm);
-            test_fft3d_arrays<backend::mkl, float, 9, 9, 9>(comm);
-            test_fft3d_arrays<backend::mkl, double, 9, 9, 9>(comm);
-            test_fft3d_arrays<backend::mkl, std::complex<float>, 9, 9, 9>(comm);
-            test_fft3d_arrays<backend::mkl, std::complex<double>, 9, 9, 9>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_const_dest2<backend::cufft>(comm);
-            test_fft3d_arrays<backend::cufft, float, 9, 9, 9>(comm);
-            test_fft3d_arrays<backend::cufft, double, 9, 9, 9>(comm);
-            test_fft3d_arrays<backend::cufft, std::complex<float>, 9, 9, 9>(comm);
-            test_fft3d_arrays<backend::cufft, std::complex<double>, 9, 9, 9>(comm);
-            #endif
+            test_fft3d_const_dest2<backend_tag>(comm);
+            test_fft3d_arrays<backend_tag, float, 9, 9, 9>(comm);
+            test_fft3d_arrays<backend_tag, double, 9, 9, 9>(comm);
+            test_fft3d_arrays<backend_tag, std::complex<float>, 9, 9, 9>(comm);
+            test_fft3d_arrays<backend_tag, std::complex<double>, 9, 9, 9>(comm);
             break;
         case 6:
-            #ifdef Heffte_ENABLE_FFTW
-            test_fft3d_vectors<backend::fftw, float, 11, 11, 22>(comm);
-            test_fft3d_vectors<backend::fftw, double, 11, 11, 22>(comm);
-            test_fft3d_vectors<backend::fftw, std::complex<float>, 11, 11, 22>(comm);
-            test_fft3d_vectors<backend::fftw, std::complex<double>, 11, 11, 22>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_MKL
-            test_fft3d_vectors<backend::mkl, float, 11, 11, 22>(comm);
-            test_fft3d_vectors<backend::mkl, double, 11, 11, 22>(comm);
-            test_fft3d_vectors<backend::mkl, std::complex<float>, 11, 11, 22>(comm);
-            test_fft3d_vectors<backend::mkl, std::complex<double>, 11, 11, 22>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_vectors<backend::cufft, float, 11, 11, 22>(comm);
-            test_fft3d_vectors<backend::cufft, double, 11, 11, 22>(comm);
-            test_fft3d_vectors<backend::cufft, std::complex<float>, 11, 11, 22>(comm);
-            test_fft3d_vectors<backend::cufft, std::complex<double>, 11, 11, 22>(comm);
-            #endif
+            test_fft3d_vectors<backend_tag, float, 11, 11, 22>(comm);
+            test_fft3d_vectors<backend_tag, double, 11, 11, 22>(comm);
+            test_fft3d_vectors<backend_tag, std::complex<float>, 11, 11, 22>(comm);
+            test_fft3d_vectors<backend_tag, std::complex<double>, 11, 11, 22>(comm);
             break;
         case 8:
-            #ifdef Heffte_ENABLE_FFTW
-            test_fft3d_vectors<backend::fftw, float, 16, 15, 15>(comm);
-            test_fft3d_vectors<backend::fftw, double, 16, 15, 15>(comm);
-            test_fft3d_vectors<backend::fftw, std::complex<float>, 16, 15, 15>(comm);
-            test_fft3d_vectors<backend::fftw, std::complex<double>, 16, 15, 15>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_MKL
-            test_fft3d_vectors<backend::mkl, float, 16, 15, 15>(comm);
-            test_fft3d_vectors<backend::mkl, double, 16, 15, 15>(comm);
-            test_fft3d_vectors<backend::mkl, std::complex<float>, 16, 15, 15>(comm);
-            test_fft3d_vectors<backend::mkl, std::complex<double>, 16, 15, 15>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_vectors<backend::cufft, float, 16, 15, 15>(comm);
-            test_fft3d_vectors<backend::cufft, double, 16, 15, 15>(comm);
-            test_fft3d_vectors<backend::cufft, std::complex<float>, 16, 15, 15>(comm);
-            test_fft3d_vectors<backend::cufft, std::complex<double>, 16, 15, 15>(comm);
-            #endif
+            test_fft3d_vectors<backend_tag, float, 16, 15, 15>(comm);
+            test_fft3d_vectors<backend_tag, double, 16, 15, 15>(comm);
+            test_fft3d_vectors<backend_tag, std::complex<float>, 16, 15, 15>(comm);
+            test_fft3d_vectors<backend_tag, std::complex<double>, 16, 15, 15>(comm);
             break;
         case 12:
-            #ifdef Heffte_ENABLE_FFTW
-            test_fft3d_arrays<backend::fftw, float, 19, 20, 21>(comm);
-            test_fft3d_arrays<backend::fftw, double, 19, 20, 21>(comm);
-            test_fft3d_arrays<backend::fftw, std::complex<float>, 19, 15, 25>(comm);
-            test_fft3d_arrays<backend::fftw, std::complex<double>, 19, 19, 17>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_MKL
-            test_fft3d_arrays<backend::mkl, float, 19, 20, 21>(comm);
-            test_fft3d_arrays<backend::mkl, double, 19, 20, 21>(comm);
-            test_fft3d_arrays<backend::mkl, std::complex<float>, 19, 15, 25>(comm);
-            test_fft3d_arrays<backend::mkl, std::complex<double>, 19, 19, 17>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_arrays<backend::cufft, float, 19, 21, 20>(comm);
-            test_fft3d_arrays<backend::cufft, double, 19, 20, 21>(comm);
-            test_fft3d_arrays<backend::cufft, std::complex<float>, 19, 14, 25>(comm);
-            test_fft3d_arrays<backend::cufft, std::complex<double>, 19, 19, 17>(comm);
-            #endif
-
+            test_fft3d_arrays<backend_tag, float, 19, 20, 21>(comm);
+            test_fft3d_arrays<backend_tag, double, 19, 20, 21>(comm);
+            test_fft3d_arrays<backend_tag, std::complex<float>, 19, 15, 25>(comm);
+            test_fft3d_arrays<backend_tag, std::complex<double>, 19, 19, 17>(comm);
             break;
         default:
             throw std::runtime_error("No test for the given number of ranks!");
-    };
+    }
+}
+
+void perform_tests(MPI_Comm const comm){
+    all_tests<> name("heffte::fft class");
+
+    #ifdef Heffte_ENABLE_FFTW
+    test_fft3d_cases<backend::fftw>(comm);
+    #endif
+    #ifdef Heffte_ENABLE_MKL
+    test_fft3d_cases<backend::mkl>(comm);
+    #endif
+    #ifdef Heffte_ENABLE_CUDA
+    test_fft3d_cases<backend::cufft>(comm);
+    #endif
+    #ifdef Heffte_ENABLE_ROCM
+    test_fft3d_cases<backend::rocfft>(comm);
+    #endif
+
 }
 
 int main(int argc, char *argv[]){

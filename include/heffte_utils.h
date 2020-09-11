@@ -32,6 +32,18 @@ using std::cout; // remove when things get more stable
 using std::endl; // make sure it is not added to a release
 
 /*!
+ * \ingroup fft3dmisc
+ * \brief Replace with the C++ 2014 std::exchange later.
+ */
+template<class T, class U = T>
+T c11_exchange(T& obj, U&& new_value)
+{
+    T old_value = std::move(obj);
+    obj = std::forward<U>(new_value);
+    return old_value;
+}
+
+/*!
  * \ingroup fft3d
  * \addtogroup hefftempi Helper wrappers around MPI methods
  *

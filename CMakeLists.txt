@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 
-project("Heffte" VERSION 1.0.0 LANGUAGES CXX)
+project("Heffte" VERSION 1.0.1 LANGUAGES CXX)
 
 option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            OFF)
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
+option(Heffte_ENABLE_ROCM     "Enable the HIP and rocFFT backend"  OFF)
 option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
@@ -16,6 +17,7 @@ endif()
 # check if at least one backend has been enabled
 if (NOT Heffte_ENABLE_FFTW AND
     NOT Heffte_ENABLE_CUDA AND
+    NOT Heffte_ENABLE_ROCM AND
     NOT Heffte_ENABLE_MKL
     )
     message(FATAL_ERROR "HeFFTe requires at least one enabled backend!")
@@ -37,7 +39,7 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/heffte_config.cmake.h"
 # find common dependencies
 find_package(MPI REQUIRED) # always a dependency
 
-if (Heffte_ENABLE_FFTW OR Heffte_ENABLE_MKL)
+if (Heffte_ENABLE_FFTW OR Heffte_ENABLE_MKL OR Heffte_ENABLE_ROCM)
     # allow cmake to use custom modules (e.g. FindFFTW)
     list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 endif()
@@ -61,6 +63,13 @@ set(Heffte_common_sources
     src/heffte_fft3d.cpp
     src/heffte_fft3d_r2c.cpp
     )
+
+if (Heffte_ENABLE_ROCM)
+    list(APPEND Heffte_common_sources
+         include/heffte_backend_rocm.h
+         src/heffte_backend_rocm.hip.cpp
+         )
+endif()
 
 # build CPU libheffte, the CUDA test comes first to use cuda_add_library() vs add_library()
 if (Heffte_ENABLE_CUDA)
@@ -87,6 +96,11 @@ endif()
 if (Heffte_ENABLE_MKL)
     find_package(HeffteMKL REQUIRED)
     target_link_libraries(Heffte Heffte::MKL)
+endif()
+
+if (Heffte_ENABLE_ROCM)
+    find_package(HeffteRocFFT REQUIRED)
+    target_link_libraries(Heffte roc::rocfft)
 endif()
 
 # other target properties

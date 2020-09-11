@@ -34,9 +34,7 @@ void test_fft3d_r2c_arrays(MPI_Comm comm){
     current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d_r2c", comm);
 
     double correction = 1.0; // single precision is less stable, especially for larger problems with 12 mpi ranks
-    if (std::is_same<scalar_type, float>::value){
-        correction = (num_ranks == 12) ? 1.E-4 : 1.E-2;
-    }
+    if (std::is_same<scalar_type, float>::value and num_ranks == 12) correction = 1.E-2;
 
     int const me = mpi::comm_rank(comm);
     box3d const rworld = {{0, 0, 0}, {h0, h1, h2}};
@@ -78,6 +76,7 @@ void test_fft3d_r2c_arrays(MPI_Comm comm){
             input_container backward(local_input.size()); // compute backward fft using scalar_type
             fft.backward(forward.data(), backward.data(), workspace.data());
             auto backward_result = rescale(rworld, backward, scale::full); // always std::vector
+
             tassert(approx(local_input, backward_result)); // compare with the original input
         }
     }
@@ -92,10 +91,7 @@ void test_fft3d_r2c_vectors(MPI_Comm comm){
     current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d_r2c", comm);
 
     double correction = 1.0; // single precision is less stable, especially for larger problems with 12 mpi ranks
-    if (std::is_same<scalar_type, float>::value){
-        //correction = (num_ranks == 6) ? 0.5E-4 : 1.E-2;
-        correction = 1.0E-4;
-    }
+    if (std::is_same<scalar_type, float>::value) correction = 1.0E-2;
 
     int const me = mpi::comm_rank(comm);
     box3d const rworld = {{0, 0, 0}, {h0, h1, h2}};
@@ -153,83 +149,68 @@ void test_fft3d_r2c_vectors(MPI_Comm comm){
     } // different option variants
 }
 
+template<int fdimx, int fdimy, int fdimz, int ddimx, int ddimy, int ddimz>
+void perform_array_test(MPI_Comm const comm){
+    #ifdef Heffte_ENABLE_FFTW
+    if (mpi::comm_size(comm) == 2) test_fft3d_r2c_const_dest2<backend::fftw>(comm);
+    test_fft3d_r2c_arrays<backend::fftw, float, fdimx, fdimy, fdimz>(comm);
+    test_fft3d_r2c_arrays<backend::fftw, double, ddimx, ddimy, ddimz>(comm);
+    #endif
+    #ifdef Heffte_ENABLE_MKL
+    if (mpi::comm_size(comm) == 2) test_fft3d_r2c_const_dest2<backend::mkl>(comm);
+    test_fft3d_r2c_arrays<backend::mkl, float, fdimx, fdimy, fdimz>(comm);
+    test_fft3d_r2c_arrays<backend::mkl, double, ddimx, ddimy, ddimz>(comm);
+    #endif
+    #ifdef Heffte_ENABLE_CUDA
+    if (mpi::comm_size(comm) == 2) test_fft3d_r2c_const_dest2<backend::cufft>(comm);
+    test_fft3d_r2c_arrays<backend::cufft, float, fdimx, fdimy, fdimz>(comm);
+    test_fft3d_r2c_arrays<backend::cufft, double, ddimx, ddimy, ddimz>(comm);
+    #endif
+    #ifdef Heffte_ENABLE_ROCM
+    if (mpi::comm_size(comm) == 2) test_fft3d_r2c_const_dest2<backend::rocfft>(comm);
+    test_fft3d_r2c_arrays<backend::rocfft, float, fdimx, fdimy, fdimz>(comm);
+    test_fft3d_r2c_arrays<backend::rocfft, double, ddimx, ddimy, ddimz>(comm);
+    #endif
+}
+template<int fdimx, int fdimy, int fdimz, int ddimx, int ddimy, int ddimz>
+void perform_vector_test(MPI_Comm const comm){
+    #ifdef Heffte_ENABLE_FFTW
+    test_fft3d_r2c_vectors<backend::fftw, float, fdimx, fdimy, fdimz>(comm);
+    test_fft3d_r2c_vectors<backend::fftw, double, ddimx, ddimy, ddimz>(comm);
+    #endif
+    #ifdef Heffte_ENABLE_MKL
+    test_fft3d_r2c_vectors<backend::mkl, float, fdimx, fdimy, fdimz>(comm);
+    test_fft3d_r2c_vectors<backend::mkl, double, ddimx, ddimy, ddimz>(comm);
+    #endif
+    #ifdef Heffte_ENABLE_CUDA
+    test_fft3d_r2c_vectors<backend::cufft, float, fdimx, fdimy, fdimz>(comm);
+    test_fft3d_r2c_vectors<backend::cufft, double, ddimx, ddimy, ddimz>(comm);
+    #endif
+    #ifdef Heffte_ENABLE_ROCM
+    test_fft3d_r2c_vectors<backend::rocfft, float, fdimx, fdimy, fdimz>(comm);
+    test_fft3d_r2c_vectors<backend::rocfft, double, ddimx, ddimy, ddimz>(comm);
+    #endif
+}
+
 void perform_tests(MPI_Comm const comm){
     all_tests<> name("heffte::fft_r2c class");
     int const num_ranks = mpi::comm_size(comm);
 
     switch(num_ranks){
         case 1:
-            #ifdef Heffte_ENABLE_FFTW
-            test_fft3d_r2c_arrays<backend::fftw, float, 3, 4, 5>(comm);
-            test_fft3d_r2c_arrays<backend::fftw, double, 3, 4, 5>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_MKL
-            test_fft3d_r2c_arrays<backend::mkl, float, 3, 4, 5>(comm);
-            test_fft3d_r2c_arrays<backend::mkl, double, 3, 4, 5>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_r2c_arrays<backend::cufft, float, 3, 4, 5>(comm);
-            test_fft3d_r2c_arrays<backend::cufft, double, 3, 4, 5>(comm);
-            #endif
+            perform_array_test<3, 4, 5, 3, 4, 5>(comm);
             break;
         case 2:
-            #ifdef Heffte_ENABLE_FFTW
-            test_fft3d_r2c_const_dest2<backend::fftw>(comm);
-            test_fft3d_r2c_arrays<backend::fftw, float, 9, 9, 9>(comm);
-            test_fft3d_r2c_arrays<backend::fftw, double, 9, 9, 9>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_MKL
-            test_fft3d_r2c_const_dest2<backend::mkl>(comm);
-            test_fft3d_r2c_arrays<backend::mkl, float, 9, 9, 9>(comm);
-            test_fft3d_r2c_arrays<backend::mkl, double, 9, 9, 9>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_r2c_const_dest2<backend::cufft>(comm);
-            test_fft3d_r2c_arrays<backend::cufft, float, 9, 9, 9>(comm);
-            test_fft3d_r2c_arrays<backend::cufft, double, 9, 9, 9>(comm);
-            #endif
+            perform_array_test<9, 9, 9, 9, 9, 9>(comm);
             break;
         case 6:
-            #ifdef Heffte_ENABLE_FFTW
-            test_fft3d_r2c_vectors<backend::fftw, float, 11, 11, 20>(comm);
-            test_fft3d_r2c_vectors<backend::fftw, double, 10, 10, 11>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_MKL
-            test_fft3d_r2c_vectors<backend::mkl, float, 11, 11, 20>(comm);
-            test_fft3d_r2c_vectors<backend::mkl, double, 10, 10, 11>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_r2c_vectors<backend::cufft, float, 11, 11, 20>(comm);
-            test_fft3d_r2c_vectors<backend::cufft, double, 10, 10, 11>(comm);
-            #endif
+            perform_vector_test<11, 11, 20, 10, 10, 11>(comm);
             break;
         case 8:
-            #ifdef Heffte_ENABLE_FFTW
-            test_fft3d_r2c_vectors<backend::fftw, float, 12, 12, 10>(comm);
-            test_fft3d_r2c_vectors<backend::fftw, double, 15, 15, 18>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_MKL
-            test_fft3d_r2c_vectors<backend::mkl, float, 12, 12, 10>(comm);
-            test_fft3d_r2c_vectors<backend::mkl, double, 15, 15, 18>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_r2c_vectors<backend::cufft, float, 12, 12, 10>(comm);
-            test_fft3d_r2c_vectors<backend::cufft, double, 15, 15, 18>(comm);
-            #endif
+            perform_vector_test<12, 12, 10, 15, 15, 18>(comm);
             break;
         case 12:
-            #ifdef Heffte_ENABLE_FFTW
-            test_fft3d_r2c_arrays<backend::fftw, float, 21, 20, 20>(comm);
-            test_fft3d_r2c_arrays<backend::fftw, double, 20, 20, 19>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_MKL
-            test_fft3d_r2c_arrays<backend::mkl, float, 21, 20, 20>(comm);
-            test_fft3d_r2c_arrays<backend::mkl, double, 20, 20, 19>(comm);
-            #endif
-            #ifdef Heffte_ENABLE_CUDA
-            test_fft3d_r2c_arrays<backend::cufft, float, 21, 20, 20>(comm);
-            test_fft3d_r2c_arrays<backend::cufft, double, 20, 20, 19>(comm);
-            #endif
+            perform_array_test<21, 20, 20, 20, 20, 20>(comm);
             break;
         default:
             throw std::runtime_error("No test for the given number of ranks!");
