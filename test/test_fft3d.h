@@ -11,6 +11,11 @@
 
 #include "test_common.h"
 
+#ifdef Heffte_ENABLE_CUDA
+#include <cuda_runtime_api.h>
+#include <cuda.h>
+#endif
+
 template<typename scalar_type>
 std::vector<scalar_type> make_data(box3d const world){
     std::minstd_rand park_miller(4242);
@@ -327,6 +332,22 @@ void test_fft3d_arrays(MPI_Comm comm){
 
         fft.forward(local_input.data(), forward.data(), workspace.data()); // compute the forward fft
         tassert(approx(forward, reference_fft)); // compare to the reference
+
+        #ifdef Heffte_ENABLE_CUDA
+        if (std::is_same<backend_tag, backend::cufft>::value){
+            scalar_type * uinput;
+            output_type *uoutput;
+            cudaMallocManaged(reinterpret_cast<void**>(&uinput), local_input.size() * sizeof(scalar_type));
+            cudaMallocManaged(reinterpret_cast<void**>(&uoutput), forward.size() * sizeof(output_type));
+            cudaMemcpy(uinput, local_input.data(), local_input.size() * sizeof(scalar_type), cudaMemcpyDeviceToDevice);
+            fft.forward(uinput, uoutput);
+            std::vector<output_type> cpu_result(forward.size());
+            cudaMemcpy(cpu_result.data(), uoutput, forward.size() * sizeof(output_type), cudaMemcpyDeviceToHost);
+            tassert(approx(forward, cpu_result));
+            cudaFree(uinput);
+            cudaFree(uoutput);
+        }
+        #endif
 
         input_container rbackward(local_input.size()); // compute backward fft using scalar_type
         fft.backward(forward.data(), rbackward.data(), workspace.data());
