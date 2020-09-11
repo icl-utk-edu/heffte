@@ -891,26 +891,42 @@ std::vector<scalar_type> make_data(box3d const world){
     return result;
 }
 #if defined(Heffte_ENABLE_FFTW) and defined(Heffte_ENABLE_CUDA)
-template<typename scalar_type>
+template<typename precision_type>
 void test_cross_reference_type(){
-    current_test<scalar_type, using_nompi> name("cufft - fftw reference");
+    current_test<precision_type, using_nompi> name("cufft - fftw reference");
 
     box3d box = {{0, 0, 0}, {42, 75, 23}};
-    auto input = make_data<scalar_type>(box);
-    auto cuinput = cuda::load(input);
+    auto rinput = make_data<precision_type>(box);
+    auto cinput = make_data<std::complex<precision_type>>(box);
+    auto rrocinput = cuda::load(rinput);
+    auto crocinput = cuda::load(cinput);
 
     for(int i=0; i<3; i++){
         heffte::fftw_executor  fft_cpu(box, i);
         heffte::cufft_executor fft_gpu(box, i);
 
-        fft_cpu.forward(input.data());
-        fft_gpu.forward(cuinput.data());
+        std::vector<std::complex<precision_type>> coutput(rinput.size());
+        auto crocoutput = cuda::load(coutput);
 
-        if (std::is_same<scalar_type, std::complex<float>>::value){
-            sassert(approx(cuinput, input, 0.0005)); // float complex is not well conditioned
-        }else{
-            sassert(approx(cuinput, input));
-        }
+        fft_cpu.forward(cinput.data());
+        fft_gpu.forward(crocinput.data());
+
+        fft_cpu.forward(rinput.data(), coutput.data());
+        fft_gpu.forward(rrocinput.data(), crocoutput.data());
+
+        sassert(approx(crocinput, cinput, (std::is_same<precision_type, float>::value) ? 0.0005 : 0.1)); // float complex is not well conditioned
+        sassert(approx(crocoutput, coutput, (std::is_same<precision_type, float>::value) ? 0.0005 : 0.1));
+
+        fft_cpu.backward(cinput.data());
+        fft_gpu.backward(crocinput.data());
+
+        coutput = std::vector<std::complex<precision_type>>(rinput.size());
+        crocoutput = cuda::load(coutput);
+        fft_cpu.backward(coutput.data(), rinput.data());
+        fft_gpu.backward(crocoutput.data(), rrocinput.data());
+
+        sassert(approx(crocinput, cinput, (std::is_same<precision_type, float>::value) ? 0.0005 : 0.05)); // float complex is not well conditioned
+        sassert(approx(rrocinput, rinput, (std::is_same<precision_type, float>::value) ? 0.0005 : 0.05));
     }
 }
 template<typename scalar_type>
@@ -964,8 +980,8 @@ void test_cross_reference_r2c(){
     }
 }
 void test_cross_reference_fftw_cuda(){
-    test_cross_reference_type<std::complex<float>>();
-    test_cross_reference_type<std::complex<double>>();
+    test_cross_reference_type<float>();
+    test_cross_reference_type<double>();
     test_cross_reference_r2c<float>();
     test_cross_reference_r2c<double>();
 }
@@ -974,26 +990,42 @@ void test_cross_reference_fftw_cuda(){}
 #endif
 
 #if defined(Heffte_ENABLE_FFTW) and defined(Heffte_ENABLE_ROCM)
-template<typename scalar_type>
+template<typename precision_type>
 void test_cross_reference_type(){
-    current_test<scalar_type, using_nompi> name("rocfft - fftw reference");
+    current_test<precision_type, using_nompi> name("rocfft - fftw reference");
 
     box3d box = {{0, 0, 0}, {42, 75, 23}};
-    auto input = make_data<scalar_type>(box);
-    auto rocinput = rocm::load(input);
+    auto rinput = make_data<precision_type>(box);
+    auto cinput = make_data<std::complex<precision_type>>(box);
+    auto rrocinput = rocm::load(rinput);
+    auto crocinput = rocm::load(cinput);
 
     for(int i=0; i<3; i++){
         heffte::fftw_executor  fft_cpu(box, i);
         heffte::rocfft_executor fft_gpu(box, i);
 
-        fft_cpu.forward(input.data());
-        fft_gpu.forward(rocinput.data());
+        std::vector<std::complex<precision_type>> coutput(rinput.size());
+        auto crocoutput = rocm::load(coutput);
 
-        if (std::is_same<scalar_type, std::complex<float>>::value){
-            sassert(approx(rocinput, input, 0.0005)); // float complex is not well conditioned
-        }else{
-            sassert(approx(rocinput, input, 0.1));
-        }
+        fft_cpu.forward(cinput.data());
+        fft_gpu.forward(crocinput.data());
+
+        fft_cpu.forward(rinput.data(), coutput.data());
+        fft_gpu.forward(rrocinput.data(), crocoutput.data());
+
+        sassert(approx(crocinput, cinput, (std::is_same<precision_type, float>::value) ? 0.0005 : 0.1)); // float complex is not well conditioned
+        sassert(approx(crocoutput, coutput, (std::is_same<precision_type, float>::value) ? 0.0005 : 0.1));
+
+        fft_cpu.backward(cinput.data());
+        fft_gpu.backward(crocinput.data());
+
+        coutput = std::vector<std::complex<precision_type>>(rinput.size());
+        crocoutput = rocm::load(coutput);
+        fft_cpu.backward(coutput.data(), rinput.data());
+        fft_gpu.backward(crocoutput.data(), rrocinput.data());
+
+        sassert(approx(crocinput, cinput, (std::is_same<precision_type, float>::value) ? 0.0005 : 0.05)); // float complex is not well conditioned
+        sassert(approx(rrocinput, rinput, (std::is_same<precision_type, float>::value) ? 0.0005 : 0.05));
     }
 }
 template<typename scalar_type>
@@ -1044,8 +1076,8 @@ void test_cross_reference_r2c(){
     }
 }
 void test_cross_reference_fftw_rocm(){
-    test_cross_reference_type<std::complex<float>>();
-    test_cross_reference_type<std::complex<double>>();
+    test_cross_reference_type<float>();
+    test_cross_reference_type<double>();
     test_cross_reference_r2c<float>();
     test_cross_reference_r2c<double>();
 }
