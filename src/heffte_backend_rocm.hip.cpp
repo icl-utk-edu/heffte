@@ -248,17 +248,31 @@ void convert(int num_entries, precision_type const source[], std::complex<precis
     thread_grid_1d grid(num_entries, max_threads);
     real_complex_convert<precision_type, max_threads, to_complex><<<grid.blocks, grid.threads>>>(num_entries, source, reinterpret_cast<precision_type*>(destination));
 }
+
+template<typename scalar_type, int num_threads>
+__global__ void complex_real_convert(int num_entries, scalar_type const source[], scalar_type destination[]){
+    int i = blockIdx.x * num_threads + threadIdx.x;
+    while(i < num_entries){
+        destination[i] = source[2*i];
+        i += num_threads * gridDim.x;
+    }
+}
+
 template<typename precision_type>
 void convert(int num_entries, std::complex<precision_type> const source[], precision_type destination[]){
     //thread_grid_1d grid(num_entries, max_threads);
     //real_complex_convert<precision_type, max_threads, not to_complex><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<precision_type const*>(source), destination);
 
-    // Unknown random bug, does not manifest if using the CPU to do the convetion
-    // pulling the data to the CPU and performing the conversion there was the only work-around that I found
-    std::vector<std::complex<precision_type>> ccpu = unload(source, num_entries);
-    std::vector<precision_type> rcpu(num_entries);
-    for(int i=0; i<num_entries; i++) rcpu[i] = std::real(ccpu[i]);
-    load(rcpu, destination);
+    // ideally the code above should work, but it fails at test_fft3d with 6 ranks (0, 1, and 2 ranks is OK)
+    // the code below is a work-around that is inefficient but doesn't move data back to the GPU
+    // one wrap/wave-front for ROCm is 64 threads and only thr <= 64 works, even though 128 works fine for 0, 1, and 2 ranks (not 6).
+    constexpr int thr = 64;
+    for(int i=0; i<num_entries; i += thr){
+        int these_entries = std::min(num_entries - i, thr);
+        thread_grid_1d grid(these_entries, thr);
+        hipLaunchKernelGGL(HIP_KERNEL_NAME(complex_real_convert<precision_type, thr>), grid.blocks, grid.threads, 0, 0,
+                            these_entries, reinterpret_cast<precision_type const*>(source + i), destination + i);
+    }
 }
 
 template void convert<float>(int num_entries, float const source[], std::complex<float> destination[]);
