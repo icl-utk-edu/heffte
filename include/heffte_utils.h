@@ -151,7 +151,7 @@ inline int comm_size(MPI_Comm const comm){
  *
  * Uses MPI_Comm_group(), MPI_Group_incl(), MPI_Comm_create(), MPI_Group_free().
  */
-inline MPI_Comm new_comm_form_group(std::vector<int> const &ranks, MPI_Comm const comm){
+inline MPI_Comm new_comm_from_group(std::vector<int> const &ranks, MPI_Comm const comm){
     MPI_Group orig_group, new_group;
     MPI_Comm_group(comm, &orig_group);
     MPI_Group_incl(orig_group, (int) ranks.size(), ranks.data(), &new_group);
