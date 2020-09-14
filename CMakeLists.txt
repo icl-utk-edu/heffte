@@ -52,6 +52,7 @@ set(Heffte_common_sources
     include/heffte_trace.h
     include/heffte_geometry.h
     include/heffte_common.h
+    include/heffte_backend_vector.h
     include/heffte_plan_logic.h
     include/heffte_pack3d.h
     include/heffte_reshape3d.h
@@ -77,6 +78,7 @@ if (Heffte_ENABLE_CUDA)
 
     list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
     cuda_add_library(Heffte ${Heffte_common_sources}
+                            include/heffte_backend_cuda.h
                             src/heffte_backend_cuda.cu)
 
     cuda_add_cufft_to_target(Heffte)

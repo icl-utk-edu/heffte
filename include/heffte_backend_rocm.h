@@ -12,6 +12,7 @@
 #ifdef Heffte_ENABLE_ROCM
 
 #include <rocfft.h>
+#include "heffte_backend_vector.h"
 
 /*!
  * \ingroup fft3d
@@ -32,15 +33,45 @@ namespace heffte{
 
 /*!
  * \ingroup heffterocm
- * \brief Rocm specific methods, vector-like container, error checking, etc.
+ * \brief ROCM specific methods, vector-like container, error checking, etc.
  */
 namespace rocm {
+    /*!
+     * \ingroup heffterocm
+     * \brief Memory management operation specific to ROCM, see gpu::device_vector.
+     */
+    struct memory_manager{
+        //! \brief Allocate memory.
+        static void* allocate(size_t num_bytes);
+        //! \brief Free memory.
+        static void free(void *pntr);
+        //! \brief Send data to the device.
+        static void host_to_device(void const *source, size_t num_bytes, void *destination);
+        //! \brief Copy within the device.
+        static void device_to_device(void const *source, size_t num_bytes, void *destination);
+        //! \brief Receive from the device.
+        static void device_to_host(void const *source, size_t num_bytes, void *destination);
+    };
+}
+
+namespace gpu {
+    /*!
+     * \ingroup heffterocm
+     * \brief Device vector for the ROCM backends.
+     */
+    template<typename scalar_type>
+    using vector = device_vector<scalar_type, rocm::memory_manager>;
 
     /*!
      * \ingroup heffterocm
-     * \brief Checks the status of a rocm command and in case of a failure, converts it to a C++ exception.
+     * \brief Transfer helpers for the ROCM backends.
      */
-    //void check_error(hipError_t status, std::string const &function_name);
+    using transfer = device_transfer<rocm::memory_manager>;
+};
+
+
+namespace rocm {
+
     /*!
      * \ingroup heffterocm
      * \brief Checks the status of a cufft command and in case of a failure, converts it to a C++ exception.
@@ -48,202 +79,6 @@ namespace rocm {
     inline void check_error(rocfft_status status, std::string const &function_name){
         if (status != rocfft_status_success)
             throw std::runtime_error(function_name + " failed with error code: " + std::to_string(status));
-    }
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Wrapper around hipGetDeviceCount()
-     */
-    int device_count();
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Wrapper around hipSetDevice()
-     *
-     * \param active_device is the new active ROCM device for this thread, see the AMD documentation for hipSetDevice()
-     */
-    void device_set(int active_device);
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Wrapper around hipStreamSynchronize(nullptr).
-     */
-    void synchronize_default_stream();
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Container that wraps around a raw ROCM array.
-     */
-    template<typename scalar_type> class vector{
-    public:
-        //! \brief Allocate a new vector with the given number of entries.
-        vector(size_t num_entries = 0) : num(num_entries), gpu_data(alloc(num)){}
-        //! \brief Copy a range of entries from the device into the vector.
-        vector(scalar_type const *begin, scalar_type const *end);
-
-        //! \brief Copy constructor, copy the data from other to this vector.
-        vector(const vector<scalar_type>& other);
-        //! \brief Move constructor, moves the data from \b other into this vector.
-        vector(vector<scalar_type> &&other) : num(c11_exchange(other.num, 0)), gpu_data(c11_exchange(other.gpu_data, nullptr)){}
-
-        //! \brief Captures ownership of the data in the raw-pointer, resets the pointer to null.
-        vector(scalar_type* &&raw_pointer, size_t num_entries) : num(num_entries), gpu_data(c11_exchange(raw_pointer, nullptr)){}
-
-        //! \brief Desructor, deletes all data.
-        ~vector();
-
-        //! \brief Copy assignment, copies the data form \b other to this object.
-        void operator =(vector<scalar_type> const &other){
-            vector<scalar_type> temp(other);
-            std::swap(num, temp.num);
-            std::swap(gpu_data, temp.gpu_data);
-        }
-
-        //! \brief Move assignment, moves the data form \b other to this object.
-        void operator =(vector<scalar_type>&& other){
-            vector<scalar_type> temp(std::move(other));
-            std::swap(num, temp.num);
-            std::swap(gpu_data, temp.gpu_data);
-        }
-
-        //! \brief Give reference to the array, can be passed directly into cuFFT calls or custom kernels.
-        scalar_type* data(){ return gpu_data; }
-        //! \brief Give const reference to the array, can be passed directly into cuFFT calls or custom kernels.
-        const scalar_type* data() const{ return gpu_data; }
-
-        //! \brief Return the current size of the array, i.e., the number of elements.
-        size_t size() const{ return num; }
-        //! \brief Return \b true if the vector is has zero size.
-        bool empty() const{ return (num == 0); }
-
-        //! \brief The value of the array, used for static error checking.
-        using value_type = scalar_type;
-
-        //! \brief Returns the current array and releases ownership.
-        scalar_type* release(){
-            num = 0;
-            return c11_exchange(gpu_data, nullptr);
-        }
-
-    protected:
-        //! \brief Allocate a new ROCM array with the given size.
-        static scalar_type* alloc(size_t new_size);
-
-    private:
-        //! \brief Stores the number of entries in the vector.
-        size_t num;
-        //! \brief The array with the GPU data.
-        scalar_type *gpu_data;
-    };
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Captures ownership of the data in the raw-pointer.
-     *
-     * The advantage of the factory function over using the constructor is the ability
-     * to auto-deduce the scalar type.
-     */
-    template<typename scalar_type>
-    vector<scalar_type> capture(scalar_type* &&raw_pointer, size_t num_entries){
-        return vector<scalar_type>(std::forward<scalar_type*>(raw_pointer), num_entries);
-    }
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Copy data from the vector to the pointer, data size is equal to the vector size.
-     */
-    template<typename scalar_type>
-    void copy_pntr(vector<scalar_type> const &x, scalar_type data[]);
-    /*!
-     * \ingroup heffterocm
-     * \brief Copy data from the pointer to the vector, data size is equal to the vector size.
-     */
-    template<typename scalar_type>
-    void copy_pntr(scalar_type const data[], vector<scalar_type> &x);
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Copy the data from a buffer on the CPU to a rocm::vector.
-     *
-     * \tparam scalar_type of the vector entries.
-     *
-     * \param cpu_data is a buffer with size at least \b num_entries that sits in the CPU
-     * \param num_entries is the number of entries to load
-     *
-     * \returns a rocm::vector with size equal to \b num_entries and a copy of the CPU data
-     */
-    template<typename scalar_type>
-    vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries);
-    /*!
-     * \ingroup heffterocm
-     * \brief Similar to rocm::load() but loads the data from a std::vector
-     */
-    template<typename scalar_type>
-    vector<scalar_type> load(std::vector<scalar_type> const &cpu_data){
-        return load(cpu_data.data(), cpu_data.size());
-    }
-    /*!
-     * \ingroup heffterocm
-     * \brief Similar to rocm::load() but loads the data from a std::vector into a pointer.
-     */
-    template<typename scalar_type>
-    void load(std::vector<scalar_type> const &cpu_data, scalar_type gpu_data[]);
-    /*!
-     * \ingroup heffterocm
-     * \brief Similar to rocm::load() but loads the data from a std::vector
-     */
-    template<typename scalar_type>
-    void load(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data);
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Load method that copies two std::vectors, used in template general code.
-     *
-     * This is never executed.
-     * Without if-constexpr (introduced in C++ 2017) generic template code must compile
-     * even branches in the if-statements that will never be reached.
-     */
-    template<typename scalar_type>
-    void load(std::vector<scalar_type> const &a, std::vector<scalar_type> &b){ b = a; }
-    /*!
-     * \ingroup heffterocm
-     * \brief Unload method that copies two std::vectors, used in template general code.
-     *
-     * This is never executed.
-     * Without if-constexpr (introduced in C++ 2017) generic template code must compile
-     * even branches in the if-statements that will never be reached.
-     */
-    template<typename scalar_type>
-    std::vector<scalar_type> unload(std::vector<scalar_type> const &a){ return a; }
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Copy number of entries from the GPU pointer into the vector.
-     */
-    template<typename scalar_type>
-    std::vector<scalar_type> unload(scalar_type const gpu_pointer[], size_t num_entries);
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Copy the data from a rocm::vector to a cpu buffer
-     *
-     * \tparam scalar_type of the vector entries
-     *
-     * \param gpu_data is the rocm::vector to holding the data to unload
-     * \param cpu_data is a buffer with size at least \b gpu_data.size() that sits in the CPU
-     */
-    template<typename scalar_type>
-    void unload(vector<scalar_type> const &gpu_data, scalar_type *cpu_data);
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Similar to unload() but copies the data into a std::vector.
-     */
-    template<typename scalar_type>
-    std::vector<scalar_type> unload(vector<scalar_type> const &gpu_data){
-        std::vector<scalar_type> result(gpu_data.size());
-        unload(gpu_data, result.data());
-        return result;
     }
 
     /*!
@@ -329,7 +164,7 @@ namespace backend{
         //! \brief The rocfft library uses data on the gpu device.
         using location = tag::gpu;
         //! \brief The data is managed by the ROCM vector container.
-        template<typename T> using container = heffte::rocm::vector<T>;
+        template<typename T> using container = heffte::gpu::vector<T>;
     };
 
     /*!
@@ -499,10 +334,10 @@ public:
         size_t wsize = (std::is_same<precision_type, float>::value) ?
                             ((dir == direction::forward) ? ccomplex_forward->size_work() : ccomplex_backward->size_work()) :
                             ((dir == direction::forward) ? zcomplex_forward->size_work() : zcomplex_backward->size_work());
-        rocm::vector<std::complex<precision_type>> work_buff;
+        gpu::vector<std::complex<precision_type>> work_buff;
 
         if (wsize > 0){
-            work_buff = rocm::vector<std::complex<precision_type>>(wsize);
+            work_buff = gpu::vector<std::complex<precision_type>>(wsize);
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(work_buff.data()), wsize);
         }
 
@@ -600,13 +435,13 @@ public:
         rocfft_execution_info_create(&info);
 
         size_t wsize = (std::is_same<precision_type, float>::value) ? sforward->size_work() : dforward->size_work();
-        rocm::vector<std::complex<precision_type>> work_buff;
+        gpu::vector<std::complex<precision_type>> work_buff;
 
         if (wsize > 0){
-            work_buff = rocm::vector<std::complex<precision_type>>(wsize);
+            work_buff = gpu::vector<std::complex<precision_type>>(wsize);
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(work_buff.data()), wsize);
         }
-        rocm::vector<precision_type> copy_indata(indata, indata + real_size());
+        gpu::vector<precision_type> copy_indata(indata, indata + real_size());
 
         for(int i=0; i<blocks; i++){
             void *rdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata.data() + i * rblock_stride));
@@ -630,13 +465,13 @@ public:
         rocfft_execution_info_create(&info);
 
         size_t wsize = (std::is_same<precision_type, float>::value) ? sbackward->size_work() : dbackward->size_work();
-        rocm::vector<std::complex<precision_type>> work_buff;
+        gpu::vector<std::complex<precision_type>> work_buff;
 
         if (wsize > 0){
-            work_buff = rocm::vector<std::complex<precision_type>>(wsize);
+            work_buff = gpu::vector<std::complex<precision_type>>(wsize);
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(work_buff.data()), wsize);
         }
-        rocm::vector<std::complex<precision_type>> copy_indata(indata, indata + complex_size());
+        gpu::vector<std::complex<precision_type>> copy_indata(indata, indata + complex_size());
 
         for(int i=0; i<blocks; i++){
             void *cdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata.data() + i * cblock_stride));

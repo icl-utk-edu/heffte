@@ -139,75 +139,75 @@ struct input_maker<backend::mkl, scalar_type>{
 
 #ifdef Heffte_ENABLE_CUDA
 template<typename scalar_type>
-cuda::vector<scalar_type> compute_fft_cufft(box3d const world, cuda::vector<scalar_type> const &input){
+gpu::vector<scalar_type> compute_fft_cufft(box3d const world, gpu::vector<scalar_type> const &input){
     assert(input.size() == static_cast<size_t>(world.count()));
-    cuda::vector<scalar_type> result = input;
+    gpu::vector<scalar_type> result = input;
     for(int i=0; i<3; i++)
         heffte::cufft_executor(world, i).forward(result.data());
     return result;
 }
 template<typename scalar_type>
-cuda::vector<typename fft_output<scalar_type>::type> compute_fft_cuda(box3d const world, cuda::vector<scalar_type> const &input){
-    cuda::vector<typename fft_output<scalar_type>::type> result(input.size());
+gpu::vector<typename fft_output<scalar_type>::type> compute_fft_cuda(box3d const world, gpu::vector<scalar_type> const &input){
+    gpu::vector<typename fft_output<scalar_type>::type> result(input.size());
     cuda::convert(input.size(), input.data(), result.data());
     return compute_fft_cufft(world, result);
 }
 template<typename scalar_type>
-cuda::vector<std::complex<scalar_type>> compute_fft_cuda(box3d const world, cuda::vector<std::complex<scalar_type>> const &input){
+gpu::vector<std::complex<scalar_type>> compute_fft_cuda(box3d const world, gpu::vector<std::complex<scalar_type>> const &input){
     return compute_fft_cufft(world, input);
 }
 template<typename scalar_type>
 struct perform_fft<backend::cufft, scalar_type>{
     static std::vector<typename fft_output<scalar_type>::type> forward(box3d const world, std::vector<scalar_type> const &input){
-        return cuda::unload(compute_fft_cuda(world, cuda::load(input)));
+        return gpu::transfer::unload(compute_fft_cuda(world, gpu::transfer::load(input)));
     }
 };
 template<typename scalar_type>
 struct input_maker<backend::cufft, scalar_type>{
-    static cuda::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
-        return cuda::load(get_subbox(world, box, input));
+    static gpu::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
+        return gpu::transfer::load(get_subbox(world, box, input));
     }
 };
 template<typename scalar_type>
-std::vector<scalar_type> rescale(box3d const world, cuda::vector<scalar_type> const &data, scale scaling){
-    return rescale(world, cuda::unload(data), scaling);
+std::vector<scalar_type> rescale(box3d const world, gpu::vector<scalar_type> const &data, scale scaling){
+    return rescale(world, gpu::transfer::unload(data), scaling);
 }
 #endif
 
 #ifdef Heffte_ENABLE_ROCM
 template<typename scalar_type>
-rocm::vector<scalar_type> compute_fft_rocfft(box3d const world, rocm::vector<scalar_type> const &input){
+gpu::vector<scalar_type> compute_fft_rocfft(box3d const world, gpu::vector<scalar_type> const &input){
     assert(input.size() == static_cast<size_t>(world.count()));
-    rocm::vector<scalar_type> result = input;
+    gpu::vector<scalar_type> result = input;
     for(int i=0; i<3; i++)
         heffte::rocfft_executor(world, i).forward(result.data());
     return result;
 }
 template<typename scalar_type>
-rocm::vector<typename fft_output<scalar_type>::type> compute_fft_rocm(box3d const world, rocm::vector<scalar_type> const &input){
-    rocm::vector<typename fft_output<scalar_type>::type> result(input.size());
+gpu::vector<typename fft_output<scalar_type>::type> compute_fft_rocm(box3d const world, gpu::vector<scalar_type> const &input){
+    gpu::vector<typename fft_output<scalar_type>::type> result(input.size());
     rocm::convert(input.size(), input.data(), result.data());
     return compute_fft_rocfft(world, result);
 }
 template<typename scalar_type>
-rocm::vector<std::complex<scalar_type>> compute_fft_rocm(box3d const world, rocm::vector<std::complex<scalar_type>> const &input){
+gpu::vector<std::complex<scalar_type>> compute_fft_rocm(box3d const world, gpu::vector<std::complex<scalar_type>> const &input){
     return compute_fft_rocfft(world, input);
 }
 template<typename scalar_type>
 struct perform_fft<backend::rocfft, scalar_type>{
     static std::vector<typename fft_output<scalar_type>::type> forward(box3d const world, std::vector<scalar_type> const &input){
-        return rocm::unload(compute_fft_rocm(world, rocm::load(input)));
+        return gpu::transfer::unload(compute_fft_rocm(world, gpu::transfer::load(input)));
     }
 };
 template<typename scalar_type>
 struct input_maker<backend::rocfft, scalar_type>{
-    static rocm::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
-        return rocm::load(get_subbox(world, box, input));
+    static gpu::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
+        return gpu::transfer::load(get_subbox(world, box, input));
     }
 };
 template<typename scalar_type>
-std::vector<scalar_type> rescale(box3d const world, rocm::vector<scalar_type> const &data, scale scaling){
-    return rescale(world, rocm::unload(data), scaling);
+std::vector<scalar_type> rescale(box3d const world, gpu::vector<scalar_type> const &data, scale scaling){
+    return rescale(world, gpu::transfer::unload(data), scaling);
 }
 #endif
 

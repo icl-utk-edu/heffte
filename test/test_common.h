@@ -153,38 +153,25 @@ struct test_traits{
 
 #ifdef Heffte_ENABLE_CUDA
 using gpu_backend = heffte::backend::cufft;
-template<typename T>
-inline bool match(heffte::cuda::vector<T> const &a, std::vector<T> const &b){
-    return match(cuda::unload(a), b);
-}
-template<typename T>
-inline bool approx(heffte::cuda::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
-    return approx(cuda::unload(a), b, correction);
-}
-template<> struct test_traits<backend::cufft>{
-    template<typename T> using container = cuda::vector<T>;
-    template<typename T>
-    static container<T> load(std::vector<T> const &x){ return cuda::load(x); }
-    template<typename T>
-    static std::vector<T> unload(container<T> const &x){ return cuda::unload(x); }
-};
 #endif
 #ifdef Heffte_ENABLE_ROCM
 using gpu_backend = heffte::backend::rocfft;
+#endif
+#ifdef Heffte_ENABLE_GPU
 template<typename T>
-inline bool match(heffte::rocm::vector<T> const &a, std::vector<T> const &b){
-    return match(rocm::unload(a), b);
+inline bool match(heffte::gpu::vector<T> const &a, std::vector<T> const &b){
+    return match(heffte::gpu::transfer::unload(a), b);
 }
 template<typename T>
-inline bool approx(heffte::rocm::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
-    return approx(rocm::unload(a), b, correction);
+inline bool approx(heffte::gpu::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
+    return approx(heffte::gpu::transfer::unload(a), b, correction);
 }
-template<> struct test_traits<backend::rocfft>{
-    template<typename T> using container = rocm::vector<T>;
+template<> struct test_traits<gpu_backend>{
+    template<typename T> using container = gpu::vector<T>;
     template<typename T>
-    static container<T> load(std::vector<T> const &x){ return rocm::load(x); }
+    static container<T> load(std::vector<T> const &x){ return gpu::transfer::load(x); }
     template<typename T>
-    static std::vector<T> unload(container<T> const &x){ return rocm::unload(x); }
+    static std::vector<T> unload(container<T> const &x){ return gpu::transfer::unload(x); }
 };
 #endif
 

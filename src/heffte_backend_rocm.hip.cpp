@@ -14,12 +14,36 @@
 #include <hip/hip_runtime.h>
 
 namespace heffte {
-namespace rocm {
 
+namespace gpu {
 void check_error(hipError_t status, std::string const &function_name){
     if (status != hipSuccess)
         throw std::runtime_error(function_name + " failed with message: " + std::to_string(status));
 }
+}
+
+namespace rocm {
+void* memory_manager::allocate(size_t num_bytes){
+    void *new_data;
+    gpu::check_error(hipMalloc(&new_data, num_bytes), "hipMalloc()");
+    return new_data;
+}
+void memory_manager::free(void *pntr){
+    if (pntr != nullptr)
+        gpu::check_error(hipFree(pntr), "hipFree()");
+}
+void memory_manager::host_to_device(void const *source, size_t num_bytes, void *destination){
+    gpu::check_error(hipMemcpy(destination, source, num_bytes, hipMemcpyHostToDevice), "host_to_device (hip)");
+}
+void memory_manager::device_to_device(void const *source, size_t num_bytes, void *destination){
+    gpu::check_error(hipMemcpy(destination, source, num_bytes, hipMemcpyDeviceToDevice), "device_to_device (hip)");
+}
+void memory_manager::device_to_host(void const *source, size_t num_bytes, void *destination){
+    gpu::check_error(hipMemcpy(destination, source, num_bytes, hipMemcpyDeviceToHost), "device_to_host (hip)");
+}
+}
+
+namespace gpu {
 
 int device_count(){
     int count;
@@ -37,79 +61,14 @@ void synchronize_default_stream(){
     check_error(hipStreamSynchronize(nullptr), "device synch"); // synch the default stream
 }
 
-template<typename scalar_type>
-vector<scalar_type>::vector(scalar_type const *begin, scalar_type const *end) : num(std::distance(begin, end)), gpu_data(alloc(num)){
-    check_error(hipMemcpy(gpu_data, begin, num * sizeof(scalar_type), hipMemcpyDeviceToDevice), "rocm::vector(begin, end)");
-}
-template<typename scalar_type>
-vector<scalar_type>::vector(const vector<scalar_type>& other) : num(other.num), gpu_data(alloc(num)){
-    check_error(hipMemcpy(gpu_data, other.gpu_data, num * sizeof(scalar_type), hipMemcpyDeviceToDevice), "rocm::vector(rocm::vector const &)");
-}
-template<typename scalar_type>
-vector<scalar_type>::~vector(){
-    if (gpu_data != nullptr)
-        check_error(hipFree(gpu_data), "rocm::~vector()");
-}
-template<typename scalar_type>
-scalar_type* vector<scalar_type>::alloc(size_t new_size){
-    if (new_size == 0) return nullptr;
-    scalar_type *new_data;
-    check_error(hipMalloc((void**) &new_data, new_size * sizeof(scalar_type)), "rocm::vector::alloc()");
-    return new_data;
-}
-template<typename scalar_type>
-void copy_pntr(vector<scalar_type> const &x, scalar_type data[]){
-    check_error(hipMemcpy(data, x.data(), x.size() * sizeof(scalar_type), hipMemcpyDeviceToDevice), "rocm::copy_pntr(vector, data)");
-}
-template<typename scalar_type>
-void copy_pntr(scalar_type const data[], vector<scalar_type> &x){
-    check_error(hipMemcpy(x.data(), data, x.size() * sizeof(scalar_type), hipMemcpyDeviceToDevice), "rocm::copy_pntr(data, vector)");
-}
-template<typename scalar_type>
-vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries){
-    vector<scalar_type> result(num_entries);
-    check_error(hipMemcpy(result.data(), cpu_data, num_entries * sizeof(scalar_type), hipMemcpyHostToDevice), "rocm::load()");
-    return result;
-}
-template<typename scalar_type>
-void load(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data){
-    if (gpu_data.size() != cpu_data.size()) gpu_data = vector<scalar_type>(cpu_data.size());
-    check_error(hipMemcpy(gpu_data.data(), cpu_data.data(), gpu_data.size() * sizeof(scalar_type), hipMemcpyHostToDevice), "rocm::load()");
-}
-template<typename scalar_type>
-void load(std::vector<scalar_type> const &cpu_data, scalar_type gpu_data[]){
-    check_error(hipMemcpy(gpu_data, cpu_data.data(), cpu_data.size() * sizeof(scalar_type), hipMemcpyHostToDevice), "rocm::load()");
-}
-template<typename scalar_type>
-void unload(vector<scalar_type> const &gpu_data, scalar_type *cpu_data){
-    check_error(hipMemcpy(cpu_data, gpu_data.data(), gpu_data.size() * sizeof(scalar_type), hipMemcpyDeviceToHost), "rocm::unload()");
 }
 
-template<typename scalar_type>
-std::vector<scalar_type> unload(scalar_type const gpu_pointer[], size_t num_entries){
-    std::vector<scalar_type> result(num_entries);
-    check_error(hipMemcpy(result.data(), gpu_pointer, num_entries * sizeof(scalar_type), hipMemcpyDeviceToHost), "rocm::unload()");
-    return result;
+namespace rocm {
+
+void check_error(hipError_t status, std::string const &function_name){
+    if (status != hipSuccess)
+        throw std::runtime_error(function_name + " failed with message: " + std::to_string(status));
 }
-
-#define instantiate_rocm_vector(scalar_type) \
-    template vector<scalar_type>::vector(scalar_type const *begin, scalar_type const *end); \
-    template vector<scalar_type>::vector(const vector<scalar_type>& other); \
-    template vector<scalar_type>::~vector(); \
-    template scalar_type* vector<scalar_type>::alloc(size_t); \
-    template void copy_pntr(vector<scalar_type> const &x, scalar_type data[]); \
-    template void copy_pntr(scalar_type const data[], vector<scalar_type> &x); \
-    template vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries); \
-    template void load<scalar_type>(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data); \
-    template void load<scalar_type>(std::vector<scalar_type> const&, scalar_type[]); \
-    template void unload<scalar_type>(vector<scalar_type> const &, scalar_type *); \
-    template std::vector<scalar_type> unload<scalar_type>(scalar_type const[], size_t); \
-
-
-instantiate_rocm_vector(float);
-instantiate_rocm_vector(double);
-instantiate_rocm_vector(std::complex<float>);
-instantiate_rocm_vector(std::complex<double>);
 
 /*
  * Launch with one thread per entry.

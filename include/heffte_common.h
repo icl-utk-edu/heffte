@@ -123,6 +123,22 @@ namespace backend {
 
     /*!
      * \ingroup fft3dbackend
+     * \brief Struct that specializes to true type if the location of the backend is on the gpu (false type otherwise).
+     */
+    template<typename backend_tag, typename = void>
+    struct uses_gpu : std::false_type{};
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Specialization for the on-gpu case.
+     */
+    template<typename backend_tag>
+    struct uses_gpu<backend_tag,
+                    typename std::enable_if<std::is_same<typename buffer_traits<backend_tag>::location, tag::gpu>::value, void>::type>
+    : std::true_type{};
+
+    /*!
+     * \ingroup fft3dbackend
      * \brief Returns the human readable name of the backend.
      */
     template<typename backend_tag>
