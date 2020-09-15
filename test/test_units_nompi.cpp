@@ -201,12 +201,10 @@ std::vector<typename fft_output<scalar_type>::type> make_fft2_r2c(){
     return result;
 }
 
-#ifdef Heffte_ENABLE_FFTW
-template<typename scalar_type>
-void test_fftw_1d_complex(){
-    current_test<scalar_type, using_nompi> name("fftw3 one-dimension");
+template<typename backend_tag, typename scalar_type>
+void test_1d_complex(){
+    current_test<scalar_type, using_nompi> name(backend::name<backend_tag>() + " one-dimension");
 
-    // make a box
     box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
 
     auto const input = make_input<scalar_type>();
@@ -214,23 +212,23 @@ void test_fftw_1d_complex(){
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
 
     for(size_t i=0; i<reference.size(); i++){
-        heffte::fftw_executor fft(box, i);
+        typename heffte::one_dim_backend<backend_tag>::type fft(box, i);
 
-        std::vector<scalar_type> result = input;
-        fft.forward(result.data());
-        sassert(approx(result, reference[i]));
+        auto forward_result = test_traits<backend_tag>::load(input);
+        fft.forward(forward_result.data());
+        sassert(approx(forward_result, reference[i]));
 
-        fft.backward(result.data());
-        for(auto &r : result) r /= (2.0 + i);
-        sassert(approx(result, input));
+        fft.backward(forward_result.data());
+
+        auto backward_result = test_traits<backend_tag>::unload(forward_result);
+        for(auto &r : backward_result) r /= (2.0 + i);
+        sassert(approx(backward_result, input));
     }
 }
+template<typename backend_tag, typename scalar_type>
+void test_1d_real(){
+    current_test<scalar_type, using_nompi> name(backend::name<backend_tag>() + " one-dimension");
 
-template<typename scalar_type>
-void test_fftw_1d_real(){
-    current_test<scalar_type, using_nompi> name("fftw3 one-dimension");
-
-    // make a box
     box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
 
     auto const input = make_input<scalar_type>();
@@ -238,144 +236,60 @@ void test_fftw_1d_real(){
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
 
     for(size_t i=0; i<reference.size(); i++){
-        heffte::fftw_executor fft(box, i);
+        typename heffte::one_dim_backend<backend_tag>::type fft(box, i);
 
-        std::vector<typename fft_output<scalar_type>::type> result(input.size());
-        fft.forward(input.data(), result.data());
+        auto load_input = test_traits<backend_tag>::load(input);
+        typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(input.size());
+        fft.forward(load_input.data(), result.data());
         sassert(approx(result, reference[i]));
 
-        std::vector<scalar_type> back_result(result.size());
+        typename test_traits<backend_tag>::template container<scalar_type> back_result(result.size());
         fft.backward(result.data(), back_result.data());
-        for(auto &r : back_result) r /= (2.0 + i);
-        sassert(approx(back_result, input));
+        auto unload_result = test_traits<backend_tag>::unload(back_result);
+        for(auto &r : unload_result) r /= (2.0 + i);
+        sassert(approx(unload_result, input));
     }
 }
+template<typename backend_tag, typename scalar_type>
+void test_1d_r2c(){
+    current_test<scalar_type, using_nompi> name(backend::name<backend_tag>() + " one-dimension r2c");
 
-template<typename scalar_type>
-void test_fftw_1d_r2c(){
-    current_test<scalar_type, using_nompi> name("fftw3 one-dimension r2c");
-
-    // make a box
     box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
 
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
 
-    for(size_t i=0; i<reference.size(); i++){
-        heffte::fftw_executor_r2c fft(box, i);
+    #ifdef Heffte_ENABLE_ROCM
+    if (std::is_same<backend_tag, backend::rocfft>::value)
+        reference.resize(1); // the rocFFT strided transforms are not supported yet, test only the contiguous one corresponding to i = 0
+    #endif
 
-        std::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
-        fft.forward(input.data(), result.data());
+    for(size_t i=0; i<reference.size(); i++){
+        typename heffte::one_dim_backend<backend_tag>::type_r2c fft(box, i);
+
+        auto load_input = test_traits<backend_tag>::load(input);
+        typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(fft.complex_size());
+        fft.forward(load_input.data(), result.data());
         sassert(approx(result, reference[i]));
 
-        std::vector<scalar_type> back_result(fft.real_size());
+        typename test_traits<backend_tag>::template container<scalar_type> back_result(input.size());
         fft.backward(result.data(), back_result.data());
-        for(auto &r : back_result) r /= (2.0 + i);
-        sassert(approx(back_result, input));
+        auto unload_result = test_traits<backend_tag>::unload(back_result);
+        for(auto &r : unload_result) r /= (2.0 + i);
+        sassert(approx(unload_result, input));
     }
 }
 
-// tests for the 1D fft
-void test_fftw(){
-    test_fftw_1d_real<float>();
-    test_fftw_1d_real<double>();
-    test_fftw_1d_complex<std::complex<float>>();
-    test_fftw_1d_complex<std::complex<double>>();
-    test_fftw_1d_r2c<float>();
-    test_fftw_1d_r2c<double>();
+template<typename backend_tag>
+void test_1d(){
+    test_1d_real<backend_tag, float>();
+    test_1d_real<backend_tag, double>();
+    test_1d_complex<backend_tag, std::complex<float>>();
+    test_1d_complex<backend_tag, std::complex<double>>();
+    test_1d_r2c<backend_tag, float>();
+    test_1d_r2c<backend_tag, double>();
 }
-#else
-void test_fftw(){}
-#endif
-
-#ifdef Heffte_ENABLE_MKL
-template<typename scalar_type>
-void test_mkl_1d_complex(){
-    current_test<scalar_type, using_nompi> name("mkl one-dimension");
-
-    // make a box
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
-
-    auto const input = make_input<scalar_type>();
-    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
-        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
-
-    for(size_t i=0; i<reference.size(); i++){
-        heffte::mkl_executor fft(box, i);
-
-        std::vector<scalar_type> result = input;
-        fft.forward(result.data());
-        sassert(approx(result, reference[i]));
-
-        fft.backward(result.data());
-        for(auto &r : result) r /= (2.0 + i);
-        sassert(approx(result, input));
-    }
-}
-
-template<typename scalar_type>
-void test_mkl_1d_real(){
-    current_test<scalar_type, using_nompi> name("mkl one-dimension");
-
-    // make a box
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
-
-    auto const input = make_input<scalar_type>();
-    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
-        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
-
-    for(size_t i=0; i<reference.size(); i++){
-        heffte::mkl_executor fft(box, i);
-
-        std::vector<typename fft_output<scalar_type>::type> result(input.size());
-        fft.forward(input.data(), result.data());
-        sassert(approx(result, reference[i]));
-
-        std::vector<scalar_type> back_result(result.size());
-        fft.backward(result.data(), back_result.data());
-        for(auto &r : back_result) r /= (2.0 + i);
-        sassert(approx(back_result, input));
-    }
-}
-
-template<typename scalar_type>
-void test_mkl_1d_r2c(){
-    current_test<scalar_type, using_nompi> name("mkl one-dimension r2c");
-
-    // make a box
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
-
-    auto const input = make_input<scalar_type>();
-    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
-        { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
-
-    for(size_t i=0; i<reference.size(); i++){
-        heffte::mkl_executor_r2c fft(box, i);
-
-        std::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
-        fft.forward(input.data(), result.data());
-        sassert(approx(result, reference[i]));
-
-        std::vector<scalar_type> back_result(fft.real_size());
-        fft.backward(result.data(), back_result.data());
-        for(auto &r : back_result) r /= (2.0 + i);
-        sassert(approx(back_result, input));
-    }
-}
-
-// tests for the 1D fft
-void test_mkl(){
-    test_mkl_1d_real<float>();
-    test_mkl_1d_real<double>();
-    test_mkl_1d_complex<std::complex<float>>();
-    test_mkl_1d_complex<std::complex<double>>();
-    test_mkl_1d_r2c<float>();
-    test_mkl_1d_r2c<double>();
-}
-#else
-void test_mkl(){}
-#endif
 
 #ifdef Heffte_ENABLE_GPU
 template<typename scalar_type>
@@ -452,186 +366,6 @@ void test_gpu_scale(){
 #else
 void test_gpu_vector(){}
 void test_gpu_scale(){}
-#endif
-
-#ifdef Heffte_ENABLE_CUDA
-template<typename scalar_type>
-void test_cufft_1d_complex(){
-    current_test<scalar_type, using_nompi> name("cufft one-dimension");
-
-    // make a box
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
-
-    auto const input = make_input<scalar_type>();
-    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
-        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
-
-    for(size_t i=0; i<reference.size(); i++){
-        heffte::cufft_executor fft(box, i);
-
-        auto curesult = gpu::transfer::load(input);
-        fft.forward(curesult.data());
-        sassert(approx(curesult, reference[i]));
-
-        fft.backward(curesult.data());
-        auto result = gpu::transfer::unload(curesult);
-        for(auto &r : result) r /= (2.0 + i);
-        sassert(approx(result, input));
-    }
-}
-template<typename scalar_type>
-void test_cufft_1d_real(){
-    current_test<scalar_type, using_nompi> name("cufft one-dimension");
-
-    // make a box
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
-
-    auto const input = make_input<scalar_type>();
-    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
-        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
-
-    for(size_t i=0; i<reference.size(); i++){
-        heffte::cufft_executor fft(box, i);
-
-        gpu::vector<typename fft_output<scalar_type>::type> curesult(input.size());
-        auto cuinput = gpu::transfer::load(input);
-        fft.forward(cuinput.data(), curesult.data());
-        sassert(approx(curesult, reference[i]));
-
-        gpu::vector<scalar_type> cuback_result(curesult.size());
-        fft.backward(curesult.data(), cuback_result.data());
-        auto back_result = gpu::transfer::unload(cuback_result);
-        for(auto &r : back_result) r /= (2.0 + i);
-        sassert(approx(back_result, input));
-    }
-}
-
-template<typename scalar_type>
-void test_cufft_1d_r2c(){
-    current_test<scalar_type, using_nompi> name("cufft one-dimension r2c");
-
-    // make a box
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
-
-    auto const input = make_input<scalar_type>();
-    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
-        { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
-
-    for(size_t i=0; i<reference.size(); i++){
-        heffte::cufft_executor_r2c fft(box, i);
-
-        gpu::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
-        auto cuinput = gpu::transfer::load(input);
-        fft.forward(cuinput.data(), result.data());
-        sassert(approx(result, reference[i], 0.01));
-
-        gpu::vector<scalar_type> back_result(fft.real_size());
-        fft.backward(result.data(), back_result.data());
-        data_scaling<tag::gpu>::apply(back_result.size(), back_result.data(), 1.0 / (2.0 + i));
-        sassert(approx(back_result, input, 0.01));
-    }
-}
-
-void test_cufft(){
-    test_cufft_1d_real<float>();
-    test_cufft_1d_real<double>();
-    test_cufft_1d_complex<std::complex<float>>();
-    test_cufft_1d_complex<std::complex<double>>();
-    test_cufft_1d_r2c<float>();
-    test_cufft_1d_r2c<double>();
-}
-#else
-void test_cufft(){}
-#endif
-
-#ifdef Heffte_ENABLE_ROCM
-template<typename scalar_type>
-void test_rocfft_1d_complex(){
-    current_test<scalar_type, using_nompi> name("rocfft one-dimension");
-
-    // make a box
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
-
-    auto const input = make_input<scalar_type>();
-    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
-        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
-
-    for(size_t i=0; i<reference.size(); i++){
-        heffte::rocfft_executor fft(box, i);
-
-        auto curesult = gpu::transfer::load(input);
-        fft.forward(curesult.data());
-        sassert(approx(curesult, reference[i]));
-
-        fft.backward(curesult.data());
-        auto result = gpu::transfer::unload(curesult);
-        for(auto &r : result) r /= (2.0 + i);
-        sassert(approx(result, input));
-    }
-}
-template<typename scalar_type>
-void test_rocfft_1d_real(){
-    current_test<scalar_type, using_nompi> name("rocfft one-dimension");
-
-    // make a box
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
-
-    auto const input = make_input<scalar_type>();
-    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
-        { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
-
-    for(size_t i=0; i<reference.size(); i++){
-        heffte::rocfft_executor fft(box, i);
-
-        gpu::vector<typename fft_output<scalar_type>::type> curesult(input.size());
-        auto cuinput = gpu::transfer::load(input);
-        fft.forward(cuinput.data(), curesult.data());
-        sassert(approx(curesult, reference[i]));
-
-        gpu::vector<scalar_type> cuback_result(curesult.size());
-        fft.backward(curesult.data(), cuback_result.data());
-        auto back_result = gpu::transfer::unload(cuback_result);
-        for(auto &r : back_result) r /= (2.0 + i);
-        sassert(approx(back_result, input));
-    }
-}
-template<typename scalar_type>
-void test_rocfft_1d_r2c(){
-    current_test<scalar_type, using_nompi> name("rocfft one-dimension r2c");
-
-    // make a box
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
-
-    auto const input = make_input<scalar_type>();
-    std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
-        { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
-
-    //for(size_t i=0; i<reference.size(); i++){
-    for(size_t i=0; i<1; i++){
-        heffte::rocfft_executor_r2c fft(box, i);
-
-        gpu::vector<typename fft_output<scalar_type>::type> result(fft.complex_size());
-        auto cuinput = gpu::transfer::load(input);
-        fft.forward(cuinput.data(), result.data());
-        sassert(approx(result, reference[i], 0.01));
-
-        gpu::vector<scalar_type> back_result(fft.real_size());
-        fft.backward(result.data(), back_result.data());
-        data_scaling<tag::gpu>::apply(back_result.size(), back_result.data(), 1.0 / (2.0 + i));
-        sassert(approx(back_result, input, 0.01));
-    }
-}
-
-void test_rocfft(){
-    test_rocfft_1d_real<float>();
-    test_rocfft_1d_real<double>();
-    test_rocfft_1d_complex<std::complex<float>>();
-    test_rocfft_1d_complex<std::complex<double>>();
-    test_rocfft_1d_r2c<float>();
-    test_rocfft_1d_r2c<double>();
-}
-#else
-void test_rocfft(){}
 #endif
 
 void test_1d_reorder(){
@@ -1025,10 +759,15 @@ int main(int, char**){
     test_gpu_vector();
     test_gpu_scale();
 
-    test_fftw();
-    test_mkl();
-    test_cufft();
-    test_rocfft();
+    #ifdef Heffte_ENABLE_FFTW
+    test_1d<backend::fftw>();
+    #endif
+    #ifdef Heffte_ENABLE_MKL
+    test_1d<backend::mkl>();
+    #endif
+    #ifdef Heffte_ENABLE_GPU
+    test_1d<gpu_backend>(); // pick the default CUDA or ROCM backend
+    #endif
 
     test_1d_reorder();
     test_transpose();

@@ -142,7 +142,7 @@ inline bool approx(std::vector<T> const &a, std::vector<T> const &b, double corr
     return true;
 }
 
-template<typename backend_tag>
+template<typename backend_tag, typename = void>
 struct test_traits{
     template<typename T> using container = typename backend::buffer_traits<backend_tag>::template container<T>;
     template<typename T>
@@ -166,7 +166,8 @@ template<typename T>
 inline bool approx(heffte::gpu::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
     return approx(heffte::gpu::transfer::unload(a), b, correction);
 }
-template<> struct test_traits<gpu_backend>{
+template<typename backend_tag>
+struct test_traits<backend_tag, typename std::enable_if<backend::uses_gpu<backend_tag>::value, void>::type>{
     template<typename T> using container = gpu::vector<T>;
     template<typename T>
     static container<T> load(std::vector<T> const &x){ return gpu::transfer::load(x); }
