@@ -134,15 +134,10 @@ void test_cpu(MPI_Comm const comm){
     tassert(match(output_data, reference_data));
 }
 
-#if defined(Heffte_ENABLE_CUDA) or defined(Heffte_ENABLE_ROCM)
+#ifdef Heffte_ENABLE_GPU
 // splits the world box into a set of boxes with gird given by proc_grid
 template<int hfast, int hmid, int hslow, int pfast, int pmid, int pslow, typename scalar_type, typename backend_tag, typename variant>
 void test_gpu(MPI_Comm const comm){
-    #ifdef Heffte_ENABLE_CUDA
-    using gpu_vector = cuda::vector<scalar_type>;
-    #else
-    using gpu_vector = rocm::vector<scalar_type>;
-    #endif
     /*
      * similar to the CPU case, but the data is located on the GPU
      */
@@ -169,22 +164,18 @@ void test_gpu(MPI_Comm const comm){
 
     // create caches for a reshape algorithm, including creating a new mpi comm
     auto reshape = make_test_reshape3d<backend_tag, variant>(boxes, rotate_boxes, comm);
-    gpu_vector workspace(reshape->size_workspace());
+    gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
     auto input_data     = get_subdata<scalar_type>(world, boxes[me]);
-    #ifdef Heffte_ENABLE_CUDA
-    auto cuinput_data   = cuda::load(input_data);
-    #else
-    auto cuinput_data   = rocm::load(input_data);
-    #endif
+    auto cuinput_data   = gpu::transfer::load(input_data);
     auto reference_data = get_subdata<scalar_type>(world, rotate_boxes[me]);
-    auto output_data    = gpu_vector(rotate_boxes[me].count());
+    auto output_data    = gpu::vector<scalar_type>(rotate_boxes[me].count());
 
     if (std::is_same<scalar_type, float>::value){
         // sometimes, run two tests to make sure there is no internal corruption
         // there is no need to do that for every data type
         reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
-        output_data = gpu_vector(rotate_boxes[me].count());
+        output_data = gpu::vector<scalar_type>(rotate_boxes[me].count());
         reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
     }else{
         reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
@@ -242,7 +233,7 @@ void test_direct_reordered(MPI_Comm const comm){
         auto reshape = make_reshape3d_alltoallv<gpu_backend>(inboxes, outboxes, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
-        auto cuinput = gpu::load(input);
+        auto cuinput = gpu::transfer::load(input);
         gpu::vector<scalar_type> curesult(ordered_outboxes[me].count());
 
         reshape->apply(cuinput.data(), curesult.data(), workspace.data());
@@ -252,7 +243,7 @@ void test_direct_reordered(MPI_Comm const comm){
         auto reshape = make_reshape3d_pointtopoint<gpu_backend>(inboxes, outboxes, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
-        auto cuinput = gpu::load(input);
+        auto cuinput = gpu::transfer::load(input);
         gpu::vector<scalar_type> curesult(ordered_outboxes[me].count());
 
         reshape->apply(cuinput.data(), curesult.data(), workspace.data());
@@ -319,7 +310,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 auto cumpi_direct_shaper   = make_reshape3d<gpu_backend>(inboxes, ordered_outboxes, comm, cuoptions);
                 auto cuda_transpose_shaper = make_reshape3d<gpu_backend>(ordered_outboxes, outboxes, comm, cuoptions);
 
-                gpu::vector<scalar_type> cuinput = gpu::load(input);
+                gpu::vector<scalar_type> cuinput = gpu::transfer::load(input);
                 gpu::vector<scalar_type> curesult(outboxes[me].count());
                 gpu::vector<scalar_type> cureference(outboxes[me].count());
                 gpu::vector<scalar_type> cuworkspace( // allocate one workspace vector for all reshape operations
@@ -332,7 +323,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 curesult = gpu::vector<scalar_type>(outboxes[me].count());
                 cumpi_tanspose_shaper->apply(cuinput.data(), curesult.data(), cuworkspace.data());
 
-                tassert(match(curesult, gpu::unload(cureference)));
+                tassert(match(curesult, gpu::transfer::unload(cureference)));
                 #endif
             }
         }
