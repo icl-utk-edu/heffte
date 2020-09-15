@@ -102,7 +102,7 @@ namespace gpu {
 
         //! \brief Return the current size of the array, i.e., the number of elements.
         size_t size() const{ return num; }
-        //! \brief Return \b true if the vector is has zero size.
+        //! \brief Return \b true if the vector has zero size.
         bool empty() const{ return (num == 0); }
 
         //! \brief The value of the array, used for static error checking.
