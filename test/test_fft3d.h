@@ -87,49 +87,21 @@ std::vector<scalar_type> rescale(box3d const world, gpu::vector<scalar_type> con
 }
 #endif
 
-template<typename backend_tag, typename scalar_type>
-typename std::enable_if<std::is_same<scalar_type, float>::value or std::is_same<scalar_type, double>::value,
-typename backend::buffer_traits<backend_tag>::template container<typename fft_output<scalar_type>::type>>::type
-compute_forward_fft(box3d const world,
-                    typename fft3d<backend_tag>::template buffer_container<scalar_type> const &input){
-    typename backend::buffer_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> output(world.count());
-    typename one_dim_backend<backend_tag>::type executor0(world, 0);
-    executor0.forward(input.data(), output.data());
-    for(int i=1; i<3; i++){
-        typename one_dim_backend<backend_tag>::type executor(world, i);
-        executor.forward(output.data());
-    }
-    return output;
+template<typename backend_tag, typename precision_type>
+std::vector<std::complex<precision_type>> forward_fft(box3d const world, std::vector<precision_type> const &input){
+    auto loaded_input = test_traits<backend_tag>::load(input);
+    typename test_traits<backend_tag>::template container<std::complex<precision_type>> loaded_result(input.size());
+    typename one_dim_backend<backend_tag>::type(world, 0).forward(loaded_input.data(), loaded_result.data());
+    for(int i=1; i<3; i++)
+        typename one_dim_backend<backend_tag>::type(world, i).forward(loaded_result.data());
+    return test_traits<backend_tag>::unload(loaded_result);
 }
 template<typename backend_tag, typename precision_type>
-typename std::enable_if<std::is_same<precision_type, float>::value or std::is_same<precision_type, double>::value,
-typename backend::buffer_traits<backend_tag>::template container<std::complex<precision_type>>>::type
-compute_forward_fft(box3d const world,
-                    typename backend::buffer_traits<backend_tag>::template container<std::complex<precision_type>> const &input){
-    typename backend::buffer_traits<backend_tag>::template container<std::complex<precision_type>> output(input);
-    for(int i=0; i<3; i++){
-        typename one_dim_backend<backend_tag>::type executor(world, i);
-        executor.forward(output.data());
-    }
-    return output;
-}
-template<typename backend_tag, typename scalar_type>
-typename std::enable_if<backend::uses_gpu<backend_tag>::value, std::vector<typename fft_output<scalar_type>::type>>::type
-compute_forward_fft(box3d const, std::vector<scalar_type> const&){ return {}; }
-
-#ifdef Heffte_ENABLE_GPU
-template<typename backend_tag, typename scalar_type>
-typename std::enable_if<not backend::uses_gpu<backend_tag>::value, gpu::vector<typename fft_output<scalar_type>::type>>::type
-compute_forward_fft(box3d const, gpu::vector<scalar_type> const&){ return {}; }
-#endif
-
-template<typename backend_tag, typename scalar_type>
-std::vector<typename fft_output<scalar_type>::type> forward_fft(box3d const world, std::vector<scalar_type> const &input){
-    #ifdef Heffte_ENABLE_GPU
-    if (backend::uses_gpu<backend_tag>::value)
-        return gpu::transfer::unload(compute_forward_fft<backend_tag>(world, gpu::transfer::load(input)));
-    #endif
-    return compute_forward_fft<backend_tag>(world, input);
+std::vector<std::complex<precision_type>> forward_fft(box3d const world, std::vector<std::complex<precision_type>> const &input){
+    auto loaded_input = test_traits<backend_tag>::load(input);
+    for(int i=0; i<3; i++)
+        typename one_dim_backend<backend_tag>::type(world, i).forward(loaded_input.data());
+    return test_traits<backend_tag>::unload(loaded_input);
 }
 
 template<typename backend_tag>
