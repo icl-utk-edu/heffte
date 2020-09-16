@@ -126,9 +126,9 @@ inline bool match_verbose(std::vector<T> const &a, std::vector<T> const &b){
 }
 
 template<typename T> struct precision{};
-template<> struct precision<float>{ static constexpr float tolerance = 2.E-4; };
+template<> struct precision<float>{ static constexpr float tolerance = 5.E-4; };
 template<> struct precision<double>{ static constexpr double tolerance = 1.E-11; };
-template<> struct precision<std::complex<float>>{ static constexpr float tolerance = 2.E-4; };
+template<> struct precision<std::complex<float>>{ static constexpr float tolerance = 5.E-4; };
 template<> struct precision<std::complex<double>>{ static constexpr double tolerance = 1.E-11; };
 
 template<typename T>
