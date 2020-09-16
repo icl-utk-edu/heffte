@@ -18,6 +18,8 @@
 
 #cmakedefine Heffte_ENABLE_TRACING
 
+#cmakedefine Heffte_DISABLE_GPU_AWARE_MPI
+
 #if defined(Heffte_ENABLE_CUDA) || defined(Heffte_ENABLE_ROCM)
 #define Heffte_ENABLE_GPU
 #endif
