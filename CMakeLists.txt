@@ -8,6 +8,8 @@ option(Heffte_ENABLE_ROCM     "Enable the HIP and rocFFT backend"  OFF)
 option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
+option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGAM for GPU backends"   OFF)
+
 option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
 if (CMAKE_C_COMPILER)
@@ -103,6 +105,12 @@ endif()
 if (Heffte_ENABLE_ROCM)
     find_package(HeffteRocFFT REQUIRED)
     target_link_libraries(Heffte roc::rocfft)
+endif()
+
+if (Heffte_ENABLE_MAGMA)
+    find_package(HeffteMAGMA REQUIRED)
+    list(FILTER CUDA_CUBLAS_LIBRARIES EXCLUDE REGEX "-NOTFOUND$") # work-around CMake 3.10 + CUDA 10
+    target_link_libraries(Heffte Heffte::MAGMA ${CUDA_CUBLAS_LIBRARIES})
 endif()
 
 # other target properties
