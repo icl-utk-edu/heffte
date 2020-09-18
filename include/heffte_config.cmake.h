@@ -16,6 +16,8 @@
 #cmakedefine Heffte_ENABLE_CUDA
 #cmakedefine Heffte_ENABLE_ROCM
 
+#cmakedefine Heffte_ENABLE_MAGMA
+
 #cmakedefine Heffte_ENABLE_TRACING
 
 #cmakedefine Heffte_DISABLE_GPU_AWARE_MPI

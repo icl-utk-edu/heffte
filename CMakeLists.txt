@@ -55,6 +55,7 @@ set(Heffte_common_sources
     include/heffte_geometry.h
     include/heffte_common.h
     include/heffte_backend_vector.h
+    include/heffte_magma_helpers.h
     include/heffte_plan_logic.h
     include/heffte_pack3d.h
     include/heffte_reshape3d.h
@@ -62,6 +63,7 @@ set(Heffte_common_sources
     include/heffte_fft3d_r2c.h
     src/heffte_c.cpp
     src/heffte_plan_logic.cpp
+    src/heffte_magma_helpers.cpp
     src/heffte_reshape3d.cpp
     src/heffte_fft3d.cpp
     src/heffte_fft3d_r2c.cpp
