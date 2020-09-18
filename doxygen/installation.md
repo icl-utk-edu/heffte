@@ -26,6 +26,7 @@ Tested backend libraries:
 | fftw3      | 3.3.7           |
 | mkl        | 2016            |
 | cuda/cufft | 9.0 - 10.2      |
+| rocm/rocfft| 3.7             |
 
 The listed tested versions are part of the continuous integration and nightly build systems,
 but HeFFTe may yet work with other compilers and backend versions.
@@ -64,6 +65,7 @@ The standard CMake options are also accepted:
 
 Additional HeFFTe options:
 ```
+    Heffte_ENABLE_ROCM=<ON/OFF>      (enable the rocFFT backend)
     Heffte_ENABLE_MKL=<ON/OFF>       (enable the MKL backend)
     MKL_ROOT=<path>                  (path to the MKL folder)
     Heffte_ENABLE_DOXYGEN=<ON/OFF>   (build the documentation)
@@ -91,9 +93,23 @@ The `MKL_ROOT` default to the environment variable `MKLROOT` (chosen by Intel). 
     -D Heffte_ENABLE_CUDA=ON
     -D CUDA_TOOLKIT_ROOT_DIR=<path-to-cuda-installation>
 ```
-The cuFFT backend works with arrays allocated on the GPU device and thus requires CUDA-Aware MPI implementation. For example, see the instructions regarding [CUDA-Aware OpenMPI](https://www.open-mpi.org/faq/?category=buildcuda).
 
-**Note:** due to limitations of the C++98 interface only one CPU-based backend can be enabled at a time, i.e., FFTW and MKL cannot be enabled in the same HeFFTe build, but either one can be coupled with CUFFT.
+* **ROCFFT:**  the [AMD ROCm framework](https://github.com/RadeonOpenCompute/ROCm) provides a GPU accelerated FFT library [rocFFT](https://github.com/ROCmSoftwarePlatform/rocFFT), which can be enabled in HeFFTe with:
+```
+    -D CMAKE_CXX_COMPILER=hipcc
+    -D Heffte_ENABLE_ROCM=ON
+```
+
+**Note:** CUDA and ROCM cannot be enabled at the same time and both backends operate with arrays allocated in GPU device memory (or alternatively shared/managed memory). By default when using either GPU backend, HeFFTe assumes that the MPI implementation is CUDA-Aware, see the next section.
+
+
+### GPU-Aware MPI
+
+Different implementations of MPI can provide GPU-Aware capabilities, where data can be send/received directly in GPU memory. OpenMPI provided CUDA aware capabilities if compiled with the corresponding options, e.g., see [CUDA-Aware OpenMPI](https://www.open-mpi.org/faq/?category=buildcuda). Both CUDA and ROCm support such API; however, the specific implementation available to the user may not be available for various reasons, e.g., insufficient hardware support. HeFFTe can be compiled without GPU-Aware capabilities with the CMake option:
+```
+    -D Heffte_DISABLE_GPU_AWARE_MPI=ON
+```
+**Note:** disabling the GPU-Aware capabilities guarantees correctness of the computed results but may have very detrimental impact on performance. The option is provided for testing and debugging and for development of user code on a machine that does not have GPU-Aware support, e.g., an office desktop or a personal laptop.
 
 
 ### Linking to HeFFTe
@@ -139,5 +155,3 @@ The library will be build in `./lib/`
 
 * the current testing suite requires about 3GB of free GPU RAM
     * CUDA seem to reserve 100-200MB of RAM per MPI rank and some tests use 12 ranks
-* the FFTW and MKL backends cannot be enabled in the same build
-    * this is due to limitations of the C++98 interface and will be removed in a future release
