@@ -14,6 +14,10 @@
 #include <rocfft.h>
 #include "heffte_backend_vector.h"
 
+#ifdef Heffte_ENABLE_MAGMA
+#include "heffte_magma_helpers.h"
+#endif
+
 /*!
  * \ingroup fft3d
  * \addtogroup heffterocm Backend rocfft

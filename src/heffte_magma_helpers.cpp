@@ -10,8 +10,14 @@
 
 #include "heffte_magma_helpers.h"
 
+#ifdef Heffte_ENABLE_CUDA
 #include <cuda_runtime_api.h>
 #include <cuda.h>
+#else
+#define __HIP_PLATFORM_HCC__
+#include <hip/hip_runtime.h>
+#define HAVE_HIP
+#endif
 #include "magma_v2.h"
 
 namespace heffte {
@@ -21,10 +27,17 @@ namespace gpu {
 magma_handle<tag::gpu>::magma_handle(){
     magma_init();
     int device;
+    #ifdef Heffte_ENABLE_CUDA
     cudaError_t status = cudaGetDevice(&device);
     if (status != cudaSuccess)
         throw std::runtime_error(std::string("cudaGetDevice() failed with message: ") + cudaGetErrorString(status));
     magma_queue_create_from_cuda(device, nullptr, nullptr, nullptr, reinterpret_cast<magma_queue_t*>(&handle));
+    #else
+    hipError_t status = hipGetDevice(&device);
+    if (status != hipSuccess)
+        throw std::runtime_error(std::string("hipGetDevice() failed with message: ") + hipGetErrorString(status));
+    magma_queue_create_from_hip(device, nullptr, nullptr, nullptr, reinterpret_cast<magma_queue_t*>(&handle));
+    #endif
 }
 magma_handle<tag::gpu>::~magma_handle(){
     magma_queue_destroy(reinterpret_cast<magma_queue_t>(handle));
