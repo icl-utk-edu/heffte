@@ -9,17 +9,25 @@ import cmath
 import numpy as np
 from mpi4py import MPI
 import heffte
-
+import cupy as cp     # For NVIDIA devices
+from numba import hsa # For AMD devices
+from numba import cuda # For AMD devices
 #? syntax 
 
 # * Allocate and initialize data 
 
-def make_data():
+def make_data(fftsize, device):
     global work, work2
-    work = np.zeros(fftsize, np.float32)
-    work2 = np.zeros(2*fftsize, np.float32)
-    for i in np.arange(fftsize):
-        work[i] = i+1
+    in_h  = np.zeros(fftsize, np.float32)
+    out_h = np.zeros(2*fftsize, np.float32)
+
+    if(device == 'nvdia_gpu'):
+        work = cuda.to_device(in_h)
+        work2 = cuda.to_device(out_h)
+
+    if(device == 'amd_gpu'):
+        work = hsa.to_device(in_h)
+        work2 = hsa.to_device(out_h)
 
 # =============
 #* Main program 
@@ -45,29 +53,36 @@ outboxes = heffte.split_world(world, proc_o)
 # create plan
 fft = heffte.fft3d(heffte.backend.fftw, inboxes[me], outboxes[me], mpi_comm)
 
-# NOTE: If user has a different split function to define low and high vertices, can do as follows:
-#    low_me = [x,x,x]
-#    high_me = [x,x,x]
-#    order_me = [x,x,x]
-#    fft = heffte.fft3d(heffte.backend.fftw, heffte.box3d(low_me, high_me), heffte.box3d(low_me, high_me), mpi_comm)
-#    fft = heffte.fft3d(heffte.backend.fftw, heffte.box3d(low_me, high_me, order_me), heffte.box3d(low_me, high_me, order_me), mpi_comm)
-
 # Initialize data
-make_data()
+global device 
+device = 'nvdia_gpu'
+# device = 'amd_gpu'
+make_data(fftsize, device)
 
-print("Initial data:")
-print(work)
+# ------------------------------
+print("NVDIA GPUs available = ")
+print(cuda.list_devices())
+# ------------------------------
 
 mpi_comm.Barrier()
+cuda.synchronize()
+# roc.barrier(roc.CLK_GLOBAL_MEM_FENCE)
+
 time1 = MPI.Wtime()
 
 fft.forward(work, work2, heffte.scale.none)
 
+cuda.synchronize()
+# roc.barrier(roc.CLK_GLOBAL_MEM_FENCE)
 mpi_comm.Barrier()
+
 
 print("---------------------------")
 print("\nComputed FFT:")
-print(work2.view(dtype=np.complex64))
+result = work2.copy_to_host()
+cuda.synchronize()
+# roc.barrier(roc.CLK_GLOBAL_MEM_FENCE)
+print(result.view(dtype=np.complex64))
 
 time2 = MPI.Wtime()
 t_exec = time2 - time1

@@ -35,6 +35,7 @@ class backend:
     fftw = 1
     mkl = 2
     cufft = 10
+    rocm = 11
 
 class scale:
     none = 0
@@ -114,19 +115,16 @@ class fft3d:
         self.lib = None
 
     def forward(self, input, output, scale=0):
-        if "numpy" not in str(type(input)) or "numpy" not in str(type(output)):
-            print( "Input/Output data must be numpy arrays for computing the FFT.")
+
+        if( (type(input) is not np.ndarray) or (type(output) is not np.ndarray) ):
+            print("Input/Output data must be numpy arrays.")
             sys.exit()
 
         c_in  = input.ctypes.data_as(POINTER(c_float))
         c_out = output.ctypes.data_as(c_void_p)
 
-        print("scale = " + str(scale) )
+        print("scale = " + str(scale))
         self.lib.heffte_forward_s2c(self.plan, c_in, c_out, scale)
-
-        print("---------------------------")
-        print("\nComputed FFT:")
-        print(output.view(dtype=np.complex64))
 
 
 # Create a processor grid using the minimum surface algorithm
