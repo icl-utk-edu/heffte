@@ -110,9 +110,6 @@ class fft3d:
             print("----------------------------------")
             print("FFT plan successfully created.")
 
-    def __del__(self):
-        self.lib.heffte_plan_destroy(self.plan)
-        self.lib = None
 
     def forward(self, input, output, scale=0):
 
