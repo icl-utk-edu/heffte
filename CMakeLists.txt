@@ -110,6 +110,9 @@ if (Heffte_ENABLE_ROCM)
 endif()
 
 if (Heffte_ENABLE_MAGMA)
+    if (NOT Heffte_ENABLE_CUDA)
+        message(FATAL_ERROR "MAGMA helpers work only with CUDA")
+    endif()
     find_package(HeffteMAGMA REQUIRED)
     list(FILTER CUDA_CUBLAS_LIBRARIES EXCLUDE REGEX "-NOTFOUND$") # work-around CMake 3.10 + CUDA 10
     target_link_libraries(Heffte Heffte::MAGMA ${CUDA_CUBLAS_LIBRARIES})
