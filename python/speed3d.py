@@ -1,5 +1,5 @@
 '''
-    3D FFT tester for Python Interface
+    3D FFT tester for Python Interface on CPUs
     -- heFFTe --
     Univ. of Tennessee, Knoxville
 '''
@@ -10,16 +10,12 @@ import numpy as np
 from mpi4py import MPI
 import heffte
 
-#? syntax 
-
 # * Allocate and initialize data 
 
-def make_data():
+def make_data(fftsize):
     global work, work2
-    work = np.zeros(fftsize, np.float32)
-    work2 = np.zeros(2*fftsize, np.float32)
-    for i in np.arange(fftsize):
-        work[i] = i+1
+    work  = np.arange(1,fftsize+1).astype(np.float32)
+    work2 = np.zeros(2*fftsize).astype(np.float32)
 
 # =============
 #* Main program 
@@ -53,7 +49,7 @@ fft = heffte.fft3d(heffte.backend.fftw, inboxes[me], outboxes[me], mpi_comm)
 #    fft = heffte.fft3d(heffte.backend.fftw, heffte.box3d(low_me, high_me, order_me), heffte.box3d(low_me, high_me, order_me), mpi_comm)
 
 # Initialize data
-make_data()
+make_data(fftsize)
 
 print("Initial data:")
 print(work)

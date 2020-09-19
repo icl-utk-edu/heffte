@@ -1,5 +1,5 @@
 '''
-    3D FFT tester for Python Interface
+    3D FFT tester for Python Interface on GPUs
     -- heFFTe --
     Univ. of Tennessee, Knoxville
 '''
@@ -9,17 +9,15 @@ import cmath
 import numpy as np
 from mpi4py import MPI
 import heffte
-import cupy as cp     # For NVIDIA devices
-from numba import hsa # For AMD devices
-from numba import cuda # For AMD devices
-#? syntax 
+from numba import hsa  # For AMD devices
+from numba import cuda # For CUDA devices
 
 # * Allocate and initialize data 
 
 def make_data(fftsize, device):
     global work, work2
-    in_h  = np.zeros(fftsize, np.float32)
-    out_h = np.zeros(2*fftsize, np.float32)
+    in_h  = np.arange(1,fftsize+1).astype(np.float32)
+    out_h = np.zeros(2*fftsize).astype(np.float32)
 
     if(device == 'nvdia_gpu'):
         work = cuda.to_device(in_h)
@@ -54,7 +52,6 @@ outboxes = heffte.split_world(world, proc_o)
 fft = heffte.fft3d(heffte.backend.fftw, inboxes[me], outboxes[me], mpi_comm)
 
 # Initialize data
-global device 
 device = 'nvdia_gpu'
 # device = 'amd_gpu'
 make_data(fftsize, device)

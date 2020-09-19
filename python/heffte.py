@@ -12,6 +12,7 @@ Env setup:
 
 Run R2C test:
         jsrun -n2 python speed3d.py
+        jsrun -n2 python speed3d_gpu.py
 '''
 
 # Import modules

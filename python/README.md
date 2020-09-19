@@ -43,19 +43,16 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$rocfft_lib_path
 
 ## Performance tests
 
-We provide performance benchmarks on folder `heffte/python`, they can be used for scalability and comparison tests.
+We provide performance benchmarks on folder `heffte/python`, they can be modified or used for scalability and comparison tests.
 
 ~~~
-mpirun -n 12 python ./speed3d_r2c fftw double 128 256 256 -p2p -pencils -no-reorder
-mpirun -n 5 python --map-by node  ./speed3d_c2c mkl float 1024 256 512  -a2a -slabs -reorder
-mpirun -n 2 python ./speed3d_c2c cufft double 512 256 512  -mps -a2a
+mpirun -n 12 python speed3d
+mpirun -n 2  python speed3d_gpu
 ~~~
 
 For systems, such as Summit supercomputer, which support execution with `jsrun` by default, follow the examples:
 
 ~~~
-jsrun  -n1280 -a1 -c1 -r40 ./speed3d_r2c fftw double 256 256 256 -pencils 
-jsrun --smpiargs="-gpu" -n192 -a1 -c1 -g1 -r6 ./speed3d_c2c cufft double 1024 1024 1024 -p2p -reorder
+jsrun --smpiargs="-gpu" -n24 -a1 -c1 -r3 ./speed3d
+jsrun --smpiargs="-gpu" -n48 -a1 -c1 -g1 -r6 ./speed3d_gpu
 ~~~
-
-Should you have questions about the use of parameter options, please refer to the [flags documentation](https://bitbucket.org/icl/heffte/src/master/doxygen/flags.md) for detailed information. 
