@@ -26,7 +26,7 @@ The first step is to [install heFFTe](https://mkstoyanov.bitbucket.io/heffte/md_
 Next, make sure the environment is correctly set up, and contains the path to heFFTe library:
 
 ~~~
-export heffte_lib_path=/heffte/build
+export heffte_lib_path=<heffte_installation_path>
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$heffte_lib_path
 export PYTHONPATH=$PYTHONPATH:$heffte_lib_path
 ~~~
