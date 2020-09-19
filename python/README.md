@@ -23,7 +23,7 @@ The definition of inboxes and outboxes are normally provided by the user. Howeve
 
 The first step is to [install heFFTe](https://mkstoyanov.bitbucket.io/heffte/md_doxygen_installation.html) with the desired backend options. 
 
-Next, set up the environment adding heFFTe library path:
+Next, make sure the environment is correctly set up, and contains the path to heFFTe library:
 
 ~~~
 export heffte_lib_path=/heffte/build
@@ -31,14 +31,6 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$heffte_lib_path
 export PYTHONPATH=$PYTHONPATH:$heffte_lib_path
 ~~~
 
-Then, export paths to the corresponding 1DFFT backend libraries:
-
-~~~
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$fftw_lib_path
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$mkl_lib_path
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$cufft_lib_path
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$rocfft_lib_path
-~~~
 
 To handle GPU devices we use [Numba library](https://numba.pydata.org/), which can be installed as follows:
 ~~~
