@@ -236,6 +236,12 @@ private:
     void apply_scale(direction dir, scale scaling, scalar_type data[]) const{
         if (scaling != scale::none){
             add_trace name("scale");
+            #ifdef Heffte_ENABLE_MAGMA
+            if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
+                hmagma.scal((dir == direction::forward) ? size_outbox() : size_inbox(), get_scale_factor(scaling), data);
+                return;
+            }
+            #endif
             data_manipulator<location_tag>::scale(
                 (dir == direction::forward) ? size_outbox() : size_inbox(),
                 data, get_scale_factor(scaling));
@@ -249,6 +255,9 @@ private:
 
     std::unique_ptr<backend_executor_r2c> executor_r2c;
     std::array<std::unique_ptr<backend_executor_c2c>, 2> executor;
+    #ifdef Heffte_ENABLE_MAGMA
+    gpu::magma_handle<typename backend::buffer_traits<backend_tag>::location> hmagma;
+    #endif
 };
 
 }

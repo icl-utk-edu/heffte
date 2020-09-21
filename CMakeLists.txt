@@ -8,6 +8,8 @@ option(Heffte_ENABLE_ROCM     "Enable the HIP and rocFFT backend"  OFF)
 option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
+option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGAM for GPU backends"   OFF)
+
 option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
 if (CMAKE_C_COMPILER)
@@ -53,6 +55,7 @@ set(Heffte_common_sources
     include/heffte_geometry.h
     include/heffte_common.h
     include/heffte_backend_vector.h
+    include/heffte_magma_helpers.h
     include/heffte_plan_logic.h
     include/heffte_pack3d.h
     include/heffte_reshape3d.h
@@ -60,6 +63,7 @@ set(Heffte_common_sources
     include/heffte_fft3d_r2c.h
     src/heffte_c.cpp
     src/heffte_plan_logic.cpp
+    src/heffte_magma_helpers.cpp
     src/heffte_reshape3d.cpp
     src/heffte_fft3d.cpp
     src/heffte_fft3d_r2c.cpp
@@ -103,6 +107,15 @@ endif()
 if (Heffte_ENABLE_ROCM)
     find_package(HeffteRocFFT REQUIRED)
     target_link_libraries(Heffte roc::rocfft)
+endif()
+
+if (Heffte_ENABLE_MAGMA)
+    if (NOT Heffte_ENABLE_CUDA AND NOT Heffte_ENABLE_ROCM)
+        message(FATAL_ERROR "MAGMA helpers work only with a GPU backend, e.g., CUDA or ROCM")
+    endif()
+    find_package(HeffteMAGMA REQUIRED)
+    list(FILTER CUDA_CUBLAS_LIBRARIES EXCLUDE REGEX "-NOTFOUND$") # work-around CMake 3.10 + CUDA 10
+    target_link_libraries(Heffte Heffte::MAGMA ${CUDA_CUBLAS_LIBRARIES})
 endif()
 
 # other target properties

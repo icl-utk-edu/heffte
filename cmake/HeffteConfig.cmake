@@ -19,6 +19,12 @@ if (@Heffte_ENABLE_ROCM@ AND NOT TARGET roc::rocfft)
     find_package(rocfft REQUIRED)
 endif()
 
+if (@Heffte_ENABLE_MAGMA@ AND NOT TARGET Heffte::MAGMA)
+    add_library(Heffte::MAGMA INTERFACE IMPORTED GLOBAL)
+    target_link_libraries(Heffte::MAGMA INTERFACE @HeffteMAGMA_LIBRARIES@)
+    set_target_properties(Heffte::MAGMA PROPERTIES INTERFACE_INCLUDE_DIRECTORIES @HeffteMAGMA_INCLUDES@)
+endif()
+
 if (NOT TARGET MPI::MPI_CXX)
     if (NOT MPI_CXX_COMPILER)
         set(MPI_CXX_COMPILER @MPI_CXX_COMPILER@)

@@ -10,6 +10,11 @@
 #include <cuda.h>
 #include <cufft.h>
 
+#ifdef Heffte_ENABLE_MAGMA
+#include <cublas.h>
+#include "magma_v2.h"
+#endif
+
 namespace heffte {
 
 namespace cuda {
