@@ -9,11 +9,16 @@ option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
 option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGAM for GPU backends"   OFF)
+option(Heffte_ENABLE_FORTRAN  "Build the Fortran modules for the selected backends.")
+option(Heffte_ENABLE_SWIG     "Rebuild the SWIG bindings.")
 
 option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
 if (CMAKE_C_COMPILER)
     enable_language(C)
+endif()
+if (Heffte_ENABLE_FORTRAN)
+    enable_language(Fortran)
 endif()
 
 # check if at least one backend has been enabled
@@ -166,6 +171,9 @@ add_subdirectory(benchmarks)
 add_subdirectory(examples)
 enable_testing()
 add_subdirectory(test)
+if (Heffte_ENABLE_FORTRAN)
+    add_subdirectory(fortran)
+endif()
 
 
 ###########################
