@@ -37,6 +37,10 @@ struct plan_options{
           use_alltoall(true),
           use_pencils(true)
     {}
+    //! \brief Constructor, initializes each variable, primarily for internal use.
+    plan_options(bool reorder, bool alltoall, bool pencils)
+        : use_reorder(reorder), use_alltoall(alltoall), use_pencils(pencils)
+    {}
     //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
     bool use_reorder;
     //! \brief Defines whether to use point to point or all to all communications.

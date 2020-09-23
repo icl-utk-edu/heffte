@@ -9,11 +9,16 @@ option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
 option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGAM for GPU backends"   OFF)
+option(Heffte_ENABLE_FORTRAN  "Build the Fortran modules for the selected backends.")
+option(Heffte_ENABLE_SWIG     "Rebuild the SWIG bindings.")
 
 option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
 if (CMAKE_C_COMPILER)
     enable_language(C)
+endif()
+if (Heffte_ENABLE_FORTRAN)
+    enable_language(Fortran)
 endif()
 
 # check if at least one backend has been enabled
@@ -166,6 +171,9 @@ add_subdirectory(benchmarks)
 add_subdirectory(examples)
 enable_testing()
 add_subdirectory(test)
+if (Heffte_ENABLE_FORTRAN)
+    add_subdirectory(fortran)
+endif()
 
 
 ###########################
@@ -183,7 +191,7 @@ add_custom_target(test_install COMMAND bash "${CMAKE_CURRENT_BINARY_DIR}/post_in
 ##############################
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExampleCMakeLists.cmake" "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" DESTINATION share/heffte/examples)
-install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp")
+install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.f90")
 
 # print summary of the CMake options, skip if using add_subdirectory(heffte)
 if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
