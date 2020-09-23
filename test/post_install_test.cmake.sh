@@ -20,4 +20,12 @@ if [ -f heffte_example_fftw ]; then
     @MPIEXEC_EXECUTABLE@ @MPIEXEC_NUMPROC_FLAG@ 2 @Heffte_mpi_preflags@ ./heffte_example_fftw @Heffte_mpi_postflags@
 fi
 
+if [[ "@Heffte_ENABLE_PYTHON@" == "ON" ]]; then
+    echo ""
+    export PYTHONPATH=@CMAKE_INSTALL_PREFIX@/share/heffte/python:$PYTHONPATH
+    echo "import heffte" > hello_world.py
+    echo "print('heFFTe python module reports version: {0:s}'.format(heffte.__version__))" >> hello_world.py
+    "@PYTHON_EXECUTABLE@" hello_world.py
+fi
+
 echo ""

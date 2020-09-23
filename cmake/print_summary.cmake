@@ -10,7 +10,7 @@ if (Heffte_ENABLE_CUDA)
     list(APPEND HEFFTE_OPTIONS "CUDA_TOOLKIT_ROOT_DIR")
 endif()
 
-foreach(_opt FFTW MKL CUDA ROCM TRACING)
+foreach(_opt FFTW MKL CUDA ROCM PYTHON TRACING)
     list(APPEND HEFFTE_OPTIONS "Heffte_ENABLE_${_opt}")
 endforeach()
 

@@ -9,6 +9,8 @@ option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
 option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGAM for GPU backends"   OFF)
+
+option(Heffte_ENABLE_PYTHON   "Configure the Python scripts"     OFF)
 option(Heffte_ENABLE_FORTRAN  "Build the Fortran modules for the selected backends.")
 option(Heffte_ENABLE_SWIG     "Rebuild the SWIG bindings.")
 
@@ -173,6 +175,9 @@ enable_testing()
 add_subdirectory(test)
 if (Heffte_ENABLE_FORTRAN)
     add_subdirectory(fortran)
+endif()
+if (Heffte_ENABLE_PYTHON)
+    add_subdirectory(python)
 endif()
 
 
