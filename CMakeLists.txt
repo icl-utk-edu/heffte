@@ -191,7 +191,7 @@ add_custom_target(test_install COMMAND bash "${CMAKE_CURRENT_BINARY_DIR}/post_in
 ##############################
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExampleCMakeLists.cmake" "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" DESTINATION share/heffte/examples)
-install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp")
+install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.f90")
 
 # print summary of the CMake options, skip if using add_subdirectory(heffte)
 if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
