@@ -1,6 +1,6 @@
 # Python Wrappers
 
-HeFFTe provides a set of Python wrappers that use the C interface but provide object oriented API mimicing C++. Thus, the C++ documentation remains relevant.
+HeFFTe provides a set of Python wrappers that use the C interface but provide object-oriented API mimicking C++. Thus, the C++ documentation remains relevant.
 
 #### Requirements
 
@@ -58,7 +58,7 @@ The Python equivalanets to the `heffte::fft3d` and `heffte::fft3d_r2c` are creat
     fft = heffte.fft3d(backend_tag, inbox, outbox, comm)
     fft = heffte.fft3d_r2c(backend_tag, inbox, oubox, r2c_direction, comm)
 ```
-While the methods have signature similar to Python constructors, the `fft3d` and `fft3d_r2c` are factory methods that create objects of type `heffte_fft_plan` which in turn wrapps around a heFFTe plan from the C interface.
+While the methods have signature similar to Python constructors, the `fft3d` and `fft3d_r2c` are factory methods that create objects of type `heffte_fft_plan` which in turn wraps around a heFFTe plan from the C interface.
 
 The `backend_tag` is a runtime variable and takes one of the values:
 ```
@@ -77,7 +77,7 @@ The `comm` variable is an MPI communicator from the `mpi4py` module.
 
 The `fft3d` objects provide the same methods for `size_inbox()`, `size_outbox()`, and `size_workspace()`.
 
-The FFT transforms are perfomed with the `forward()` and `backward()` methods:
+The FFT transforms are performed with the `forward()` and `backward()` methods:
 ```
     fft3d.forward(inarray, outarray, scaling)
     fft3d.backward(outarray, inarray, scaling)
