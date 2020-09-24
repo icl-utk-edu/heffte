@@ -1,66 +1,99 @@
-HEFFTE: Python Interface
-=======================
+# Python Wrappers
 
-HeFFTe Python API has been built in such a way that it mimics our [C++ interface](https://mkstoyanov.bitbucket.io/heffte/md_doxygen_basic_usage.html). This API has been tested with Python 3.6, and can be imported as follows:
+HeFFTe provides a set of Python wrappers that use the C interface but provide object-oriented API mimicking C++. Thus, the C++ documentation remains relevant.
 
-~~~
-from heffte import *
-~~~
+#### Requirements
 
-The main two kernels are those for plan definition and execution:
-
-~~~
-# create plan
-fft = heffte.fft3d(heffte.backend.fftw, inboxes[me], outboxes[me], mpi_comm)
-
-# Forward FFT computation
-fft.forward(work, work2, heffte.scale.none)
-~~~
-
-The definition of inboxes and outboxes are normally provided by the user. However, functions to do everything from scratch are available, c.f., `speed3d.py`.
-
-## Set up for experimentation
-
-The first step is to [install heFFTe](https://mkstoyanov.bitbucket.io/heffte/md_doxygen_installation.html) with the desired backend options. 
-
-Next, make sure the environment is correctly set up, and contains the path to heFFTe library:
-
-~~~
-export heffte_lib_path=<heffte_installation_path>
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$heffte_lib_path
-export PYTHONPATH=$PYTHONPATH:$heffte_lib_path
-~~~
+The Python wrappers require the following modules:
+```
+    ctypes   # standard module included in most python distributions
+    numpy    # used at the core of most Python numerical packages
+    mpi3py   # provides MPI bindings for Python
+```
+In addition, using the CUDA backend requires:
+```
+    from numba import cuda
+```
+The ROCm bindings using `numba.hsa` are still under development.
 
 
-To handle GPU devices we use [Numba library](https://numba.pydata.org/), which can be installed as follows:
-~~~
-pip install numba
-~~~
-Or via conda,
-~~~
-conda install numba
-~~~
+#### Enabling Python in CMake
 
-We currently support NVIDIA and AMD devices, refer to the [installation](https://mkstoyanov.bitbucket.io/heffte/md_doxygen_installation.html)  and [benchmarks](https://mkstoyanov.bitbucket.io/heffte/https://bitbucket.org/icl/heffte/src/master/doxygen/.html) websites for further details.
+The heFFTe Python bindings are enabled with:
+```
+    -D Heffte_ENABLE_PYTHON=ON
+    -D PYTHON_EXECUTABLE=<path-to-python>
+```
+The `PYTHON_EXECUTABLE` is used for testing purposes only, the `ctypes` interface allows for multiple Python versions to use the same heFFTe installation.
 
-~~~
-from numba import hsa  # For AMD devices
-from numba import cuda # For CUDA devices
-~~~
+The module files will be installed in two locations:
+```
+    <install-prefix>/lib/pythonX.Y/site-packages
+    <install-prefix>/share/heffte/python
+```
+The `site-packages` is the standard location for Python modules where `X` and `Y` represent the Python version. The location in `share` allows for a more version-independent access to the modules.
+
+Using the heFFTe Python module requires that at least one location is accessible to the interpreter by either setting environment variable:
+```
+    export PYTHONPATH=<install-prefix>/share/heffte/python:$PYTHONPATH
+```
+or by adding the path to your `sys.path`
+```
+    import sys
+    sys.path.append("<install-prefix>/share/heffte/python")
+```
 
 
-## Performance tests
+#### Basic Usage
 
-We provide performance benchmarks on folder `heffte/python`, they can be modified or used for scalability and comparison tests.
+HeFFTe requires at least two modules:
+```
+    import mpi4py  # gives access to the MPI capabilities
+    import heffte  # the heFFTe wrappers
+```
+In addition, either `numpy` or `numba.cuda` modules are required to work with the CPU or GPU backends.
 
-~~~
-mpirun -n 12 python speed3d
-mpirun -n 2  python speed3d_gpu
-~~~
+The Python equivalanets to the `heffte::fft3d` and `heffte::fft3d_r2c` are created with:
+```
+    fft = heffte.fft3d(backend_tag, inbox, outbox, comm)
+    fft = heffte.fft3d_r2c(backend_tag, inbox, oubox, r2c_direction, comm)
+```
+While the methods have signature similar to Python constructors, the `fft3d` and `fft3d_r2c` are factory methods that create objects of type `heffte_fft_plan` which in turn wraps around a heFFTe plan from the C interface.
 
-For systems, such as Summit supercomputer, which support execution with `jsrun` by default, follow the examples:
+The `backend_tag` is a runtime variable and takes one of the values:
+```
+    heffte.backend.fftw    heffte.backend.cufft
+    heffte.backend.mkl     heffte.backend.rocfft
+```
+The corresponding backend has to be also enabled in CMake and C++.
 
-~~~
-jsrun --smpiargs="-gpu" -n24 -a1 -c1 -r3 python speed3d
-jsrun --smpiargs="-gpu" -n48 -a1 -c1 -g1 -r6 python speed3d_gpu
-~~~
+The `inbox` and `outbox` are instances of:
+```
+    heffte.box3d
+```
+The Python `box3d` class offers only the constructor that uses as inputs objects convertible to `numpy.ndarray` with three entries. The rest of the C++ `box3d` API is not available under Python.
+
+The `comm` variable is an MPI communicator from the `mpi4py` module.
+
+The `fft3d` objects provide the same methods for `size_inbox()`, `size_outbox()`, and `size_workspace()`.
+
+The FFT transforms are performed with the `forward()` and `backward()` methods:
+```
+    fft3d.forward(inarray, outarray, scaling)
+    fft3d.backward(outarray, inarray, scaling)
+```
+The `inarray` and `outarray` are instances of either `numpy.ndarray` or `DeviceNDArray` from the `numba.cuda` module. The sizes and types must match those in the calls to the C++ interface, see the documentation of `heffte::fft3d`.
+
+The `scaling` variable is one of the constants:
+```
+    heffte.scale.none
+    heffte.scale.symmetric
+    heffte.scale.full
+```
+
+
+#### More to come soon
+
+* Python examples for CPU and GPU
+* Support for ROCm backend and the corresponding array types
+* User allocated workspace buffers

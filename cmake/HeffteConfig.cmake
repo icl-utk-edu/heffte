@@ -60,6 +60,11 @@ if (NOT TARGET MPI::MPI_CXX)
     find_package(MPI REQUIRED)
 endif()
 
+if (@Heffte_ENABLE_PYTHON@)
+    set(Heffte_PYTHON_FOUND  "ON")
+    set(Heffte_PYTHONPATH "@CMAKE_INSTALL_PREFIX@/share/heffte/python")
+endif()
+
 if ("@BUILD_SHARED_LIBS@")
     set(Heffte_SHARED_FOUND "ON")
 else()

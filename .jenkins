@@ -26,6 +26,7 @@ cmake \
     -DHeffte_ENABLE_FFTW=ON \
     -DHeffte_ENABLE_CUDA=OFF \
     -DHeffte_ENABLE_FORTRAN=ON \
+    -DHeffte_ENABLE_PYTHON=ON \
     -DMPIEXEC_PREFLAGS="--allow-run-as-root" \
     .. &&
 make -j4 &&
