@@ -28,9 +28,9 @@ void compute_dft(MPI_Comm comm){
     // the box associated with this MPI rank
     heffte::box3d const my_box = (my_rank == 0) ? left_box : right_box;
 
-    if (heffte::cuda::device_count() > 1){
+    if (heffte::gpu::device_count() > 1){
         // on a multi-gpu system, distribute the devices across the mpi ranks
-        heffte::cuda::device_set(heffte::mpi::comm_rank(comm) % heffte::cuda::device_count());
+        heffte::gpu::device_set(heffte::mpi::comm_rank(comm) % heffte::gpu::device_count());
     }
 
     // define the heffte class and the input and output geometry
@@ -43,14 +43,14 @@ void compute_dft(MPI_Comm comm){
 
     // load the input into the GPU memory
     // this is equivalent to cudaMalloc() followed by cudaMemcpy()
-    // the destructor of heffte::cuda::vector will call cudaFree()
-    heffte::cuda::vector<std::complex<double>> gpu_input = heffte::cuda::load(input);
+    // the destructor of heffte::gpu::vector will call cudaFree()
+    heffte::gpu::vector<std::complex<double>> gpu_input = heffte::gpu::transfer::load(input);
 
     // allocate memory on the device for the output
-    heffte::cuda::vector<std::complex<double>> gpu_output(fft.size_outbox());
+    heffte::gpu::vector<std::complex<double>> gpu_output(fft.size_outbox());
 
     // allocate scratch space, this is using the public type alias buffer_container
-    // and for the cufft backend this is heffte::cuda::vector
+    // and for the cufft backend this is heffte::gpu::vector
     // for the CPU backends (fftw and mkl) the buffer_container is std::vector
     heffte::fft3d<heffte::backend::cufft>::buffer_container<std::complex<double>> workspace(fft.size_workspace());
     static_assert(std::is_same<decltype(gpu_output), decltype(workspace)>::value,
@@ -60,13 +60,13 @@ void compute_dft(MPI_Comm comm){
     fft.forward(gpu_input.data(), gpu_output.data(), workspace.data(), heffte::scale::full);
 
     // optional step, free the workspace since the inverse will use the vector API
-    workspace = heffte::cuda::vector<std::complex<double>>();
+    workspace = heffte::gpu::vector<std::complex<double>>();
 
     // compute the inverse FFT transform using the container API
-    heffte::cuda::vector<std::complex<double>> gpu_inverse = fft.backward(gpu_output);
+    heffte::gpu::vector<std::complex<double>> gpu_inverse = fft.backward(gpu_output);
 
     // move the result back to the CPU for comparison purposes
-    std::vector<std::complex<double>> inverse = heffte::cuda::unload(gpu_inverse);
+    std::vector<std::complex<double>> inverse = heffte::gpu::transfer::unload(gpu_inverse);
 
     // compute the error between the input and the inverse
     double err = 0.0;

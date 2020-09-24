@@ -22,3 +22,8 @@ if (Heffte_ENABLE_FFTW AND CMAKE_C_COMPILER)
     add_executable(heffte_example_c heffte_example_c.c)
     target_link_libraries(heffte_example_c Heffte)
 endif()
+
+if (Heffte_ENABLE_FFTW AND Heffte_ENABLE_FORTRAN)
+    add_executable(heffte_example_fortran heffte_example_fftw.f90)
+    target_link_libraries(heffte_example_fortran Heffte::Fortran)
+endif()

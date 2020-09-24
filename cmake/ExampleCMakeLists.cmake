@@ -28,3 +28,8 @@ if (Heffte_FFTW_FOUND AND CMAKE_C_COMPILER)
     add_executable(heffte_example_c heffte_example_c.c)
     target_link_libraries(heffte_example_c Heffte::Heffte)
 endif()
+
+if (Heffte_FFTW_FOUND AND Heffte_Fortran_FOUND)
+    add_executable(heffte_example_fortran heffte_example_fftw.f90)
+    target_link_libraries(heffte_example_fortran Heffte::Fortran)
+endif()

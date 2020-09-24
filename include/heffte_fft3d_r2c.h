@@ -86,6 +86,31 @@ public:
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
 
+    //! \brief Internal use only, used by the Fortran interface
+    fft3d_r2c(int il0, int il1, int il2, int ih0, int ih1, int ih2, int io0, int io1, int io2,
+              int ol0, int ol1, int ol2, int oh0, int oh1, int oh2, int oo0, int oo1, int oo2,
+              int r2c_direction, MPI_Comm const comm,
+              bool use_reorder, bool use_alltoall, bool use_pencils)
+        : fft3d_r2c(box3d({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
+                    box3d({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
+                    r2c_direction, comm,
+                plan_options(use_reorder, use_alltoall, use_pencils))
+    {}
+    //! \brief Internal use only, used by the Fortran interface
+    fft3d_r2c(int il0, int il1, int il2, int ih0, int ih1, int ih2, int io0, int io1, int io2,
+              int ol0, int ol1, int ol2, int oh0, int oh1, int oh2, int oo0, int oo1, int oo2,
+              int r2c_direction, MPI_Comm const comm)
+        : fft3d_r2c(box3d({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
+                    box3d({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
+                    r2c_direction, comm)
+    {}
+    //! \brief Internal use only, used by the Fortran interface
+    fft3d_r2c(int il0, int il1, int il2, int ih0, int ih1, int ih2,
+              int ol0, int ol1, int ol2, int oh0, int oh1, int oh2,
+              int r2c_direction, MPI_Comm const comm)
+        : fft3d_r2c(box3d({il0, il1, il2}, {ih0, ih1, ih2}), box3d({ol0, ol1, ol2}, {oh0, oh1, oh2}), r2c_direction, comm)
+    {}
+
     //! \brief Returns the size of the inbox defined in the constructor.
     int size_inbox() const{ return pinbox->count(); }
     //! \brief Returns the size of the outbox defined in the constructor.
@@ -236,6 +261,12 @@ private:
     void apply_scale(direction dir, scale scaling, scalar_type data[]) const{
         if (scaling != scale::none){
             add_trace name("scale");
+            #ifdef Heffte_ENABLE_MAGMA
+            if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
+                hmagma.scal((dir == direction::forward) ? size_outbox() : size_inbox(), get_scale_factor(scaling), data);
+                return;
+            }
+            #endif
             data_manipulator<location_tag>::scale(
                 (dir == direction::forward) ? size_outbox() : size_inbox(),
                 data, get_scale_factor(scaling));
@@ -249,6 +280,9 @@ private:
 
     std::unique_ptr<backend_executor_r2c> executor_r2c;
     std::array<std::unique_ptr<backend_executor_c2c>, 2> executor;
+    #ifdef Heffte_ENABLE_MAGMA
+    gpu::magma_handle<typename backend::buffer_traits<backend_tag>::location> hmagma;
+    #endif
 };
 
 }

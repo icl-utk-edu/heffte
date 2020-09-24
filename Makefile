@@ -134,6 +134,8 @@ help:
 	sed -i -e 's|@Heffte_VERSION_MINOR@|0|g' ./include/heffte_config.h
 	sed -i -e 's|@Heffte_VERSION_PATCH@|1|g' ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_TRACING|#undef Heffte_ENABLE_TRACING|g' ./include/heffte_config.h
+	sed -i -e 's|#cmakedefine Heffte_DISABLE_GPU_AWARE_MPI|#undef Heffte_DISABLE_GPU_AWARE_MPI|g' ./include/heffte_config.h
+	sed -i -e 's|#cmakedefine Heffte_ENABLE_MAGMA|#undef Heffte_ENABLE_MAGMA|g' ./include/heffte_config.h
 
 .PHONY.: with_fftw no_fftw with_cufft no_cufft
 # set heffte_config.h with and without fftw

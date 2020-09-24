@@ -153,7 +153,7 @@ reshape3d_alltoallv<backend_tag, packer>::reshape3d_alltoallv(
                         std::vector<pack_plan_3d> &&cpackplan, std::vector<pack_plan_3d> &&cunpackplan
                                                                 ) :
     reshape3d_base(cinput_size, coutput_size),
-    comm(mpi::new_comm_form_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
+    comm(mpi::new_comm_from_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
     send_total(std::accumulate(send_size.begin(), send_size.end(), 0)),
@@ -183,17 +183,16 @@ void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const sour
     }
     }
 
-    #ifdef Heffte_ENABLE_CUDA
-    // the device_synchronize() is needed to flush the kernels of the asynchronous packing
-    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value)
-        cuda::synchronize_default_stream();
+    #ifdef Heffte_ENABLE_GPU
+    if (backend::uses_gpu<backend_tag>::value)
+        gpu::synchronize_default_stream();
     #endif
-    #ifdef Heffte_ENABLE_ROCM
+    #ifdef Heffte_DISABLE_GPU_AWARE_MPI
     // the device_synchronize() is needed to flush the kernels of the asynchronous packing
     std::vector<scalar_type> cpu_send, cpu_recv;
     if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
-        rocm::synchronize_default_stream();
-        cpu_send = rocm::unload(send_buffer, input_size);
+        //rocm::synchronize_default_stream();
+        cpu_send = gpu::transfer::unload(send_buffer, input_size);
         cpu_recv = std::vector<scalar_type>(output_size);
         send_buffer = cpu_send.data();
         recv_buffer = cpu_recv.data();
@@ -206,10 +205,10 @@ void reshape3d_alltoallv<backend_tag, packer>::apply_base(scalar_type const sour
                   comm);
     }
 
-    #ifdef Heffte_ENABLE_ROCM
+    #ifdef Heffte_DISABLE_GPU_AWARE_MPI
     if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
         recv_buffer = workspace + input_size;
-        rocm::load(cpu_recv, recv_buffer);
+        gpu::transfer::load(cpu_recv, recv_buffer);
     }
     #endif
 
@@ -291,10 +290,10 @@ reshape3d_pointtopoint<backend_tag, packer>::reshape3d_pointtopoint(
     packplan(std::move(cpackplan)), unpackplan(std::move(cunpackplan))
 {}
 
-#ifdef Heffte_ENABLE_ROCM
+#ifdef Heffte_ENABLE_GPU
 template<typename backend_tag, template<typename device> class packer>
 template<typename scalar_type>
-void reshape3d_pointtopoint<backend_tag, packer>::rocm_send_recv(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
+void reshape3d_pointtopoint<backend_tag, packer>::no_gpuaware_send_recv(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
     scalar_type *send_buffer = workspace;
     scalar_type *recv_buffer = workspace + input_size;
 
@@ -314,7 +313,7 @@ void reshape3d_pointtopoint<backend_tag, packer>::rocm_send_recv(scalar_type con
         packit.pack(packplan[i], source + send_offset[i], send_buffer);
         }
 
-        cpu_send = rocm::unload(send_buffer, send_size[i]);
+        cpu_send = gpu::transfer::unload(send_buffer, send_size[i]);
 
         { heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
         MPI_Send(cpu_send.data(), send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
@@ -336,14 +335,14 @@ void reshape3d_pointtopoint<backend_tag, packer>::rocm_send_recv(scalar_type con
         { heffte::add_trace name("waitany");
         MPI_Waitany(requests.size(), requests.data(), &irecv, MPI_STATUS_IGNORE);
         }
-        auto rocvec = rocm::load(cpu_recv.data() + recv_loc[irecv], recv_size[irecv]);
+        auto rocvec = gpu::transfer::load(cpu_recv.data() + recv_loc[irecv], recv_size[irecv]);
 
         { heffte::add_trace name("unpacking from " + std::to_string(recv_proc[irecv]));
         packit.unpack(unpackplan[irecv], rocvec.data(), destination + recv_offset[irecv]);
         }
     }
 
-    rocm::synchronize_default_stream();
+    gpu::synchronize_default_stream();
 }
 #endif
 
@@ -351,9 +350,9 @@ template<typename backend_tag, template<typename device> class packer>
 template<typename scalar_type>
 void reshape3d_pointtopoint<backend_tag, packer>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
 
-    #ifdef Heffte_ENABLE_ROCM
-    if (std::is_same<backend_tag, backend::rocfft>::value){
-        rocm_send_recv(source, destination, workspace);
+    #ifdef Heffte_DISABLE_GPU_AWARE_MPI
+    if (backend::uses_gpu<backend_tag>::value){
+        no_gpuaware_send_recv(source, destination, workspace);
         return;
     }
     #endif
@@ -375,15 +374,9 @@ void reshape3d_pointtopoint<backend_tag, packer>::apply_base(scalar_type const s
         packit.pack(packplan[i], &source[send_offset[i]], send_buffer);
         }
 
-        #ifdef Heffte_ENABLE_CUDA
-        // the device_synchronize() is needed to flush the kernels of the asynchronous packing
-        if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value)
-            cuda::synchronize_default_stream();
-        #endif
-        #ifdef Heffte_ENABLE_ROCM
-        // the device_synchronize() is needed to flush the kernels of the asynchronous packing
-        if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value)
-            rocm::synchronize_default_stream();
+        #ifdef Heffte_ENABLE_GPU
+        if (backend::uses_gpu<backend_tag>::value)
+            gpu::synchronize_default_stream();
         #endif
 
         { heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
@@ -407,18 +400,19 @@ void reshape3d_pointtopoint<backend_tag, packer>::apply_base(scalar_type const s
         MPI_Waitany(requests.size(), requests.data(), &irecv, MPI_STATUS_IGNORE);
         }
 
+        #ifdef Heffte_ENABLE_ROCM // this synch is not needed under CUDA
+        if (backend::uses_gpu<backend_tag>::value)
+            gpu::synchronize_default_stream();
+        #endif
+
         { heffte::add_trace name("unpacking from " + std::to_string(irecv));
         packit.unpack(unpackplan[irecv], recv_buffer + recv_loc[irecv], destination + recv_offset[irecv]);
         }
     }
 
-    #ifdef Heffte_ENABLE_CUDA
-    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value)
-        cuda::synchronize_default_stream();
-    #endif
-    #ifdef Heffte_ENABLE_ROCM
-    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value)
-        rocm::synchronize_default_stream();
+    #ifdef Heffte_ENABLE_GPU
+    if (backend::uses_gpu<backend_tag>::value)
+        gpu::synchronize_default_stream();
     #endif
 }
 

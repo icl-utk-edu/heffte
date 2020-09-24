@@ -8,10 +8,19 @@ option(Heffte_ENABLE_ROCM     "Enable the HIP and rocFFT backend"  OFF)
 option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
+option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGAM for GPU backends"   OFF)
+
+option(Heffte_ENABLE_PYTHON   "Configure the Python scripts"     OFF)
+option(Heffte_ENABLE_FORTRAN  "Build the Fortran modules for the selected backends.")
+option(Heffte_ENABLE_SWIG     "Rebuild the SWIG bindings.")
+
 option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
 if (CMAKE_C_COMPILER)
     enable_language(C)
+endif()
+if (Heffte_ENABLE_FORTRAN)
+    enable_language(Fortran)
 endif()
 
 # check if at least one backend has been enabled
@@ -52,6 +61,8 @@ set(Heffte_common_sources
     include/heffte_trace.h
     include/heffte_geometry.h
     include/heffte_common.h
+    include/heffte_backend_vector.h
+    include/heffte_magma_helpers.h
     include/heffte_plan_logic.h
     include/heffte_pack3d.h
     include/heffte_reshape3d.h
@@ -59,6 +70,7 @@ set(Heffte_common_sources
     include/heffte_fft3d_r2c.h
     src/heffte_c.cpp
     src/heffte_plan_logic.cpp
+    src/heffte_magma_helpers.cpp
     src/heffte_reshape3d.cpp
     src/heffte_fft3d.cpp
     src/heffte_fft3d_r2c.cpp
@@ -77,6 +89,7 @@ if (Heffte_ENABLE_CUDA)
 
     list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
     cuda_add_library(Heffte ${Heffte_common_sources}
+                            include/heffte_backend_cuda.h
                             src/heffte_backend_cuda.cu)
 
     cuda_add_cufft_to_target(Heffte)
@@ -101,6 +114,15 @@ endif()
 if (Heffte_ENABLE_ROCM)
     find_package(HeffteRocFFT REQUIRED)
     target_link_libraries(Heffte roc::rocfft)
+endif()
+
+if (Heffte_ENABLE_MAGMA)
+    if (NOT Heffte_ENABLE_CUDA AND NOT Heffte_ENABLE_ROCM)
+        message(FATAL_ERROR "MAGMA helpers work only with a GPU backend, e.g., CUDA or ROCM")
+    endif()
+    find_package(HeffteMAGMA REQUIRED)
+    list(FILTER CUDA_CUBLAS_LIBRARIES EXCLUDE REGEX "-NOTFOUND$") # work-around CMake 3.10 + CUDA 10
+    target_link_libraries(Heffte Heffte::MAGMA ${CUDA_CUBLAS_LIBRARIES})
 endif()
 
 # other target properties
@@ -151,6 +173,12 @@ add_subdirectory(benchmarks)
 add_subdirectory(examples)
 enable_testing()
 add_subdirectory(test)
+if (Heffte_ENABLE_FORTRAN)
+    add_subdirectory(fortran)
+endif()
+if (Heffte_ENABLE_PYTHON)
+    add_subdirectory(python)
+endif()
 
 
 ###########################
@@ -168,7 +196,7 @@ add_custom_target(test_install COMMAND bash "${CMAKE_CURRENT_BINARY_DIR}/post_in
 ##############################
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExampleCMakeLists.cmake" "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" DESTINATION share/heffte/examples)
-install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp")
+install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.f90")
 
 # print summary of the CMake options, skip if using add_subdirectory(heffte)
 if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})

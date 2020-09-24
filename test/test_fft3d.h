@@ -11,6 +11,11 @@
 
 #include "test_common.h"
 
+#ifdef Heffte_ENABLE_CUDA
+#include <cuda_runtime_api.h>
+#include <cuda.h>
+#endif
+
 template<typename scalar_type>
 std::vector<scalar_type> make_data(box3d const world){
     std::minstd_rand park_miller(4242);
@@ -62,153 +67,41 @@ std::vector<typename fft_output<scalar_type>::type> get_complex_subbox(box3d con
     return get_subbox(world, box, convert_to_output(input));
 }
 
-#ifdef Heffte_ENABLE_FFTW
-template<typename scalar_type>
-std::vector<scalar_type> compute_fft_fftw(box3d const world, std::vector<scalar_type> const &input){
-    assert(input.size() == static_cast<size_t>(world.count()));
-    std::vector<scalar_type> result = input;
-    for(int i=0; i<3; i++)
-        heffte::fftw_executor(world, i).forward(result.data());
-    return result;
-}
-#endif
-
-#ifdef Heffte_ENABLE_MKL
-template<typename scalar_type>
-std::vector<scalar_type> compute_fft_mkl(box3d const world, std::vector<scalar_type> const &input){
-    assert(input.size() == world.count());
-    std::vector<scalar_type> result = input;
-    for(int i=0; i<3; i++)
-        heffte::mkl_executor(world, i).forward(result.data());
-    return result;
-}
-#endif
-
-template<typename backend_tag, typename scalar_type>
-struct perform_fft{};
-template<typename backend_tag, typename scalar_type>
-struct input_maker{};
-
-#ifdef Heffte_ENABLE_FFTW
-template<typename scalar_type>
-struct perform_fft<backend::fftw, scalar_type>{
-    static std::vector<typename fft_output<scalar_type>::type> forward(box3d const world, std::vector<scalar_type> const &input){
-        std::vector<typename fft_output<scalar_type>::type> result(input.size());
-        for(size_t i=0; i<input.size(); i++)
-            result[i] = static_cast<typename fft_output<scalar_type>::type>(input[i]);
-        return compute_fft_fftw(world, result);
-    }
-    static std::vector<std::complex<scalar_type>> forward(box3d const world, std::vector<std::complex<scalar_type>> const &input){
-        return compute_fft_fftw(world, input);
-    }
-};
-template<typename scalar_type>
-struct input_maker<backend::fftw, scalar_type>{
+template<typename backend_tag, typename scalar_type, typename = void>
+struct input_maker{
     static std::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
         return get_subbox(world, box, input);
     }
 };
-#endif
 
-#ifdef Heffte_ENABLE_MKL
-template<typename scalar_type>
-struct perform_fft<backend::mkl, scalar_type>{
-    static std::vector<typename fft_output<scalar_type>::type> forward(box3d const world, std::vector<scalar_type> const &input){
-        std::vector<typename fft_output<scalar_type>::type> result(input.size());
-        for(size_t i=0; i<input.size(); i++)
-            result[i] = static_cast<typename fft_output<scalar_type>::type>(input[i]);
-        return compute_fft_mkl(world, result);
-    }
-    static std::vector<std::complex<scalar_type>> forward(box3d const world, std::vector<std::complex<scalar_type>> const &input){
-        return compute_fft_mkl(world, input);
-    }
-};
-template<typename scalar_type>
-struct input_maker<backend::mkl, scalar_type>{
-    static std::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
-        return get_subbox(world, box, input);
-    }
-};
-#endif
-
-
-#ifdef Heffte_ENABLE_CUDA
-template<typename scalar_type>
-cuda::vector<scalar_type> compute_fft_cufft(box3d const world, cuda::vector<scalar_type> const &input){
-    assert(input.size() == static_cast<size_t>(world.count()));
-    cuda::vector<scalar_type> result = input;
-    for(int i=0; i<3; i++)
-        heffte::cufft_executor(world, i).forward(result.data());
-    return result;
-}
-template<typename scalar_type>
-cuda::vector<typename fft_output<scalar_type>::type> compute_fft_cuda(box3d const world, cuda::vector<scalar_type> const &input){
-    cuda::vector<typename fft_output<scalar_type>::type> result(input.size());
-    cuda::convert(input.size(), input.data(), result.data());
-    return compute_fft_cufft(world, result);
-}
-template<typename scalar_type>
-cuda::vector<std::complex<scalar_type>> compute_fft_cuda(box3d const world, cuda::vector<std::complex<scalar_type>> const &input){
-    return compute_fft_cufft(world, input);
-}
-template<typename scalar_type>
-struct perform_fft<backend::cufft, scalar_type>{
-    static std::vector<typename fft_output<scalar_type>::type> forward(box3d const world, std::vector<scalar_type> const &input){
-        return cuda::unload(compute_fft_cuda(world, cuda::load(input)));
-    }
-};
-template<typename scalar_type>
-struct input_maker<backend::cufft, scalar_type>{
-    static cuda::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
-        return cuda::load(get_subbox(world, box, input));
-    }
-};
-template<typename scalar_type>
-std::vector<scalar_type> rescale(box3d const world, cuda::vector<scalar_type> const &data, scale scaling){
-    return rescale(world, cuda::unload(data), scaling);
-}
-#endif
-
-#ifdef Heffte_ENABLE_ROCM
-template<typename scalar_type>
-rocm::vector<scalar_type> compute_fft_rocfft(box3d const world, rocm::vector<scalar_type> const &input){
-    assert(input.size() == static_cast<size_t>(world.count()));
-    rocm::vector<scalar_type> result = input;
-    for(int i=0; i<3; i++)
-        heffte::rocfft_executor(world, i).forward(result.data());
-    return result;
-}
-template<typename scalar_type>
-rocm::vector<typename fft_output<scalar_type>::type> compute_fft_rocm(box3d const world, rocm::vector<scalar_type> const &input){
-    rocm::vector<typename fft_output<scalar_type>::type> result(input.size());
-    rocm::convert(input.size(), input.data(), result.data());
-    return compute_fft_rocfft(world, result);
-}
-template<typename scalar_type>
-rocm::vector<std::complex<scalar_type>> compute_fft_rocm(box3d const world, rocm::vector<std::complex<scalar_type>> const &input){
-    return compute_fft_rocfft(world, input);
-}
-template<typename scalar_type>
-struct perform_fft<backend::rocfft, scalar_type>{
-    static std::vector<typename fft_output<scalar_type>::type> forward(box3d const world, std::vector<scalar_type> const &input){
-        return rocm::unload(compute_fft_rocm(world, rocm::load(input)));
-    }
-};
-template<typename scalar_type>
-struct input_maker<backend::rocfft, scalar_type>{
-    static rocm::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
-        return rocm::load(get_subbox(world, box, input));
-    }
-};
-template<typename scalar_type>
-std::vector<scalar_type> rescale(box3d const world, rocm::vector<scalar_type> const &data, scale scaling){
-    return rescale(world, rocm::unload(data), scaling);
-}
-#endif
-
+#ifdef Heffte_ENABLE_GPU
 template<typename backend_tag, typename scalar_type>
-std::vector<typename fft_output<scalar_type>::type> forward_fft(box3d const world, std::vector<scalar_type> const &input){
-    return perform_fft<backend_tag, scalar_type>::forward(world, input);
+struct input_maker<backend_tag, scalar_type, typename std::enable_if<backend::uses_gpu<backend_tag>::value, void>::type>{
+    static gpu::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
+        return gpu::transfer::load(get_subbox(world, box, input));
+    }
+};
+template<typename scalar_type>
+std::vector<scalar_type> rescale(box3d const world, gpu::vector<scalar_type> const &data, scale scaling){
+    return rescale(world, gpu::transfer::unload(data), scaling);
+}
+#endif
+
+template<typename backend_tag, typename precision_type>
+std::vector<std::complex<precision_type>> forward_fft(box3d const world, std::vector<precision_type> const &input){
+    auto loaded_input = test_traits<backend_tag>::load(input);
+    typename test_traits<backend_tag>::template container<std::complex<precision_type>> loaded_result(input.size());
+    typename one_dim_backend<backend_tag>::type(world, 0).forward(loaded_input.data(), loaded_result.data());
+    for(int i=1; i<3; i++)
+        typename one_dim_backend<backend_tag>::type(world, i).forward(loaded_result.data());
+    return test_traits<backend_tag>::unload(loaded_result);
+}
+template<typename backend_tag, typename precision_type>
+std::vector<std::complex<precision_type>> forward_fft(box3d const world, std::vector<std::complex<precision_type>> const &input){
+    auto loaded_input = test_traits<backend_tag>::load(input);
+    for(int i=0; i<3; i++)
+        typename one_dim_backend<backend_tag>::type(world, i).forward(loaded_input.data());
+    return test_traits<backend_tag>::unload(loaded_input);
 }
 
 template<typename backend_tag>
@@ -328,6 +221,22 @@ void test_fft3d_arrays(MPI_Comm comm){
         fft.forward(local_input.data(), forward.data(), workspace.data()); // compute the forward fft
         tassert(approx(forward, reference_fft)); // compare to the reference
 
+        #ifdef Heffte_ENABLE_CUDA
+        if (std::is_same<backend_tag, backend::cufft>::value){
+            scalar_type * uinput;
+            output_type *uoutput;
+            cudaMallocManaged(reinterpret_cast<void**>(&uinput), local_input.size() * sizeof(scalar_type));
+            cudaMallocManaged(reinterpret_cast<void**>(&uoutput), forward.size() * sizeof(output_type));
+            cudaMemcpy(uinput, local_input.data(), local_input.size() * sizeof(scalar_type), cudaMemcpyDeviceToDevice);
+            fft.forward(uinput, uoutput);
+            std::vector<output_type> cpu_result(forward.size());
+            cudaMemcpy(cpu_result.data(), uoutput, forward.size() * sizeof(output_type), cudaMemcpyDeviceToHost);
+            tassert(approx(forward, cpu_result));
+            cudaFree(uinput);
+            cudaFree(uoutput);
+        }
+        #endif
+
         input_container rbackward(local_input.size()); // compute backward fft using scalar_type
         fft.backward(forward.data(), rbackward.data(), workspace.data());
         auto backward_result = rescale(world, rbackward, scale::full); // always std::vector
@@ -360,6 +269,4 @@ void test_fft3d_arrays(MPI_Comm comm){
     }
     } // different option variants
 }
-
-
 #endif

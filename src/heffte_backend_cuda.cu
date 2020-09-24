@@ -10,103 +10,60 @@
 #include <cuda.h>
 #include <cufft.h>
 
+#ifdef Heffte_ENABLE_MAGMA
+#include <cublas.h>
+#include "magma_v2.h"
+#endif
+
 namespace heffte {
+
+namespace cuda {
+void* memory_manager::allocate(size_t num_bytes){
+    void *new_data;
+    check_error(cudaMalloc(&new_data, num_bytes), "cudaMalloc()");
+    return new_data;
+}
+void memory_manager::free(void *pntr){
+    if (pntr != nullptr)
+        check_error(cudaFree(pntr), "cudaFree()");
+}
+void memory_manager::host_to_device(void const *source, size_t num_bytes, void *destination){
+    check_error(cudaMemcpy(destination, source, num_bytes, cudaMemcpyHostToDevice), "host_to_device (cuda)");
+}
+void memory_manager::device_to_device(void const *source, size_t num_bytes, void *destination){
+    check_error(cudaMemcpy(destination, source, num_bytes, cudaMemcpyDeviceToDevice), "device_to_device (cuda)");
+}
+void memory_manager::device_to_host(void const *source, size_t num_bytes, void *destination){
+    check_error(cudaMemcpy(destination, source, num_bytes, cudaMemcpyDeviceToHost), "device_to_host (cuda)");
+}
+}
+
+namespace gpu {
+
+void device_set(int active_device){
+    if (active_device < 0 or active_device > device_count())
+        throw std::runtime_error("device_set() called with invalid cuda device id");
+    cuda::check_error(cudaSetDevice(active_device), "cudaSetDevice()");
+}
+
+void synchronize_default_stream(){
+    cuda::check_error(cudaStreamSynchronize(nullptr), "device synch"); // synch the default stream
+}
+
+int device_count(){
+    int count;
+    cuda::check_error(cudaGetDeviceCount(&count), "cudaGetDeviceCount()" );
+    return count;
+}
+
+}
+
 namespace cuda {
 
 void check_error(cudaError_t status, std::string const &function_name){
     if (status != cudaSuccess)
         throw std::runtime_error(function_name + " failed with message: " + cudaGetErrorString(status));
 }
-
-int device_count(){
-    int count;
-    check_error(cudaGetDeviceCount(&count), "cudaGetDeviceCount()" );
-    return count;
-}
-
-void device_set(int active_device){
-    if (active_device < 0 or active_device > device_count())
-        throw std::runtime_error("device_set() called with invalid cuda device id");
-    check_error(cudaSetDevice(active_device), "cudaSetDevice()");
-}
-
-void synchronize_default_stream(){
-    check_error(cudaStreamSynchronize(nullptr), "device synch"); // synch the default stream
-}
-
-template<typename scalar_type>
-vector<scalar_type>::vector(scalar_type const *begin, scalar_type const *end) : num(std::distance(begin, end)), gpu_data(alloc(num)){
-    check_error(cudaMemcpy(gpu_data, begin, num * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "cuda::vector(begin, end)");
-}
-template<typename scalar_type>
-vector<scalar_type>::vector(const vector<scalar_type>& other) : num(other.num), gpu_data(alloc(num)){
-    check_error(cudaMemcpy(gpu_data, other.gpu_data, num * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "cuda::vector(cuda::vector const &)");
-}
-template<typename scalar_type>
-vector<scalar_type>::~vector(){
-    if (gpu_data != nullptr)
-        check_error(cudaFree(gpu_data), "cuda::~vector()");
-}
-template<typename scalar_type>
-scalar_type* vector<scalar_type>::alloc(size_t new_size){
-    if (new_size == 0) return nullptr;
-    scalar_type *new_data;
-    check_error(cudaMalloc((void**) &new_data, new_size * sizeof(scalar_type)), "cuda::vector::alloc()");
-    return new_data;
-}
-template<typename scalar_type>
-void copy_pntr(vector<scalar_type> const &x, scalar_type data[]){
-    check_error(cudaMemcpy(data, x.data(), x.size() * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "cuda::copy_pntr(vector, data)");
-}
-template<typename scalar_type>
-void copy_pntr(scalar_type const data[], vector<scalar_type> &x){
-    check_error(cudaMemcpy(x.data(), data, x.size() * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "cuda::copy_pntr(data, vector)");
-}
-template<typename scalar_type>
-vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries){
-    vector<scalar_type> result(num_entries);
-    check_error(cudaMemcpy(result.data(), cpu_data, num_entries * sizeof(scalar_type), cudaMemcpyHostToDevice), "cuda::load()");
-    return result;
-}
-template<typename scalar_type>
-void load(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data){
-    if (gpu_data.size() != cpu_data.size()) gpu_data = vector<scalar_type>(cpu_data.size());
-    check_error(cudaMemcpy(gpu_data.data(), cpu_data.data(), gpu_data.size() * sizeof(scalar_type), cudaMemcpyHostToDevice), "cuda::load()");
-}
-template<typename scalar_type>
-void load(std::vector<scalar_type> const &cpu_data, scalar_type gpu_data[]){
-    check_error(cudaMemcpy(gpu_data, cpu_data.data(), cpu_data.size() * sizeof(scalar_type), cudaMemcpyHostToDevice), "cuda::load()");
-}
-template<typename scalar_type>
-void unload(vector<scalar_type> const &gpu_data, scalar_type *cpu_data){
-    check_error(cudaMemcpy(cpu_data, gpu_data.data(), gpu_data.size() * sizeof(scalar_type), cudaMemcpyDeviceToHost), "cuda::unload()");
-}
-
-template<typename scalar_type>
-std::vector<scalar_type> unload(scalar_type const gpu_pointer[], size_t num_entries){
-    std::vector<scalar_type> result(num_entries);
-    check_error(cudaMemcpy(result.data(), gpu_pointer, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToHost), "cuda::unload()");
-    return result;
-}
-
-#define instantiate_cuda_vector(scalar_type) \
-    template vector<scalar_type>::vector(scalar_type const *begin, scalar_type const *end); \
-    template vector<scalar_type>::vector(const vector<scalar_type>& other); \
-    template vector<scalar_type>::~vector(); \
-    template scalar_type* vector<scalar_type>::alloc(size_t); \
-    template void copy_pntr(vector<scalar_type> const &x, scalar_type data[]); \
-    template void copy_pntr(scalar_type const data[], vector<scalar_type> &x); \
-    template vector<scalar_type> load(scalar_type const *cpu_data, size_t num_entries); \
-    template void load<scalar_type>(std::vector<scalar_type> const &cpu_data, vector<scalar_type> &gpu_data); \
-    template void load<scalar_type>(std::vector<scalar_type> const&, scalar_type[]); \
-    template void unload<scalar_type>(vector<scalar_type> const &, scalar_type *); \
-    template std::vector<scalar_type> unload<scalar_type>(scalar_type const[], size_t); \
-
-
-instantiate_cuda_vector(float);
-instantiate_cuda_vector(double);
-instantiate_cuda_vector(std::complex<float>);
-instantiate_cuda_vector(std::complex<double>);
 
 /*
  * Launch with one thread per entry.

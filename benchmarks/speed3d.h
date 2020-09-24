@@ -79,7 +79,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     #ifdef Heffte_ENABLE_GPU
     gpu::vector<std::complex<precision_type>> gpu_output;
     if (std::is_same<backend_tag, gpu_backend>::value){
-        gpu_output = gpu::load(output);
+        gpu_output = gpu::transfer::load(output);
         output_array = gpu_output.data();
     }
     #endif
@@ -102,6 +102,10 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
         heffte::add_trace("mark backward begin");
         fft.backward(output_array, output_array, workspace.data());
     }
+    #ifdef Heffte_ENABLE_GPU
+    if (backend::uses_gpu<backend_tag>::value)
+        gpu::synchronize_default_stream();
+    #endif
     t += MPI_Wtime();
     MPI_Barrier(fft_comm);
 
@@ -113,7 +117,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     #ifdef Heffte_ENABLE_GPU
     if (std::is_same<backend_tag, gpu_backend>::value){
         // unload from the GPU, if it was stored there
-        output = gpu::unload(gpu_output);
+        output = gpu::transfer::unload(gpu_output);
     }
     #endif
     output.resize(input.size()); // match the size of the original input

@@ -33,6 +33,8 @@ doxygen_add_docs(heffte_doxygen
                  README.md
                  doxygen/installation.md
                  doxygen/basic_usage.md
+                 python/README.md
+                 fortran/README.md
                  include/
                  src/heffte_plan_logic.cpp
                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../
