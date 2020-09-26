@@ -392,7 +392,7 @@ inline std::vector<box3d> maximize_overlap(std::vector<box3d> const &new_boxes,
  * from the source to the resulting list will minimize communication.
  * \param world is a box describing all indexes of consideration,
  *              it is assumed that the world is the union of the \b source boxes
- * \param prod_grid gives the number of boxes to use for the two-by-two grid
+ * \param proc_grid gives the number of boxes to use for the two-by-two grid
  * \param dimension is 0, 1, or 2, indicating the direction of orientation of the pencils,
  *                  e.g., dimension 1 means that pencil.size[1] == world.size[1]
  *                  for each pencil in the output list
