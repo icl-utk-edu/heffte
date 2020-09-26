@@ -4,32 +4,33 @@
 
 ### Requirements
 
-At the minimum, HeFFTe requires a C++11 capable compiler,
+At the minimum, heFFTe requires a C++11 capable compiler,
 an implementation of the Message Passing Library (MPI),
 and at least one backend FFT library.
-The HeFFTe library can be build with either CMake 3.10 or newer,
+The heFFTe library can be build with either CMake 3.10 or newer,
 or a simple GNU Make build engine.
-CMake is the recommended way to use HeFFTe since dependencies and options
-are much easier to export to user projects.
+CMake is the recommended way to use heFFTe since dependencies and options
+are much easier to export to user projects and not all options
+could be cleanly implemented in the rigid Makefile.
 
 | Compiler | Tested versions |
 |----|----|
 | gcc      | 6 - 8           |
 | clang    | 4 - 5           |
 | icc      | 18              |
-| OpenMPI  | 2.1.1           |
+| OpenMPI  | 4.0.3           |
 
 Tested backend libraries:
 
 | Backend    | Tested versions |
 |----|----|
-| fftw3      | 3.3.7           |
+| fftw3      | 3.3.7 - 3.3.8   |
 | mkl        | 2016            |
-| cuda/cufft | 9.0 - 10.2      |
-| rocm/rocfft| 3.7             |
+| cuda/cufft | 9.0 - 11        |
+| rocm/rocfft| 3.8             |
 
 The listed tested versions are part of the continuous integration and nightly build systems,
-but HeFFTe may yet work with other compilers and backend versions.
+but heFFTe may yet work with other compilers and backend versions.
 
 ### CMake Installation
 
@@ -63,7 +64,7 @@ The standard CMake options are also accepted:
     MPI_CXX_COMPILER=<path-to-suitable-mpi-compiler-wrapper>  (specifies the MPI compiler wrapper)
 ```
 
-Additional HeFFTe options:
+Additional heFFTe options:
 ```
     Heffte_ENABLE_ROCM=<ON/OFF>      (enable the rocFFT backend)
     Heffte_ENABLE_MKL=<ON/OFF>       (enable the MKL backend)
@@ -71,6 +72,15 @@ Additional HeFFTe options:
     Heffte_ENABLE_DOXYGEN=<ON/OFF>   (build the documentation)
     Heffte_ENABLE_TRACING=<ON/OFF>   (enable the even logging engine)
 ```
+
+Additional language interfaces and helper methods:
+```
+    -D Heffte_ENABLE_PYTHON=<ON/OFF>   (configure the Python module)
+    -D Heffte_ENABLE_FORTRAN=<ON/OFF>  (build the Fortran modules)
+    -D Heffte_ENABLE_SWIG=<ON/OFF>     (generate new Fortrans source files)
+    -D Heffte_ENABLE_MAGMA=<ON/OFF>    (link to MAGMA for helper methods)
+```
+See the Fortran and Python sections for details.
 
 ### List of Available Backend Libraries
 
@@ -81,26 +91,26 @@ Additional HeFFTe options:
 ```
 Note that fftw3 uses two different libraries for single and double precision, while HeFFTe handles all precisions in a single template library; thus both the fftw3 (double-precision) and fftw3f (single-precision) variants are needed and those can be installed in the same path.
 
-* **MKL:** the [Intel Math Kernel Library](https://software.intel.com/content/www/us/en/develop/tools/math-kernel-library.html) provides optimized FFT implementation targeting Intel processors and can be enabled within HeFFTe with:
+* **MKL:** the [Intel Math Kernel Library](https://software.intel.com/content/www/us/en/develop/tools/math-kernel-library.html) provides optimized FFT implementation targeting Intel processors and can be enabled within heFFTe with:
 ```
     -D Heffte_ENABLE_MKL=ON
     -D MKL_ROOT=<path-to-mkl-installation>
 ```
-The `MKL_ROOT` default to the environment variable `MKLROOT` (chosen by Intel). MKL also requires the `iomp5` library, which is the Intel implementation of the OpenMP standard, HeFFTe will find it by default if it is visible in the default CMake search path or the `LD_LIBRARY_PATH`.
+The `MKL_ROOT` default to the environment variable `MKLROOT` (chosen by Intel). MKL also requires the `iomp5` library, which is the Intel implementation of the OpenMP standard, heFFTe will find it by default if it is visible in the default CMake search path or the `LD_LIBRARY_PATH`.
 
-* **CUFFT:** the [Nvidia CUDA framework](https://developer.nvidia.com/cuda-zone) provides a GPU accelerated FFT library [cuFFT](https://docs.nvidia.com/cuda/cufft/index.html), which can be enabled in HeFFTe with:
+* **CUFFT:** the [Nvidia CUDA framework](https://developer.nvidia.com/cuda-zone) provides a GPU accelerated FFT library [cuFFT](https://docs.nvidia.com/cuda/cufft/index.html), which can be enabled in heFFTe with:
 ```
     -D Heffte_ENABLE_CUDA=ON
     -D CUDA_TOOLKIT_ROOT_DIR=<path-to-cuda-installation>
 ```
 
-* **ROCFFT:**  the [AMD ROCm framework](https://github.com/RadeonOpenCompute/ROCm) provides a GPU accelerated FFT library [rocFFT](https://github.com/ROCmSoftwarePlatform/rocFFT), which can be enabled in HeFFTe with:
+* **ROCFFT:**  the [AMD ROCm framework](https://github.com/RadeonOpenCompute/ROCm) provides a GPU accelerated FFT library [rocFFT](https://github.com/ROCmSoftwarePlatform/rocFFT), which can be enabled in heFFTe with:
 ```
     -D CMAKE_CXX_COMPILER=hipcc
     -D Heffte_ENABLE_ROCM=ON
 ```
 
-**Note:** CUDA and ROCM cannot be enabled at the same time and both backends operate with arrays allocated in GPU device memory (or alternatively shared/managed memory). By default when using either GPU backend, HeFFTe assumes that the MPI implementation is CUDA-Aware, see the next section.
+**Note:** CUDA and ROCM cannot be enabled at the same time and both backends operate with arrays allocated in GPU device memory (or alternatively shared/managed memory). By default when using either GPU backend, heFFTe assumes that the MPI implementation is CUDA-Aware, see the next section.
 
 
 ### GPU-Aware MPI
@@ -109,7 +119,7 @@ Different implementations of MPI can provide GPU-Aware capabilities, where data 
 ```
     -D Heffte_DISABLE_GPU_AWARE_MPI=ON
 ```
-**Note:** disabling the GPU-Aware capabilities guarantees correctness of the computed results but may have very detrimental impact on performance. The option is provided for testing and debugging and for development of user code on a machine that does not have GPU-Aware support, e.g., an office desktop or a personal laptop.
+**Note:** disabling the GPU-Aware capabilities guarantees correctness of the computed results but may have very detrimental impact on performance. The option is provided for testing and debugging and for development of user code on a machine that does not have GPU-Aware support, e.g., an office desktop or a personal laptop. The option has no effect on the CPU backends.
 
 
 ### Linking to HeFFTe
@@ -128,6 +138,11 @@ Typical project linking to HeFFTe will look like this:
     target_link_libraries(foo Heffte::Heffte)
 ```
 An example is installed in `<install-prefix>/share/heffte/examples/`.
+
+The package-config also provides a set of components corresponding to the different compile options, specifically:
+```
+    FFTW MKL CUDA ROCM PYTHON Fortran GPUAWARE
+```
 
 
 ### GNU Make Installation
@@ -150,8 +165,14 @@ Testing is invoked with:
 ```
 The library will be build in `./lib/`
 
+The GNU Make build engine does not support all options, e.g., MAGMA or disabling the GPU-Aware calls,
+but is provided for testing and debugging purposes.
+
 
 ### Known Issues
 
 * the current testing suite requires about 3GB of free GPU RAM
     * CUDA seem to reserve 100-200MB of RAM per MPI rank and some tests use 12 ranks
+    * the GPU handles used by MAGMA-CUDA and MAGMA-HIP are not destroyed on time
+      (both backends seem to implement some garbage collection mechanism),
+      thus even an 8GB GPU may run out of memory when using the 12 rank test
