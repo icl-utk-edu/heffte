@@ -4,9 +4,6 @@
        @date
 */
 
-/** @class */
-// Reshape3d class
-
 #ifndef HEFFTE_RESHAPE3D_H
 #define HEFFTE_RESHAPE3D_H
 

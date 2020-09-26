@@ -2,6 +2,9 @@
 #
 # Usage:
 #   find_package(HeffteMAGMA [REQUIRED] [QUIET] )
+#   Heffte::MAGMA target is created (if successful)
+#   HeffteMAGMA_LIBRARIES and HeffteMAGMA_INCLUDES will be defined
+#   The variables can also be used to bypass the search
 
 set(MAGMA_ROOT "$ENV{MAGMA_ROOT}" CACHE PATH "The root folder for the MAGMA installation, e.g., containing lib and include folders")
 

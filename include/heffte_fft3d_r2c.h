@@ -1,4 +1,3 @@
-/** @class */
 /*
     -- heFFTe --
        Univ. of Tennessee, Knoxville

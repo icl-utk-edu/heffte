@@ -62,6 +62,10 @@ macro(heffte_find_fftw_libraries)
     unset(heffte_lib)
 endmacro(heffte_find_fftw_libraries)
 
+# if user has not provided FFTW_ROOT, then check with the environment
+if (DEFINED ENV{FFTW_ROOT} AND NOT FFTW_ROOT)
+    set(FFTW_ROOT "$ENV{FFTW_ROOT}")
+endif()
 
 # respect user provided FFTW_LIBRARIES
 if (NOT FFTW_LIBRARIES)
@@ -93,7 +97,7 @@ endif()
 
 # handle components and standard CMake arguments
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(FFTW DEFAULT_MSG
+find_package_handle_standard_args(HeffteFFTW DEFAULT_MSG
                                   FFTW_INCLUDES FFTW_LIBRARIES)
 
 # create imported target

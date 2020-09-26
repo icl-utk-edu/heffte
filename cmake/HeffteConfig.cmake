@@ -1,3 +1,6 @@
+
+@PACKAGE_INIT@
+
 include("${CMAKE_CURRENT_LIST_DIR}/HeffteTargets.cmake")
 
 if (@Heffte_ENABLE_FFTW@ AND NOT TARGET Heffte::FFTW)
@@ -74,3 +77,8 @@ set(Heffte_FFTW_FOUND    "@Heffte_ENABLE_FFTW@")
 set(Heffte_MKL_FOUND     "@Heffte_ENABLE_MKL@")
 set(Heffte_CUDA_FOUND    "@Heffte_ENABLE_CUDA@")
 set(Heffte_ROCM_FOUND    "@Heffte_ENABLE_ROCM@")
+if ("@Heffte_DISABLE_GPU_AWARE_MPI@")
+    set(Heffte_GPUAWARE_FOUND "OFF")
+endif()
+
+check_required_components(Heffte)
