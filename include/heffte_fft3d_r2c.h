@@ -284,6 +284,13 @@ private:
     #endif
 };
 
+/*!
+ * \ingroup fft3d
+ * \brief Alias of heffte::fft2d to be used for a two dimensional problem.
+ */
+template<typename backend_tag>
+using fft2d_r2c = fft3d_r2c<backend_tag>;
+
 }
 
 #endif

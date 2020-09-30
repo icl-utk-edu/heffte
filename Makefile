@@ -130,9 +130,9 @@ help:
 
 ./include/heffte_config.h:
 	cp ./include/heffte_config.cmake.h ./include/heffte_config.h
-	sed -i -e 's|@Heffte_VERSION_MAJOR@|1|g' ./include/heffte_config.h
+	sed -i -e 's|@Heffte_VERSION_MAJOR@|2|g' ./include/heffte_config.h
 	sed -i -e 's|@Heffte_VERSION_MINOR@|0|g' ./include/heffte_config.h
-	sed -i -e 's|@Heffte_VERSION_PATCH@|1|g' ./include/heffte_config.h
+	sed -i -e 's|@Heffte_VERSION_PATCH@|0|g' ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_TRACING|#undef Heffte_ENABLE_TRACING|g' ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_DISABLE_GPU_AWARE_MPI|#undef Heffte_DISABLE_GPU_AWARE_MPI|g' ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_MAGMA|#undef Heffte_ENABLE_MAGMA|g' ./include/heffte_config.h
@@ -209,11 +209,13 @@ ctest:
 	./test_units_nompi
 	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  1 $(MPIRUN_PREFLAGS) ./test_fft3d
 	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  2 $(MPIRUN_PREFLAGS) ./test_fft3d
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  4 $(MPIRUN_PREFLAGS) ./test_fft3d
 	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  6 $(MPIRUN_PREFLAGS) ./test_fft3d
 	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  8 $(MPIRUN_PREFLAGS) ./test_fft3d
 	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) ./test_fft3d
 	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  1 $(MPIRUN_PREFLAGS) ./test_fft3d_r2c
 	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  2 $(MPIRUN_PREFLAGS) ./test_fft3d_r2c
+	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  4 $(MPIRUN_PREFLAGS) ./test_fft3d_r2c
 	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  6 $(MPIRUN_PREFLAGS) ./test_fft3d_r2c
 	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG)  8 $(MPIRUN_PREFLAGS) ./test_fft3d_r2c
 	$(MPIRUN) $(MPIRUN_NUMPROC_FLAG) 12 $(MPIRUN_PREFLAGS) ./test_fft3d_r2c

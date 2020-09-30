@@ -523,6 +523,17 @@ private:
     #endif
 };
 
+/*!
+ * \ingroup fft3d
+ * \brief Alias of heffte::fft3d to be used for a two dimensional problem.
+ *
+ * The internal logic of heFFTe is capable of recognizing directions with only a single indexes
+ * and ignoring redundant communication. Thus, a two dimensional transform
+ * is just an alias for the three dimensional one with heffte::box2d as input (which is also an alias).
+ */
+template<typename backend_tag>
+using fft2d = fft3d<backend_tag>;
+
 }
 
 #endif

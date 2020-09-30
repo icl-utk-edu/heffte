@@ -12,13 +12,13 @@
 void test_factorize(){
     current_test<int, using_nompi> name("prime factorize");
 
-    std::vector<std::array<int, 2>> reference = {{1, 935}, {5, 187}, {11, 85}, {17, 55}, {55, 17}, {85, 11}, {187, 5}};
+    std::vector<std::array<int, 2>> reference = {{1, 935}, {5, 187}, {11, 85}, {17, 55}, {55, 17}, {85, 11}, {187, 5}, {935, 1}};
 
     auto factors = heffte::get_factors(935);
 
     sassert(match(factors, reference));
 
-    reference = {{1, 27}, {3, 9}, {9, 3}};
+    reference = {{1, 27}, {3, 9}, {9, 3}, {27, 1}};
     factors = heffte::get_factors(reference.front()[1]);
     sassert(match(factors, reference));
 }

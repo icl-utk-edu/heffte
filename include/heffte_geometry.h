@@ -72,6 +72,13 @@ struct box3d{
     box3d(std::array<int, 3> clow, std::array<int, 3> chigh, std::array<int, 3> corder) :
         low(clow), high(chigh), size({high[0] - low[0] + 1, high[1] - low[1] + 1, high[2] - low[2] + 1}), order(corder)
     {}
+    //! \brief Constructor for the two dimensional case.
+    box3d(std::array<int, 2> clow, std::array<int, 2> chigh) :
+        box3d(std::array<int, 3>{clow[0], clow[1], 0}, std::array<int, 3>{chigh[0], chigh[1], 0}){}
+    //! \brief Constructor for the two dimensional case, order is either (0, 1) or (1, 0).
+    box3d(std::array<int, 2> clow, std::array<int, 2> chigh, std::array<int, 2> corder) :
+        box3d(std::array<int, 3>{clow[0], clow[1], 0}, std::array<int, 3>{chigh[0], chigh[1], 0},
+              std::array<int, 3>{corder[0], corder[1], 2}){}
     //! \brief Returns true if the box contains no indexes.
     bool empty() const{ return (size[0] <= 0 or size[1] <= 0 or size[2] <= 0); }
     //! \brief Counts all indexes in the box, i.e., the volume.
@@ -90,6 +97,8 @@ struct box3d{
                 return box3d(low, {high[0], high[1], low[2] + size[2] / 2}, order);
         }
     }
+    //! \brief Returns \b true if either dimension contains only a single index.
+    bool is2d() const{ return (size[0] == 1 or size[1] == 1 or size[2] == 1); }
     //! \brief Compares two boxes, ignoring the order, returns \b true if all sizes and boundaries match.
     bool operator == (box3d const &other) const{
         return not (*this != other);
@@ -115,6 +124,12 @@ struct box3d{
     //! \brief The order of the dimensions in the k * plane_stride + j * line_stride + i indexing.
     std::array<int, 3> const order;
 };
+
+/*!
+ * \ingroup fft3d
+ * \brief Alias for expressive calls to heffte::fft2d and heffte::fft2d_r2c.
+ */
+using box2d = box3d;
 
 /*!
  * \ingroup fft3dmisc
@@ -236,11 +251,11 @@ inline bool world_complete(std::vector<box3d> const &boxes, box3d const world){
  *  for(auto f : factors) assert( f[0] * f[1] == n );
  * \endcode
  *
- * Note: the result is never empty as it always contains (1, n).
+ * Note: the result is never empty as it always contains (1, n) and (n, 1).
  */
 inline std::vector<std::array<int, 2>> get_factors(int const n){
     std::vector<std::array<int, 2>> result;
-    for(int i=1; i<=n/2; i++){
+    for(int i=1; i<=n; i++){
         if (n % i == 0)
             result.push_back({i, n / i});
     }
@@ -249,6 +264,17 @@ inline std::vector<std::array<int, 2>> get_factors(int const n){
     }
     return result;
 }
+
+/*!
+ * \ingroup fft3dmisc
+ * \brief Get the surface area of a processor grid.
+ *
+ * For a three dimensional grid with size dims[0] by dims[1] by 1,
+ * return the surface area.
+ * Useful for optimizing average communication cost.
+ */
+inline int get_area(std::array<int, 2> const &dims){ return dims[0] * dims[1] + dims[0] + dims[1]; }
+
 
 /*!
  * \ingroup fft3dmisc
@@ -264,17 +290,62 @@ inline std::vector<std::array<int, 2>> get_factors(int const n){
  */
 inline std::array<int, 2> make_procgrid(int const num_procs){
     auto factors = get_factors(num_procs);
-    auto area = [](std::array<int, 2> f)->int{ return f[0]*f[1] + f[0] + f[1]; };
     std::array<int, 2> min_array = factors.front();
-    int min_area = area(min_array);
+    int min_area = get_area(min_array);
     for(auto f : factors){
-        int farea = area(f);
+        int farea = get_area(f);
         if (farea < min_area){
             min_array = f;
             min_area = farea;
         }
     }
     return min_array;
+}
+
+/*!
+ * \ingroup fft3dmisc
+ * \brief Factorize the MPI ranks into a 2D grid with specific constraints.
+ *
+ * The constraints satisfied by the grid will be as follow:
+ * - result[i] <= world.size[i], i.e., we don't use more processors than there are indexes
+ * - result[direction_1d] == 1, i.e., the grid is one-dimensional in the given \b direction_1d
+ * - the product of result[i] will be equal to the product of candidate_grid[0] * candidate_grid[1]
+ * - if possible, the \b candidate_grid factorization will be used with the implicit assumption
+ *   that it will be best or optimal except when the fist constraint is violated
+ */
+inline std::array<int, 3> make_procgrid2d(box3d const world, int direction_1d, std::array<int, 2> const candidate_grid){
+    auto make_grid = [&](std::array<int, 2> const &grid)
+                     ->std::array<int, 3>{
+                         return  (direction_1d == 0) ?  std::array<int, 3>{1, grid[0], grid[1]} :
+                                ((direction_1d == 1) ? std::array<int, 3>{grid[0], 1, grid[1]} :
+                                                       std::array<int, 3>{grid[0], grid[1], 1});
+                     };
+    std::array<int, 3> result = make_grid(candidate_grid);
+
+    auto valid = [&](std::array<int, 3> const &grid)
+                 ->bool{
+                     for(int i=0; i<3; i++) if (grid[i] > world.size[i]) return false;
+                     return true;
+                 };
+    if (valid(result)) return result; // if the first constraint is OK
+
+    // otherwise seek a new factorization
+    auto factors = get_factors(candidate_grid[0] * candidate_grid[1]);
+
+    int min_area = get_area(factors.front());
+    // a bit misleading, but here we initialize min_area with the largest possible area
+    for(auto const &g : factors) min_area = std::max(min_area, get_area(g));
+
+    for(auto const &g : factors){
+        if (valid(make_grid(g)) and get_area(g) <= min_area){
+            result = make_grid(g);
+            min_area = get_area(g);
+        }
+    }
+
+    if (not valid(result)) throw std::runtime_error("Cannot split the given number of indexes into the given set of mpi-ranks. Most liklely, the number of indexes is too small compared to the number of mpi-ranks.");
+
+    return result;
 }
 
 /*!
@@ -413,14 +484,7 @@ inline std::vector<box3d> make_pencils(box3d const world,
         return reorder(source, order);
 
     // create a list of boxes ordered in column major format (following the proc_grid box)
-    std::vector<box3d> pencils;
-    if (dimension == 0){
-        pencils = split_world(world, {1, proc_grid[0], proc_grid[1]});
-    }else if (dimension == 1){
-        pencils = split_world(world, {proc_grid[0], 1, proc_grid[1]});
-    }else{ // third dimension
-        pencils = split_world(world, {proc_grid[0], proc_grid[1], 1});
-    }
+    std::vector<box3d> pencils = split_world(world, make_procgrid2d(world, dimension, proc_grid));
 
     return maximize_overlap(pencils, source, order);
 }

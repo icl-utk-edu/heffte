@@ -245,6 +245,14 @@ std::vector<box3d> reorder_slabs(std::vector<box3d> const &slabs, int dimension,
  * \brief Creates a plan of reshape operations using slab decomposition.
  */
 logic_plan3d plan_slab_reshapes(box3d world_in, box3d world_out, ioboxes const &boxes, int r2c_direction, plan_options const opts){
+    // proposition: all possible slab decomposition uses pencils in x or y direction and for a 2D problem we can just use pencils
+    // argument: suppose we have a 2D problem and suppose (w.l.o.g.) the index dimensions are x >> 1, y >> 1 and z == 1
+    // every shape forming pencils in either x or y direction also forms slabs in either x-z or y-z plane
+    // slabs in x-y plane means that the z direction has to be split across mpi-ranks but z does not divide unless using single rank
+    // one rank is a trivial case where everything is pencil and slab at the same time
+    // implicitly assumes: at each stage of reshape, each mpi-rank will contain at least one index
+    if (world_in.is2d()) return plan_pencil_reshapes(world_in, world_out, boxes, r2c_direction, opts);
+
     // the 2-d grid for the pencils dimension
     int const num_procs = static_cast<int>(boxes.in.size());
     std::array<int, 2> proc_grid = make_procgrid(num_procs);

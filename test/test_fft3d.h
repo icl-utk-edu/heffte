@@ -120,9 +120,10 @@ void test_fft3d_vectors(MPI_Comm comm){
     // works with ranks 6 and 8 only
     int const num_ranks = mpi::comm_size(comm);
     assert(num_ranks == 6 or num_ranks == 8);
-    current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d", comm);
-    int const me = mpi::comm_rank(comm);
     box3d const world = {{0, 0, 0}, {h0, h1, h2}};
+    std::string fft_dim = (world.is2d()) ? "  test heffte::fft2d" : "  test heffte::fft3d";
+    current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + fft_dim, comm);
+    int const me = mpi::comm_rank(comm);
     auto world_input = make_data<scalar_type>(world);
     auto world_complex = convert_to_output(world_input);
     std::vector<decltype(std::real(world_complex[0]))> world_real(world_input.size());
@@ -140,6 +141,10 @@ void test_fft3d_vectors(MPI_Comm comm){
             split[(i+1) % 3] = 3;
         }else if (num_ranks == 8){
             split = {2, 2, 2};
+        }
+        if (world.is2d()){
+            assert(num_ranks == 8 and h1 == 0); // 2D test with 8 ranks uses 1 entry for dimension 1, i.e., high-index 1 is 0
+            split = {4, 1, 2};
         }
         std::vector<box3d> boxes = heffte::split_world(world, split);
         assert(boxes.size() == static_cast<size_t>(num_ranks));
@@ -175,6 +180,46 @@ void test_fft3d_vectors(MPI_Comm comm){
         auto backward_rresult = fft.backward_real(result, bscale[i]);
         auto backward_scaled_rresult = rescale(world, backward_rresult, scale::none);
         tassert(approx(backward_scaled_rresult, local_real_input));
+    }
+    } // different option variants
+}
+
+template<typename backend_tag, typename scalar_type, int h0, int h1>
+void test_fft3d_vectors_2d(MPI_Comm comm){
+    // works with ranks 4 and 6 and std::complex<float> or std::complex<double> as scalar_type
+    int const num_ranks = mpi::comm_size(comm);
+    assert(num_ranks == 4 or num_ranks == 6);
+    current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft2d", comm);
+    int const me = mpi::comm_rank(comm);
+    box3d const world = {{0, 0, 0}, {h0, h1, 0}};
+    auto world_input = make_data<scalar_type>(world);
+    auto world_fft = forward_fft<backend_tag>(world, world_input);
+
+    std::array<heffte::scale, 3> fscale = {heffte::scale::none, heffte::scale::symmetric, heffte::scale::full};
+    std::array<heffte::scale, 3> bscale = {heffte::scale::full, heffte::scale::symmetric, heffte::scale::none};
+
+    for(auto const &options : make_all_options<backend_tag>()){
+    for(int i=0; i<3; i++){
+        std::array<int, 3> split = (i == 0) ? std::array<int, 3>{3, 2, 1} : std::array<int, 3>{2, 3, 1};
+        if (num_ranks == 4) split = {2, 2, 1};
+        std::vector<box3d> boxes = heffte::split_world(world, split);
+        assert(boxes.size() == static_cast<size_t>(num_ranks));
+
+        box2d const inbox  = box2d(std::array<int, 2>{boxes[me].low[0], boxes[me].low[1]},
+                                   std::array<int, 2>{boxes[me].high[0], boxes[me].high[1]});
+        box2d const outbox = box2d(std::array<int, 2>{boxes[me].low[0], boxes[me].low[1]},
+                                   std::array<int, 2>{boxes[me].high[0], boxes[me].high[1]});
+
+        auto local_input   = input_maker<backend_tag, scalar_type>::select(world, inbox, world_input);
+        auto reference_fft = rescale(world, get_subbox(world, outbox, world_fft), fscale[i]);
+
+        heffte::fft2d<backend_tag> fft(inbox, outbox, comm, options);
+
+        auto result = fft.forward(local_input, fscale[i]);
+        tassert(approx(result, reference_fft));
+
+        auto backward_result = fft.backward(result, bscale[i]);
+        tassert(approx(backward_result, local_input));
     }
     } // different option variants
 }
