@@ -13,7 +13,7 @@ program HeffteFortranTester
 
 ! The main purpose of the test is to make sure that we can load two module without a conflict
 ! Conflicts can happen in the class name, methods, enums, and helpers (error checking)
-! The cufft checks for a conflict with declared type of that name (should be ignored)
+! The cufft variable checks for a conflict with declared type of that name
 ! Does not check for correctness of the input, that's not the point of the test
 
 call MPI_Init(mpi_err)
@@ -37,7 +37,7 @@ allocate(output(fft_cpu%size_outbox()))
 
 do i = 1, fft_cpu%size_inbox()
     input(i) = i
-endif
+enddo
 
 call fft_cpu%forward(input, output, scale_fftw_symmetric)
 
