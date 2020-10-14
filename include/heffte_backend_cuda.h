@@ -275,7 +275,8 @@ private:
 class cufft_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
-    cufft_executor(box3d const box, int dimension) :
+    template<typename index>
+    cufft_executor(box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -441,7 +442,8 @@ public:
      *
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
-    cufft_executor_r2c(box3d const box, int dimension) :
+    template<typename index>
+    cufft_executor_r2c(box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -559,11 +561,13 @@ template<> struct one_dim_backend<backend::cufft>{
     using type_r2c = cufft_executor_r2c;
 
     //! \brief Constructs a complex-to-complex executor.
-    static std::unique_ptr<cufft_executor> make(box3d const box, int dimension){
+    template<typename index>
+    static std::unique_ptr<cufft_executor> make(box3d<index> const box, int dimension){
         return std::unique_ptr<cufft_executor>(new cufft_executor(box, dimension));
     }
     //! \brief Constructs a real-to-complex executor.
-    static std::unique_ptr<cufft_executor_r2c> make_r2c(box3d const box, int dimension){
+    template<typename index>
+    static std::unique_ptr<cufft_executor_r2c> make_r2c(box3d<index> const box, int dimension){
         return std::unique_ptr<cufft_executor_r2c>(new cufft_executor_r2c(box, dimension));
     }
 };
@@ -605,13 +609,13 @@ void transpose_unpack(int nfast, int nmid, int nslow, int line_stride, int plane
  */
 template<> struct direct_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
-    template<typename scalar_type>
-    void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
+    template<typename scalar_type, typename index>
+    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
         cuda::direct_pack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
     }
     //! \brief Execute the planned unpack operation.
-    template<typename scalar_type>
-    void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
+    template<typename scalar_type, typename index>
+    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
         cuda::direct_unpack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
     }
 };
@@ -622,13 +626,13 @@ template<> struct direct_packer<tag::gpu>{
  */
 template<> struct transpose_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
-    template<typename scalar_type>
-    void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
+    template<typename scalar_type, typename index>
+    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
         direct_packer<tag::gpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
     }
     //! \brief Execute the planned transpose-unpack operation.
-    template<typename scalar_type>
-    void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
+    template<typename scalar_type, typename index>
+    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
         cuda::transpose_unpack<scalar_type>(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
                                             plan.buff_line_stride, plan.buff_plane_stride, plan.map[0], plan.map[1], plan.map[2], buffer, data);
     }
@@ -642,15 +646,15 @@ template<> struct data_scaling<tag::gpu>{
     /*!
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
-    template<typename scalar_type>
-    static void apply(int num_entries, scalar_type *data, double scale_factor){
+    template<typename scalar_type, typename index>
+    static void apply(index num_entries, scalar_type *data, double scale_factor){
         cuda::scale_data(num_entries, data, scale_factor);
     }
     /*!
      * \brief Complex by real scaling.
      */
-    template<typename precision_type>
-    static void apply(int num_entries, std::complex<precision_type> *data, double scale_factor){
+    template<typename precision_type, typename index>
+    static void apply(index num_entries, std::complex<precision_type> *data, double scale_factor){
         apply<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
 };

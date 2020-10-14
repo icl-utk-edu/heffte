@@ -162,7 +162,7 @@ enum class scale{
  * <tr><td> forward(a, b, scaling::full) </tr><td> forward(a, b, scaling::none) </td></tr>
  * </table>
  */
-template<typename backend_tag>
+template<typename backend_tag, typename index = int>
 class fft3d{
 public:
     //! \brief Alias to the wrapper class for the one dimensional backend library.
@@ -193,7 +193,8 @@ public:
      * \param comm is the MPI communicator with all ranks that will participate in the FFT.
      * \param options is a set of options that define the FFT plan, see heffte::plan_options for details.
      */
-    fft3d(box3d const inbox, box3d const outbox, MPI_Comm const comm, plan_options const options = default_options<backend_tag>()) :
+    fft3d(box3d<index> const inbox, box3d<index> const outbox, MPI_Comm const comm,
+          plan_options const options = default_options<backend_tag>()) :
         fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, options), mpi::comm_rank(comm), comm){
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
@@ -203,8 +204,8 @@ public:
           int ol0, int ol1, int ol2, int oh0, int oh1, int oh2, int oo0, int oo1, int oo2,
           MPI_Comm const comm,
           bool use_reorder, bool use_alltoall, bool use_pencils)
-        : fft3d(box3d({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
-                box3d({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
+        : fft3d(box3d<index>({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
+                box3d<index>({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
                 comm,
                 plan_options(use_reorder, use_alltoall, use_pencils))
     {}
@@ -212,15 +213,15 @@ public:
     fft3d(int il0, int il1, int il2, int ih0, int ih1, int ih2, int io0, int io1, int io2,
           int ol0, int ol1, int ol2, int oh0, int oh1, int oh2, int oo0, int oo1, int oo2,
           MPI_Comm const comm)
-        : fft3d(box3d({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
-                box3d({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
+        : fft3d(box3d<index>({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
+                box3d<index>({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
                 comm)
     {}
     //! \brief Internal use only, used by the Fortran interface
     fft3d(int il0, int il1, int il2, int ih0, int ih1, int ih2,
           int ol0, int ol1, int ol2, int oh0, int oh1, int oh2,
           MPI_Comm const comm)
-        : fft3d(box3d({il0, il1, il2}, {ih0, ih1, ih2}), box3d({ol0, ol1, ol2}, {oh0, oh1, oh2}), comm)
+        : fft3d(box3d<index>({il0, il1, il2}, {ih0, ih1, ih2}), box3d<index>({ol0, ol1, ol2}, {oh0, oh1, oh2}), comm)
     {}
 
     //! \brief Returns the size of the inbox defined in the constructor.
@@ -228,9 +229,9 @@ public:
     //! \brief Returns the size of the outbox defined in the constructor.
     long long size_outbox() const{ return poutbox->count(); }
     //! \brief Returns the inbox.
-    box3d inbox() const{ return *pinbox; }
+    box3d<index> inbox() const{ return *pinbox; }
     //! \brief Returns the outbox.
-    box3d outbox() const{ return *poutbox; }
+    box3d<index> outbox() const{ return *poutbox; }
 
     /*!
      * \brief Performs a forward Fourier transform using two arrays.
@@ -425,7 +426,7 @@ private:
      * \param this_mpi_rank is the rank of this mpi process, i.e., mpi::comm_rank(comm)
      * \param comm is the communicator operating on the data
      */
-    fft3d(logic_plan3d const &plan, int const this_mpi_rank, MPI_Comm const comm);
+    fft3d(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
 
     /*!
      * \brief Performs the FFT assuming the input types match the C++ standard.
@@ -512,7 +513,7 @@ private:
         }
     }
 
-    std::unique_ptr<box3d> pinbox, poutbox; // inbox/output for this process
+    std::unique_ptr<box3d<index>> pinbox, poutbox; // inbox/output for this process
     double scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
@@ -531,8 +532,8 @@ private:
  * and ignoring redundant communication. Thus, a two dimensional transform
  * is just an alias for the three dimensional one with heffte::box2d as input (which is also an alias).
  */
-template<typename backend_tag>
-using fft2d = fft3d<backend_tag>;
+template<typename backend_tag, typename index = int>
+using fft2d = fft3d<backend_tag, index>;
 
 }
 

@@ -23,7 +23,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     MPI_Comm_size(fft_comm, &nprocs);
 
     // Create input and output boxes on local processor
-    box3d const world = {{0, 0, 0}, {size_fft[0]-1, size_fft[1]-1, size_fft[2]-1}};
+    box3d<> const world = {{0, 0, 0}, {size_fft[0]-1, size_fft[1]-1, size_fft[2]-1}};
 
     // Get grid of processors at input and output
     std::array<int,3> proc_i = heffte::proc_setup_min_surface(world, nprocs);
@@ -36,8 +36,8 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
         proc_o = {1, proc_grid[0], proc_grid[1]};
     }
 
-    std::vector<box3d> inboxes  = heffte::split_world(world, proc_i);
-    std::vector<box3d> outboxes = heffte::split_world(world, proc_o);
+    std::vector<box3d<>> inboxes  = heffte::split_world(world, proc_i);
+    std::vector<box3d<>> outboxes = heffte::split_world(world, proc_o);
 
     #ifdef Heffte_ENABLE_GPU
     if (std::is_same<backend_tag, gpu_backend>::value and has_mps(args)){
@@ -65,7 +65,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     };
 
     // the call above uses the following plan, get it twice to give verbose info of the grid-shapes
-    logic_plan3d plan = plan_operations({inboxes, outboxes}, -1, heffte::default_options<backend_tag>());
+    logic_plan3d<int> plan = plan_operations<int>({inboxes, outboxes}, -1, heffte::default_options<backend_tag>());
 
     // Locally initialize input
     auto input = make_data<BENCH_INPUT>(inboxes[me]);

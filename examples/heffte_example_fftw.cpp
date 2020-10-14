@@ -20,11 +20,11 @@ void compute_dft(MPI_Comm comm){
     }
 
     // define the domain split between two boxes
-    heffte::box3d const left_box  = {{0, 0, 0}, {3, 3, 1}};
-    heffte::box3d const right_box = {{0, 0, 2}, {3, 3, 3}};
+    heffte::box3d<> const left_box  = {{0, 0, 0}, {3, 3, 1}};
+    heffte::box3d<> const right_box = {{0, 0, 2}, {3, 3, 3}};
 
     // the box associated with this MPI rank
-    heffte::box3d const my_box = (me == 0) ? left_box : right_box;
+    heffte::box3d<> const my_box = (me == 0) ? left_box : right_box;
 
     // define the heffte class and the input and output geometry
     heffte::fft3d<heffte::backend::fftw> fft(my_box, my_box, comm);

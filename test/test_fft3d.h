@@ -17,7 +17,7 @@
 #endif
 
 template<typename scalar_type>
-std::vector<scalar_type> make_data(box3d const world){
+std::vector<scalar_type> make_data(box3d<> const world){
     std::minstd_rand park_miller(4242);
     std::uniform_real_distribution<double> unif(0.0, 1.0);
 
@@ -28,7 +28,7 @@ std::vector<scalar_type> make_data(box3d const world){
 }
 
 template<typename scalar_type>
-std::vector<scalar_type> get_subbox(box3d const world, box3d const box, std::vector<scalar_type> const &input){
+std::vector<scalar_type> get_subbox(box3d<> const world, box3d<> const box, std::vector<scalar_type> const &input){
     std::vector<scalar_type> result(box.count());
     int const mid_world = world.size[0];
     int const slow_world = world.size[0] * world.size[1];
@@ -46,7 +46,7 @@ std::vector<scalar_type> get_subbox(box3d const world, box3d const box, std::vec
 }
 
 template<typename scalar_type>
-std::vector<scalar_type> rescale(box3d const world, std::vector<scalar_type> const &data, scale scaling){
+std::vector<scalar_type> rescale(box3d<> const world, std::vector<scalar_type> const &data, scale scaling){
     std::vector<scalar_type> result = data;
     double scaling_factor = (scaling == scale::none) ? 1.0 : 1.0 / static_cast<double>(world.count());
     if (scaling == scale::symmetric) scaling_factor = std::sqrt(scaling_factor);
@@ -63,13 +63,13 @@ std::vector<typename fft_output<scalar_type>::type> convert_to_output(std::vecto
 }
 
 template<typename scalar_type>
-std::vector<typename fft_output<scalar_type>::type> get_complex_subbox(box3d const world, box3d const box, std::vector<scalar_type> const &input){
+std::vector<typename fft_output<scalar_type>::type> get_complex_subbox(box3d<> const world, box3d<> const box, std::vector<scalar_type> const &input){
     return get_subbox(world, box, convert_to_output(input));
 }
 
 template<typename backend_tag, typename scalar_type, typename = void>
 struct input_maker{
-    static std::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
+    static std::vector<scalar_type> select(box3d<> const world, box3d<> const box, std::vector<scalar_type> const &input){
         return get_subbox(world, box, input);
     }
 };
@@ -77,18 +77,19 @@ struct input_maker{
 #ifdef Heffte_ENABLE_GPU
 template<typename backend_tag, typename scalar_type>
 struct input_maker<backend_tag, scalar_type, typename std::enable_if<backend::uses_gpu<backend_tag>::value, void>::type>{
-    static gpu::vector<scalar_type> select(box3d const world, box3d const box, std::vector<scalar_type> const &input){
+    template<typename index>
+    static gpu::vector<scalar_type> select(box3d<index> const world, box3d<index> const box, std::vector<scalar_type> const &input){
         return gpu::transfer::load(get_subbox(world, box, input));
     }
 };
-template<typename scalar_type>
-std::vector<scalar_type> rescale(box3d const world, gpu::vector<scalar_type> const &data, scale scaling){
+template<typename scalar_type, typename index>
+std::vector<scalar_type> rescale(box3d<index> const world, gpu::vector<scalar_type> const &data, scale scaling){
     return rescale(world, gpu::transfer::unload(data), scaling);
 }
 #endif
 
-template<typename backend_tag, typename precision_type>
-std::vector<std::complex<precision_type>> forward_fft(box3d const world, std::vector<precision_type> const &input){
+template<typename backend_tag, typename precision_type, typename index>
+std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<precision_type> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
     typename test_traits<backend_tag>::template container<std::complex<precision_type>> loaded_result(input.size());
     typename one_dim_backend<backend_tag>::type(world, 0).forward(loaded_input.data(), loaded_result.data());
@@ -96,8 +97,8 @@ std::vector<std::complex<precision_type>> forward_fft(box3d const world, std::ve
         typename one_dim_backend<backend_tag>::type(world, i).forward(loaded_result.data());
     return test_traits<backend_tag>::unload(loaded_result);
 }
-template<typename backend_tag, typename precision_type>
-std::vector<std::complex<precision_type>> forward_fft(box3d const world, std::vector<std::complex<precision_type>> const &input){
+template<typename backend_tag, typename precision_type, typename index>
+std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<std::complex<precision_type>> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
     for(int i=0; i<3; i++)
         typename one_dim_backend<backend_tag>::type(world, i).forward(loaded_input.data());
@@ -108,8 +109,8 @@ template<typename backend_tag>
 void test_fft3d_const_dest2(MPI_Comm comm){
     assert(mpi::comm_size(comm) == 2);
     current_test<int, using_mpi, backend_tag> name("constructor heffte::fft3d", comm);
-    box3d const world = {{0, 0, 0}, {4, 4, 4}};
-    std::vector<box3d> boxes = heffte::split_world(world, {2, 1, 1});
+    box3d<> const world = {{0, 0, 0}, {4, 4, 4}};
+    std::vector<box3d<>> boxes = heffte::split_world(world, {2, 1, 1});
     int const me = mpi::comm_rank(comm);
     // construct an instance of heffte::fft3d and delete it immediately
     heffte::fft3d<backend_tag> fft(boxes[me], boxes[me], comm);
@@ -120,7 +121,7 @@ void test_fft3d_vectors(MPI_Comm comm){
     // works with ranks 6 and 8 only
     int const num_ranks = mpi::comm_size(comm);
     assert(num_ranks == 6 or num_ranks == 8);
-    box3d const world = {{0, 0, 0}, {h0, h1, h2}};
+    box3d<> const world = {{0, 0, 0}, {h0, h1, h2}};
     std::string fft_dim = (world.is2d()) ? "  test heffte::fft2d" : "  test heffte::fft3d";
     current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + fft_dim, comm);
     int const me = mpi::comm_rank(comm);
@@ -146,7 +147,7 @@ void test_fft3d_vectors(MPI_Comm comm){
             assert(num_ranks == 8 and h1 == 0); // 2D test with 8 ranks uses 1 entry for dimension 1, i.e., high-index 1 is 0
             split = {4, 1, 2};
         }
-        std::vector<box3d> boxes = heffte::split_world(world, split);
+        std::vector<box3d<>> boxes = heffte::split_world(world, split);
         assert(boxes.size() == static_cast<size_t>(num_ranks));
 
         // get a semi-random inbox and outbox
@@ -160,8 +161,8 @@ void test_fft3d_vectors(MPI_Comm comm){
             oindex = (me+5) % num_ranks;
         }
 
-        box3d const inbox  = boxes[iindex];
-        box3d const outbox = boxes[oindex];
+        box3d<> const inbox  = boxes[iindex];
+        box3d<> const outbox = boxes[oindex];
 
         auto local_input         = input_maker<backend_tag, scalar_type>::select(world, inbox, world_input);
         auto local_complex_input = get_subbox(world, inbox, world_complex);
@@ -191,7 +192,7 @@ void test_fft3d_vectors_2d(MPI_Comm comm){
     assert(num_ranks == 4 or num_ranks == 6);
     current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft2d", comm);
     int const me = mpi::comm_rank(comm);
-    box3d const world = {{0, 0, 0}, {h0, h1, 0}};
+    box3d<> const world = {{0, 0, 0}, {h0, h1, 0}};
     auto world_input = make_data<scalar_type>(world);
     auto world_fft = forward_fft<backend_tag>(world, world_input);
 
@@ -202,13 +203,13 @@ void test_fft3d_vectors_2d(MPI_Comm comm){
     for(int i=0; i<3; i++){
         std::array<int, 3> split = (i == 0) ? std::array<int, 3>{3, 2, 1} : std::array<int, 3>{2, 3, 1};
         if (num_ranks == 4) split = {2, 2, 1};
-        std::vector<box3d> boxes = heffte::split_world(world, split);
+        std::vector<box3d<>> boxes = heffte::split_world(world, split);
         assert(boxes.size() == static_cast<size_t>(num_ranks));
 
-        box2d const inbox  = box2d(std::array<int, 2>{boxes[me].low[0], boxes[me].low[1]},
-                                   std::array<int, 2>{boxes[me].high[0], boxes[me].high[1]});
-        box2d const outbox = box2d(std::array<int, 2>{boxes[me].low[0], boxes[me].low[1]},
-                                   std::array<int, 2>{boxes[me].high[0], boxes[me].high[1]});
+        box2d<> const inbox  = box2d<>(std::array<int, 2>{boxes[me].low[0], boxes[me].low[1]},
+                                       std::array<int, 2>{boxes[me].high[0], boxes[me].high[1]});
+        box2d<> const outbox = box2d<>(std::array<int, 2>{boxes[me].low[0], boxes[me].low[1]},
+                                       std::array<int, 2>{boxes[me].high[0], boxes[me].high[1]});
 
         auto local_input   = input_maker<backend_tag, scalar_type>::select(world, inbox, world_input);
         auto reference_fft = rescale(world, get_subbox(world, outbox, world_fft), fscale[i]);
@@ -236,7 +237,7 @@ void test_fft3d_arrays(MPI_Comm comm){
     current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d", comm);
 
     int const me = mpi::comm_rank(comm);
-    box3d const world = {{0, 0, 0}, {h0, h1, h2}};
+    box3d<> const world = {{0, 0, 0}, {h0, h1, h2}};
     auto world_input   = make_data<scalar_type>(world);
     auto world_complex = convert_to_output(world_input); // if using real input, convert to the complex output type
     auto world_fft     = forward_fft<backend_tag>(world, world_input); // compute reference fft
@@ -251,7 +252,7 @@ void test_fft3d_arrays(MPI_Comm comm){
             split = {2, 2, 2};
             split[i] = 3;
         }
-        std::vector<box3d> boxes = heffte::split_world(world, split);
+        std::vector<box3d<>> boxes = heffte::split_world(world, split);
         assert(boxes.size() == static_cast<size_t>(num_ranks));
 
         // get the local input as a cuda::vector or std::vector
