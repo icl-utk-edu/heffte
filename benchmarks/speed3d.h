@@ -142,7 +142,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     // Print results
     if(me==0){
         t_max = t_max / (2.0 * ntest);
-        double const fftsize  = 1.0 * world.count();
+        double const fftsize  = static_cast<double>(world.count());
         double const floprate = 5.0 * fftsize * std::log(fftsize) * 1e-9 / std::log(2.0) / t_max;
         long long mem_usage = static_cast<long long>(fft.size_inbox()) + static_cast<long long>(fft.size_outbox())
                             + static_cast<long long>(fft.size_workspace());

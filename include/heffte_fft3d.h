@@ -224,9 +224,9 @@ public:
     {}
 
     //! \brief Returns the size of the inbox defined in the constructor.
-    int size_inbox() const{ return pinbox->count(); }
+    long long size_inbox() const{ return pinbox->count(); }
     //! \brief Returns the size of the outbox defined in the constructor.
-    int size_outbox() const{ return poutbox->count(); }
+    long long size_outbox() const{ return poutbox->count(); }
     //! \brief Returns the inbox.
     box3d inbox() const{ return *pinbox; }
     //! \brief Returns the outbox.

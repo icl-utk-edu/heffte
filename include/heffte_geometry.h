@@ -82,7 +82,8 @@ struct box3d{
     //! \brief Returns true if the box contains no indexes.
     bool empty() const{ return (size[0] <= 0 or size[1] <= 0 or size[2] <= 0); }
     //! \brief Counts all indexes in the box, i.e., the volume.
-    int count() const{ return (empty()) ? 0 : (size[0] * size[1] * size[2]); }
+    long long count() const{ return (empty()) ? 0 :
+        (static_cast<long long>(size[0]) * static_cast<long long>(size[1]) * static_cast<long long>(size[2])); }
     //! \brief Creates a box that holds the intersection of this box and the \b other.
     box3d collide(box3d const other) const{
         return box3d({std::max(low[0], other.low[0]), std::max(low[1], other.low[1]), std::max(low[2], other.low[2])},
