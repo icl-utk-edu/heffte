@@ -148,12 +148,12 @@ void test_gpu(MPI_Comm const comm){
     int const me = heffte::mpi::comm_rank(comm);
     int const shift = 3;
 
-    box3d world = {{0, 0, 0}, {hfast, hmid, hslow}};
+    box3d<> world = {{0, 0, 0}, {hfast, hmid, hslow}};
 
     auto boxes   = split_world(world, {pfast, pmid, pslow});
     auto pencils = split_world(world, {pfast,    1, pmid * pslow});
 
-    std::vector<box3d> rotate_boxes;
+    std::vector<box3d<>> rotate_boxes;
     if (std::is_same<scalar_type, std::complex<float>>::value){
         // shuffle the pencil boxes in some tests to check the case when there is no overlap between inbox and outbox
         // for the 2 by 2 grid, this shuffle ensures no overlap
