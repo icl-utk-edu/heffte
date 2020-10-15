@@ -149,6 +149,14 @@ void compute_overlap_map_transpose_pack(int me, int nprocs, box3d<index> const d
     }
 }
 
+template
+void compute_overlap_map_transpose_pack<int>(int me, int nprocs, box3d<int> const destination, std::vector<box3d<int>> const &boxes,
+                                         std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d<int>> &plans);
+template
+void compute_overlap_map_transpose_pack<long long>(int me, int nprocs, box3d<long long> const destination,
+                                                   std::vector<box3d<long long>> const &boxes,
+                                                   std::vector<int> &proc, std::vector<int> &offset, std::vector<int> &sizes, std::vector<pack_plan_3d<long long>> &plans);
+
 template<typename backend_tag, template<typename device> class packer, typename index>
 reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
                         int cinput_size, int coutput_size,
@@ -508,15 +516,19 @@ make_reshape3d_pointtopoint<some_backend, transpose_packer, index>(std::vector<b
 
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_reshape3d(backend::fftw, int)
+heffte_instantiate_reshape3d(backend::fftw, long long)
 #endif
 #ifdef Heffte_ENABLE_MKL
 heffte_instantiate_reshape3d(backend::mkl, int)
+heffte_instantiate_reshape3d(backend::mkl, long long)
 #endif
 #ifdef Heffte_ENABLE_CUDA
 heffte_instantiate_reshape3d(backend::cufft, int)
+heffte_instantiate_reshape3d(backend::cufft, long long)
 #endif
 #ifdef Heffte_ENABLE_ROCM
 heffte_instantiate_reshape3d(backend::rocfft, int)
+heffte_instantiate_reshape3d(backend::rocfft, long long)
 #endif
 
 }

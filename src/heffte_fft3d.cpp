@@ -266,15 +266,19 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
 
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_fft3d(backend::fftw, int)
+heffte_instantiate_fft3d(backend::fftw, long long)
 #endif
 #ifdef Heffte_ENABLE_MKL
 heffte_instantiate_fft3d(backend::mkl, int)
+heffte_instantiate_fft3d(backend::mkl, long long)
 #endif
 #ifdef Heffte_ENABLE_CUDA
 heffte_instantiate_fft3d(backend::cufft, int)
+heffte_instantiate_fft3d(backend::cufft, long long)
 #endif
 #ifdef Heffte_ENABLE_ROCM
 heffte_instantiate_fft3d(backend::rocfft, int)
+heffte_instantiate_fft3d(backend::rocfft, long long)
 #endif
 
 }

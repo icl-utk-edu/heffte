@@ -70,14 +70,14 @@ struct box3d{
         low(clow), high(chigh), size({high[0] - low[0] + 1, high[1] - low[1] + 1, high[2] - low[2] + 1}), order({0, 1, 2})
     {}
     //! \brief Constructs a box from the low and high indexes, also sets an order.
-    box3d(std::array<index, 3> clow, std::array<index, 3> chigh, std::array<index, 3> corder) :
+    box3d(std::array<index, 3> clow, std::array<index, 3> chigh, std::array<int, 3> corder) :
         low(clow), high(chigh), size({high[0] - low[0] + 1, high[1] - low[1] + 1, high[2] - low[2] + 1}), order(corder)
     {}
     //! \brief Constructor for the two dimensional case.
     box3d(std::array<index, 2> clow, std::array<index, 2> chigh) :
         box3d(std::array<index, 3>{clow[0], clow[1], 0}, std::array<index, 3>{chigh[0], chigh[1], 0}){}
     //! \brief Constructor for the two dimensional case, order is either (0, 1) or (1, 0).
-    box3d(std::array<index, 2> clow, std::array<index, 2> chigh, std::array<index, 2> corder) :
+    box3d(std::array<index, 2> clow, std::array<index, 2> chigh, std::array<int, 2> corder) :
         box3d(std::array<index, 3>{clow[0], clow[1], 0}, std::array<index, 3>{chigh[0], chigh[1], 0},
               std::array<index, 3>{corder[0], corder[1], 2}){}
     //! \brief Returns true if the box contains no indexes.
@@ -124,7 +124,7 @@ struct box3d{
     //! \brief The number of indexes in each direction.
     std::array<index, 3> const size;
     //! \brief The order of the dimensions in the k * plane_stride + j * line_stride + i indexing.
-    std::array<index, 3> const order;
+    std::array<int, 3> const order;
 };
 
 /*!

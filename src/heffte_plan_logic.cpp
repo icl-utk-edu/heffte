@@ -424,5 +424,6 @@ logic_plan3d<index> plan_operations(ioboxes<index> const &boxes, int r2c_directi
 }
 
 template logic_plan3d<int> plan_operations<int>(ioboxes<int> const&, int, plan_options const);
+template logic_plan3d<long long> plan_operations<long long>(ioboxes<long long> const&, int, plan_options const);
 
 }
