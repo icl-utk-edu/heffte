@@ -16,8 +16,8 @@
 #include <cuda.h>
 #endif
 
-template<typename scalar_type>
-std::vector<scalar_type> make_data(box3d<> const world){
+template<typename scalar_type, typename index>
+std::vector<scalar_type> make_data(box3d<index> const world){
     std::minstd_rand park_miller(4242);
     std::uniform_real_distribution<double> unif(0.0, 1.0);
 

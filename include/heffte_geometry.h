@@ -561,26 +561,26 @@ inline std::array<int, 3> proc_setup_min_surface(box3d<index> const world, int n
 
     // using valarrays that work much like vectors, but can perform basic
     // point-wise operations such as addition, multiply, and division
-    std::valarray<int> all_indexes = {world.size[0], world.size[1], world.size[2]};
+    std::valarray<index> all_indexes = {world.size[0], world.size[1], world.size[2]};
     // set initial guess, probably the worst grid but a valid one
-    std::valarray<int> best_grid = {1, 1, num_procs};
+    std::valarray<index> best_grid = {1, 1, num_procs};
 
     // internal helper method to compute the surface
-    auto surface = [&](std::valarray<int> const &proc_grid)->
-        int{
+    auto surface = [&](std::valarray<index> const &proc_grid)->
+        index{
             auto box_size = all_indexes / proc_grid;
             return ( box_size * box_size.cshift(1) ).sum();
         };
 
-    int best_surface = surface({1, 1, num_procs});
+    index best_surface = surface({1, 1, num_procs});
 
     for(int i=1; i<=num_procs; i++){
         if (num_procs % i == 0){
             int const remainder = num_procs / i;
             for(int j=1; j<=remainder; j++){
                 if (remainder % j == 0){
-                    std::valarray<int> candidate_grid = {i, j, remainder / j};
-                    int const candidate_surface = surface(candidate_grid);
+                    std::valarray<index> candidate_grid = {i, j, remainder / j};
+                    index const candidate_surface = surface(candidate_grid);
                     if (candidate_surface < best_surface){
                         best_surface = candidate_surface;
                         best_grid    = candidate_grid;
@@ -592,7 +592,7 @@ inline std::array<int, 3> proc_setup_min_surface(box3d<index> const world, int n
 
     assert(best_grid[0] * best_grid[1] * best_grid[2] == num_procs);
 
-    return {best_grid[0], best_grid[1], best_grid[2]};
+    return {static_cast<int>(best_grid[0]), static_cast<int>(best_grid[1]), static_cast<int>(best_grid[2])};
 }
 
 namespace mpi {
