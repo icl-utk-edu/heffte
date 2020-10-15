@@ -291,6 +291,21 @@ private:
 template<typename backend_tag, typename index = int>
 using fft2d_r2c = fft3d_r2c<backend_tag, index>;
 
+/*!
+ * \ingroup fft3d
+ * \brief Factory method that auto-detects the index type based on the box.
+ */
+template<typename backend_tag, typename index>
+fft3d_r2c<backend_tag, index> make_fft3d_r2c(box3d<index> const inbox, box3d<index> const outbox,
+                                             int r2c_direction, MPI_Comm const comm,
+                                             plan_options const options = default_options<backend_tag>()){
+    static_assert(std::is_same<index, int>::value or std::is_same<index, long long>::value,
+                  "heFFTe works with 'int' and 'long long' indexing only");
+    static_assert(backend::is_enabled<backend_tag>::value,
+                  "the backend_tag is not valid, perhaps it needs to be enabled in the build system");
+    return fft3d_r2c<backend_tag, index>(inbox, outbox, r2c_direction, comm, options);
+}
+
 }
 
 #endif

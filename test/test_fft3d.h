@@ -315,4 +315,5 @@ void test_fft3d_arrays(MPI_Comm comm){
     }
     } // different option variants
 }
+
 #endif
