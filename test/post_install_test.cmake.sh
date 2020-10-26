@@ -7,7 +7,10 @@ cd heffte_post_install_test
 
 rm -f CMakeCache.txt
 
-@CMAKE_COMMAND@ -DCMAKE_CXX_COMPILER=@CMAKE_CXX_COMPILER@ @CMAKE_INSTALL_PREFIX@/share/heffte/examples
+@CMAKE_COMMAND@ \
+    -DCMAKE_CXX_COMPILER=@CMAKE_CXX_COMPILER@ \
+    -DHeffte_DIR=@CMAKE_INSTALL_PREFIX@/lib/cmake/Heffte \
+    @CMAKE_INSTALL_PREFIX@/share/heffte/examples
 
 make -j3
 
