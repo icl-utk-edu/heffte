@@ -91,23 +91,23 @@ namespace rocm {
      *
      * Launches a ROCM kernel.
      */
-    template<typename precision_type>
-    void convert(int num_entries, precision_type const source[], std::complex<precision_type> destination[]);
+    template<typename precision_type, typename index>
+    void convert(index num_entries, precision_type const source[], std::complex<precision_type> destination[]);
     /*!
      * \ingroup heffterocm
      * \brief Convert complex numbers to real when both are located on the GPU device.
      *
      * Launches a ROCM kernel.
      */
-    template<typename precision_type>
-    void convert(int num_entries, std::complex<precision_type> const source[], precision_type destination[]);
+    template<typename precision_type, typename index>
+    void convert(index num_entries, std::complex<precision_type> const source[], precision_type destination[]);
 
     /*!
      * \ingroup heffterocm
      * \brief Scales real data (double or float) by the scaling factor.
      */
-    template<typename scalar_type>
-    void scale_data(int num_entries, scalar_type *data, double scale_factor);
+    template<typename scalar_type, typename index>
+    void scale_data(index num_entries, scalar_type *data, double scale_factor);
 }
 
 /*!
@@ -123,25 +123,25 @@ template<> struct data_manipulator<tag::gpu>{
     //! \brief Copy-convert complex-to-real.
     template<typename scalar_type>
     static void copy_n(std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
-        rocm::convert(num_entries, source, destination);
+        rocm::convert(static_cast<long long>(num_entries), source, destination);
     }
     //! \brief Copy-convert real-to-complex.
     template<typename scalar_type>
     static void copy_n(scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
-        rocm::convert(num_entries, source, destination);
+        rocm::convert(static_cast<long long>(num_entries), source, destination);
     }
     /*!
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
-    template<typename scalar_type>
-    static void scale(int num_entries, scalar_type data[], double scale_factor){
+    template<typename scalar_type, typename index>
+    static void scale(index num_entries, scalar_type data[], double scale_factor){
         rocm::scale_data(num_entries, data, scale_factor);
     }
     /*!
      * \brief Complex by real scaling.
      */
-    template<typename precision_type>
-    static void scale(int num_entries, std::complex<precision_type> data[], double scale_factor){
+    template<typename precision_type, typename index>
+    static void scale(index num_entries, std::complex<precision_type> data[], double scale_factor){
         scale<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
 };
@@ -307,7 +307,8 @@ private:
 class rocfft_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
-    rocfft_executor(box3d const box, int dimension) :
+    template<typename index>
+    rocfft_executor(box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -413,7 +414,8 @@ public:
      *
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
-    rocfft_executor_r2c(box3d const box, int dimension) :
+    template<typename index>
+    rocfft_executor_r2c(box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -520,11 +522,13 @@ template<> struct one_dim_backend<backend::rocfft>{
     using type_r2c = rocfft_executor_r2c;
 
     //! \brief Constructs a complex-to-complex executor.
-    static std::unique_ptr<rocfft_executor> make(box3d const box, int dimension){
+    template<typename index>
+    static std::unique_ptr<rocfft_executor> make(box3d<index> const box, int dimension){
         return std::unique_ptr<rocfft_executor>(new rocfft_executor(box, dimension));
     }
     //! \brief Constructs a real-to-complex executor.
-    static std::unique_ptr<rocfft_executor_r2c> make_r2c(box3d const box, int dimension){
+    template<typename index>
+    static std::unique_ptr<rocfft_executor_r2c> make_r2c(box3d<index> const box, int dimension){
         return std::unique_ptr<rocfft_executor_r2c>(new rocfft_executor_r2c(box, dimension));
     }
 };
@@ -537,25 +541,27 @@ namespace rocm { // packer logic
  *
  * Launches a HIP kernel.
  */
-template<typename scalar_type>
-void direct_pack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]);
+template<typename scalar_type, typename index>
+void direct_pack(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+                 scalar_type const source[], scalar_type destination[]);
 /*!
  * \ingroup heffterocm
  * \brief Performs a direct-unpack operation for data sitting on the GPU device.
  *
  * Launches a HIP kernel.
  */
-template<typename scalar_type>
-void direct_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide, scalar_type const source[], scalar_type destination[]);
+template<typename scalar_type, typename index>
+void direct_unpack(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+                   scalar_type const source[], scalar_type destination[]);
 /*!
  * \ingroup heffterocm
  * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
  *
  * Launches a HIP kernel.
  */
-template<typename scalar_type>
-void transpose_unpack(int nfast, int nmid, int nslow, int line_stride, int plane_stide,
-                      int buff_line_stride, int buff_plane_stride, int map0, int map1, int map2,
+template<typename scalar_type, typename index>
+void transpose_unpack(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+                      index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                       scalar_type const source[], scalar_type destination[]);
 
 }
@@ -566,13 +572,13 @@ void transpose_unpack(int nfast, int nmid, int nslow, int line_stride, int plane
  */
 template<> struct direct_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
-    template<typename scalar_type>
-    void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
+    template<typename scalar_type, typename index>
+    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
         rocm::direct_pack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
     }
     //! \brief Execute the planned unpack operation.
-    template<typename scalar_type>
-    void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
+    template<typename scalar_type, typename index>
+    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
         rocm::direct_unpack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
     }
 };
@@ -583,13 +589,13 @@ template<> struct direct_packer<tag::gpu>{
  */
 template<> struct transpose_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
-    template<typename scalar_type>
-    void pack(pack_plan_3d const &plan, scalar_type const data[], scalar_type buffer[]) const{
+    template<typename scalar_type, typename index>
+    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
         direct_packer<tag::gpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
     }
     //! \brief Execute the planned transpose-unpack operation.
-    template<typename scalar_type>
-    void unpack(pack_plan_3d const &plan, scalar_type const buffer[], scalar_type data[]) const{
+    template<typename scalar_type, typename index>
+    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
         rocm::transpose_unpack<scalar_type>(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
                                             plan.buff_line_stride, plan.buff_plane_stride, plan.map[0], plan.map[1], plan.map[2], buffer, data);
     }
@@ -603,15 +609,15 @@ template<> struct data_scaling<tag::gpu>{
     /*!
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
-    template<typename scalar_type>
-    static void apply(int num_entries, scalar_type *data, double scale_factor){
-        rocm::scale_data(num_entries, data, scale_factor);
+    template<typename scalar_type, typename index>
+    static void apply(index num_entries, scalar_type *data, double scale_factor){
+        rocm::scale_data<scalar_type, long long>(static_cast<long long>(num_entries), data, scale_factor);
     }
     /*!
      * \brief Complex by real scaling.
      */
-    template<typename precision_type>
-    static void apply(int num_entries, std::complex<precision_type> *data, double scale_factor){
+    template<typename precision_type, typename index>
+    static void apply(index num_entries, std::complex<precision_type> *data, double scale_factor){
         apply<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
 };

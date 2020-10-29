@@ -14,7 +14,7 @@ using gpu_backend = heffte::backend::cufft;
 using gpu_backend = heffte::backend::rocfft;
 #endif
 
-template<typename backend_tag, typename precision_type>
+template<typename backend_tag, typename precision_type, typename index>
 void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &args){
 
     int me, nprocs;
@@ -23,7 +23,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     MPI_Comm_size(fft_comm, &nprocs);
 
     // Create input and output boxes on local processor
-    box3d const world = {{0, 0, 0}, {size_fft[0]-1, size_fft[1]-1, size_fft[2]-1}};
+    box3d<index> const world = {{0, 0, 0}, {size_fft[0]-1, size_fft[1]-1, size_fft[2]-1}};
 
     // Get grid of processors at input and output
     std::array<int,3> proc_i = heffte::proc_setup_min_surface(world, nprocs);
@@ -36,8 +36,8 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
         proc_o = {1, proc_grid[0], proc_grid[1]};
     }
 
-    std::vector<box3d> inboxes  = heffte::split_world(world, proc_i);
-    std::vector<box3d> outboxes = heffte::split_world(world, proc_o);
+    std::vector<box3d<index>> inboxes  = heffte::split_world(world, proc_i);
+    std::vector<box3d<index>> outboxes = heffte::split_world(world, proc_o);
 
     #ifdef Heffte_ENABLE_GPU
     if (std::is_same<backend_tag, gpu_backend>::value and has_mps(args)){
@@ -48,7 +48,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     // Define 3D FFT plan
     heffte::plan_options options = args_to_options<backend_tag>(args);
 
-    heffte::fft3d<backend_tag> fft(inboxes[me], outboxes[me], fft_comm, options);
+    auto fft = make_fft3d<backend_tag>(inboxes[me], outboxes[me], fft_comm, options);
 
     std::array<int, 2> proc_grid = make_procgrid(nprocs);
     // writes out the proc_grid in the given dimension
@@ -65,7 +65,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     };
 
     // the call above uses the following plan, get it twice to give verbose info of the grid-shapes
-    logic_plan3d plan = plan_operations({inboxes, outboxes}, -1, heffte::default_options<backend_tag>());
+    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, -1, heffte::default_options<backend_tag>());
 
     // Locally initialize input
     auto input = make_data<BENCH_INPUT>(inboxes[me]);
@@ -142,7 +142,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     // Print results
     if(me==0){
         t_max = t_max / (2.0 * ntest);
-        double const fftsize  = 1.0 * world.count();
+        double const fftsize  = static_cast<double>(world.count());
         double const floprate = 5.0 * fftsize * std::log(fftsize) * 1e-9 / std::log(2.0) / t_max;
         long long mem_usage = static_cast<long long>(fft.size_inbox()) + static_cast<long long>(fft.size_outbox())
                             + static_cast<long long>(fft.size_workspace());
@@ -173,9 +173,13 @@ bool perform_benchmark(std::string const &precision_string, std::string const &b
                        std::array<int,3> size_fft, std::deque<std::string> const &args){
     if (backend_string == backend_name){
         if (precision_string == "float"){
-            benchmark_fft<backend_tag, float>(size_fft, args);
-        }else{
-            benchmark_fft<backend_tag, double>(size_fft, args);
+            benchmark_fft<backend_tag, float, int>(size_fft, args);
+        }else if (precision_string == "double"){
+            benchmark_fft<backend_tag, double, int>(size_fft, args);
+        }else if (precision_string == "float-long"){
+            benchmark_fft<backend_tag, float, long long>(size_fft, args);
+        }else{ // double-long
+            benchmark_fft<backend_tag, double, long long>(size_fft, args);
         }
         return true;
     }
@@ -213,6 +217,7 @@ int main(int argc, char *argv[]){
                  << "        backend is the 1-D FFT library\n"
                  << "            available options for this build: " << backends << "\n"
                  << "        precision is either float or double\n"
+                 << "          use float-long or double-long to enable 64-bit indexing\n"
                  << "        size-x/y/z are the 3D array dimensions \n\n"
                  << "        args is a set of optional arguments that define algorithmic tweaks and variations\n"
                  << "         -reorder: reorder the elements of the arrays so that each 1-D FFT will use contiguous data\n"
@@ -238,7 +243,8 @@ int main(int argc, char *argv[]){
     std::string backend_string = argv[1];
 
     std::string precision_string = argv[2];
-    if (precision_string != "float" and precision_string != "double"){
+    if (precision_string != "float"      and precision_string != "double" and
+        precision_string != "float-long" and precision_string != "double-long"){
         if (mpi::world_rank(0)){
             std::cout << "Invalid precision!\n";
             std::cout << "Must use float or double" << std::endl;

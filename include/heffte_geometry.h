@@ -63,26 +63,28 @@ namespace heffte {
  *
  * The order must always hold a permutation of the entries 0, 1, and 2.
  */
+template<typename index = int>
 struct box3d{
     //! \brief Constructs a box from the low and high indexes, the span in each direction includes the low and high (uses default order).
-    box3d(std::array<int, 3> clow, std::array<int, 3> chigh) :
+    box3d(std::array<index, 3> clow, std::array<index, 3> chigh) :
         low(clow), high(chigh), size({high[0] - low[0] + 1, high[1] - low[1] + 1, high[2] - low[2] + 1}), order({0, 1, 2})
     {}
     //! \brief Constructs a box from the low and high indexes, also sets an order.
-    box3d(std::array<int, 3> clow, std::array<int, 3> chigh, std::array<int, 3> corder) :
+    box3d(std::array<index, 3> clow, std::array<index, 3> chigh, std::array<int, 3> corder) :
         low(clow), high(chigh), size({high[0] - low[0] + 1, high[1] - low[1] + 1, high[2] - low[2] + 1}), order(corder)
     {}
     //! \brief Constructor for the two dimensional case.
-    box3d(std::array<int, 2> clow, std::array<int, 2> chigh) :
-        box3d(std::array<int, 3>{clow[0], clow[1], 0}, std::array<int, 3>{chigh[0], chigh[1], 0}){}
+    box3d(std::array<index, 2> clow, std::array<index, 2> chigh) :
+        box3d(std::array<index, 3>{clow[0], clow[1], 0}, std::array<index, 3>{chigh[0], chigh[1], 0}){}
     //! \brief Constructor for the two dimensional case, order is either (0, 1) or (1, 0).
-    box3d(std::array<int, 2> clow, std::array<int, 2> chigh, std::array<int, 2> corder) :
-        box3d(std::array<int, 3>{clow[0], clow[1], 0}, std::array<int, 3>{chigh[0], chigh[1], 0},
-              std::array<int, 3>{corder[0], corder[1], 2}){}
+    box3d(std::array<index, 2> clow, std::array<index, 2> chigh, std::array<int, 2> corder) :
+        box3d(std::array<index, 3>{clow[0], clow[1], 0}, std::array<index, 3>{chigh[0], chigh[1], 0},
+              std::array<index, 3>{corder[0], corder[1], 2}){}
     //! \brief Returns true if the box contains no indexes.
     bool empty() const{ return (size[0] <= 0 or size[1] <= 0 or size[2] <= 0); }
     //! \brief Counts all indexes in the box, i.e., the volume.
-    int count() const{ return (empty()) ? 0 : (size[0] * size[1] * size[2]); }
+    long long count() const{ return (empty()) ? 0 :
+        (static_cast<long long>(size[0]) * static_cast<long long>(size[1]) * static_cast<long long>(size[2])); }
     //! \brief Creates a box that holds the intersection of this box and the \b other.
     box3d collide(box3d const other) const{
         return box3d({std::max(low[0], other.low[0]), std::max(low[1], other.low[1]), std::max(low[2], other.low[2])},
@@ -114,13 +116,13 @@ struct box3d{
         return (order[0] == other.order[0]) and (order[1] == other.order[1]) and (order[2] == other.order[2]);
     }
     //! \brief Get the ordered size of the dimension, i.e., size[order[dimension]].
-    int osize(int dimension) const{ return size[order[dimension]]; }
+    index osize(int dimension) const{ return size[order[dimension]]; }
     //! \brief The three lowest indexes.
-    std::array<int, 3> const low;
+    std::array<index, 3> const low;
     //! \brief The three highest indexes.
-    std::array<int, 3> const high;
+    std::array<index, 3> const high;
     //! \brief The number of indexes in each direction.
-    std::array<int, 3> const size;
+    std::array<index, 3> const size;
     //! \brief The order of the dimensions in the k * plane_stride + j * line_stride + i indexing.
     std::array<int, 3> const order;
 };
@@ -129,13 +131,15 @@ struct box3d{
  * \ingroup fft3d
  * \brief Alias for expressive calls to heffte::fft2d and heffte::fft2d_r2c.
  */
-using box2d = box3d;
+template<typename index = int>
+using box2d = box3d<index>;
 
 /*!
  * \ingroup fft3dmisc
  * \brief Debugging info, writes out the box to a stream.
  */
-inline std::ostream & operator << (std::ostream &os, box3d const box){
+template<typename index>
+inline std::ostream & operator << (std::ostream &os, box3d<index> const box){
     for(int i=0; i<3; i++)
         os << box.low[i] << "  " << box.high[i] << "  (" << box.size[i] << ")\n";
     os << "(" << box.order[0] << "," << box.order[1] << "," << box.order[2] << ")\n";
@@ -147,7 +151,8 @@ inline std::ostream & operator << (std::ostream &os, box3d const box){
  * \ingroup fft3dbackend
  * \brief Return the number of 1-D ffts contained in the box in the given dimension.
  */
-inline int fft1d_get_howmany(box3d const box, int const dimension){
+template<typename index>
+inline int fft1d_get_howmany(box3d<index> const box, int const dimension){
     if (dimension == box.order[0]) return box.osize(1) * box.osize(2);
     if (dimension == box.order[1]) return box.osize(0);
     return box.osize(0) * box.osize(1);
@@ -156,7 +161,8 @@ inline int fft1d_get_howmany(box3d const box, int const dimension){
  * \ingroup fft3dbackend
  * \brief Return the stride of the 1-D ffts contained in the box in the given dimension.
  */
-inline int fft1d_get_stride(box3d const box, int const dimension){
+template<typename index>
+inline int fft1d_get_stride(box3d<index> const box, int const dimension){
     if (dimension == box.order[0]) return 1;
     if (dimension == box.order[1]) return box.osize(0);
     return box.osize(0) * box.osize(1);
@@ -168,11 +174,12 @@ inline int fft1d_get_stride(box3d const box, int const dimension){
  *
  * The strict contains all inboxes and outboxes for the ranks associated with the geometry of a heffte::fft3d transformation.
  */
+template<typename index = int>
 struct ioboxes{
     //! \brief Inboxes for all ranks across the comm.
-    std::vector<box3d> in;
+    std::vector<box3d<index>> in;
     //! \brief Outboxes for all ranks across the comm.
-    std::vector<box3d> out;
+    std::vector<box3d<index>> out;
 };
 
 /*!
@@ -183,13 +190,14 @@ struct ioboxes{
  *
  * \param boxes the collection of all input and output boxes.
  */
-inline box3d find_world(std::vector<box3d> const &boxes){
-    std::array<int, 3> low  = boxes[0].low;
-    std::array<int, 3> high = boxes[0].high;
+template<typename index>
+inline box3d<index> find_world(std::vector<box3d<index>> const &boxes){
+    std::array<index, 3> low  = boxes[0].low;
+    std::array<index, 3> high = boxes[0].high;
     for(auto b : boxes){
-        for(int i=0; i<3; i++)
+        for(index i=0; i<3; i++)
             low[i] = std::min(low[i], b.low[i]);
-        for(int i=0; i<3; i++)
+        for(index i=0; i<3; i++)
             high[i] = std::max(high[i], b.high[i]);
     }
     return {low, high};
@@ -199,7 +207,8 @@ inline box3d find_world(std::vector<box3d> const &boxes){
  * \ingroup fft3dgeometry
  * \brief Compares two vectors of boxes, returns true if all boxes match.
  */
-inline bool match(std::vector<box3d> const &shape0, std::vector<box3d> const &shape1){
+template<typename index>
+inline bool match(std::vector<box3d<index>> const &shape0, std::vector<box3d<index>> const &shape1){
     if (shape0.size() != shape1.size()) return false;
     for(size_t i=0; i<shape0.size(); i++)
         if (shape0[i] != shape1[i])
@@ -218,7 +227,8 @@ inline bool match(std::vector<box3d> const &shape0, std::vector<box3d> const &sh
  * The check is not very rigorous at the moment, a true rigorous test
  * will probably be too expensive unless lots of thought is put into it.
  */
-inline bool world_complete(std::vector<box3d> const &boxes, box3d const world){
+template<typename index>
+inline bool world_complete(std::vector<box3d<index>> const &boxes, box3d<index> const world){
     long long wsize = 0;
     for(auto b : boxes) wsize += b.count();
     if (wsize < world.count())
@@ -313,7 +323,8 @@ inline std::array<int, 2> make_procgrid(int const num_procs){
  * - if possible, the \b candidate_grid factorization will be used with the implicit assumption
  *   that it will be best or optimal except when the fist constraint is violated
  */
-inline std::array<int, 3> make_procgrid2d(box3d const world, int direction_1d, std::array<int, 2> const candidate_grid){
+template<typename index>
+inline std::array<int, 3> make_procgrid2d(box3d<index> const world, int direction_1d, std::array<int, 2> const candidate_grid){
     auto make_grid = [&](std::array<int, 2> const &grid)
                      ->std::array<int, 3>{
                          return  (direction_1d == 0) ?  std::array<int, 3>{1, grid[0], grid[1]} :
@@ -359,18 +370,19 @@ inline std::array<int, 3> make_procgrid2d(box3d const world, int direction_1d, s
  * \returns a list of non-overlapping boxes with union that fills the world where each box contains
  *          approximately the same number of indexes
  */
-inline std::vector<box3d> split_world(box3d const world, std::array<int, 3> const proc_grid){
+template<typename index>
+inline std::vector<box3d<index>> split_world(box3d<index> const world, std::array<int, 3> const proc_grid){
 
-    auto fast = [=](int i)->int{ return world.low[0] + i * (world.size[0] / proc_grid[0]) + std::min(i, (world.size[0] % proc_grid[0])); };
-    auto mid  = [=](int i)->int{ return world.low[1] + i * (world.size[1] / proc_grid[1]) + std::min(i, (world.size[1] % proc_grid[1])); };
-    auto slow = [=](int i)->int{ return world.low[2] + i * (world.size[2] / proc_grid[2]) + std::min(i, (world.size[2] % proc_grid[2])); };
+    auto fast = [=](index i)->index{ return world.low[0] + i * (world.size[0] / proc_grid[0]) + std::min(i, (world.size[0] % proc_grid[0])); };
+    auto mid  = [=](index i)->index{ return world.low[1] + i * (world.size[1] / proc_grid[1]) + std::min(i, (world.size[1] % proc_grid[1])); };
+    auto slow = [=](index i)->index{ return world.low[2] + i * (world.size[2] / proc_grid[2]) + std::min(i, (world.size[2] % proc_grid[2])); };
 
-    std::vector<box3d> result;
+    std::vector<box3d<index>> result;
     result.reserve(proc_grid[0] * proc_grid[1] * proc_grid[2]);
-    for(int k = 0; k < proc_grid[2]; k++){
-        for(int j = 0; j < proc_grid[1]; j++){
-            for(int i = 0; i < proc_grid[0]; i++){
-                result.push_back(box3d({fast(i), mid(j), slow(k)}, {fast(i+1)-1, mid(j+1)-1, slow(k+1)-1}, world.order));
+    for(index k = 0; k < proc_grid[2]; k++){
+        for(index j = 0; j < proc_grid[1]; j++){
+            for(index i = 0; i < proc_grid[0]; i++){
+                result.push_back(box3d<index>({fast(i), mid(j), slow(k)}, {fast(i+1)-1, mid(j+1)-1, slow(k+1)-1}, world.order));
             }
         }
     }
@@ -381,7 +393,8 @@ inline std::vector<box3d> split_world(box3d const world, std::array<int, 3> cons
  * \ingroup fft3dgeometry
  * \brief Returns true if the shape forms pencils in the given direction.
  */
-inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int direction){
+template<typename index>
+inline bool is_pencils(box3d<index> const world, std::vector<box3d<index>> const &shape, int direction){
     for(auto s : shape)
         if (s.size[direction] != world.size[direction])
             return false;
@@ -392,7 +405,8 @@ inline bool is_pencils(box3d const world, std::vector<box3d> const &shape, int d
  * \ingroup fft3dgeometry
  * \brief Returns true if the shape forms slabs in the given directions.
  */
-inline bool is_slab(box3d const world, std::vector<box3d> const &shape, int direction1, int direction2){
+template<typename index>
+inline bool is_slab(box3d<index> const world, std::vector<box3d<index>> const &shape, int direction1, int direction2){
     for(auto s : shape)
         if (s.size[direction1] != world.size[direction1] or s.size[direction2] != world.size[direction2])
             return false;
@@ -403,11 +417,12 @@ inline bool is_slab(box3d const world, std::vector<box3d> const &shape, int dire
  * \ingroup fft3dgeometry
  * \brief Returns the same shape, but sets a different order for each box.
  */
-inline std::vector<box3d> reorder(std::vector<box3d> const &shape, std::array<int, 3> order){
-    std::vector<box3d> result;
+template<typename index>
+inline std::vector<box3d<index>> reorder(std::vector<box3d<index>> const &shape, std::array<int, 3> order){
+    std::vector<box3d<index>> result;
     result.reserve(shape.size());
     for(auto const &b : shape)
-        result.push_back(box3d(b.low, b.high, order));
+        result.push_back(box3d<index>(b.low, b.high, order));
     return result;
 }
 
@@ -425,10 +440,11 @@ inline std::vector<box3d> reorder(std::vector<box3d> const &shape, std::array<in
  * \param old_boxes is the current box configuration
  * \param order is the new order to be assigned to the result boxes
  */
-inline std::vector<box3d> maximize_overlap(std::vector<box3d> const &new_boxes,
-                                           std::vector<box3d> const &old_boxes,
-                                           std::array<int, 3> const order){
-    std::vector<box3d> result;
+template<typename index>
+inline std::vector<box3d<index>> maximize_overlap(std::vector<box3d<index>> const &new_boxes,
+                                                  std::vector<box3d<index>> const &old_boxes,
+                                                  std::array<int, 3> const order){
+    std::vector<box3d<index>> result;
     result.reserve(new_boxes.size());
     std::vector<bool> taken(new_boxes.size(), false);
 
@@ -446,7 +462,7 @@ inline std::vector<box3d> maximize_overlap(std::vector<box3d> const &new_boxes,
         }
         assert( max_index < new_boxes.size() ); // if we found a box
         taken[max_index] = true;
-        result.push_back(box3d(new_boxes[max_index].low, new_boxes[max_index].high, order));
+        result.push_back(box3d<index>(new_boxes[max_index].low, new_boxes[max_index].high, order));
     }
 
     return result;
@@ -473,18 +489,19 @@ inline std::vector<box3d> maximize_overlap(std::vector<box3d> const &new_boxes,
  *
  * \returns a sorted list of non-overlapping pencils which union is the \b world box
  */
-inline std::vector<box3d> make_pencils(box3d const world,
-                                       std::array<int, 2> const proc_grid,
-                                       int const dimension,
-                                       std::vector<box3d> const &source,
-                                       std::array<int, 3> const order
-                                      ){
+template<typename index>
+inline std::vector<box3d<index>> make_pencils(box3d<index> const world,
+                                              std::array<int, 2> const proc_grid,
+                                              int const dimension,
+                                              std::vector<box3d<index>> const &source,
+                                              std::array<int, 3> const order
+                                             ){
     // trivial case, the grid is already in a pencil format
     if (is_pencils(world, source, dimension))
         return reorder(source, order);
 
     // create a list of boxes ordered in column major format (following the proc_grid box)
-    std::vector<box3d> pencils = split_world(world, make_procgrid2d(world, dimension, proc_grid));
+    std::vector<box3d<index>> pencils = split_world(world, make_procgrid2d(world, dimension, proc_grid));
 
     return maximize_overlap(pencils, source, order);
 }
@@ -495,13 +512,14 @@ inline std::vector<box3d> make_pencils(box3d const world,
  *
  * The method is near identical to make_pencils, but the slabs span two dimensions.
  */
-inline std::vector<box3d> make_slabs(box3d const world, int num_slabs,
-                                     int const dimension1, int const dimension2,
-                                     std::vector<box3d> const &source,
-                                     std::array<int, 3> const order
-                                     ){
+template<typename index>
+inline std::vector<box3d<index>> make_slabs(box3d<index> const world, int num_slabs,
+                                            int const dimension1, int const dimension2,
+                                            std::vector<box3d<index>> const &source,
+                                            std::array<int, 3> const order
+                                           ){
     assert( dimension1 != dimension2 );
-    std::vector<box3d> slabs;
+    std::vector<box3d<index>> slabs;
     if (dimension1 == 0){
         if (dimension2 == 1){
             slabs = split_world(world, {1, 1, num_slabs});
@@ -537,31 +555,32 @@ inline std::vector<box3d> make_slabs(box3d const world, int num_slabs,
  *
  * \returns the dimensions of the 3d grid that will minimize the size of each box.
  */
-inline std::array<int, 3> proc_setup_min_surface(box3d const world, int num_procs){
+template<typename index>
+inline std::array<int, 3> proc_setup_min_surface(box3d<index> const world, int num_procs){
     assert(world.count() > 0); // make sure the world is not empty
 
     // using valarrays that work much like vectors, but can perform basic
     // point-wise operations such as addition, multiply, and division
-    std::valarray<int> all_indexes = {world.size[0], world.size[1], world.size[2]};
+    std::valarray<index> all_indexes = {world.size[0], world.size[1], world.size[2]};
     // set initial guess, probably the worst grid but a valid one
-    std::valarray<int> best_grid = {1, 1, num_procs};
+    std::valarray<index> best_grid = {1, 1, num_procs};
 
     // internal helper method to compute the surface
-    auto surface = [&](std::valarray<int> const &proc_grid)->
-        int{
+    auto surface = [&](std::valarray<index> const &proc_grid)->
+        index{
             auto box_size = all_indexes / proc_grid;
             return ( box_size * box_size.cshift(1) ).sum();
         };
 
-    int best_surface = surface({1, 1, num_procs});
+    index best_surface = surface({1, 1, num_procs});
 
     for(int i=1; i<=num_procs; i++){
         if (num_procs % i == 0){
             int const remainder = num_procs / i;
             for(int j=1; j<=remainder; j++){
                 if (remainder % j == 0){
-                    std::valarray<int> candidate_grid = {i, j, remainder / j};
-                    int const candidate_surface = surface(candidate_grid);
+                    std::valarray<index> candidate_grid = {i, j, remainder / j};
+                    index const candidate_surface = surface(candidate_grid);
                     if (candidate_surface < best_surface){
                         best_surface = candidate_surface;
                         best_grid    = candidate_grid;
@@ -573,7 +592,7 @@ inline std::array<int, 3> proc_setup_min_surface(box3d const world, int num_proc
 
     assert(best_grid[0] * best_grid[1] * best_grid[2] == num_procs);
 
-    return {best_grid[0], best_grid[1], best_grid[2]};
+    return {static_cast<int>(best_grid[0]), static_cast<int>(best_grid[1]), static_cast<int>(best_grid[2])};
 }
 
 namespace mpi {
@@ -590,11 +609,12 @@ namespace mpi {
  *
  * Uses MPI_Allgather().
  */
-inline ioboxes gather_boxes(box3d const my_inbox, box3d const my_outbox, MPI_Comm const comm){
-    std::array<box3d, 2> my_data = {my_inbox, my_outbox};
-    std::vector<box3d> all_boxes(2 * mpi::comm_size(comm), box3d({0, 0, 0}, {0, 0, 0}));
-    MPI_Allgather(&my_data, 2 * sizeof(box3d), MPI_BYTE, all_boxes.data(), 2 * sizeof(box3d), MPI_BYTE, comm);
-    ioboxes result;
+template<typename index>
+inline ioboxes<index> gather_boxes(box3d<index> const my_inbox, box3d<index> const my_outbox, MPI_Comm const comm){
+    std::array<box3d<index>, 2> my_data = {my_inbox, my_outbox};
+    std::vector<box3d<index>> all_boxes(2 * mpi::comm_size(comm), box3d<index>({0, 0, 0}, {0, 0, 0}));
+    MPI_Allgather(&my_data, 2 * sizeof(box3d<index>), MPI_BYTE, all_boxes.data(), 2 * sizeof(box3d<index>), MPI_BYTE, comm);
+    ioboxes<index> result;
     for(auto i = all_boxes.begin(); i < all_boxes.end(); i += 2){
         result.in.push_back(*i);
         result.out.push_back(*(i+1));

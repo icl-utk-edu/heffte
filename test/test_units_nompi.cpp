@@ -51,20 +51,20 @@ void test_split_pencils(){
     using namespace heffte;
     current_test<int, using_nompi> name("split pencils");
 
-    box3d const world = {{0, 0, 0}, {1, 3, 5}};
-    std::vector<box3d> reference = {{{0, 0, 0}, {0, 1, 5}}, {{0, 2, 0}, {0, 3, 5}},
-                                    {{1, 0, 0}, {1, 1, 5}}, {{1, 2, 0}, {1, 3, 5}}};
+    box3d<> const world = {{0, 0, 0}, {1, 3, 5}};
+    std::vector<box3d<>> reference = {{{0, 0, 0}, {0, 1, 5}}, {{0, 2, 0}, {0, 3, 5}},
+                                      {{1, 0, 0}, {1, 1, 5}}, {{1, 2, 0}, {1, 3, 5}}};
     // note that the order of the boxes moves fastest in the mid-dimension
     // this tests the reordering
-    std::vector<box3d> result = make_pencils(world, {2, 2}, 2, reference, world.order);
+    std::vector<box3d<>> result = make_pencils(world, {2, 2}, 2, reference, world.order);
     sassert(match(result, reference));
 
-    std::vector<box3d> reference2 = {{{0, 0, 0}, {1, 1, 2}}, {{0, 2, 0}, {1, 3, 2}},
-                                     {{0, 0, 3}, {1, 1, 5}}, {{0, 2, 3}, {1, 3, 5}}};
-    std::vector<box3d> result2 = make_pencils(world, {2, 2}, 0, reference, world.order);
+    std::vector<box3d<>> reference2 = {{{0, 0, 0}, {1, 1, 2}}, {{0, 2, 0}, {1, 3, 2}},
+                                       {{0, 0, 3}, {1, 1, 5}}, {{0, 2, 3}, {1, 3, 5}}};
+    std::vector<box3d<>> result2 = make_pencils(world, {2, 2}, 0, reference, world.order);
     sassert(match(result2, reference2));
 
-    box3d const reconstructed_world = find_world(result);
+    box3d<> const reconstructed_world = find_world(result);
     sassert(reconstructed_world == world);
 }
 
@@ -210,7 +210,7 @@ template<typename backend_tag, typename scalar_type>
 void test_1d_complex(){
     current_test<scalar_type, using_nompi> name(backend::name<backend_tag>() + " one-dimension");
 
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
+    box3d<> const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with make_input and make_fft methods
 
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
@@ -235,7 +235,7 @@ template<typename backend_tag, typename scalar_type>
 void test_1d_real(){
     current_test<scalar_type, using_nompi> name(backend::name<backend_tag>() + " one-dimension");
 
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+    box3d<> const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
 
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
@@ -261,7 +261,7 @@ template<typename backend_tag, typename scalar_type>
 void test_1d_r2c(){
     current_test<scalar_type, using_nompi> name(backend::name<backend_tag>() + " one-dimension r2c");
 
-    box3d const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
+    box3d<> const box = {{0, 0, 0}, {1, 2, 3}}; // sync this with the "answers" vector
 
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
@@ -388,7 +388,7 @@ void test_1d_reorder(){
     current_test<rtype, using_nompi> name("one-dimension reorder logic");
 
     // make a box
-    box3d const box({0, 0, 0}, {1, 2, 3}, {2, 0, 1}); // sync this with make_input and make_fft methods
+    box3d<> const box({0, 0, 0}, {1, 2, 3}, {2, 0, 1}); // sync this with make_input and make_fft methods
 
     auto const rinput = reorder_box(box.size, box.order, make_input<rtype>());
     auto const cinput = reorder_box(box.size, box.order, make_input<ctype>());
@@ -494,13 +494,13 @@ void test_in_node_transpose(){
     current_test<scalar_type, using_nompi> name("reshape transpose");
 
     std::vector<int> proc, offset, sizes; // dummy variables, only needed to call the overlap map method
-    std::vector<heffte::pack_plan_3d> plans;
+    std::vector<heffte::pack_plan_3d<int>> plans;
 
-    box3d inbox({0, 0, 0}, {1, 2, 3}, {0, 1, 2}); // reference box
+    box3d<> inbox({0, 0, 0}, {1, 2, 3}, {0, 1, 2}); // reference box
     auto const input = make_input<scalar_type>(); // reference input
 
     // test 1, transpose the data to order (1, 2, 0)
-    box3d destination1({0, 0, 0}, {1, 2, 3}, {1, 2, 0});
+    box3d<> destination1({0, 0, 0}, {1, 2, 3}, {1, 2, 0});
     heffte::compute_overlap_map_transpose_pack(0, 1, destination1, {inbox}, proc, offset, sizes, plans);
 
     std::vector<scalar_type> reference = {1.0, 3.0, 5.0, 7.0,  9.0, 11.0, 13.0, 15.0, 17.0, 19.0, 21.0, 23.0,
@@ -508,15 +508,15 @@ void test_in_node_transpose(){
 
     auto active_intput = test_traits<backend_tag>::load(input);
     vcontainer result(24);
-    heffte::reshape3d_transpose<ltag>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     sassert(match(result, reference));
 
     // test 2, transpose the data to order (2, 1, 0)
-    box3d destination2({0, 0, 0}, {1, 2, 3}, {2, 1, 0});
+    box3d<> destination2({0, 0, 0}, {1, 2, 3}, {2, 1, 0});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination2, {inbox}, proc, offset, sizes, plans);
-    heffte::reshape3d_transpose<ltag>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     reference = {1.0,  7.0, 13.0, 19.0,  3.0,  9.0, 15.0, 21.0,  5.0, 11.0, 17.0, 23.0,
                  2.0,  8.0, 14.0, 20.0,  4.0, 10.0, 16.0, 22.0,  6.0, 12.0, 18.0, 24.0};
@@ -526,14 +526,14 @@ void test_in_node_transpose(){
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, inbox, {destination2}, proc, offset, sizes, plans);
     auto active_reference = test_traits<backend_tag>::load(reference);
-    heffte::reshape3d_transpose<ltag>(plans[0]).apply(active_reference.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(plans[0]).apply(active_reference.data(), result.data(), nullptr);
     sassert(match(result, input));
 
     // test 3, transpose the data to order (0, 2, 1)
-    box3d destination3({0, 0, 0}, {1, 2, 3}, {0, 2, 1});
+    box3d<> destination3({0, 0, 0}, {1, 2, 3}, {0, 2, 1});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination3, {inbox}, proc, offset, sizes, plans);
-    heffte::reshape3d_transpose<ltag>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     reference = {1.0, 2.0,  7.0,  8.0, 13.0, 14.0, 19.0, 20.0,
                  3.0, 4.0,  9.0, 10.0, 15.0, 16.0, 21.0, 22.0,
@@ -561,7 +561,7 @@ void test_transpose(){
  * The random seed is fixed, thus the result is deterministic and repeatable.
  */
 template<typename scalar_type>
-std::vector<scalar_type> make_data(box3d const world){
+std::vector<scalar_type> make_data(box3d<> const world){
     std::minstd_rand park_miller(4242);
     std::uniform_real_distribution<double> unif(0.0, 1.0);
 
@@ -576,7 +576,7 @@ template<typename precision_type>
 void test_cross_reference_type(){
     current_test<precision_type, using_nompi> name("cufft - fftw reference");
 
-    box3d box = {{0, 0, 0}, {42, 75, 23}};
+    box3d<> box = {{0, 0, 0}, {42, 75, 23}};
     auto rinput = make_data<precision_type>(box);
     auto cinput = make_data<std::complex<precision_type>>(box);
     auto rrocinput = gpu::transfer::load(rinput);
@@ -618,9 +618,9 @@ void test_cross_reference_r2c(){
         // due to alignment issues on the cufft side
         // need to check the case when both size[0] and size[1] are odd
         //                        when at least one is even
-        box3d box = (case_counter == 0) ?
-                    box3d({0, 0, 0}, {42, 70, 21}) :
-                    box3d({0, 0, 0}, {41, 50, 21});
+        box3d<> box = (case_counter == 0) ?
+                       box3d<>({0, 0, 0}, {42, 70, 21}) :
+                       box3d<>({0, 0, 0}, {41, 50, 21});
 
         auto input = make_data<scalar_type>(box);
         gpu::vector<scalar_type> cuinput = gpu::transfer::load(input);
@@ -676,7 +676,7 @@ template<typename precision_type>
 void test_cross_reference_type(){
     current_test<precision_type, using_nompi> name("rocfft - fftw reference");
 
-    box3d box = {{0, 0, 0}, {42, 75, 23}};
+    box3d<> box = {{0, 0, 0}, {42, 75, 23}};
     auto rinput = make_data<precision_type>(box);
     auto cinput = make_data<std::complex<precision_type>>(box);
     auto rrocinput = gpu::transfer::load(rinput);
@@ -718,9 +718,9 @@ void test_cross_reference_r2c(){
         // due to alignment issues on the cufft side
         // need to check the case when both size[0] and size[1] are odd
         //                        when at least one is even
-        box3d box = (case_counter == 0) ?
-                    box3d({0, 0, 0}, {42, 70, 21}) :
-                    box3d({0, 0, 0}, {41, 50, 21});
+        box3d<> box = (case_counter == 0) ?
+                       box3d<>({0, 0, 0}, {42, 70, 21}) :
+                       box3d<>({0, 0, 0}, {41, 50, 21});
 
         auto input = make_data<scalar_type>(box);
         gpu::vector<scalar_type> cuinput = gpu::transfer::load(input);

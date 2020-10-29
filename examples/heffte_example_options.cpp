@@ -23,25 +23,25 @@ void compute_dft(MPI_Comm comm){
     }
 
     // using problem with size 10x20x30 problem
-    heffte::box3d all_indexes({0, 0, 0}, {9, 19, 29});
+    heffte::box3d<> all_indexes({0, 0, 0}, {9, 19, 29});
 
     // create a processor grid with minimum surface (measured in number of indexes)
     std::array<int,3> proc_grid = heffte::proc_setup_min_surface(all_indexes, num_ranks);
 
     // split all indexes across the processor grid, defines a set of boxes
-    std::vector<heffte::box3d> all_boxes = heffte::split_world(all_indexes, proc_grid);
+    std::vector<heffte::box3d<>> all_boxes = heffte::split_world(all_indexes, proc_grid);
 
     // pick the box corresponding to this rank
-    heffte::box3d const inbox  = all_boxes[me];
+    heffte::box3d<> const inbox  = all_boxes[me];
     // pick a random different box
     // this demonstrates that the input and output boxes can be different
     // rank "me" will use box "(me + 1)%num_ranks" and will reorder
     // the fast, mid, and slow indexes
     // {2, 1, 0} means that the first index is not the slowest while the last is the fastest
-    heffte::box3d const outbox(all_boxes[(me+1)%num_ranks].low,
-                               all_boxes[(me+1)%num_ranks].high,
-                               {2, 1, 0}
-                              );
+    heffte::box3d<> const outbox(all_boxes[(me+1)%num_ranks].low,
+                                 all_boxes[(me+1)%num_ranks].high,
+                                 {2, 1, 0}
+                                );
 
     // at this stage we can manually adjust some HeFFTe options
     heffte::plan_options options = heffte::default_options<heffte::backend::fftw>();

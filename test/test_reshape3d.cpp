@@ -25,15 +25,15 @@ void test_boxes(MPI_Comm const comm){
 
     int const me = mpi::comm_rank(comm);
 
-    std::vector<box3d> reference_inboxes;
-    std::vector<box3d> reference_outboxes;
+    std::vector<box3d<>> reference_inboxes;
+    std::vector<box3d<>> reference_outboxes;
 
     for(int i=0; i<mpi::comm_size(comm); i++){
         reference_inboxes.push_back({{i, i+1, i+2}, {i+3, i+4, i+5}});
         reference_outboxes.push_back({{i, i+3, i+5}, {i+7, i+6, i+9}});
     }
 
-    ioboxes boxes = mpi::gather_boxes(reference_inboxes[me], reference_outboxes[me], comm);
+    ioboxes<> boxes = mpi::gather_boxes(reference_inboxes[me], reference_outboxes[me], comm);
 
     tassert(match(boxes.in,  reference_inboxes));
     tassert(match(boxes.out, reference_outboxes));
@@ -47,7 +47,7 @@ void test_boxes(MPI_Comm const comm){
  * from one sub-box to another.
  */
 template<typename scalar_type>
-std::vector<scalar_type> get_subdata(box3d const world, box3d const subbox){
+std::vector<scalar_type> get_subdata(box3d<> const world, box3d<> const subbox){
     // the entries in the master box go 0, 1, 2, 3, 4 ...
     int const wmidstride  = world.size[0];
     int const wslowstride = world.size[0] * world.size[1];
@@ -71,7 +71,7 @@ std::vector<scalar_type> get_subdata(box3d const world, box3d const subbox){
 
 template<typename backend_tag, typename variant_tag>
 std::unique_ptr<reshape3d_base>
-make_test_reshape3d(std::vector<box3d> const &input_boxes, std::vector<box3d> const &output_boxes, MPI_Comm const comm){
+make_test_reshape3d(std::vector<box3d<>> const &input_boxes, std::vector<box3d<>> const &output_boxes, MPI_Comm const comm){
     if (std::is_same<variant_tag, using_alltoall>::value){
         return make_reshape3d_alltoallv<backend_tag>(input_boxes, output_boxes, comm);
     }else{
@@ -95,12 +95,12 @@ void test_cpu(MPI_Comm const comm){
     int const me = heffte::mpi::comm_rank(comm);
     int const shift = 3;
 
-    box3d world = {{0, 0, 0}, {hfast, hmid, hslow}};
+    box3d<> world = {{0, 0, 0}, {hfast, hmid, hslow}};
 
     auto boxes   = split_world(world, {pfast, pmid, pslow});
     auto pencils = split_world(world, {pfast,    1, pmid * pslow});
 
-    std::vector<box3d> rotate_boxes;
+    std::vector<box3d<>> rotate_boxes;
     if (std::is_same<scalar_type, std::complex<float>>::value){
         // shuffle the pencil boxes in some tests to check the case when there is no overlap between inbox and outbox
         // for the 2 by 2 grid, this shuffle ensures no overlap
@@ -148,12 +148,12 @@ void test_gpu(MPI_Comm const comm){
     int const me = heffte::mpi::comm_rank(comm);
     int const shift = 3;
 
-    box3d world = {{0, 0, 0}, {hfast, hmid, hslow}};
+    box3d<> world = {{0, 0, 0}, {hfast, hmid, hslow}};
 
     auto boxes   = split_world(world, {pfast, pmid, pslow});
     auto pencils = split_world(world, {pfast,    1, pmid * pslow});
 
-    std::vector<box3d> rotate_boxes;
+    std::vector<box3d<>> rotate_boxes;
     if (std::is_same<scalar_type, std::complex<float>>::value){
         // shuffle the pencil boxes in some tests to check the case when there is no overlap between inbox and outbox
         // for the 2 by 2 grid, this shuffle ensures no overlap
@@ -194,7 +194,7 @@ void test_direct_reordered(MPI_Comm const comm){
     assert(mpi::comm_size(comm) == 4); // the rest is designed for 4 ranks
     current_test<scalar_type> test("-np " + std::to_string(mpi::comm_size(comm)) + "  direct_packer (unordered)", comm);
 
-    box3d ordered_world({0, 0, 0}, {8, 9, 10});
+    box3d<> ordered_world({0, 0, 0}, {8, 9, 10});
 
     auto ordered_inboxes  = split_world(ordered_world, {1, 2, 2});
     auto ordered_outboxes = split_world(ordered_world, {2, 2, 1});
@@ -203,11 +203,11 @@ void test_direct_reordered(MPI_Comm const comm){
     auto input     = get_subdata<scalar_type>(ordered_world, ordered_inboxes[me]);
     auto reference = get_subdata<scalar_type>(ordered_world, ordered_outboxes[me]);
 
-    box3d world({0, 0, 0}, {9, 10, 8}, {2, 0, 1});
+    box3d<> world({0, 0, 0}, {9, 10, 8}, {2, 0, 1});
 
-    std::vector<box3d> inboxes, outboxes;
+    std::vector<box3d<>> inboxes, outboxes;
     for(auto b : split_world(world, {2, 2, 1})) inboxes.push_back({b.low, b.high, world.order});
-    std::vector<box3d> temp = split_world(world, {2, 1, 2}); // need to swap the middle two entries
+    std::vector<box3d<>> temp = split_world(world, {2, 1, 2}); // need to swap the middle two entries
     for(auto i : std::vector<int>{0, 2, 1, 3}) outboxes.push_back({temp[i].low, temp[i].high, world.order});
 
     #ifdef Heffte_ENABLE_FFTW
@@ -257,10 +257,10 @@ void test_reshape_transposed(MPI_Comm comm){
     assert(mpi::comm_size(comm) == 4); // the rest is designed for 4 ranks
     current_test<scalar_type> test("-np " + std::to_string(mpi::comm_size(comm)) + "  " + get_description<variant>() + " transposed", comm);
 
-    box3d world({0, 0, 0}, {1, 2, 3});
+    box3d<> world({0, 0, 0}, {1, 2, 3});
 
-    std::vector<box3d> inboxes = split_world(world, {2, 1, 2});
-    std::vector<box3d> ordered_outboxes = split_world(world, {1, 1, 4});
+    std::vector<box3d<>> inboxes = split_world(world, {2, 1, 2});
+    std::vector<box3d<>> ordered_outboxes = split_world(world, {1, 1, 4});
 
     int const me = heffte::mpi::comm_rank(comm);
     std::vector<scalar_type> input = get_subdata<scalar_type>(world, inboxes[me]);
@@ -276,8 +276,8 @@ void test_reshape_transposed(MPI_Comm comm){
                 std::array<int, 3> order = {i, j, k};
                 if (i == 0 and j == 1 and k == 2) continue; // no transpose, no need to check
 
-                std::vector<box3d> outboxes;
-                for(auto b : ordered_outboxes) outboxes.push_back(box3d(b.low, b.high, order));
+                std::vector<box3d<>> outboxes;
+                for(auto b : ordered_outboxes) outboxes.push_back(box3d<>(b.low, b.high, order));
 
                 #ifdef HAS_CPU_BACKEND
                 heffte::plan_options options = default_options<default_cpu_backend>();
