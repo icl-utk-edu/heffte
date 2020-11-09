@@ -13,7 +13,6 @@ pipeline {
                         dockerfile {
                             filename 'Dockerfile_fftw'
                             dir 'docker'
-                            additionalBuildArgs '--pull'
                             label 'docker'
                         }
                     }
@@ -47,7 +46,6 @@ make test_install
                         dockerfile {
                             filename 'Dockerfile_cuda'
                             dir 'docker'
-                            additionalBuildArgs '--pull'
                             label 'nvidia-docker'
                         }
                     }
