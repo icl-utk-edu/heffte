@@ -400,8 +400,11 @@ public:
      * \brief Returns the workspace size that will be used, size is measured in complex numbers.
      */
     size_t size_workspace() const{
+        // the last junk of (fft0->box_size() + 1) / 2 is used only when doing complex-to-real backward transform
+        // maybe update the API to call for different size buffers for different complex/real types
         return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper))
-               + get_max_size(std::array<backend_executor*, 3>{fft0.get(), fft1.get(), fft2.get()});
+               + get_max_size(std::array<backend_executor*, 3>{fft0.get(), fft1.get(), fft2.get()})
+               + ((backward_shaper[3]) ? (fft0->box_size() + 1) / 2 : 0);
     }
     //!\brief Returns the size used by the communication workspace buffers (internal use).
     size_t size_comm_buffers() const{ return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper)); }
