@@ -250,7 +250,7 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
     // executor 2 must apply complex to real backward transform
     if (shaper[3]){
         // there is one more reshape left, transform into a real temporary buffer
-        scalar_type* real_buffer = reinterpret_cast<scalar_type*>(temp_buffer + get_max_size(executor));
+        scalar_type* real_buffer = reinterpret_cast<scalar_type*>(temp_buffer + executor[2]->box_size());
         { add_trace name("fft-1d");
         executor[2]->backward(temp_buffer, real_buffer);
         }
