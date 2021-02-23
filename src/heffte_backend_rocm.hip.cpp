@@ -77,7 +77,7 @@ void check_error(hipError_t status, std::string const &function_name){
  * If to_complex is false, convert two real numbers from source to one real number in destination.
  */
 template<typename scalar_type, int num_threads, bool to_complex, typename index>
-__global__ void real_complex_convert(index num_entries, scalar_type const source[], scalar_type destination[]){
+__global__ __launch_bounds__(num_threads) void real_complex_convert(index num_entries, scalar_type const source[], scalar_type destination[]){
     index i = blockIdx.x * num_threads + threadIdx.x;
     while(i < num_entries){
         if (to_complex){
@@ -94,7 +94,7 @@ __global__ void real_complex_convert(index num_entries, scalar_type const source
  * Launch this with one block per line.
  */
 template<typename scalar_type, int num_threads, int tuple_size, bool pack, typename index>
-__global__ void direct_packer(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+__global__ __launch_bounds__(num_threads) void direct_packer(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
                                           scalar_type const source[], scalar_type destination[]){
     index block_index = blockIdx.x;
     while(block_index < nmid * nslow){
@@ -123,7 +123,7 @@ __global__ void direct_packer(index nfast, index nmid, index nslow, index line_s
  * Launch this with one block per line of the destination.
  */
 template<typename scalar_type, int num_threads, int tuple_size, int map0, int map1, int map2, typename index>
-__global__ void transpose_unpacker(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+__global__ __launch_bounds__(num_threads) void transpose_unpacker(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
                                    index buff_line_stride, index buff_plane_stride,
                                    scalar_type const source[], scalar_type destination[]){
 
@@ -171,7 +171,7 @@ __global__ void transpose_unpacker(index nfast, index nmid, index nslow, index l
  * Call with one thread per entry.
  */
 template<typename scalar_type, int num_threads, typename index>
-__global__ void simple_scal(index num_entries, scalar_type data[], scalar_type scaling_factor){
+__global__ __launch_bounds__(num_threads) void simple_scal(index num_entries, scalar_type data[], scalar_type scaling_factor){
     index i = blockIdx.x * num_threads + threadIdx.x;
     while(i < num_entries){
         data[i] *= scaling_factor;
@@ -208,30 +208,10 @@ void convert(index num_entries, precision_type const source[], std::complex<prec
     real_complex_convert<precision_type, max_threads, to_complex><<<grid.blocks, grid.threads>>>(num_entries, source, reinterpret_cast<precision_type*>(destination));
 }
 
-template<typename scalar_type, int num_threads, typename index>
-__global__ void complex_real_convert(index num_entries, scalar_type const source[], scalar_type destination[]){
-    index i = blockIdx.x * num_threads + threadIdx.x;
-    while(i < num_entries){
-        destination[i] = source[2*i];
-        i += num_threads * gridDim.x;
-    }
-}
-
 template<typename precision_type, typename index>
 void convert(index num_entries, std::complex<precision_type> const source[], precision_type destination[]){
-    //thread_grid_1d grid(num_entries, max_threads);
-    //real_complex_convert<precision_type, max_threads, not to_complex><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<precision_type const*>(source), destination);
-
-    // ideally the code above should work, but it fails at test_fft3d with 6 ranks (0, 1, and 2 ranks is OK)
-    // the code below is a work-around that is inefficient but doesn't move data back to the GPU
-    // one wrap/wave-front for ROCm is 64 threads and only thr <= 64 works, even though 128 works fine for 0, 1, and 2 ranks (not 6).
-    constexpr index thr = 64;
-    for(index i=0; i<num_entries; i += thr){
-        index these_entries = std::min(num_entries - i, thr);
-        thread_grid_1d grid(these_entries, thr);
-        hipLaunchKernelGGL(HIP_KERNEL_NAME(complex_real_convert<precision_type, thr, index>), grid.blocks, grid.threads, 0, 0,
-                            these_entries, reinterpret_cast<precision_type const*>(source + i), destination + i);
-    }
+    thread_grid_1d grid(num_entries, max_threads);
+    real_complex_convert<precision_type, max_threads, not to_complex><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<precision_type const*>(source), destination);
 }
 
 #define heffte_instantiate_convert(precision, index) \
