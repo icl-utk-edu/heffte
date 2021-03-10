@@ -25,15 +25,15 @@ void compute_dft(MPI_Comm comm){
     }
 
     // using problem with size 10x20x30 problem
-    heffte::box3d all_indexes({0, 0, 0}, {9, 19, 29});
+    heffte::box3d<> all_indexes({0, 0, 0}, {9, 19, 29});
 
     // see the heffte_example_options for comments on the proc_grid and boxes
     std::array<int, 3> proc_grid = heffte::proc_setup_min_surface(all_indexes, num_ranks);
 
-    std::vector<heffte::box3d> all_boxes = heffte::split_world(all_indexes, proc_grid);
+    std::vector<heffte::box3d<>> all_boxes = heffte::split_world(all_indexes, proc_grid);
 
-    heffte::box3d const inbox  = all_boxes[me];
-    heffte::box3d const outbox = all_boxes[me]; // same inbox and outbox
+    heffte::box3d<> const inbox  = all_boxes[me];
+    heffte::box3d<> const outbox = all_boxes[me]; // same inbox and outbox
 
     // at this stage we can manually adjust some HeFFTe options
     heffte::plan_options options = heffte::default_options<heffte::backend::fftw>();

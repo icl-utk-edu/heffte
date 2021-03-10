@@ -29,8 +29,8 @@ void compute_dft(MPI_Comm comm){
 
     // using problem with size 20x20x20 problem, the computed indexes are 11x20x20
     // direction 0 is chosen to reduce the number of indexes
-    heffte::box3d real_indexes({0, 0, 0}, {19, 19, 19});
-    heffte::box3d complex_indexes({0, 0, 0}, {10, 19, 19});
+    heffte::box3d<> real_indexes({0, 0, 0}, {19, 19, 19});
+    heffte::box3d<> complex_indexes({0, 0, 0}, {10, 19, 19});
 
     // check if the complex indexes have correct dimension
     assert(real_indexes.r2c(r2c_direction) == complex_indexes);
@@ -45,11 +45,11 @@ void compute_dft(MPI_Comm comm){
     // the proc_grid is chosen to minimize the real data, but use for both real and complex cases
     std::array<int, 3> proc_grid = heffte::proc_setup_min_surface(real_indexes, num_ranks);
 
-    std::vector<heffte::box3d> real_boxes    = heffte::split_world(real_indexes,    proc_grid);
-    std::vector<heffte::box3d> complex_boxes = heffte::split_world(complex_indexes, proc_grid);
+    std::vector<heffte::box3d<>> real_boxes    = heffte::split_world(real_indexes,    proc_grid);
+    std::vector<heffte::box3d<>> complex_boxes = heffte::split_world(complex_indexes, proc_grid);
 
-    heffte::box3d const inbox  = real_boxes[me];
-    heffte::box3d const outbox = complex_boxes[me];
+    heffte::box3d<> const inbox  = real_boxes[me];
+    heffte::box3d<> const outbox = complex_boxes[me];
 
     // define the heffte class and the input and output geometry
     heffte::fft3d_r2c<heffte::backend::fftw> fft(inbox, outbox, r2c_direction, comm);

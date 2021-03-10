@@ -90,11 +90,12 @@ plan_options default_options(){
  * - index_count is the produce of all indexes, used in scaling
  * - options will hold a copy of the set of options used in the construction
  */
+template<typename index>
 struct logic_plan3d{
     //! \brief Holds the input shapes for the 4 forward reshapes (backwards reverses in and out).
-    std::vector<box3d> in_shape[4];
+    std::vector<box3d<index>> in_shape[4];
     //! \brief Holds the output shapes for the 4 forward reshapes (backwards reverses in and out).
-    std::vector<box3d> out_shape[4];
+    std::vector<box3d<index>> out_shape[4];
     //! \brief Direction of the 1-D FFT transforms.
     std::array<int, 3> fft_direction;
     //! \brief The total number of indexes in all directions.
@@ -107,7 +108,8 @@ struct logic_plan3d{
  * \ingroup fft3dplan
  * \brief Returns true for each direction where the boxes form pencils (i.e., where the size matches the world size).
  */
-inline std::array<bool, 3> pencil_directions(box3d const world, std::vector<box3d> const &boxes){
+template<typename index>
+inline std::array<bool, 3> pencil_directions(box3d<index> const world, std::vector<box3d<index>> const &boxes){
     std::array<bool, 3> is_pencil = {true, true, true};
     for(auto const &b : boxes){
         for(int i=0; i<3; i++)
@@ -127,7 +129,8 @@ inline std::array<bool, 3> pencil_directions(box3d const world, std::vector<box3
  *
  * \returns the plan for reshape and 1-D fft transformations
  */
-logic_plan3d plan_operations(ioboxes const &boxes, int r2c_direction, plan_options const options);
+template<typename index>
+logic_plan3d<index> plan_operations(ioboxes<index> const &boxes, int r2c_direction, plan_options const options);
 
 }
 

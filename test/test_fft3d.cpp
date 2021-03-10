@@ -25,17 +25,25 @@ void test_fft3d_cases(MPI_Comm const comm){
             test_fft3d_arrays<backend_tag, std::complex<float>, 9, 9, 9>(comm);
             test_fft3d_arrays<backend_tag, std::complex<double>, 9, 9, 9>(comm);
             break;
+        case 4: // rank 4 uses only 2d tests
+            test_fft3d_vectors_2d<backend_tag, std::complex<float>, 31, 31>(comm);
+            test_fft3d_vectors_2d<backend_tag, std::complex<double>, 10, 10>(comm);
+            break;
         case 6:
             test_fft3d_vectors<backend_tag, float, 11, 11, 22>(comm);
             test_fft3d_vectors<backend_tag, double, 11, 11, 22>(comm);
             test_fft3d_vectors<backend_tag, std::complex<float>, 11, 11, 22>(comm);
             test_fft3d_vectors<backend_tag, std::complex<double>, 11, 11, 22>(comm);
+            test_fft3d_vectors_2d<backend_tag, std::complex<float>, 11, 11>(comm);
+            test_fft3d_vectors_2d<backend_tag, std::complex<double>, 11, 11>(comm);
             break;
         case 8:
             test_fft3d_vectors<backend_tag, float, 16, 15, 15>(comm);
             test_fft3d_vectors<backend_tag, double, 16, 15, 15>(comm);
             test_fft3d_vectors<backend_tag, std::complex<float>, 16, 15, 15>(comm);
             test_fft3d_vectors<backend_tag, std::complex<double>, 16, 15, 15>(comm);
+            test_fft3d_vectors<backend_tag, std::complex<float>, 16, 0, 15>(comm); // effectively 2D
+            test_fft3d_vectors<backend_tag, std::complex<double>, 16, 0, 15>(comm);
             break;
         case 12:
             test_fft3d_arrays<backend_tag, float, 19, 20, 21>(comm);

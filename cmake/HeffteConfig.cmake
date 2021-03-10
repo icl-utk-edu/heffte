@@ -1,3 +1,6 @@
+
+@PACKAGE_INIT@
+
 include("${CMAKE_CURRENT_LIST_DIR}/HeffteTargets.cmake")
 
 if (@Heffte_ENABLE_FFTW@ AND NOT TARGET Heffte::FFTW)
@@ -74,3 +77,23 @@ set(Heffte_FFTW_FOUND    "@Heffte_ENABLE_FFTW@")
 set(Heffte_MKL_FOUND     "@Heffte_ENABLE_MKL@")
 set(Heffte_CUDA_FOUND    "@Heffte_ENABLE_CUDA@")
 set(Heffte_ROCM_FOUND    "@Heffte_ENABLE_ROCM@")
+if ("@Heffte_DISABLE_GPU_AWARE_MPI@")
+    set(Heffte_GPUAWARE_FOUND "OFF")
+else()
+    set(Heffte_GPUAWARE_FOUND "ON")
+endif()
+
+check_required_components(Heffte)
+
+if (Heffte_FOUND OR "${Heffte_FOUND}" STREQUAL "")
+    # oddly enough, Heffte_FOUND is empty when there is no error
+    message(STATUS "Found Heffte: @CMAKE_INSTALL_PREFIX@ (found version @PROJECT_VERSION@)")
+    set(Heffte_ALL_MODULES "")
+    foreach(_heffte_mod SHARED STATIC FFTW MKL CUDA ROCM GPUAWARE PYTHON Fortran)
+        if (Heffte_${_heffte_mod}_FOUND)
+            set(Heffte_ALL_MODULES "${Heffte_ALL_MODULES} ${_heffte_mod}")
+        endif()
+    endforeach()
+    unset(_heffte_mod)
+    message(STATUS "Found Heffte modules: ${Heffte_ALL_MODULES}")
+endif()

@@ -58,11 +58,11 @@ namespace heffte{
         return opts;
     }
 
-    box3d make_box3d_c(int const low[3], int const high[3], int const *order){
+    box3d<> make_box3d_c(int const low[3], int const high[3], int const *order){
         if (order != nullptr){
-            return box3d({low[0], low[1], low[2]}, {high[0], high[1], high[2]}, {order[0], order[1], order[2]});
+            return box3d<>({low[0], low[1], low[2]}, {high[0], high[1], high[2]}, {order[0], order[1], order[2]});
         }else{
-            return box3d({low[0], low[1], low[2]}, {high[0], high[1], high[2]});
+            return box3d<>({low[0], low[1], low[2]}, {high[0], high[1], high[2]});
         }
     }
 
@@ -212,8 +212,8 @@ int heffte_plan_create(int backend, int const inbox_low[3], int const inbox_high
     (*plan)->backend_type = backend;
     (*plan)->using_r2c = 0;
 
-    heffte::box3d inbox  = heffte::make_box3d_c(inbox_low, inbox_high, inbox_order);
-    heffte::box3d outbox = heffte::make_box3d_c(outbox_low, outbox_high, outbox_order);
+    heffte::box3d<> inbox  = heffte::make_box3d_c(inbox_low, inbox_high, inbox_order);
+    heffte::box3d<> outbox = heffte::make_box3d_c(outbox_low, outbox_high, outbox_order);
 
     heffte_plan_options const *opts = options;
     heffte_plan_options c_opts;
@@ -263,8 +263,8 @@ int heffte_plan_create_r2c(int backend, int const inbox_low[3], int const inbox_
     (*plan)->backend_type = backend;
     (*plan)->using_r2c = 1;
 
-    heffte::box3d inbox  = heffte::make_box3d_c(inbox_low, inbox_high, inbox_order);
-    heffte::box3d outbox = heffte::make_box3d_c(outbox_low, outbox_high, outbox_order);
+    heffte::box3d<> inbox  = heffte::make_box3d_c(inbox_low, inbox_high, inbox_order);
+    heffte::box3d<> outbox = heffte::make_box3d_c(outbox_low, outbox_high, outbox_order);
 
     heffte_plan_options const *opts = options;
     heffte_plan_options c_opts;

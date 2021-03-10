@@ -13,7 +13,6 @@ pipeline {
                         dockerfile {
                             filename 'Dockerfile_fftw'
                             dir 'docker'
-                            additionalBuildArgs '--pull'
                             label 'docker'
                         }
                     }
@@ -23,6 +22,7 @@ cmake \
     -DCMAKE_INSTALL_PREFIX=./HeffteInstall \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_CXX_FLAGS="-O3 -Wall -Wextra -Wshadow" \
+    -DBUILD_SHARED_LIBS=ON \
     -DHeffte_ENABLE_FFTW=ON \
     -DHeffte_ENABLE_CUDA=OFF \
     -DHeffte_ENABLE_FORTRAN=ON \
@@ -46,7 +46,6 @@ make test_install
                         dockerfile {
                             filename 'Dockerfile_cuda'
                             dir 'docker'
-                            additionalBuildArgs '--pull'
                             label 'nvidia-docker'
                         }
                     }

@@ -1,4 +1,3 @@
-/** @class */
 /*
     -- heFFTe --
        Univ. of Tennessee, Knoxville
@@ -43,7 +42,7 @@ namespace heffte {
  * the supported types are the ones with real input in
  * \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
  */
-template<typename backend_tag>
+template<typename backend_tag, typename index = int>
 class fft3d_r2c{
 public:
     //! \brief FFT executor for the complex-to-complex dimensions.
@@ -74,7 +73,7 @@ public:
      * \param comm is the MPI communicator with all ranks that will participate in the FFT.
      * \param options is a set of options that define the FFT plan, see heffte::plan_options for details.
      */
-    fft3d_r2c(box3d const inbox, box3d const outbox, int r2c_direction, MPI_Comm const comm,
+    fft3d_r2c(box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
               plan_options const options = default_options<backend_tag>()) :
         fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction,
                                   #ifdef Heffte_ENABLE_ROCM
@@ -91,8 +90,8 @@ public:
               int ol0, int ol1, int ol2, int oh0, int oh1, int oh2, int oo0, int oo1, int oo2,
               int r2c_direction, MPI_Comm const comm,
               bool use_reorder, bool use_alltoall, bool use_pencils)
-        : fft3d_r2c(box3d({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
-                    box3d({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
+        : fft3d_r2c(box3d<index>({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
+                    box3d<index>({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
                     r2c_direction, comm,
                 plan_options(use_reorder, use_alltoall, use_pencils))
     {}
@@ -100,25 +99,25 @@ public:
     fft3d_r2c(int il0, int il1, int il2, int ih0, int ih1, int ih2, int io0, int io1, int io2,
               int ol0, int ol1, int ol2, int oh0, int oh1, int oh2, int oo0, int oo1, int oo2,
               int r2c_direction, MPI_Comm const comm)
-        : fft3d_r2c(box3d({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
-                    box3d({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
+        : fft3d_r2c(box3d<index>({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
+                    box3d<index>({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
                     r2c_direction, comm)
     {}
     //! \brief Internal use only, used by the Fortran interface
     fft3d_r2c(int il0, int il1, int il2, int ih0, int ih1, int ih2,
               int ol0, int ol1, int ol2, int oh0, int oh1, int oh2,
               int r2c_direction, MPI_Comm const comm)
-        : fft3d_r2c(box3d({il0, il1, il2}, {ih0, ih1, ih2}), box3d({ol0, ol1, ol2}, {oh0, oh1, oh2}), r2c_direction, comm)
+        : fft3d_r2c(box3d<index>({il0, il1, il2}, {ih0, ih1, ih2}), box3d<index>({ol0, ol1, ol2}, {oh0, oh1, oh2}), r2c_direction, comm)
     {}
 
     //! \brief Returns the size of the inbox defined in the constructor.
-    int size_inbox() const{ return pinbox->count(); }
+    long long size_inbox() const{ return pinbox->count(); }
     //! \brief Returns the size of the outbox defined in the constructor.
-    int size_outbox() const{ return poutbox->count(); }
+    long long size_outbox() const{ return poutbox->count(); }
     //! \brief Returns the inbox.
-    box3d inbox() const{ return *pinbox; }
+    box3d<index> inbox() const{ return *pinbox; }
     //! \brief Returns the outbox.
-    box3d outbox() const{ return *poutbox; }
+    box3d<index> outbox() const{ return *poutbox; }
     //! \brief Returns the workspace size that will be used, size is measured in complex numbers.
     size_t size_workspace() const{
         return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper))
@@ -238,7 +237,7 @@ public:
 
 private:
     //! \brief Same as in the fft3d case.
-    fft3d_r2c(logic_plan3d const &plan, int const this_mpi_rank, MPI_Comm const comm);
+    fft3d_r2c(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
 
     template<typename scalar_type>
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale scaling) const{
@@ -273,7 +272,7 @@ private:
         }
     }
 
-    std::unique_ptr<box3d> pinbox, poutbox;
+    std::unique_ptr<box3d<index>> pinbox, poutbox;
     double scale_factor;
     std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
@@ -284,6 +283,28 @@ private:
     gpu::magma_handle<typename backend::buffer_traits<backend_tag>::location> hmagma;
     #endif
 };
+
+/*!
+ * \ingroup fft3d
+ * \brief Alias of heffte::fft2d to be used for a two dimensional problem.
+ */
+template<typename backend_tag, typename index = int>
+using fft2d_r2c = fft3d_r2c<backend_tag, index>;
+
+/*!
+ * \ingroup fft3d
+ * \brief Factory method that auto-detects the index type based on the box.
+ */
+template<typename backend_tag, typename index>
+fft3d_r2c<backend_tag, index> make_fft3d_r2c(box3d<index> const inbox, box3d<index> const outbox,
+                                             int r2c_direction, MPI_Comm const comm,
+                                             plan_options const options = default_options<backend_tag>()){
+    static_assert(std::is_same<index, int>::value or std::is_same<index, long long>::value,
+                  "heFFTe works with 'int' and 'long long' indexing only");
+    static_assert(backend::is_enabled<backend_tag>::value,
+                  "the backend_tag is not valid, perhaps it needs to be enabled in the build system");
+    return fft3d_r2c<backend_tag, index>(inbox, outbox, r2c_direction, comm, options);
+}
 
 }
 

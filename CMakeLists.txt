@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project("Heffte" VERSION 1.0.1 LANGUAGES CXX)
+project("Heffte" VERSION 2.0.0 LANGUAGES CXX)
 
 option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            OFF)
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
@@ -163,7 +163,9 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h DESTINATION in
 # package-config
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file("HeffteConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY ExactVersion)
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfig.cmake" @ONLY)
+configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cmake"
+                              "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfig.cmake"
+                              INSTALL_DESTINATION "lib/Heffte/")
 
 
 ######################

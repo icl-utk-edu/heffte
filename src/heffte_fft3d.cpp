@@ -10,29 +10,29 @@
 
 #include "heffte_fft3d.h"
 
-#define heffte_instantiate_fft3d(some_backend) \
-    template class fft3d<some_backend>; \
-    template void fft3d<some_backend>::standard_transform<float>(float const[], std::complex<float>[], std::complex<float>[], \
+#define heffte_instantiate_fft3d(some_backend, index) \
+    template class fft3d<some_backend, index>; \
+    template void fft3d<some_backend, index>::standard_transform<float>(float const[], std::complex<float>[], std::complex<float>[], \
                                                                  std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                  direction, scale  \
                                                                 ) const;    \
-    template void fft3d<some_backend>::standard_transform<double>(double const[], std::complex<double>[], std::complex<double>[], \
+    template void fft3d<some_backend, index>::standard_transform<double>(double const[], std::complex<double>[], std::complex<double>[], \
                                                                   std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                   direction, scale \
                                                                  ) const;   \
-    template void fft3d<some_backend>::standard_transform<float>(std::complex<float> const[], float[], std::complex<float>[], \
+    template void fft3d<some_backend, index>::standard_transform<float>(std::complex<float> const[], float[], std::complex<float>[], \
                                                                  std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                  direction, scale  \
                                                                 ) const;    \
-    template void fft3d<some_backend>::standard_transform<double>(std::complex<double> const[], double[], std::complex<double>[], \
+    template void fft3d<some_backend, index>::standard_transform<double>(std::complex<double> const[], double[], std::complex<double>[], \
                                                                   std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                   direction, scale \
                                                                  ) const;   \
-    template void fft3d<some_backend>::standard_transform<float>(std::complex<float> const[], std::complex<float>[], std::complex<float>[], \
+    template void fft3d<some_backend, index>::standard_transform<float>(std::complex<float> const[], std::complex<float>[], std::complex<float>[], \
                                                                  std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                  direction, scale  \
                                                                 ) const;    \
-    template void fft3d<some_backend>::standard_transform<double>(std::complex<double> const[], std::complex<double>[], std::complex<double>[], \
+    template void fft3d<some_backend, index>::standard_transform<double>(std::complex<double> const[], std::complex<double>[], std::complex<double>[], \
                                                                   std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                   direction, scale \
                                                                  ) const;   \
@@ -40,9 +40,9 @@
 namespace heffte {
 
 
-template<typename backend_tag>
-fft3d<backend_tag>::fft3d(logic_plan3d const &plan, int const this_mpi_rank, MPI_Comm const comm) :
-    pinbox(new box3d(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d(plan.out_shape[3][this_mpi_rank])),
+template<typename backend_tag, typename index>
+fft3d<backend_tag, index>::fft3d(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
+    pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
     scale_factor(1.0 / static_cast<double>(plan.index_count))
 {
     for(int i=0; i<4; i++){
@@ -55,9 +55,9 @@ fft3d<backend_tag>::fft3d(logic_plan3d const &plan, int const this_mpi_rank, MPI
     fft2 = one_dim_backend<backend_tag>::make(plan.out_shape[2][this_mpi_rank], plan.fft_direction[2]);
 }
 
-template<typename backend_tag>
+template<typename backend_tag, typename index>
 template<typename scalar_type> // complex to complex case
-void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
+void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
                                             std::complex<scalar_type> workspace[],
                                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                                             std::array<backend_executor*, 3> const executor,
@@ -159,9 +159,9 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
 
     apply_scale(dir, scaling, output);
 }
-template<typename backend_tag>
+template<typename backend_tag, typename index>
 template<typename scalar_type> // real to complex case
-void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
+void fft3d<backend_tag, index>::standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
                                             std::complex<scalar_type> workspace[],
                                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                                             std::array<typename one_dim_backend<backend_tag>::type*, 3> const executor,
@@ -215,9 +215,9 @@ void fft3d<backend_tag>::standard_transform(scalar_type const input[], std::comp
 
     apply_scale(direction::forward, scaling, output);
 }
-template<typename backend_tag>
+template<typename backend_tag, typename index>
 template<typename scalar_type> // complex to real case
-void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
+void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
                                             std::complex<scalar_type> workspace[],
                                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                                             std::array<backend_executor*, 3> const executor, direction, scale scaling) const{
@@ -250,7 +250,7 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
     // executor 2 must apply complex to real backward transform
     if (shaper[3]){
         // there is one more reshape left, transform into a real temporary buffer
-        scalar_type* real_buffer = reinterpret_cast<scalar_type*>(temp_buffer);
+        scalar_type* real_buffer = reinterpret_cast<scalar_type*>(temp_buffer + executor[2]->box_size());
         { add_trace name("fft-1d");
         executor[2]->backward(temp_buffer, real_buffer);
         }
@@ -265,16 +265,20 @@ void fft3d<backend_tag>::standard_transform(std::complex<scalar_type> const inpu
 }
 
 #ifdef Heffte_ENABLE_FFTW
-heffte_instantiate_fft3d(backend::fftw)
+heffte_instantiate_fft3d(backend::fftw, int)
+heffte_instantiate_fft3d(backend::fftw, long long)
 #endif
 #ifdef Heffte_ENABLE_MKL
-heffte_instantiate_fft3d(backend::mkl)
+heffte_instantiate_fft3d(backend::mkl, int)
+heffte_instantiate_fft3d(backend::mkl, long long)
 #endif
 #ifdef Heffte_ENABLE_CUDA
-heffte_instantiate_fft3d(backend::cufft)
+heffte_instantiate_fft3d(backend::cufft, int)
+heffte_instantiate_fft3d(backend::cufft, long long)
 #endif
 #ifdef Heffte_ENABLE_ROCM
-heffte_instantiate_fft3d(backend::rocfft)
+heffte_instantiate_fft3d(backend::rocfft, int)
+heffte_instantiate_fft3d(backend::rocfft, long long)
 #endif
 
 }

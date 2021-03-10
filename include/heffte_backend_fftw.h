@@ -139,7 +139,8 @@ struct plan_fftw<std::complex<double>, dir>{
 class fftw_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
-    fftw_executor(box3d const box, int dimension) :
+    template<typename index>
+    fftw_executor(box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -294,7 +295,8 @@ public:
      *
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
-    fftw_executor_r2c(box3d const box, int dimension) :
+    template<typename index>
+    fftw_executor_r2c(box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -375,11 +377,13 @@ template<> struct one_dim_backend<backend::fftw>{
     using type_r2c = fftw_executor_r2c;
 
     //! \brief Constructs a complex-to-complex executor.
-    static std::unique_ptr<fftw_executor> make(box3d const box, int dimension){
+    template<typename index>
+    static std::unique_ptr<fftw_executor> make(box3d<index> const box, int dimension){
         return std::unique_ptr<fftw_executor>(new fftw_executor(box, dimension));
     }
     //! \brief Constructs a real-to-complex executor.
-    static std::unique_ptr<fftw_executor_r2c> make_r2c(box3d const box, int dimension){
+    template<typename index>
+    static std::unique_ptr<fftw_executor_r2c> make_r2c(box3d<index> const box, int dimension){
         return std::unique_ptr<fftw_executor_r2c>(new fftw_executor_r2c(box, dimension));
     }
 };

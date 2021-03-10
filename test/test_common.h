@@ -166,6 +166,10 @@ template<typename T>
 inline bool approx(heffte::gpu::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
     return approx(heffte::gpu::transfer::unload(a), b, correction);
 }
+template<typename T>
+inline bool approx(heffte::gpu::vector<T> const &a, heffte::gpu::vector<T> const &b, double correction = 1.0){
+    return approx(a, heffte::gpu::transfer::unload(b), correction);
+}
 template<typename backend_tag>
 struct test_traits<backend_tag, typename std::enable_if<backend::uses_gpu<backend_tag>::value, void>::type>{
     template<typename T> using container = gpu::vector<T>;

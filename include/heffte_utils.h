@@ -28,9 +28,6 @@
 
 namespace heffte {
 
-using std::cout; // remove when things get more stable
-using std::endl; // make sure it is not added to a release
-
 /*!
  * \ingroup fft3dmisc
  * \brief Replace with the C++ 2014 std::exchange later.
@@ -119,9 +116,9 @@ inline int world_rank(){ return comm_rank(MPI_COMM_WORLD); }
 template<typename vector_like>
 void dump(int me, vector_like const &x, std::string const &message){
     if (me < 0 or world_rank(me)){
-        cout << message << "\n";
-        for(auto i : x) cout << i << "  ";
-        cout << endl;
+        std::cout << message << "\n";
+        for(auto i : x) std::cout << i << "  ";
+        std::cout << std::endl;
     }
 }
 
@@ -416,6 +413,5 @@ size_t get_max_size(some_class_r2c const &executors_r2c, std::array<some_class, 
 }
 
 }
-
 
 #endif /* HEFFTE_UTILS_H */
