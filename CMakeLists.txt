@@ -81,6 +81,9 @@ if (Heffte_ENABLE_ROCM)
          include/heffte_backend_rocm.h
          src/heffte_backend_rocm.hip.cpp
          )
+
+    set(Heffte_ROCM_FLAGS "" CACHE STRING "added flags specific to the rocFFT backend")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Heffte_ROCM_FLAGS}")
 endif()
 
 # build CPU libheffte, the CUDA test comes first to use cuda_add_library() vs add_library()
