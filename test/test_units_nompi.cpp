@@ -496,11 +496,11 @@ void test_in_node_transpose(){
     std::vector<int> proc, offset, sizes; // dummy variables, only needed to call the overlap map method
     std::vector<heffte::pack_plan_3d<int>> plans;
 
-    box3d<> inbox({0, 0, 0}, {1, 2, 3}, {0, 1, 2}); // reference box
+    box3d<> inbox(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{1, 2, 3}, std::array<int, 3>{0, 1, 2}); // reference box
     auto const input = make_input<scalar_type>(); // reference input
 
     // test 1, transpose the data to order (1, 2, 0)
-    box3d<> destination1({0, 0, 0}, {1, 2, 3}, {1, 2, 0});
+    box3d<> destination1(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{1, 2, 3}, std::array<int, 3>{1, 2, 0});
     heffte::compute_overlap_map_transpose_pack(0, 1, destination1, {inbox}, proc, offset, sizes, plans);
 
     std::vector<scalar_type> reference = {1.0, 3.0, 5.0, 7.0,  9.0, 11.0, 13.0, 15.0, 17.0, 19.0, 21.0, 23.0,
@@ -513,7 +513,7 @@ void test_in_node_transpose(){
     sassert(match(result, reference));
 
     // test 2, transpose the data to order (2, 1, 0)
-    box3d<> destination2({0, 0, 0}, {1, 2, 3}, {2, 1, 0});
+    box3d<> destination2(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{1, 2, 3}, std::array<int, 3>{2, 1, 0});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination2, {inbox}, proc, offset, sizes, plans);
     heffte::reshape3d_transpose<ltag, int>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
@@ -530,7 +530,7 @@ void test_in_node_transpose(){
     sassert(match(result, input));
 
     // test 3, transpose the data to order (0, 2, 1)
-    box3d<> destination3({0, 0, 0}, {1, 2, 3}, {0, 2, 1});
+    box3d<> destination3(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{1, 2, 3}, std::array<int, 3>{0, 2, 1});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination3, {inbox}, proc, offset, sizes, plans);
     heffte::reshape3d_transpose<ltag, int>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
