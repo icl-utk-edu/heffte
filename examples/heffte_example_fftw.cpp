@@ -34,23 +34,54 @@ void compute_dft(MPI_Comm comm){
     std::vector<std::complex<double>> input(fft.size_inbox());
     std::vector<std::complex<double>> output(fft.size_outbox());
 
-    // fill the input vector with data that looks like 0, 1, 2, ...
-    std::iota(input.begin(), input.end(), 0); // put some data in the input
+    // form a global input vector and copy the data to the local input
+    // this serves as an example of the relation between global and local indexes
+    std::vector<std::complex<double>> world_input(4 * 4 * 4);
+    std::iota(world_input.begin(), world_input.end(), 0); // fills with 0, 1, 2, 3, ...
+
+    // set the strides for the triple indexes
+    int world_plane = 4 * 4;
+    int world_stride = 4;
+    int local_plane = my_box.size[0] * my_box.size[1];
+    int local_stride = my_box.size[0];
+    // note the order of the loops corresponding to the default order (0, 1, 2)
+    // order (0, 1, 2) means that the data in dimension 0 is contiguous
+    for(int i=my_box.low[2]; i <= my_box.high[2]; i++)
+        for(int j=my_box.low[1]; j <= my_box.high[1]; j++)
+            for(int k=my_box.low[0]; k <= my_box.high[0]; k++)
+                input[(i - my_box.low[2]) * local_plane
+                      + (j - my_box.low[1]) * local_stride + k - my_box.low[0]]
+                    = world_input[i * world_plane + j * world_stride + k];
 
     // perform a forward DFT
     fft.forward(input.data(), output.data());
 
     // check the accuracy
-    if (me == 1){
-        // given the data, the solution on MPI rank 1 is very simple
-        std::vector<std::complex<double>> reference_output(fft.size_outbox());
-        reference_output[0] = {-512.0, 0.0};
+    // Compute an FFT using only a single rank
+    MPI_Comm single_rank_comm;
+    MPI_Comm_split(comm, me, me, &single_rank_comm);
+    std::vector<std::complex<double>> world_output(world_input.size());
+    heffte::box3d<> const world_box  = {{0, 0, 0}, {3, 3, 3}};
+    // create a heFFTe object associated with the single rank and perform forward transform
+    heffte::fft3d<heffte::backend::fftw>(world_box, world_box, single_rank_comm)
+        .forward(world_input.data(), world_output.data());
 
-        // compare the computed to the actual and throw error if there is a mismatch
-        for(int i=0; i<fft.size_outbox(); i++)
-            if (std::abs(reference_output[i] - output[i]) > 1.E-14)
-                throw std::runtime_error("discrepancy between the reference and actual output");
-    }
+    // check the difference between the local and global outputs
+    // using the same indexing scheme as when assigning the inputs
+    double err = 0.0;
+    for(int i=my_box.low[2]; i <= my_box.high[2]; i++)
+        for(int j=my_box.low[1]; j <= my_box.high[1]; j++)
+            for(int k=my_box.low[0]; k <= my_box.high[0]; k++)
+                err = std::max(err,
+                               std::abs(output[(i - my_box.low[2]) * local_plane
+                                                + (j - my_box.low[1]) * local_stride + k - my_box.low[0]]
+                                        - world_output[i * world_plane + j * world_stride + k]));
+
+    // print the error for each MPI rank
+    std::cout << std::scientific;
+    if (me == 0) std::cout << "rank 0 forward error: " << err << std::endl;
+    MPI_Barrier(comm);
+    if (me == 1) std::cout << "rank 1 forward error: " << err << std::endl;
 
     // reset the input to zero
     std::fill(input.begin(), input.end(), std::complex<double>(0.0, 0.0));
@@ -59,18 +90,25 @@ void compute_dft(MPI_Comm comm){
     fft.backward(output.data(), input.data());
 
     // rescale the result
+    // alternatively: fft.backward(output.data(), input.data(), heffte::scale::full);
     for(auto &i : input) i /= 64.0;
 
     // compare the computed entries to the original input data
-    double err = 0.0;
-    for(int i=0; i<fft.size_inbox(); i++)
-        err = std::max(err, std::abs(input[i] - std::complex<double>(double(i), 0.0)));
+    err = 0.0; // reset the error
+    for(int i=my_box.low[2]; i <= my_box.high[2]; i++)
+        for(int j=my_box.low[1]; j <= my_box.high[1]; j++)
+            for(int k=my_box.low[0]; k <= my_box.high[0]; k++)
+                err = std::max(err,
+                               std::abs(input[(i - my_box.low[2]) * local_plane
+                                              + (j - my_box.low[1]) * local_stride + k - my_box.low[0]]
+                                        - world_input[i * world_plane + j * world_stride + k]));
 
     // print the error for each MPI rank
-    std::cout << std::scientific;
-    if (me == 0) std::cout << "rank 0 computed error: " << err << std::endl;
+    if (me == 0) std::cout << "rank 0 backward error: " << err << std::endl;
     MPI_Barrier(comm);
-    if (me == 1) std::cout << "rank 1 computed error: " << err << std::endl;
+    if (me == 1) std::cout << "rank 1 backward error: " << err << std::endl;
+
+    MPI_Comm_free(&single_rank_comm);
 }
 
 int main(int argc, char** argv){
