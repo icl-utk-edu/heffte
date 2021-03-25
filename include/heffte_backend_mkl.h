@@ -163,7 +163,8 @@ struct plan_mkl<std::complex<double>>{
 class mkl_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
-    mkl_executor(box3d const box, int dimension) :
+    template<typename index>
+    mkl_executor(box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -337,7 +338,8 @@ public:
      *
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
-    mkl_executor_r2c(box3d const box, int dimension) :
+    template<typename index>
+    mkl_executor_r2c(box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -418,11 +420,13 @@ template<> struct one_dim_backend<backend::mkl>{
     using type_r2c = mkl_executor_r2c;
 
     //! \brief Constructs a complex-to-complex executor.
-    static std::unique_ptr<mkl_executor> make(box3d const box, int dimension){
+    template<typename index>
+    static std::unique_ptr<mkl_executor> make(box3d<index> const box, int dimension){
         return std::unique_ptr<mkl_executor>(new mkl_executor(box, dimension));
     }
     //! \brief Constructs a real-to-complex executor.
-    static std::unique_ptr<mkl_executor_r2c> make_r2c(box3d const box, int dimension){
+    template<typename index>
+    static std::unique_ptr<mkl_executor_r2c> make_r2c(box3d<index> const box, int dimension){
         return std::unique_ptr<mkl_executor_r2c>(new mkl_executor_r2c(box, dimension));
     }
 };

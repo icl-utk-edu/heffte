@@ -11,8 +11,8 @@ option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGAM for GPU backends"   OFF)
 
 option(Heffte_ENABLE_PYTHON   "Configure the Python scripts"     OFF)
-option(Heffte_ENABLE_FORTRAN  "Build the Fortran modules for the selected backends.")
-option(Heffte_ENABLE_SWIG     "Rebuild the SWIG bindings.")
+option(Heffte_ENABLE_FORTRAN  "Build the Fortran modules for the selected backends." OFF)
+option(Heffte_ENABLE_SWIG     "Rebuild the SWIG bindings." OFF)
 
 option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
@@ -81,6 +81,9 @@ if (Heffte_ENABLE_ROCM)
          include/heffte_backend_rocm.h
          src/heffte_backend_rocm.hip.cpp
          )
+
+    set(Heffte_ROCM_FLAGS "" CACHE STRING "added flags specific to the rocFFT backend")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Heffte_ROCM_FLAGS}")
 endif()
 
 # build CPU libheffte, the CUDA test comes first to use cuda_add_library() vs add_library()

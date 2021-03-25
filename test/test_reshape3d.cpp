@@ -194,7 +194,7 @@ void test_direct_reordered(MPI_Comm const comm){
     assert(mpi::comm_size(comm) == 4); // the rest is designed for 4 ranks
     current_test<scalar_type> test("-np " + std::to_string(mpi::comm_size(comm)) + "  direct_packer (unordered)", comm);
 
-    box3d<> ordered_world({0, 0, 0}, {8, 9, 10});
+    box3d<> ordered_world(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{8, 9, 10});
 
     auto ordered_inboxes  = split_world(ordered_world, {1, 2, 2});
     auto ordered_outboxes = split_world(ordered_world, {2, 2, 1});
@@ -203,7 +203,7 @@ void test_direct_reordered(MPI_Comm const comm){
     auto input     = get_subdata<scalar_type>(ordered_world, ordered_inboxes[me]);
     auto reference = get_subdata<scalar_type>(ordered_world, ordered_outboxes[me]);
 
-    box3d<> world({0, 0, 0}, {9, 10, 8}, {2, 0, 1});
+    box3d<> world(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{9, 10, 8}, std::array<int, 3>{2, 0, 1});
 
     std::vector<box3d<>> inboxes, outboxes;
     for(auto b : split_world(world, {2, 2, 1})) inboxes.push_back({b.low, b.high, world.order});
@@ -257,7 +257,7 @@ void test_reshape_transposed(MPI_Comm comm){
     assert(mpi::comm_size(comm) == 4); // the rest is designed for 4 ranks
     current_test<scalar_type> test("-np " + std::to_string(mpi::comm_size(comm)) + "  " + get_description<variant>() + " transposed", comm);
 
-    box3d<> world({0, 0, 0}, {1, 2, 3});
+    box3d<> world(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{1, 2, 3});
 
     std::vector<box3d<>> inboxes = split_world(world, {2, 1, 2});
     std::vector<box3d<>> ordered_outboxes = split_world(world, {1, 1, 4});
