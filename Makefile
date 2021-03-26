@@ -142,10 +142,12 @@ help:
 with_fftw: ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_FFTW|#define Heffte_ENABLE_FFTW|g' ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_ROCM|#undef Heffte_ENABLE_ROCM|g' ./include/heffte_config.h
+	sed -i -e 's|#cmakedefine Heffte_ENABLE_ONEAPI|#undef Heffte_ENABLE_ONEAPI|g' ./include/heffte_config.h
 
 no_fftw: ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_FFTW|#undef Heffte_ENABLE_FFTW|g' ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_ROCM|#undef Heffte_ENABLE_ROCM|g' ./include/heffte_config.h
+	sed -i -e 's|#cmakedefine Heffte_ENABLE_ONEAPI|#undef Heffte_ENABLE_ONEAPI|g' ./include/heffte_config.h
 
 # set heffte_config.h with and without cufft
 with_mkl: ./include/heffte_config.h $(FFTW)

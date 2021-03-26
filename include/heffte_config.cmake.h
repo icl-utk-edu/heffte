@@ -15,6 +15,7 @@
 #cmakedefine Heffte_ENABLE_MKL
 #cmakedefine Heffte_ENABLE_CUDA
 #cmakedefine Heffte_ENABLE_ROCM
+#cmakedefine Heffte_ENABLE_ONEAPI
 
 #cmakedefine Heffte_ENABLE_MAGMA
 
