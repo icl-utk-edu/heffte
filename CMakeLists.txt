@@ -88,6 +88,13 @@ if (Heffte_ENABLE_ROCM)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Heffte_ROCM_FLAGS}")
 endif()
 
+if (Heffte_ENABLE_ONEAPI)
+    list(APPEND Heffte_common_sources
+         include/heffte_backend_oneapi.h
+         src/heffte_backend_oneapi.cpp
+         )
+endif()
+
 # build CPU libheffte, the CUDA test comes first to use cuda_add_library() vs add_library()
 if (Heffte_ENABLE_CUDA)
     find_package(CUDA REQUIRED)

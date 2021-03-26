@@ -11,6 +11,7 @@
 #include "heffte_backend_fftw.h"
 #include "heffte_backend_cuda.h"
 #include "heffte_backend_rocm.h"
+#include "heffte_backend_oneapi.h"
 #include "heffte_backend_mkl.h"
 
 /*!
@@ -36,6 +37,9 @@ namespace gpu { using namespace cuda; }
 #else
 #ifdef Heffte_ENABLE_ROCM
 namespace gpu { using namespace rocm; }
+#endif
+#ifdef Heffte_ENABLE_ONEAPI
+namespace gpu { using namespace oneapi; }
 #endif
 #endif
 

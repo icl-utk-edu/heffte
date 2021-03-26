@@ -483,6 +483,33 @@ void test_1d_reorder(){
         }
     }
     #endif
+
+    #ifdef Heffte_ENABLE_ONEAPI
+    for(size_t i=0; i<3; i++){
+        heffte::mkl_executor fft(box, box.order[i]);
+
+        auto cresult = gpu::transfer::load(cinput);
+        fft.forward(cresult.data());
+        sassert(approx(cresult, creference[i]));
+
+        fft.backward(cresult.data());
+        auto cpu_cresult = gpu::transfer::unload(cresult);
+        for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
+        sassert(approx(cpu_cresult, cinput));
+
+        heffte::mkl_executor_r2c fft_r2c(box, box.order[i]);
+
+        gpu::vector<ctype> rresult(rreference[i].size());
+        fft_r2c.forward(gpu::transfer::load(rinput).data(), rresult.data());
+        sassert(approx(rresult, rreference[i]));
+
+        gpu::vector<rtype> brresult(rinput.size());
+        fft_r2c.backward(rresult.data(), brresult.data());
+        auto cpu_brresult = gpu::transfer::unload(brresult);
+        for(auto &r : cpu_brresult) r /= (2.0 + box.order[i]);
+        sassert(approx(cpu_brresult, rinput));
+    }
+    #endif
 }
 
 // Tests the transpose reshape when applied within a single node (without MPI).
@@ -553,6 +580,9 @@ void test_transpose(){
     #endif
     #ifdef Heffte_ENABLE_ROCM
     test_in_node_transpose<backend::rocfft>();
+    #endif
+    #ifdef Heffte_ENABLE_ONEAPI
+    test_in_node_transpose<backend::onemkl>();
     #endif
 }
 
@@ -786,7 +816,7 @@ int main(int, char**){
     test_1d<backend::mkl>();
     #endif
     #ifdef Heffte_ENABLE_GPU
-    test_1d<gpu_backend>(); // pick the default CUDA or ROCM backend
+    test_1d<gpu_backend>(); // pick the default GPU backend
     #endif
 
     test_1d_reorder();

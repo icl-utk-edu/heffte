@@ -530,5 +530,9 @@ heffte_instantiate_reshape3d(backend::cufft, long long)
 heffte_instantiate_reshape3d(backend::rocfft, int)
 heffte_instantiate_reshape3d(backend::rocfft, long long)
 #endif
+#ifdef Heffte_ENABLE_ONEAPI
+heffte_instantiate_reshape3d(backend::onemkl, int)
+heffte_instantiate_reshape3d(backend::onemkl, long long)
+#endif
 
 }
