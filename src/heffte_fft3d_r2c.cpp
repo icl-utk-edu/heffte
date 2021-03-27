@@ -147,5 +147,9 @@ heffte_instantiate_fft3d_r2c(backend::cufft, long long)
 heffte_instantiate_fft3d_r2c(backend::rocfft, int)
 heffte_instantiate_fft3d_r2c(backend::rocfft, long long)
 #endif
+#ifdef Heffte_ENABLE_ONEAPI
+heffte_instantiate_fft3d_r2c(backend::onemkl, int)
+heffte_instantiate_fft3d_r2c(backend::onemkl, long long)
+#endif
 
 }

@@ -399,7 +399,7 @@ void perform_tests_cpu(){
 }
 
 void perform_tests_gpu(){
-    #if defined(Heffte_ENABLE_CUDA) or defined(Heffte_ENABLE_ROCM)
+    #if defined(Heffte_ENABLE_CUDA) or defined(Heffte_ENABLE_ROCM) or defined(Heffte_ENABLE_ONEAPI)
     MPI_Comm const comm = MPI_COMM_WORLD;
 
     switch(mpi::comm_size(comm)) {
