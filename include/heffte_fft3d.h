@@ -163,7 +163,7 @@ enum class scale{
  * </table>
  */
 template<typename backend_tag, typename index = int>
-class fft3d{
+class fft3d : public backend::auxiliary_variables<backend_tag>{
 public:
     //! \brief Alias to the wrapper class for the one dimensional backend library.
     using backend_executor = typename one_dim_backend<backend_tag>::type;
