@@ -44,6 +44,9 @@ namespace heffte{
  * \brief SYCL/DPC++ specific methods, vector-like container, error checking, etc.
  */
 namespace oneapi {
+    //! \brief Creates a new SYCL queue.
+    sycl::queue* make_sycl_queue();
+
     /*!
      * \ingroup heffteoneapi
      * \brief Memory management operation specific to SYCL/DPC++, see gpu::device_vector.
@@ -175,6 +178,22 @@ namespace backend{
      * \brief Returns the human readable name of the FFTW backend.
      */
     template<> inline std::string name<onemkl>(){ return "onemkl"; }
+
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
+     */
+    template<>
+    struct auxiliary_variables<onemkl>{
+        //! \brief Empty constructor.
+        auxiliary_variables() : queue_container(heffte::oneapi::make_sycl_queue()){}
+        //! \brief Default destructor.
+        virtual ~auxiliary_variables() = default;
+        //! \brief Returns the nullptr.
+        sycl::queue* gpu_queue(){ return queue_container.get(); }
+        //! \brief The sycl::queue, either user provided or created by heFFTe.
+        std::unique_ptr<sycl::queue> queue_container;
+    };
 }
 
 /*!

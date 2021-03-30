@@ -18,13 +18,17 @@ namespace heffte {
 
 namespace oneapi {
 
+sycl::queue* make_sycl_queue(){
+    try{
+        return new sycl::queue(sycl::gpu_selector());
+    }catch(sycl::exception const&){
+        return new sycl::queue(sycl::cpu_selector());
+    }
+}
+
 struct heffte_internal_sycl_queue{
     heffte_internal_sycl_queue(){
-        try{
-            queue_ptr = std::unique_ptr<sycl::queue>(new sycl::queue(sycl::gpu_selector()));
-        }catch(sycl::exception const&){
-            queue_ptr = std::unique_ptr<sycl::queue>(new sycl::queue(sycl::cpu_selector()));
-        }
+        queue_ptr = std::unique_ptr<sycl::queue>(make_sycl_queue());
     }
     operator sycl::queue& () { return *queue_ptr.get(); }
     sycl::queue* operator ->() { return queue_ptr.get(); }
