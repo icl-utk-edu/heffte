@@ -12,7 +12,6 @@
 #ifdef Heffte_ENABLE_ONEAPI
 
 #include "heffte_backend_vector.h"
-#include "heffte_backend_mkl.h"
 
 #include <CL/sycl.hpp>
 #include <CL/sycl/usm.hpp>

@@ -9,10 +9,6 @@ if (heffte_hasdpcpp LESS 0)
     message(WARNING "Heffte_ENABLE_ONEAPI requires that the CMAKE_CXX_COMPILER is set to the Intel dpcpp compiler.")
 endif()
 
-if (NOT Heffte_ENABLE_MKL)
-    message(FATAL_ERROR "Heffte DPC++ backend requires that MKL is also enabled.")
-endif()
-
 get_filename_component(heffte_oneapi_root ${CMAKE_CXX_COMPILER} DIRECTORY)  # convert <path>/bin/dpcpp to <path>/bin
 get_filename_component(heffte_oneapi_root ${heffte_oneapi_root} DIRECTORY)  # convert <path>/bin to <path>
 

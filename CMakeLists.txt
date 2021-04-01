@@ -37,6 +37,11 @@ if (NOT Heffte_ENABLE_FFTW AND
     message(FATAL_ERROR "HeFFTe requires at least one enabled backend!")
 endif()
 
+# oneAPI requires regular MKL as a CPU backend
+if (Heffte_ENABLE_ONEAPI)
+    set(Heffte_ENABLE_MKL ON CACHE BOOL "oneAPI requires Intel MKL backend to be enabled" FORCE)
+endif()
+
 # guard against in-source builds (may be tricked by sym-links, but it is as good as it gets)
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
     message(FATAL_ERROR "In-source builds are not allowed, please perform an out-of-source or out-of-place build, see https://cmake.org/runningcmake/ for details.")
