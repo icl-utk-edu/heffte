@@ -5,6 +5,7 @@ project("Heffte" VERSION 2.0.0 LANGUAGES CXX)
 option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            OFF)
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
 option(Heffte_ENABLE_ROCM     "Enable the HIP and rocFFT backend"  OFF)
+option(Heffte_ENABLE_ONEAPI   "Enable the oneAPI/DPC++ and oneMKL backend"  OFF)
 option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
@@ -15,6 +16,9 @@ option(Heffte_ENABLE_FORTRAN  "Build the Fortran modules for the selected backen
 option(Heffte_ENABLE_SWIG     "Rebuild the SWIG bindings." OFF)
 
 option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
+
+# add the file with common CMake helper macros
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/heffte_macros.cmake")
 
 if (CMAKE_C_COMPILER)
     enable_language(C)
@@ -27,9 +31,15 @@ endif()
 if (NOT Heffte_ENABLE_FFTW AND
     NOT Heffte_ENABLE_CUDA AND
     NOT Heffte_ENABLE_ROCM AND
+    NOT Heffte_ENABLE_ONEAPI AND
     NOT Heffte_ENABLE_MKL
     )
     message(FATAL_ERROR "HeFFTe requires at least one enabled backend!")
+endif()
+
+# oneAPI requires regular MKL as a CPU backend
+if (Heffte_ENABLE_ONEAPI)
+    set(Heffte_ENABLE_MKL ON CACHE BOOL "oneAPI requires Intel MKL backend to be enabled" FORCE)
 endif()
 
 # guard against in-source builds (may be tricked by sym-links, but it is as good as it gets)
@@ -48,10 +58,7 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/heffte_config.cmake.h"
 # find common dependencies
 find_package(MPI REQUIRED) # always a dependency
 
-if (Heffte_ENABLE_FFTW OR Heffte_ENABLE_MKL OR Heffte_ENABLE_ROCM)
-    # allow cmake to use custom modules (e.g. FindFFTW)
-    list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-endif()
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # libheffte source files list (does not include the cuda kernels)
 set(Heffte_common_sources
@@ -86,6 +93,13 @@ if (Heffte_ENABLE_ROCM)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Heffte_ROCM_FLAGS}")
 endif()
 
+if (Heffte_ENABLE_ONEAPI)
+    list(APPEND Heffte_common_sources
+         include/heffte_backend_oneapi.h
+         src/heffte_backend_oneapi.cpp
+         )
+endif()
+
 # build CPU libheffte, the CUDA test comes first to use cuda_add_library() vs add_library()
 if (Heffte_ENABLE_CUDA)
     find_package(CUDA REQUIRED)
@@ -117,6 +131,11 @@ endif()
 if (Heffte_ENABLE_ROCM)
     find_package(HeffteRocFFT REQUIRED)
     target_link_libraries(Heffte roc::rocfft)
+endif()
+
+if (Heffte_ENABLE_ONEAPI)
+    find_package(HeffteOneApi REQUIRED)
+    target_link_libraries(Heffte Heffte::OneMKL)
 endif()
 
 if (Heffte_ENABLE_MAGMA)

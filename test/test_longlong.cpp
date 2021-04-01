@@ -90,7 +90,9 @@ void perform_tests(MPI_Comm const comm){
     #ifdef Heffte_ENABLE_ROCM
     test_fft3d_cases<backend::rocfft>(comm);
     #endif
-
+    #ifdef Heffte_ENABLE_ONEAPI
+    test_fft3d_cases<backend::onemkl>(comm);
+    #endif
 }
 
 int main(int argc, char *argv[]){

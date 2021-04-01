@@ -217,13 +217,13 @@ void test_1d_complex(){
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
 
     for(size_t i=0; i<reference.size(); i++){
-        typename heffte::one_dim_backend<backend_tag>::type fft(box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make(nullptr, box, i);
 
         auto forward_result = test_traits<backend_tag>::load(input);
-        fft.forward(forward_result.data());
+        fft->forward(forward_result.data());
         sassert(approx(forward_result, reference[i]));
 
-        fft.backward(forward_result.data());
+        fft->backward(forward_result.data());
 
         auto backward_result = test_traits<backend_tag>::unload(forward_result);
         for(auto &r : backward_result) r /= (2.0 + i);
@@ -242,15 +242,15 @@ void test_1d_real(){
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
 
     for(size_t i=0; i<reference.size(); i++){
-        typename heffte::one_dim_backend<backend_tag>::type fft(box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make(nullptr, box, i);
 
         auto load_input = test_traits<backend_tag>::load(input);
         typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(input.size());
-        fft.forward(load_input.data(), result.data());
+        fft->forward(load_input.data(), result.data());
         sassert(approx(result, reference[i]));
 
         typename test_traits<backend_tag>::template container<scalar_type> back_result(result.size());
-        fft.backward(result.data(), back_result.data());
+        fft->backward(result.data(), back_result.data());
         auto unload_result = test_traits<backend_tag>::unload(back_result);
         for(auto &r : unload_result) r /= (2.0 + i);
         sassert(approx(unload_result, input));
@@ -273,15 +273,15 @@ void test_1d_r2c(){
     #endif
 
     for(size_t i=0; i<reference.size(); i++){
-        typename heffte::one_dim_backend<backend_tag>::type_r2c fft(box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make_r2c(nullptr, box, i);
 
         auto load_input = test_traits<backend_tag>::load(input);
-        typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(fft.complex_size());
-        fft.forward(load_input.data(), result.data());
+        typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(fft->complex_size());
+        fft->forward(load_input.data(), result.data());
         sassert(approx(result, reference[i]));
 
         typename test_traits<backend_tag>::template container<scalar_type> back_result(input.size());
-        fft.backward(result.data(), back_result.data());
+        fft->backward(result.data(), back_result.data());
         auto unload_result = test_traits<backend_tag>::unload(back_result);
         for(auto &r : unload_result) r /= (2.0 + i);
         sassert(approx(unload_result, input));
@@ -483,6 +483,33 @@ void test_1d_reorder(){
         }
     }
     #endif
+
+    #ifdef Heffte_ENABLE_ONEAPI
+    for(size_t i=0; i<3; i++){
+        heffte::mkl_executor fft(box, box.order[i]);
+
+        auto cresult = gpu::transfer::load(cinput);
+        fft.forward(cresult.data());
+        sassert(approx(cresult, creference[i]));
+
+        fft.backward(cresult.data());
+        auto cpu_cresult = gpu::transfer::unload(cresult);
+        for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
+        sassert(approx(cpu_cresult, cinput));
+
+        heffte::mkl_executor_r2c fft_r2c(box, box.order[i]);
+
+        gpu::vector<ctype> rresult(rreference[i].size());
+        fft_r2c.forward(gpu::transfer::load(rinput).data(), rresult.data());
+        sassert(approx(rresult, rreference[i]));
+
+        gpu::vector<rtype> brresult(rinput.size());
+        fft_r2c.backward(rresult.data(), brresult.data());
+        auto cpu_brresult = gpu::transfer::unload(brresult);
+        for(auto &r : cpu_brresult) r /= (2.0 + box.order[i]);
+        sassert(approx(cpu_brresult, rinput));
+    }
+    #endif
 }
 
 // Tests the transpose reshape when applied within a single node (without MPI).
@@ -553,6 +580,9 @@ void test_transpose(){
     #endif
     #ifdef Heffte_ENABLE_ROCM
     test_in_node_transpose<backend::rocfft>();
+    #endif
+    #ifdef Heffte_ENABLE_ONEAPI
+    test_in_node_transpose<backend::onemkl>();
     #endif
 }
 
@@ -786,7 +816,7 @@ int main(int, char**){
     test_1d<backend::mkl>();
     #endif
     #ifdef Heffte_ENABLE_GPU
-    test_1d<gpu_backend>(); // pick the default CUDA or ROCM backend
+    test_1d<gpu_backend>(); // pick the default GPU backend
     #endif
 
     test_1d_reorder();
