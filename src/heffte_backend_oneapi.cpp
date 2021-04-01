@@ -26,17 +26,6 @@ sycl::queue* make_sycl_queue(){
     }
 }
 
-struct heffte_internal_sycl_queue{
-    heffte_internal_sycl_queue(){
-        queue_ptr = std::unique_ptr<sycl::queue>(make_sycl_queue());
-    }
-    operator sycl::queue& () { return *queue_ptr.get(); }
-    sycl::queue* operator ->() { return queue_ptr.get(); }
-    void wait(){ queue_ptr->wait(); }
-
-    std::unique_ptr<sycl::queue> queue_ptr;
-};
-
 heffte_internal_sycl_queue def_queue;
 
 void* memory_manager::allocate(size_t num_bytes){

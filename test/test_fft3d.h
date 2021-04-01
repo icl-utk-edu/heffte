@@ -92,16 +92,16 @@ template<typename backend_tag, typename precision_type, typename index>
 std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<precision_type> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
     typename test_traits<backend_tag>::template container<std::complex<precision_type>> loaded_result(input.size());
-    typename one_dim_backend<backend_tag>::type(world, 0).forward(loaded_input.data(), loaded_result.data());
+    one_dim_backend<backend_tag>::make(nullptr, world, 0)->forward(loaded_input.data(), loaded_result.data());
     for(int i=1; i<3; i++)
-        typename one_dim_backend<backend_tag>::type(world, i).forward(loaded_result.data());
+        one_dim_backend<backend_tag>::make(nullptr, world, i)->forward(loaded_result.data());
     return test_traits<backend_tag>::unload(loaded_result);
 }
 template<typename backend_tag, typename precision_type, typename index>
 std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<std::complex<precision_type>> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
     for(int i=0; i<3; i++)
-        typename one_dim_backend<backend_tag>::type(world, i).forward(loaded_input.data());
+        one_dim_backend<backend_tag>::make(nullptr, world, i)->forward(loaded_input.data());
     return test_traits<backend_tag>::unload(loaded_input);
 }
 

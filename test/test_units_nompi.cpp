@@ -217,13 +217,13 @@ void test_1d_complex(){
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
 
     for(size_t i=0; i<reference.size(); i++){
-        typename heffte::one_dim_backend<backend_tag>::type fft(box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make(nullptr, box, i);
 
         auto forward_result = test_traits<backend_tag>::load(input);
-        fft.forward(forward_result.data());
+        fft->forward(forward_result.data());
         sassert(approx(forward_result, reference[i]));
 
-        fft.backward(forward_result.data());
+        fft->backward(forward_result.data());
 
         auto backward_result = test_traits<backend_tag>::unload(forward_result);
         for(auto &r : backward_result) r /= (2.0 + i);
@@ -242,15 +242,15 @@ void test_1d_real(){
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
 
     for(size_t i=0; i<reference.size(); i++){
-        typename heffte::one_dim_backend<backend_tag>::type fft(box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make(nullptr, box, i);
 
         auto load_input = test_traits<backend_tag>::load(input);
         typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(input.size());
-        fft.forward(load_input.data(), result.data());
+        fft->forward(load_input.data(), result.data());
         sassert(approx(result, reference[i]));
 
         typename test_traits<backend_tag>::template container<scalar_type> back_result(result.size());
-        fft.backward(result.data(), back_result.data());
+        fft->backward(result.data(), back_result.data());
         auto unload_result = test_traits<backend_tag>::unload(back_result);
         for(auto &r : unload_result) r /= (2.0 + i);
         sassert(approx(unload_result, input));
@@ -273,15 +273,15 @@ void test_1d_r2c(){
     #endif
 
     for(size_t i=0; i<reference.size(); i++){
-        typename heffte::one_dim_backend<backend_tag>::type_r2c fft(box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make_r2c(nullptr, box, i);
 
         auto load_input = test_traits<backend_tag>::load(input);
-        typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(fft.complex_size());
-        fft.forward(load_input.data(), result.data());
+        typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(fft->complex_size());
+        fft->forward(load_input.data(), result.data());
         sassert(approx(result, reference[i]));
 
         typename test_traits<backend_tag>::template container<scalar_type> back_result(input.size());
-        fft.backward(result.data(), back_result.data());
+        fft->backward(result.data(), back_result.data());
         auto unload_result = test_traits<backend_tag>::unload(back_result);
         for(auto &r : unload_result) r /= (2.0 + i);
         sassert(approx(unload_result, input));
