@@ -20,6 +20,7 @@
 #include "oneapi/mkl/dfti.hpp"
 
 #ifdef Heffte_ENABLE_MAGMA
+// will enable once MAGMA has a DPC++/SYCL backend
 //#include "heffte_magma_helpers.h"
 #endif
 
@@ -43,8 +44,10 @@ namespace heffte{
 /*!
  * \ingroup heffteoneapi
  * \brief SYCL/DPC++ specific methods, vector-like container, error checking, etc.
+ *
+ * The name is chosen distinct from the oneMKL name that use "oneapi".
  */
-namespace oneapi {
+namespace oapi {
     //! \brief Creates a new SYCL queue.
     sycl::queue* make_sycl_queue();
 
@@ -94,13 +97,13 @@ namespace gpu {
      * \brief Device vector for the oneAPI backends.
      */
     template<typename scalar_type>
-    using vector = device_vector<scalar_type, oneapi::memory_manager>;
+    using vector = device_vector<scalar_type, oapi::memory_manager>;
 
     /*!
      * \ingroup heffteoneapi
      * \brief Transfer helpers for the oneAPI backends.
      */
-    using transfer = device_transfer<oneapi::memory_manager>;
+    using transfer = device_transfer<oapi::memory_manager>;
 
 };
 
@@ -108,7 +111,7 @@ namespace gpu {
  * \ingroup heffteoneapi
  * \brief Cuda specific methods, vector-like container, error checking, etc.
  */
-namespace oneapi {
+namespace oapi {
 
     /*!
      * \ingroup heffteoneapi
@@ -148,19 +151,19 @@ template<> struct data_manipulator<tag::gpu>{
     //! \brief Copy-convert complex-to-real.
     template<typename scalar_type>
     static void copy_n(std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
-        oneapi::convert(static_cast<long long>(num_entries), source, destination);
+        oapi::convert(static_cast<long long>(num_entries), source, destination);
     }
     //! \brief Copy-convert real-to-complex.
     template<typename scalar_type>
     static void copy_n(scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
-        oneapi::convert(static_cast<long long>(num_entries), source, destination);
+        oapi::convert(static_cast<long long>(num_entries), source, destination);
     }
     /*!
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
     static void scale(index num_entries, scalar_type data[], double scale_factor){
-        oneapi::scale_data(num_entries, data, scale_factor);
+        oapi::scale_data(num_entries, data, scale_factor);
     }
     /*!
      * \brief Complex by real scaling.
@@ -209,7 +212,7 @@ namespace backend{
     template<>
     struct auxiliary_variables<onemkl>{
         //! \brief Empty constructor.
-        auxiliary_variables() : queue_container(heffte::oneapi::make_sycl_queue()){}
+        auxiliary_variables() : queue_container(heffte::oapi::make_sycl_queue()){}
         //! \brief Default destructor.
         virtual ~auxiliary_variables() = default;
         //! \brief Returns the nullptr.
@@ -247,28 +250,28 @@ public:
     void forward(std::complex<float> data[]) const{
         if (not init_cplan) make_plan(cplan);
         for(int i=0; i<blocks; i++)
-            ::oneapi::mkl::dft::compute_forward(cplan, data + i * block_stride);
+            oneapi::mkl::dft::compute_forward(cplan, data + i * block_stride);
         q->wait();
     }
     //! \brief Backward fft, float-complex case.
     void backward(std::complex<float> data[]) const{
         if (not init_cplan) make_plan(cplan);
         for(int i=0; i<blocks; i++)
-            ::oneapi::mkl::dft::compute_backward(cplan, data + i * block_stride);
+            oneapi::mkl::dft::compute_backward(cplan, data + i * block_stride);
         q->wait();
     }
     //! \brief Forward fft, double-complex case.
     void forward(std::complex<double> data[]) const{
         if (not init_zplan) make_plan(zplan);
         for(int i=0; i<blocks; i++)
-            ::oneapi::mkl::dft::compute_forward(zplan, data + i * block_stride);
+            oneapi::mkl::dft::compute_forward(zplan, data + i * block_stride);
         q->wait();
     }
     //! \brief Backward fft, double-complex case.
     void backward(std::complex<double> data[]) const{
         if (not init_zplan) make_plan(zplan);
         for(int i=0; i<blocks; i++)
-            ::oneapi::mkl::dft::compute_backward(zplan, data + i * block_stride);
+            oneapi::mkl::dft::compute_backward(zplan, data + i * block_stride);
         q->wait();
     }
 
@@ -300,17 +303,17 @@ private:
     //! \brief Helper template to create the plan.
     template<typename onemkl_plan_type>
     void make_plan(onemkl_plan_type &plan) const{
-        plan.set_value(::oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
-        plan.set_value(::oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
+        plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
+        plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
         MKL_LONG slstride[] = {0, static_cast<MKL_LONG>(stride)};
-        plan.set_value(::oneapi::mkl::dft::config_param::INPUT_STRIDES, slstride);
-        plan.set_value(::oneapi::mkl::dft::config_param::OUTPUT_STRIDES, slstride);
-        plan.set_value(::oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
-        plan.set_value(::oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
+        plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, slstride);
+        plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, slstride);
+        plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
+        plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
         plan.commit(*q);
         q->wait();
 
-        if (std::is_same<::oneapi::mkl::dft::descriptor<::oneapi::mkl::dft::precision::SINGLE, ::oneapi::mkl::dft::domain::COMPLEX>, onemkl_plan_type>::value)
+        if (std::is_same<oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::SINGLE, oneapi::mkl::dft::domain::COMPLEX>, onemkl_plan_type>::value)
             init_cplan = true;
         else
             init_zplan = true;
@@ -320,8 +323,8 @@ private:
     int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
 
     mutable bool init_cplan, init_zplan;
-    mutable ::oneapi::mkl::dft::descriptor<::oneapi::mkl::dft::precision::SINGLE, ::oneapi::mkl::dft::domain::COMPLEX> cplan;
-    mutable ::oneapi::mkl::dft::descriptor<::oneapi::mkl::dft::precision::DOUBLE, ::oneapi::mkl::dft::domain::COMPLEX> zplan;
+    mutable oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::SINGLE, oneapi::mkl::dft::domain::COMPLEX> cplan;
+    mutable oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE, oneapi::mkl::dft::domain::COMPLEX> zplan;
 };
 
 /*!
@@ -360,28 +363,28 @@ public:
     void forward(float const indata[], std::complex<float> outdata[]) const{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
-            ::oneapi::mkl::dft::compute_forward(splan, const_cast<float*>(indata + i * rblock_stride), reinterpret_cast<float*>(outdata + i * cblock_stride));
+            oneapi::mkl::dft::compute_forward(splan, const_cast<float*>(indata + i * rblock_stride), reinterpret_cast<float*>(outdata + i * cblock_stride));
         q->wait();
     }
     //! \brief Backward transform, single precision.
     void backward(std::complex<float> const indata[], float outdata[]) const{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
-            ::oneapi::mkl::dft::compute_backward(splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
+            oneapi::mkl::dft::compute_backward(splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
         q->wait();
     }
     //! \brief Forward transform, double precision.
     void forward(double const indata[], std::complex<double> outdata[]) const{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
-            ::oneapi::mkl::dft::compute_forward(dplan, const_cast<double*>(indata + i * rblock_stride), reinterpret_cast<double*>(outdata + i * cblock_stride));
+            oneapi::mkl::dft::compute_forward(dplan, const_cast<double*>(indata + i * rblock_stride), reinterpret_cast<double*>(outdata + i * cblock_stride));
         q->wait();
     }
     //! \brief Backward transform, double precision.
     void backward(std::complex<double> const indata[], double outdata[]) const{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
-            ::oneapi::mkl::dft::compute_backward(dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
+            oneapi::mkl::dft::compute_backward(dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
         q->wait();
     }
 
@@ -394,17 +397,17 @@ private:
     //! \brief Helper template to initialize the plan.
     template<typename onemkl_plan_type>
     void make_plan(onemkl_plan_type &plan) const{
-        plan.set_value(::oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
-        plan.set_value(::oneapi::mkl::dft::config_param::PLACEMENT, DFTI_NOT_INPLACE);
-        plan.set_value(::oneapi::mkl::dft::config_param::CONJUGATE_EVEN_STORAGE, DFTI_COMPLEX_COMPLEX);
+        plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
+        plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_NOT_INPLACE);
+        plan.set_value(oneapi::mkl::dft::config_param::CONJUGATE_EVEN_STORAGE, DFTI_COMPLEX_COMPLEX);
         MKL_LONG slstride[] = {0, static_cast<MKL_LONG>(stride)};
-        plan.set_value(::oneapi::mkl::dft::config_param::INPUT_STRIDES, slstride);
-        plan.set_value(::oneapi::mkl::dft::config_param::OUTPUT_STRIDES, slstride);
-        plan.set_value(::oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) rdist);
-        plan.set_value(::oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) cdist);
+        plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, slstride);
+        plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, slstride);
+        plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) rdist);
+        plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) cdist);
         plan.commit(*q);
 
-        if (std::is_same<::oneapi::mkl::dft::descriptor<::oneapi::mkl::dft::precision::SINGLE, ::oneapi::mkl::dft::domain::REAL>, onemkl_plan_type>::value)
+        if (std::is_same<oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::SINGLE, oneapi::mkl::dft::domain::REAL>, onemkl_plan_type>::value)
             init_splan = true;
         else
             init_dplan = true;
@@ -416,8 +419,8 @@ private:
     int size, howmanyffts, stride, blocks;
     int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
     mutable bool init_splan, init_dplan;
-    mutable ::oneapi::mkl::dft::descriptor<::oneapi::mkl::dft::precision::SINGLE, ::oneapi::mkl::dft::domain::REAL> splan;
-    mutable ::oneapi::mkl::dft::descriptor<::oneapi::mkl::dft::precision::DOUBLE, ::oneapi::mkl::dft::domain::REAL> dplan;
+    mutable oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::SINGLE, oneapi::mkl::dft::domain::REAL> splan;
+    mutable oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE, oneapi::mkl::dft::domain::REAL> dplan;
 };
 
 /*!
@@ -439,18 +442,18 @@ template<> struct one_dim_backend<backend::onemkl>{
     static std::unique_ptr<onemkl_executor> make(sycl::queue *q, box3d<index> const box, int dimension){
         return (q != nullptr) ?
             std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box, dimension)) :
-            std::unique_ptr<onemkl_executor>(new onemkl_executor(oneapi::def_queue.queue_ptr.get(), box, dimension));
+            std::unique_ptr<onemkl_executor>(new onemkl_executor(oapi::def_queue.queue_ptr.get(), box, dimension));
     }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<onemkl_executor_r2c> make_r2c(sycl::queue *q, box3d<index> const box, int dimension){
         return (q != nullptr) ?
             std::unique_ptr<onemkl_executor_r2c>(new onemkl_executor_r2c(q, box, dimension)) :
-            std::unique_ptr<onemkl_executor_r2c>(new onemkl_executor_r2c(oneapi::def_queue.queue_ptr.get(), box, dimension));
+            std::unique_ptr<onemkl_executor_r2c>(new onemkl_executor_r2c(oapi::def_queue.queue_ptr.get(), box, dimension));
     }
 };
 
-namespace oneapi { // packer logic
+namespace oapi { // packer logic
 
 /*!
  * \ingroup heffteoneapi
@@ -489,12 +492,12 @@ template<> struct direct_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
     void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        oneapi::direct_pack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
+        oapi::direct_pack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
     }
     //! \brief Execute the planned unpack operation.
     template<typename scalar_type, typename index>
     void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        oneapi::direct_unpack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
+        oapi::direct_unpack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
     }
 };
 
@@ -511,7 +514,7 @@ template<> struct transpose_packer<tag::gpu>{
     //! \brief Execute the planned transpose-unpack operation.
     template<typename scalar_type, typename index>
     void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        oneapi::transpose_unpack<scalar_type>(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
+        oapi::transpose_unpack<scalar_type>(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
                                             plan.buff_line_stride, plan.buff_plane_stride, plan.map[0], plan.map[1], plan.map[2], buffer, data);
     }
 };
@@ -526,7 +529,7 @@ template<> struct data_scaling<tag::gpu>{
      */
     template<typename scalar_type, typename index>
     static void apply(index num_entries, scalar_type *data, double scale_factor){
-        oneapi::scale_data(static_cast<long long>(num_entries), data, scale_factor);
+        oapi::scale_data(static_cast<long long>(num_entries), data, scale_factor);
     }
     /*!
      * \brief Complex by real scaling.

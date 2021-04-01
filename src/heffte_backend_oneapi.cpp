@@ -16,7 +16,7 @@
 
 namespace heffte {
 
-namespace oneapi {
+namespace oapi {
 
 sycl::queue* make_sycl_queue(){
     try{
@@ -63,152 +63,14 @@ void device_set(int){
 }
 
 void synchronize_default_stream(){
-    // OneAPI sync has to be done differently
+    // OneAPI sync has to be done differently on per-queue basis
+    // this syncs the internal heFFTe queue
+    oapi::def_queue.wait();
 }
 
 }
-//
-// namespace rocm {
-//
-// void check_error(hipError_t status, std::string const &function_name){
-//     if (status != hipSuccess)
-//         throw std::runtime_error(function_name + " failed with message: " + std::to_string(status));
-// }
-//
-// /*
-//  * Launch with one thread per entry.
-//  *
-//  * If to_complex is true, convert one real number from source to two real numbers in destination.
-//  * If to_complex is false, convert two real numbers from source to one real number in destination.
-//  */
-// template<typename scalar_type, int num_threads, bool to_complex, typename index>
-// __global__ __launch_bounds__(num_threads) void real_complex_convert(index num_entries, scalar_type const source[], scalar_type destination[]){
-//     index i = blockIdx.x * num_threads + threadIdx.x;
-//     while(i < num_entries){
-//         if (to_complex){
-//             destination[2*i] = source[i];
-//             destination[2*i + 1] = 0.0;
-//         }else{
-//             destination[i] = source[2*i];
-//         }
-//         i += num_threads * gridDim.x;
-//     }
-// }
-//
-// /*
-//  * Launch this with one block per line.
-//  */
-// template<typename scalar_type, int num_threads, int tuple_size, bool pack, typename index>
-// __global__ __launch_bounds__(num_threads) void direct_packer(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
-//                                           scalar_type const source[], scalar_type destination[]){
-//     index block_index = blockIdx.x;
-//     while(block_index < nmid * nslow){
-//
-//         index mid = block_index % nmid;
-//         index slow = block_index / nmid;
-//
-//         scalar_type const *block_source = (pack) ?
-//                             &source[tuple_size * (mid * line_stride + slow * plane_stide)] :
-//                             &source[block_index * nfast * tuple_size];
-//         scalar_type *block_destination = (pack) ?
-//                             &destination[block_index * nfast * tuple_size] :
-//                             &destination[tuple_size * (mid * line_stride + slow * plane_stide)];
-//
-//         index i = threadIdx.x;
-//         while(i < nfast * tuple_size){
-//             block_destination[i] = block_source[i];
-//             i += num_threads;
-//         }
-//
-//         block_index += gridDim.x;
-//     }
-// }
-//
-// /*
-//  * Launch this with one block per line of the destination.
-//  */
-// template<typename scalar_type, int num_threads, int tuple_size, int map0, int map1, int map2, typename index>
-// __global__ __launch_bounds__(num_threads) void transpose_unpacker(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
-//                                    index buff_line_stride, index buff_plane_stride,
-//                                    scalar_type const source[], scalar_type destination[]){
-//
-//     index block_index = blockIdx.x;
-//     while(block_index < nmid * nslow){
-//
-//         index j = block_index % nmid;
-//         index k = block_index / nmid;
-//
-//         index i = threadIdx.x;
-//         while(i < nfast){
-//             if (map0 == 0 and map1 == 1 and map2 == 2){
-//                 destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (k * buff_plane_stride + j * buff_line_stride + i)];
-//                 if (tuple_size > 1)
-//                     destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (k * buff_plane_stride + j * buff_line_stride + i) + 1];
-//             }else if (map0 == 0 and map1 == 2 and map2 == 1){
-//                 destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (j * buff_plane_stride + k * buff_line_stride + i)];
-//                 if (tuple_size > 1)
-//                     destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (j * buff_plane_stride + k * buff_line_stride + i) + 1];
-//             }else if (map0 == 1 and map1 == 0 and map2 == 2){
-//                 destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (k * buff_plane_stride + i * buff_line_stride + j)];
-//                 if (tuple_size > 1)
-//                     destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (k * buff_plane_stride + i * buff_line_stride + j) + 1];
-//             }else if (map0 == 1 and map1 == 2 and map2 == 0){
-//                 destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (i * buff_plane_stride + k * buff_line_stride + j)];
-//                 if (tuple_size > 1)
-//                     destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (i * buff_plane_stride + k * buff_line_stride + j) + 1];
-//             }else if (map0 == 2 and map1 == 1 and map2 == 0){
-//                 destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (i * buff_plane_stride + j * buff_line_stride + k)];
-//                 if (tuple_size > 1)
-//                     destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (i * buff_plane_stride + j * buff_line_stride + k) + 1];
-//             }else if (map0 == 2 and map1 == 0 and map2 == 1){
-//                 destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (j * buff_plane_stride + i * buff_line_stride + k)];
-//                 if (tuple_size > 1)
-//                     destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (j * buff_plane_stride + i * buff_line_stride + k) + 1];
-//             }
-//             i += num_threads;
-//         }
-//
-//         block_index += gridDim.x;
-//     }
-// }
-//
-// /*
-//  * Call with one thread per entry.
-//  */
-// template<typename scalar_type, int num_threads, typename index>
-// __global__ __launch_bounds__(num_threads) void simple_scal(index num_entries, scalar_type data[], scalar_type scaling_factor){
-//     index i = blockIdx.x * num_threads + threadIdx.x;
-//     while(i < num_entries){
-//         data[i] *= scaling_factor;
-//         i += num_threads * gridDim.x;
-//     }
-// }
-//
-// /*
-//  * Create a 1-D CUDA thread grid using the total_threads and number of threads per block.
-//  * Basically, computes the number of blocks but no more than 65536.
-//  */
-// struct thread_grid_1d{
-//     // Compute the threads and blocks.
-//     thread_grid_1d(int total_threads, int num_per_block) :
-//         threads(num_per_block),
-//         blocks(std::min(total_threads / threads + ((total_threads % threads == 0) ? 0 : 1), 65536))
-//     {}
-//     // number of threads
-//     int const threads;
-//     // number of blocks
-//     int const blocks;
-// };
-//
-// // max number of cuda threads (Volta supports more, but I don't think it matters)
-// constexpr int max_threads  = 1024;
-// // allows expressive calls to_complex or not to_complex
-// constexpr bool to_complex  = true;
-// // allows expressive calls to_pack or not to_pack
-// constexpr bool to_pack     = true;
-//
 
-namespace oneapi{
+namespace oapi{
 
 template<typename precision_type, typename index>
 void convert(index num_entries, precision_type const source[], std::complex<precision_type> destination[]){
@@ -396,12 +258,12 @@ template void scale_data<double, int>(int num_entries, double *data, double scal
 template void scale_data<float, long long>(long long num_entries, float *data, double scale_factor);
 template void scale_data<double, long long>(long long num_entries, double *data, double scale_factor);
 
-} // namespace oneapi
+} // namespace oapi
 
 template<typename scalar_type>
 void data_manipulator<tag::gpu>::copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]){
-    oneapi::def_queue->memcpy(destination, source, num_entries * sizeof(scalar_type));
-    oneapi::def_queue.wait();
+    oapi::def_queue->memcpy(destination, source, num_entries * sizeof(scalar_type));
+    oapi::def_queue.wait();
 }
 
 template void data_manipulator<tag::gpu>::copy_n<float>(float const[], size_t, float[]);
