@@ -99,7 +99,7 @@ Note that fftw3 uses two different libraries for single and double precision, wh
     -D Heffte_ENABLE_MKL=ON
     -D MKL_ROOT=<path-to-mkl-installation>
 ```
-The `MKL_ROOT` default to the environment variable `MKLROOT` (chosen by Intel). MKL also requires the `iomp5` library, which is the Intel implementation of the OpenMP standard, heFFTe will find it by default if it is visible in the default CMake search path or the `LD_LIBRARY_PATH`.
+The `MKL_ROOT` default to the environment variable `MKLROOT` (chosen by Intel). The additional variable `Heffte_MKL_THREAD_LIBS` allows to choose the MKL threaded backend, tested with `mkl_gnu_thread` and `mkl_intel_thread`, the default is to use GNU-threads on GCC compiler and Intel otherwise. Note that `mkl_intel_thread` also requires `libiomp5.so` and heFFTe will search for it in the system paths and `LD_LIBRARY_PATH`, unless the variable `Heffte_MKL_IOMP5` is defined and pointing to `libiomp5.so`. GNU-threads do not use `libiomp5.so` but the GNU `libgomp.so` which CMake finds automatically.
 
 * **oneMKL** the [Intel oneMKL Library](https://spec.oneapi.com/versions/latest/elements/oneMKL/source/index.html) provides optimized FFT implementation targeting Intel GPUs and can be enabled within heFFTe with:
 ```
