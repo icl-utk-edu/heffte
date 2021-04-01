@@ -131,7 +131,7 @@ help:
 ./include/heffte_config.h:
 	cp ./include/heffte_config.cmake.h ./include/heffte_config.h
 	sed -i -e 's|@Heffte_VERSION_MAJOR@|2|g' ./include/heffte_config.h
-	sed -i -e 's|@Heffte_VERSION_MINOR@|0|g' ./include/heffte_config.h
+	sed -i -e 's|@Heffte_VERSION_MINOR@|1|g' ./include/heffte_config.h
 	sed -i -e 's|@Heffte_VERSION_PATCH@|0|g' ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_ENABLE_TRACING|#undef Heffte_ENABLE_TRACING|g' ./include/heffte_config.h
 	sed -i -e 's|#cmakedefine Heffte_DISABLE_GPU_AWARE_MPI|#undef Heffte_DISABLE_GPU_AWARE_MPI|g' ./include/heffte_config.h
