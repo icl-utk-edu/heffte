@@ -59,17 +59,6 @@ template<> struct is_zcomplex<double _Complex> : std::true_type{};
 
 /*!
  * \ingroup hefftemkl
- * \brief Base plan for mkl, using only the specialization for float and double complex.
- *
- * MKL library uses a unique plan type for forward and backward fft transforms.
- * The specializations to this struct will wrap around such plan and provide RAII style
- * of memory management and simple constructors that take inputs suitable to HeFFTe.
- */
-
-template<typename> struct plan_mkl{};
-
-/*!
- * \ingroup hefftemkl
  * \brief Checks the status of a call to the MKL backend.
  */
 inline void check_error(MKL_LONG status, std::string const &function_name){
@@ -80,10 +69,14 @@ inline void check_error(MKL_LONG status, std::string const &function_name){
 
 /*!
  * \ingroup hefftemkl
- * \brief Plan for single precision complex transform.
+ * \brief Base plan for backend::mkl, works only for float and double complex.
+ *
+ * MKL library uses a unique plan type for forward and backward fft transforms.
+ * This class will wrap around such plan and provide RAII style
+ * of memory management and simple constructors that take inputs suitable to HeFFTe.
  */
-template<>
-struct plan_mkl<std::complex<float>>{
+template<typename scalar_type>
+struct plan_mkl{
     /*!
      * \brief Constructor, takes inputs identical to MKL FFT descriptors.
      *
@@ -93,14 +86,20 @@ struct plan_mkl<std::complex<float>>{
      * \param dist is the distance between the first entries of consecutive sequences
      */
     plan_mkl(int size, int howmanyffts, int stride, int dist) : plan(nullptr){
-        check_error( DftiCreateDescriptor(&plan, DFTI_SINGLE, DFTI_COMPLEX, 1, (MKL_LONG) size), "mkl plan create" );
-        check_error( DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts), "mkl set howmany");
+        static_assert(std::is_same<scalar_type, std::complex<float>>::value
+                      or std::is_same<scalar_type, std::complex<double>>::value,
+                      "plan_mkl requires std::complex scalar_type with float or double, see plan_mkl_r2c for real types");
+
+        check_error( DftiCreateDescriptor(&plan, (std::is_same<scalar_type, std::complex<float>>::value) ?
+                                                  DFTI_SINGLE : DFTI_DOUBLE,
+                                          DFTI_COMPLEX, 1, static_cast<MKL_LONG>(size)), "mkl plan create" );
+        check_error( DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, static_cast<MKL_LONG>(howmanyffts)), "mkl set howmany");
         check_error( DftiSetValue(plan, DFTI_PLACEMENT, DFTI_INPLACE), "mkl set in place");
         MKL_LONG lstride[] = {0, static_cast<MKL_LONG>(stride)};
         check_error( DftiSetValue(plan, DFTI_INPUT_STRIDES, lstride), "mkl set istride");
         check_error( DftiSetValue(plan, DFTI_OUTPUT_STRIDES, lstride), "mkl set ostride");
-        check_error( DftiSetValue(plan, DFTI_INPUT_DISTANCE, (MKL_LONG) dist), "mkl set idist");
-        check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, (MKL_LONG) dist), "mkl set odist");
+        check_error( DftiSetValue(plan, DFTI_INPUT_DISTANCE, static_cast<MKL_LONG>(dist)), "mkl set idist");
+        check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, static_cast<MKL_LONG>(dist)), "mkl set odist");
         check_error( DftiCommitDescriptor(plan), "mkl commit");
     }
 
@@ -111,42 +110,6 @@ struct plan_mkl<std::complex<float>>{
     //! \brief The MKL opaque structure (pointer to struct).
     DFTI_DESCRIPTOR_HANDLE plan;
 };
-
-/*!
- * \ingroup hefftemkl
- * \brief Specialization for double complex.
- */
-template<>
-struct plan_mkl<std::complex<double>>{
-    /*!
-     * \brief Constructor, takes inputs identical to MKL FFT descriptors.
-     *
-     * \param size is the number of entries in a 1-D transform
-     * \param howmanyffts is the number of transforms in the batch
-     * \param stride is the distance between entries of the same transform
-     * \param dist is the distance between the first entries of consecutive sequences
-     */
-    plan_mkl(int size, int howmanyffts, int stride, int dist) : plan(nullptr){
-        check_error( DftiCreateDescriptor(&plan, DFTI_DOUBLE, DFTI_COMPLEX, 1, (MKL_LONG) size), "mkl plan create" );
-        check_error( DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts), "mkl set howmany");
-        check_error( DftiSetValue(plan, DFTI_PLACEMENT, DFTI_INPLACE), "mkl set in place");
-        MKL_LONG lstride[] = {0, static_cast<MKL_LONG>(stride)};
-        check_error( DftiSetValue(plan, DFTI_INPUT_STRIDES, lstride), "mkl set istride");
-        check_error( DftiSetValue(plan, DFTI_OUTPUT_STRIDES, lstride), "mkl set ostride");
-        check_error( DftiSetValue(plan, DFTI_INPUT_DISTANCE, (MKL_LONG) dist), "mkl set idist");
-        check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, (MKL_LONG) dist), "mkl set odist");
-        check_error( DftiCommitDescriptor(plan), "mkl commit");
-    }
-
-    //! \brief Destructor, deletes the plan.
-    ~plan_mkl(){ check_error( DftiFreeDescriptor(&plan), "mkl delete descriptor"); }
-    //! \brief Custom conversion to the MKL plan.
-    operator DFTI_DESCRIPTOR_HANDLE() const{ return plan; }
-    //! \brief The MKL opaque structure (pointer to struct).
-    DFTI_DESCRIPTOR_HANDLE plan;
-};
-
-
 
 /*!
  * \ingroup hefftemkl
@@ -247,14 +210,8 @@ private:
  * \ingroup hefftemkl
  * \brief Unlike the C2C plan R2C is non-symmetric and it requires that the direction is built into the plan.
  */
-template<typename, direction> struct plan_mkl_r2c{};
-
-/*!
- * \ingroup hefftemkl
- * \brief Specialization for r2c single precision.
- */
-template<direction dir>
-struct plan_mkl_r2c<float, dir>{
+template<typename scalar_type, direction dir>
+struct plan_mkl_r2c{
     /*!
      * \brief Constructor taking into account the different sizes for the real and complex parts.
      *
@@ -265,56 +222,30 @@ struct plan_mkl_r2c<float, dir>{
      * \param cdist is the distance between successive 1-D transforms in the complex array
      */
     plan_mkl_r2c(int size, int howmanyffts, int stride, int rdist, int cdist) : plan(nullptr){
-        check_error( DftiCreateDescriptor(&plan, DFTI_SINGLE, DFTI_REAL, 1, (MKL_LONG) size), "mkl create r2c");
-        check_error( DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts), "mkl set howmany r2c");
+
+        static_assert(std::is_same<scalar_type, float>::value or std::is_same<scalar_type, double>::value,
+                      "plan_mkl_r2c requires scalar_type with float or double, see plan_mkl for complex types");
+
+        check_error( DftiCreateDescriptor(&plan, (std::is_same<scalar_type,float>::value) ?
+                                                  DFTI_SINGLE : DFTI_DOUBLE,
+                                          DFTI_REAL, 1, static_cast<MKL_LONG>(size)), "mkl create r2c");
+        check_error( DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, static_cast<MKL_LONG>(howmanyffts)), "mkl set howmany r2c");
         check_error( DftiSetValue(plan, DFTI_PLACEMENT, DFTI_NOT_INPLACE), "mkl set not in place r2c");
         check_error( DftiSetValue(plan, DFTI_CONJUGATE_EVEN_STORAGE, DFTI_COMPLEX_COMPLEX), "mkl conj storage cc");
         MKL_LONG lstride[] = {0, static_cast<MKL_LONG>(stride)};
         check_error( DftiSetValue(plan, DFTI_INPUT_STRIDES, lstride), "mkl set istride r2c");
         check_error( DftiSetValue(plan, DFTI_OUTPUT_STRIDES, lstride), "mkl set ostride r2c");
         if (dir == direction::forward){
-            check_error( DftiSetValue(plan, DFTI_INPUT_DISTANCE, (MKL_LONG) rdist), "mkl set rdist r2c");
-            check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, (MKL_LONG) cdist), "mkl set cdist r2c");
+            check_error( DftiSetValue(plan, DFTI_INPUT_DISTANCE, static_cast<MKL_LONG>(rdist)), "mkl set rdist r2c");
+            check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, static_cast<MKL_LONG>(cdist)), "mkl set cdist r2c");
         }else{
-            check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, (MKL_LONG) rdist), "mkl set back rdist r2c");
-            check_error( DftiSetValue(plan, DFTI_INPUT_DISTANCE, (MKL_LONG) cdist), "mkl set back cdist r2c");
+            check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, static_cast<MKL_LONG>(rdist)), "mkl set back rdist r2c");
+            check_error( DftiSetValue(plan, DFTI_INPUT_DISTANCE, static_cast<MKL_LONG>(cdist)), "mkl set back cdist r2c");
         }
         check_error( DftiCommitDescriptor(plan), "mkl commit r2c");
     }
 
 
-    //! \brief Identical to the float-complex specialization.
-    ~plan_mkl_r2c(){ check_error( DftiFreeDescriptor(&plan), "mkl free r2c"); }
-    //! \brief Identical to the float-complex specialization.
-    operator DFTI_DESCRIPTOR_HANDLE() const{ return plan; }
-    //! \brief Identical to the float-complex specialization.
-    DFTI_DESCRIPTOR_HANDLE plan;
-};
-
-/*!
- * \ingroup hefftemkl
- * \brief Specialization for r2c double precision.
- */
-template<direction dir>
-struct plan_mkl_r2c<double, dir>{
-    //! \brief Identical to the float-complex specialization.
-    plan_mkl_r2c(int size, int howmanyffts, int stride, int rdist, int cdist) : plan(nullptr){
-        check_error( DftiCreateDescriptor(&plan, DFTI_DOUBLE, DFTI_REAL, 1, (MKL_LONG) size), "mkl create r2c");
-        check_error( DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts), "mkl set howmany r2c");
-        check_error( DftiSetValue(plan, DFTI_PLACEMENT, DFTI_NOT_INPLACE), "mkl set not in place r2c");
-        check_error( DftiSetValue(plan, DFTI_CONJUGATE_EVEN_STORAGE, DFTI_COMPLEX_COMPLEX), "mkl conj storage cc");
-        MKL_LONG lstride[] = {0, static_cast<MKL_LONG>(stride)};
-        check_error( DftiSetValue(plan, DFTI_INPUT_STRIDES, lstride), "mkl set istride r2c");
-        check_error( DftiSetValue(plan, DFTI_OUTPUT_STRIDES, lstride), "mkl set ostride r2c");
-        if (dir == direction::forward){
-            check_error( DftiSetValue(plan, DFTI_INPUT_DISTANCE, (MKL_LONG) rdist), "mkl set rdist r2c");
-            check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, (MKL_LONG) cdist), "mkl set cdist r2c");
-        }else{
-            check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, (MKL_LONG) rdist), "mkl set back rdist r2c");
-            check_error( DftiSetValue(plan, DFTI_INPUT_DISTANCE, (MKL_LONG) cdist), "mkl set back cdist r2c");
-        }
-        check_error( DftiCommitDescriptor(plan), "mkl commit r2c");
-    }
     //! \brief Identical to the float-complex specialization.
     ~plan_mkl_r2c(){ check_error( DftiFreeDescriptor(&plan), "mkl free r2c"); }
     //! \brief Identical to the float-complex specialization.
