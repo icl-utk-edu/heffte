@@ -18,23 +18,29 @@
 namespace heffte {
 
 namespace cuda {
-void* memory_manager::allocate(size_t num_bytes){
+void* memory_manager::allocate(size_t num_bytes) const{
     void *new_data;
-    check_error(cudaMalloc(&new_data, num_bytes), "cudaMalloc()");
+    if (stream == nullptr)
+        check_error(cudaMalloc(&new_data, num_bytes), "cudaMalloc()");
+    else
+        check_error(cudaMallocAsync(&new_data, num_bytes, stream), "cudaMallocAsync()");
     return new_data;
 }
-void memory_manager::free(void *pntr){
-    if (pntr != nullptr)
+void memory_manager::free(void *pntr) const{
+    if (pntr == nullptr) return;
+    if (stream == nullptr)
         check_error(cudaFree(pntr), "cudaFree()");
+    else
+        check_error(cudaFreeAsync(pntr, stream), "cudaFreeAsync()");
 }
-void memory_manager::host_to_device(void const *source, size_t num_bytes, void *destination){
-    check_error(cudaMemcpy(destination, source, num_bytes, cudaMemcpyHostToDevice), "host_to_device (cuda)");
+void memory_manager::host_to_device(void const *source, size_t num_bytes, void *destination) const{
+    check_error(cudaMemcpyAsync(destination, source, num_bytes, cudaMemcpyHostToDevice, stream), "host_to_device (cuda)");
 }
-void memory_manager::device_to_device(void const *source, size_t num_bytes, void *destination){
-    check_error(cudaMemcpy(destination, source, num_bytes, cudaMemcpyDeviceToDevice), "device_to_device (cuda)");
+void memory_manager::device_to_device(void const *source, size_t num_bytes, void *destination) const{
+    check_error(cudaMemcpyAsync(destination, source, num_bytes, cudaMemcpyDeviceToDevice, stream), "device_to_device (cuda)");
 }
-void memory_manager::device_to_host(void const *source, size_t num_bytes, void *destination){
-    check_error(cudaMemcpy(destination, source, num_bytes, cudaMemcpyDeviceToHost), "device_to_host (cuda)");
+void memory_manager::device_to_host(void const *source, size_t num_bytes, void *destination) const{
+    check_error(cudaMemcpyAsync(destination, source, num_bytes, cudaMemcpyDeviceToHost, stream), "device_to_host (cuda)");
 }
 }
 
@@ -47,7 +53,7 @@ void device_set(int active_device){
 }
 
 void synchronize_default_stream(){
-    cuda::check_error(cudaStreamSynchronize(nullptr), "device synch"); // synch the default stream
+    cuda::check_error(cudaStreamSynchronize(nullptr), "device sync"); // sync the default stream
 }
 
 int device_count(){

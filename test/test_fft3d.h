@@ -79,7 +79,7 @@ template<typename backend_tag, typename scalar_type>
 struct input_maker<backend_tag, scalar_type, typename std::enable_if<backend::uses_gpu<backend_tag>::value, void>::type>{
     template<typename index>
     static gpu::vector<scalar_type> select(box3d<index> const world, box3d<index> const box, std::vector<scalar_type> const &input){
-        return gpu::transfer::load(get_subbox(world, box, input));
+        return gpu::transfer().load(get_subbox(world, box, input));
     }
 };
 template<typename scalar_type, typename index>

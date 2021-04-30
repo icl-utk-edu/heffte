@@ -310,17 +310,18 @@ void test_gpu_vector(size_t num_entries){
     current_test<scalar_type, using_nompi> name("gpu::vector");
     std::vector<scalar_type> source(num_entries);
     std::iota(source.begin(), source.end(), 0); // fill source with 0, 1, 2, 3, 4 ...
-    gpu::vector<scalar_type> v1 = gpu::transfer::load(source);
+    gpu::transfer data_manipulator;
+    gpu::vector<scalar_type> v1 = data_manipulator.load(source);
     sassert(v1.size() == source.size());
     gpu::vector<scalar_type> v2 = v1; // test copy constructor
     sassert(v1.size() == v2.size());
-    std::vector<scalar_type> dest = gpu::transfer::unload(v2);
+    std::vector<scalar_type> dest = data_manipulator.unload(v2);
     sassert(match(dest, source));
 
     { // test move constructor
         gpu::vector<scalar_type> t = std::move(v2);
         dest = std::vector<scalar_type>(); // reset the destination
-        dest = gpu::transfer::unload(t);
+        dest = data_manipulator.unload(t);
         sassert(match(dest, source));
     }
 
@@ -329,20 +330,20 @@ void test_gpu_vector(size_t num_entries){
     sassert(v1.empty()); // test if moved out of v1
 
     dest = std::vector<scalar_type>(); // reset the destination
-    dest = gpu::transfer::unload(v2);
+    dest = data_manipulator.unload(v2);
     sassert(match(dest, source));
 
-    v1 = gpu::transfer::load(source);
+    v1 = data_manipulator.load(source);
     v2 = gpu::vector<scalar_type>(v1.data(), v1.data() + num_entries / 2);
     sassert(v2.size() == num_entries / 2);
-    dest = gpu::transfer::unload(v2);
+    dest = data_manipulator.unload(v2);
     source.resize(num_entries / 2);
     sassert(match(dest, source));
 
     size_t num_v2 = v2.size();
     scalar_type *raw_array = v2.release();
     sassert(v2.empty());
-    v2 = gpu::transfer::capture(std::move(raw_array), num_v2);
+    v2 = data_manipulator.capture(std::move(raw_array), num_v2);
     sassert(raw_array == nullptr);
     sassert(not v2.empty());
 }
@@ -359,17 +360,18 @@ void test_gpu_scale(){
     std::vector<float> x = {1.0, 33.0, 88.0, -11.0, 2.0};
     std::vector<float> y = x;
     for(auto &v : y) v *= 3.0;
-    auto gx = gpu::transfer::load(x);
+    gpu::transfer data_manipulator;
+    auto gx = data_manipulator.load(x);
     data_scaling<tag::gpu>::apply(gx.size(), gx.data(), 3.0);
-    x = gpu::transfer::unload(gx);
+    x = data_manipulator.unload(gx);
     sassert(approx(x, y));
 
     std::vector<std::complex<double>> cx = {{1.0, -11.0}, {33.0, 8.0}, {88.0, -11.0}, {2.0, -9.0}};
     std::vector<std::complex<double>> cy = cx;
     for(auto &v : cy) v /= 1.33;
-    auto gcx = gpu::transfer::load(cx);
+    auto gcx = data_manipulator.load(cx);
     data_scaling<tag::gpu>::apply(gcx.size(), gcx.data(), 1.0 / 1.33);
-    cx = gpu::transfer::unload(gcx);
+    cx = data_manipulator.unload(gcx);
     sassert(approx(cx, cy));
 }
 #else
@@ -429,27 +431,28 @@ void test_1d_reorder(){
     #endif
 
     #ifdef Heffte_ENABLE_CUDA
+    gpu::transfer data_manipulator;
     for(size_t i=0; i<3; i++){
         heffte::cufft_executor fft(box, box.order[i]);
 
-        auto cresult = gpu::transfer::load(cinput);
+        auto cresult = data_manipulator.load(cinput);
         fft.forward(cresult.data());
         sassert(approx(cresult, creference[i]));
 
         fft.backward(cresult.data());
-        auto cpu_cresult = gpu::transfer::unload(cresult);
+        auto cpu_cresult = data_manipulator.unload(cresult);
         for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
         sassert(approx(cpu_cresult, cinput));
 
         heffte::cufft_executor_r2c fft_r2c(box, box.order[i]);
 
         gpu::vector<ctype> rresult(rreference[i].size());
-        fft_r2c.forward(gpu::transfer::load(rinput).data(), rresult.data());
+        fft_r2c.forward(data_manipulator.load(rinput).data(), rresult.data());
         sassert(approx(rresult, rreference[i]));
 
         gpu::vector<rtype> brresult(rinput.size());
         fft_r2c.backward(rresult.data(), brresult.data());
-        auto cpu_brresult = gpu::transfer::unload(brresult);
+        auto cpu_brresult = data_manipulator.unload(brresult);
         for(auto &r : cpu_brresult) r /= (2.0 + box.order[i]);
         sassert(approx(cpu_brresult, rinput));
     }
@@ -609,15 +612,15 @@ void test_cross_reference_type(){
     box3d<> box = {{0, 0, 0}, {42, 75, 23}};
     auto rinput = make_data<precision_type>(box);
     auto cinput = make_data<std::complex<precision_type>>(box);
-    auto rrocinput = gpu::transfer::load(rinput);
-    auto crocinput = gpu::transfer::load(cinput);
+    auto rrocinput = gpu::transfer().load(rinput);
+    auto crocinput = gpu::transfer().load(cinput);
 
     for(int i=0; i<3; i++){
         heffte::fftw_executor  fft_cpu(box, i);
         heffte::cufft_executor fft_gpu(box, i);
 
         std::vector<std::complex<precision_type>> coutput(rinput.size());
-        auto crocoutput = gpu::transfer::load(coutput);
+        auto crocoutput = gpu::transfer().load(coutput);
 
         fft_cpu.forward(cinput.data());
         fft_gpu.forward(crocinput.data());
@@ -632,7 +635,7 @@ void test_cross_reference_type(){
         fft_gpu.backward(crocinput.data());
 
         coutput = std::vector<std::complex<precision_type>>(rinput.size());
-        crocoutput = gpu::transfer::load(coutput);
+        crocoutput = gpu::transfer().load(coutput);
         fft_cpu.backward(coutput.data(), rinput.data());
         fft_gpu.backward(crocoutput.data(), rrocinput.data());
 
@@ -653,7 +656,7 @@ void test_cross_reference_r2c(){
                        box3d<>({0, 0, 0}, {41, 50, 21});
 
         auto input = make_data<scalar_type>(box);
-        gpu::vector<scalar_type> cuinput = gpu::transfer::load(input);
+        gpu::vector<scalar_type> cuinput = gpu::transfer().load(input);
 
         for(int i=0; i<3; i++){
             heffte::fftw_executor_r2c  fft_cpu(box, i);

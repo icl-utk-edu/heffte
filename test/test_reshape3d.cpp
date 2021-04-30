@@ -167,7 +167,7 @@ void test_gpu(MPI_Comm const comm){
     gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
     auto input_data     = get_subdata<scalar_type>(world, boxes[me]);
-    auto cuinput_data   = gpu::transfer::load(input_data);
+    auto cuinput_data   = gpu::transfer().load(input_data);
     auto reference_data = get_subdata<scalar_type>(world, rotate_boxes[me]);
     auto output_data    = gpu::vector<scalar_type>(rotate_boxes[me].count());
 
@@ -233,7 +233,7 @@ void test_direct_reordered(MPI_Comm const comm){
         auto reshape = make_reshape3d_alltoallv<gpu_backend>(inboxes, outboxes, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
-        auto cuinput = gpu::transfer::load(input);
+        auto cuinput = gpu::transfer().load(input);
         gpu::vector<scalar_type> curesult(ordered_outboxes[me].count());
 
         reshape->apply(cuinput.data(), curesult.data(), workspace.data());
@@ -243,7 +243,7 @@ void test_direct_reordered(MPI_Comm const comm){
         auto reshape = make_reshape3d_pointtopoint<gpu_backend>(inboxes, outboxes, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
-        auto cuinput = gpu::transfer::load(input);
+        auto cuinput = gpu::transfer().load(input);
         gpu::vector<scalar_type> curesult(ordered_outboxes[me].count());
 
         reshape->apply(cuinput.data(), curesult.data(), workspace.data());
@@ -310,7 +310,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 auto cumpi_direct_shaper   = make_reshape3d<gpu_backend>(inboxes, ordered_outboxes, comm, cuoptions);
                 auto cuda_transpose_shaper = make_reshape3d<gpu_backend>(ordered_outboxes, outboxes, comm, cuoptions);
 
-                gpu::vector<scalar_type> cuinput = gpu::transfer::load(input);
+                gpu::vector<scalar_type> cuinput = gpu::transfer().load(input);
                 gpu::vector<scalar_type> curesult(outboxes[me].count());
                 gpu::vector<scalar_type> cureference(outboxes[me].count());
                 gpu::vector<scalar_type> cuworkspace( // allocate one workspace vector for all reshape operations
@@ -323,7 +323,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 curesult = gpu::vector<scalar_type>(outboxes[me].count());
                 cumpi_tanspose_shaper->apply(cuinput.data(), curesult.data(), cuworkspace.data());
 
-                tassert(match(curesult, gpu::transfer::unload(cureference)));
+                tassert(match(curesult, gpu::transfer().unload(cureference)));
                 #endif
             }
         }

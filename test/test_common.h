@@ -167,7 +167,7 @@ inline bool match(heffte::gpu::vector<T> const &a, std::vector<T> const &b){
 }
 template<typename T>
 inline bool approx(heffte::gpu::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
-    return approx(heffte::gpu::transfer::unload(a), b, correction);
+    return approx(heffte::gpu::transfer().unload(a), b, correction);
 }
 template<typename T>
 inline bool approx(heffte::gpu::vector<T> const &a, heffte::gpu::vector<T> const &b, double correction = 1.0){
@@ -177,9 +177,9 @@ template<typename backend_tag>
 struct test_traits<backend_tag, typename std::enable_if<backend::uses_gpu<backend_tag>::value, void>::type>{
     template<typename T> using container = gpu::vector<T>;
     template<typename T>
-    static container<T> load(std::vector<T> const &x){ return gpu::transfer::load(x); }
+    static container<T> load(std::vector<T> const &x){ return gpu::transfer().load(x); }
     template<typename T>
-    static std::vector<T> unload(container<T> const &x){ return gpu::transfer::unload(x); }
+    static std::vector<T> unload(container<T> const &x){ return gpu::transfer().unload(x); }
 };
 #endif
 

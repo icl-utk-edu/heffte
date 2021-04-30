@@ -93,6 +93,12 @@ template<> struct data_manipulator<tag::cpu>{
 namespace backend {
 
     /*!
+     * \ingroup hefftecuda
+     * \brief Type-tag for the cuFFT backend
+     */
+    struct cufft{};
+
+    /*!
      * \ingroup fft3dbackend
      * \brief Allows to define whether a specific backend interface has been enabled.
      *
@@ -103,7 +109,6 @@ namespace backend {
     template<typename tag>
     struct is_enabled : std::false_type{};
 
-
     /*!
      * \ingroup fft3dbackend
      * \brief Defines the container for the temporary buffers.
@@ -112,7 +117,7 @@ namespace backend {
      * with the CPU or GPU devices and the type of the container that will hold temporary
      * buffers.
      */
-    template<typename backend_tag>
+    template<typename backend_tag, typename std::enable_if<is_enabled<backend_tag>::value, void*>::type = nullptr>
     struct buffer_traits{
         //! \brief Tags the raw-array location tag::cpu or tag::gpu, used by the packers.
         using location = tag::cpu;
@@ -142,6 +147,12 @@ namespace backend {
      */
     template<typename backend_tag>
     inline std::string name(){ return "unknown"; }
+
+    /*!
+     * \ingroup hefftecuda
+     * \brief Returns the human readable name of the cuFFT backend.
+     */
+    template<> inline std::string name<cufft>(){ return "cufft"; }
 
     /*!
      * \ingroup fft3dbackend

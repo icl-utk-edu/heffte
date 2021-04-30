@@ -52,22 +52,35 @@ namespace gpu {
     public:
         //! \brief Allocate a new vector with the given number of entries.
         device_vector(size_t num_entries = 0) :
+            memory(),
             num(num_entries),
-            device_data(reinterpret_cast<scalar_type*>(memory_manager::allocate(num_entries * sizeof(scalar_type))))
+            device_data(reinterpret_cast<scalar_type*>(memory.allocate(num_entries * sizeof(scalar_type))))
+        {}
+        //! \brief Allocate a new vector with the given number of entries.
+        device_vector(memory_manager const &new_manager, size_t num_entries = 0) :
+            memory(new_manager),
+            num(num_entries),
+            device_data(reinterpret_cast<scalar_type*>(memory.allocate(num_entries * sizeof(scalar_type))))
         {}
         //! \brief Copy a range of entries from the device into the vector.
         device_vector(scalar_type const *begin, scalar_type const *end) :
             device_vector(std::distance(begin, end)){
-            memory_manager::device_to_device(begin, num * sizeof(scalar_type), device_data);
+            memory.device_to_device(begin, num * sizeof(scalar_type), device_data);
+        }
+        //! \brief Copy a range of entries from the device into the vector.
+        device_vector(memory_manager const &new_manager, scalar_type const *begin, scalar_type const *end) :
+            device_vector(new_manager, std::distance(begin, end)){
+            memory.device_to_device(begin, num * sizeof(scalar_type), device_data);
         }
 
         //! \brief Copy constructor, copy the data from other to this vector.
         device_vector(const device_vector<scalar_type, memory_manager>& other) :
-            device_vector(other.num){
-            memory_manager::device_to_device(other.device_data, num * sizeof(scalar_type), device_data);
+            device_vector(other.memory, other.num){
+            memory.device_to_device(other.device_data, num * sizeof(scalar_type), device_data);
         }
         //! \brief Move constructor, moves the data from \b other into this vector.
         device_vector(device_vector<scalar_type, memory_manager> &&other) :
+            memory(other.memory),
             num(c11_exchange(other.num, 0)),
             device_data(c11_exchange(other.device_data, nullptr))
         {}
@@ -77,13 +90,20 @@ namespace gpu {
             num(num_entries),
             device_data(c11_exchange(raw_pointer, nullptr))
         {}
+        //! \brief Captures ownership of the data in the raw-pointer, resets the pointer to null.
+        device_vector(memory_manager const &new_manager, scalar_type* &&raw_pointer, size_t num_entries) :
+            memory(new_manager),
+            num(num_entries),
+            device_data(c11_exchange(raw_pointer, nullptr))
+        {}
 
         //! \brief Desructor, deletes all data.
-        ~device_vector(){ memory_manager::free(device_data); }
+        ~device_vector(){ memory.free(device_data); }
 
         //! \brief Copy assignment, copies the data form \b other to this object.
         void operator =(device_vector<scalar_type, memory_manager> const &other){
             device_vector<scalar_type, memory_manager> temp(other);
+            memory = temp.memory;
             std::swap(num, temp.num);
             std::swap(device_data, temp.device_data);
         }
@@ -91,6 +111,7 @@ namespace gpu {
         //! \brief Move assignment, moves the data form \b other to this object.
         void operator =(device_vector<scalar_type, memory_manager>&& other){
             device_vector<scalar_type, memory_manager> temp(std::move(other));
+            memory = temp.memory;
             std::swap(num, temp.num);
             std::swap(device_data, temp.device_data);
         }
@@ -114,7 +135,14 @@ namespace gpu {
             return c11_exchange(device_data, nullptr);
         }
 
+        //! \brief Return a reference to the internal memory manager.
+        memory_manager& manager(){ return memory; }
+        //! \brief Return a const reference to the internal memory manager.
+        memory_manager const& manager() const{ return memory; }
+
     private:
+        //! \brief Save an instance of the memory manager.
+        memory_manager memory;
         //! \brief Stores the number of entries in the vector.
         size_t num;
         //! \brief The array with the GPU data.
@@ -129,15 +157,18 @@ namespace gpu {
      */
     template<typename memory_manager>
     struct device_transfer{
+        //! \brief Set device_transfer with a new memory manager.
+        device_transfer(memory_manager const &new_manager = memory_manager()) : memory(new_manager){}
+
         //! \brief Copy data from the vector to the pointer, data size is equal to the vector size.
         template<typename scalar_type>
         static void copy(device_vector<scalar_type, memory_manager> const &source, scalar_type destination[]){
-            memory_manager::device_to_host(source.data(), source.size() * sizeof(scalar_type), destination);
+            source.manager().device_to_host(source.data(), source.size() * sizeof(scalar_type), destination);
         }
         //! \brief Copy data from the pointer to the vector, data size is equal to the vector size.
         template<typename scalar_type>
         static void copy(scalar_type const source[], device_vector<scalar_type, memory_manager> &destination){
-            memory_manager::device_to_host(source, destination.size() * sizeof(scalar_type), destination.data());
+            destination.manager().device_to_host(source, destination.size() * sizeof(scalar_type), destination.data());
         }
 
         /*!
@@ -151,25 +182,26 @@ namespace gpu {
          * \returns a device_vector with size equal to \b num_entries and a copy of the CPU data
          */
         template<typename scalar_type>
-        static device_vector<scalar_type, memory_manager> load(scalar_type const *cpu_source, size_t num_entries){
-            device_vector<scalar_type, memory_manager> result(num_entries);
-            memory_manager::host_to_device(cpu_source, num_entries * sizeof(scalar_type), result.data());
+        device_vector<scalar_type, memory_manager> load(scalar_type const *cpu_source, size_t num_entries){
+            device_vector<scalar_type, memory_manager> result(memory, num_entries);
+            memory.host_to_device(cpu_source, num_entries * sizeof(scalar_type), result.data());
             return result;
         }
         //! \brief Similar to gpu::load() but loads the data from a std::vector
         template<typename scalar_type>
-        static device_vector<scalar_type, memory_manager> load(std::vector<scalar_type> const &cpu_source){
+        device_vector<scalar_type, memory_manager> load(std::vector<scalar_type> const &cpu_source){
             return load<scalar_type>(cpu_source.data(), cpu_source.size());
         }
         //! \brief Similar to gpu::load() but loads the data from a std::vector into a pointer.
         template<typename scalar_type>
-        static void load(std::vector<scalar_type> const &cpu_source, scalar_type gpu_destination[]){
-            memory_manager::host_to_device(cpu_source.data(), cpu_source.size() * sizeof(scalar_type), gpu_destination);
+        void load(std::vector<scalar_type> const &cpu_source, scalar_type gpu_destination[]){
+            memory.host_to_device(cpu_source.data(), cpu_source.size() * sizeof(scalar_type), gpu_destination);
         }
         //! \brief Similar to gpu::load() but loads the data from a std::vector
         template<typename scalar_type>
         static void load(std::vector<scalar_type> const &cpu_source, device_vector<scalar_type, memory_manager> &gpu_destination){
-            gpu_destination = load<scalar_type>(cpu_source);
+            gpu_destination = device_vector<scalar_type, memory_manager>(gpu_destination.manager(), cpu_source.size());
+            gpu_destination.manager().host_to_device(cpu_source.data(), cpu_source.size() * sizeof(scalar_type), gpu_destination.data());
         }
 
         /*!
@@ -180,7 +212,7 @@ namespace gpu {
          * even branches in the if-statements that will never be reached.
          */
         template<typename scalar_type>
-        static void load(std::vector<scalar_type> const &a, std::vector<scalar_type> &b){ b = a; }
+        void load(std::vector<scalar_type> const &a, std::vector<scalar_type> &b){ b = a; }
         /*!
          * \brief Unload method that copies two std::vectors, used in template general code.
          *
@@ -193,9 +225,9 @@ namespace gpu {
 
         //! \brief Copy number of entries from the GPU pointer into the vector.
         template<typename scalar_type>
-        static std::vector<scalar_type> unload(scalar_type const gpu_source[], size_t num_entries){
+        std::vector<scalar_type> unload(scalar_type const gpu_source[], size_t num_entries){
             std::vector<scalar_type> result(num_entries);
-            memory_manager::device_to_host(gpu_source, num_entries * sizeof(scalar_type), result.data());
+            memory.device_to_host(gpu_source, num_entries * sizeof(scalar_type), result.data());
             return result;
         }
 
@@ -209,7 +241,7 @@ namespace gpu {
          */
         template<typename scalar_type>
         static void unload(device_vector<scalar_type, memory_manager> const &gpu_source, scalar_type *cpu_result){
-            memory_manager::device_to_host(gpu_source.data(), gpu_source.size() * sizeof(scalar_type), cpu_result);
+            gpu_source.manager().device_to_host(gpu_source.data(), gpu_source.size() * sizeof(scalar_type), cpu_result);
         }
 
         //! \brief Similar to unload() but copies the data into a std::vector.
@@ -226,9 +258,12 @@ namespace gpu {
          * to auto-deduce the scalar type.
          */
         template<typename scalar_type>
-        static device_vector<scalar_type, memory_manager> capture(scalar_type* &&raw_pointer, size_t num_entries){
+        device_vector<scalar_type, memory_manager> capture(scalar_type* &&raw_pointer, size_t num_entries){
             return device_vector<scalar_type, memory_manager>(std::forward<scalar_type*>(raw_pointer), num_entries);
         }
+
+        private:
+            memory_manager memory;
     };
 
     /*!
