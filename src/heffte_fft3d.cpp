@@ -45,6 +45,9 @@ fft3d<backend_tag, index>::fft3d(logic_plan3d<index> const &plan, int const this
     backend::auxiliary_variables<backend_tag>(),
     pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
     scale_factor(1.0 / static_cast<double>(plan.index_count))
+    #ifdef Heffte_ENABLE_MAGMA
+    , hmagma(this->gpu_queue())
+    #endif
 {
     for(int i=0; i<4; i++){
         forward_shaper[i]    = make_reshape3d<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm, plan.options);
