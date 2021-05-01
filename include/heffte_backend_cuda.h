@@ -168,9 +168,7 @@ namespace cuda {
  * \brief Data manipulations on the GPU end.
  */
 template<> struct data_manipulator<tag::gpu>{
-    /*!
-     * \brief Equivalent to std::copy_n() but using CUDA arrays.
-     */
+    //! \brief Equivalent to std::copy_n() but using CUDA arrays.
     template<typename scalar_type>
     static void copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]);
     //! \brief Copy-convert complex-to-real.
@@ -212,32 +210,32 @@ template<> struct is_zcomplex<cufftDoubleComplex> : std::true_type{};
 
 /*!
  * \ingroup hefftecuda
- * \brief Base plan for cufft, using only the specialization for float and double complex.
+ * \brief Wrapper around cufftHandle plans, set for float or double complex.
  *
- * Similar to heffte::plan_fftw but applies to the cufft backend.
+ *  * \tparam scalar_type must be std::compelx<float> or std::complex<double>
  */
-template<typename> struct plan_cufft{};
-
-/*!
- * \ingroup hefftecuda
- * \brief Plan for the single precision complex transform.
- */
-template<> struct plan_cufft<std::complex<float>>{
+template<typename scalar_type> struct plan_cufft{
     /*!
      * \brief Constructor, takes inputs identical to cufftMakePlanMany().
      *
+     * \param stream is the CUDA stream to use for the transform
      * \param size is the number of entries in a 1-D transform
      * \param batch is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
      * \param dist is the distance between the first entries of consecutive sequences
      */
-    plan_cufft(int size, int batch, int stride, int dist){
+    plan_cufft(cudaStream_t stream, int size, int batch, int stride, int dist){
         size_t work_size = 0;
-        cuda::check_error(cufftCreate(&plan), "plan_cufft<std::complex<float>>::cufftCreate()");
+        cuda::check_error(cufftCreate(&plan), "plan_cufft::cufftCreate()");
         cuda::check_error(
-            cufftMakePlanMany(plan, 1, &size, &size, stride, dist, &size, stride, dist, CUFFT_C2C, batch, &work_size),
-            "plan_cufft<std::complex<float>>::cufftMakePlanMany()"
+            cufftMakePlanMany(plan, 1, &size, &size, stride, dist, &size, stride, dist,
+                              (std::is_same<scalar_type, std::complex<float>>::value) ? CUFFT_C2C : CUFFT_Z2Z,
+                              batch, &work_size),
+            "plan_cufft::cufftMakePlanMany()"
         );
+
+        if (stream != nullptr)
+            cuda::check_error( cufftSetStream(plan, stream), "cufftSetStream()");
     }
     //! \brief Destructor, deletes the plan.
     ~plan_cufft(){ cufftDestroy(plan); }
@@ -246,29 +244,6 @@ template<> struct plan_cufft<std::complex<float>>{
 
 private:
     //! \brief The cufft opaque structure (pointer to struct).
-    cufftHandle plan;
-};
-/*!
- * \ingroup hefftecuda
- * \brief Specialization for double complex.
- */
-template<> struct plan_cufft<std::complex<double>>{
-    //! \brief Identical to the float-complex specialization.
-    plan_cufft(int size, int batch, int stride, int dist){
-        size_t work_size = 0;
-        cuda::check_error(cufftCreate(&plan), "plan_cufft<std::complex<double>>::cufftCreate()");
-        cuda::check_error(
-            cufftMakePlanMany(plan, 1, &size, &size, stride, dist, &size, stride, dist, CUFFT_Z2Z, batch, &work_size),
-            "plan_cufft<std::complex<double>>::cufftMakePlanMany()"
-        );
-    }
-    //! \brief Identical to the float-complex specialization.
-    ~plan_cufft(){ cufftDestroy(plan); }
-    //! \brief Identical to the float-complex specialization.
-    operator cufftHandle() const{ return plan; }
-
-private:
-    //! \brief Identical to the float-complex specialization.
     cufftHandle plan;
 };
 
@@ -288,7 +263,8 @@ class cufft_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
-    cufft_executor(box3d<index> const box, int dimension) :
+    cufft_executor(cudaStream_t active_stream, box3d<index> const box, int dimension) :
+        stream(active_stream),
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -359,8 +335,10 @@ private:
     //! \brief Helper template to create the plan.
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_cufft<scalar_type>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(size, howmanyffts, stride, dist));
+        if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, howmanyffts, stride, dist));
     }
+
+    cudaStream_t stream;
 
     int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
     mutable std::unique_ptr<plan_cufft<std::complex<float>>> ccomplex_plan;
@@ -369,7 +347,7 @@ private:
 
 /*!
  * \ingroup hefftecuda
- * \brief Plan for the r2c single precision transform.
+ * \brief Plan for the r2c single and double precision transform.
  *
  * \tparam scalar_type must be float or double
  */
@@ -377,6 +355,7 @@ template<typename scalar_type> struct plan_cufft_r2c{
     /*!
      * \brief Constructor, takes inputs identical to cufftMakePlanMany().
      *
+     * \param stream is the CUDA stream to use for the transform
      * \param dir is the direction (forward or backward) for the plan
      * \param size is the number of entries in a 1-D transform
      * \param batch is the number of transforms in the batch
@@ -385,6 +364,9 @@ template<typename scalar_type> struct plan_cufft_r2c{
      * \param cdist is the distance between the first entries of consecutive complex sequences
      */
     plan_cufft_r2c(cudaStream_t stream, direction dir, int size, int batch, int stride, int rdist, int cdist){
+        static_assert(std::is_same<scalar_type, float>::value or std::is_same<scalar_type, double>::value,
+                      "plan_cufft_r2c can be used only with scalar_type float or double.");
+
         size_t work_size = 0;
         cuda::check_error(cufftCreate(&plan), "plan_cufft_r2c::cufftCreate()");
 
@@ -420,7 +402,7 @@ private:
  * and only the unique (non-conjugate) coefficients are computed.
  * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
  */
-class cufft_executor_r2c : public backend::auxiliary_variables<backend::cufft>{
+class cufft_executor_r2c{
 public:
     /*!
      * \brief Constructor defines the box and the dimension of reduction.
@@ -428,7 +410,8 @@ public:
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
     template<typename index>
-    cufft_executor_r2c(box3d<index> const box, int dimension) :
+    cufft_executor_r2c(cudaStream_t active_stream, box3d<index> const box, int dimension) :
+        stream(active_stream),
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -529,6 +512,8 @@ private:
         if (!plan) plan = std::unique_ptr<plan_cufft_r2c<scalar_type>>(new plan_cufft_r2c<scalar_type>(stream, dir, size, howmanyffts, stride, rdist, cdist));
     }
 
+    cudaStream_t stream;
+
     int size, howmanyffts, stride, blocks;
     int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
     mutable std::unique_ptr<plan_cufft_r2c<float>> sforward;
@@ -551,13 +536,13 @@ template<> struct one_dim_backend<backend::cufft>{
 
     //! \brief Constructs a complex-to-complex executor.
     template<typename index>
-    static std::unique_ptr<cufft_executor> make(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<cufft_executor>(new cufft_executor(box, dimension));
+    static std::unique_ptr<cufft_executor> make(cudaStream_t stream, box3d<index> const box, int dimension){
+        return std::unique_ptr<cufft_executor>(new cufft_executor(stream, box, dimension));
     }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
-    static std::unique_ptr<cufft_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<cufft_executor_r2c>(new cufft_executor_r2c(box, dimension));
+    static std::unique_ptr<cufft_executor_r2c> make_r2c(cudaStream_t stream, box3d<index> const box, int dimension){
+        return std::unique_ptr<cufft_executor_r2c>(new cufft_executor_r2c(stream, box, dimension));
     }
 };
 
