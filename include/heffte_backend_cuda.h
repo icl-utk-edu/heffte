@@ -55,8 +55,10 @@ namespace backend{
         virtual ~auxiliary_variables() = default;
         //! \brief Returns the nullptr.
         cudaStream_t gpu_queue(){ return stream; }
+        //! \brief Returns the nullptr (const case).
+        cudaStream_t gpu_queue() const{ return stream; }
         //! \brief The CUDA stream to be used in all operations.
-        cudaStream_t stream;
+        mutable cudaStream_t stream;
     };
 }
 
@@ -160,7 +162,7 @@ namespace cuda {
      * \brief Scales real data (double or float) by the scaling factor.
      */
     template<typename scalar_type, typename index>
-    void scale_data(index num_entries, scalar_type *data, double scale_factor);
+    void scale_data(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor);
 }
 
 /*!
@@ -185,15 +187,15 @@ template<> struct data_manipulator<tag::gpu>{
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
-    static void scale(index num_entries, scalar_type data[], double scale_factor){
-        cuda::scale_data(num_entries, data, scale_factor);
+    static void scale(cudaStream_t stream, index num_entries, scalar_type data[], double scale_factor){
+        cuda::scale_data(stream, num_entries, data, scale_factor);
     }
     /*!
      * \brief Complex by real scaling.
      */
     template<typename precision_type, typename index>
-    static void scale(index num_entries, std::complex<precision_type> data[], double scale_factor){
-        scale<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    static void scale(cudaStream_t stream, index num_entries, std::complex<precision_type> data[], double scale_factor){
+        scale<precision_type>(stream, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
 };
 
@@ -621,15 +623,15 @@ template<> struct data_scaling<tag::gpu>{
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
-    static void apply(index num_entries, scalar_type *data, double scale_factor){
-        cuda::scale_data(static_cast<long long>(num_entries), data, scale_factor);
+    static void apply(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor){
+        cuda::scale_data(stream, static_cast<long long>(num_entries), data, scale_factor);
     }
     /*!
      * \brief Complex by real scaling.
      */
     template<typename precision_type, typename index>
-    static void apply(index num_entries, std::complex<precision_type> *data, double scale_factor){
-        apply<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    static void apply(cudaStream_t stream, index num_entries, std::complex<precision_type> *data, double scale_factor){
+        apply<precision_type>(stream, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
 };
 

@@ -323,15 +323,15 @@ heffte_instantiate_packers(long long)
 
 
 template<typename scalar_type, typename index>
-void scale_data(index num_entries, scalar_type *data, double scale_factor){
+void scale_data(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor){
     thread_grid_1d grid(num_entries, max_threads);
-    simple_scal<scalar_type, max_threads><<<grid.blocks, grid.threads>>>(num_entries, data, static_cast<scalar_type>(scale_factor));
+    simple_scal<scalar_type, max_threads><<<grid.blocks, grid.threads, 0, stream>>>(num_entries, data, static_cast<scalar_type>(scale_factor));
 }
 
-template void scale_data<float, int>(int num_entries, float *data, double scale_factor);
-template void scale_data<double, int>(int num_entries, double *data, double scale_factor);
-template void scale_data<float, long long>(long long num_entries, float *data, double scale_factor);
-template void scale_data<double, long long>(long long num_entries, double *data, double scale_factor);
+template void scale_data<float, int>(cudaStream_t, int num_entries, float *data, double scale_factor);
+template void scale_data<double, int>(cudaStream_t, int num_entries, double *data, double scale_factor);
+template void scale_data<float, long long>(cudaStream_t, long long num_entries, float *data, double scale_factor);
+template void scale_data<double, long long>(cudaStream_t, long long num_entries, double *data, double scale_factor);
 
 } // namespace cuda
 

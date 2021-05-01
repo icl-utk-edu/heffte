@@ -68,7 +68,7 @@ template<> struct data_manipulator<tag::cpu>{
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type>
-    static void scale(int num_entries, scalar_type *data, double scale_factor){
+    static void scale(void*, int num_entries, scalar_type *data, double scale_factor){
         scalar_type alpha = static_cast<scalar_type>(scale_factor);
         for(int i=0; i<num_entries; i++) data[i] *= alpha;
     }
@@ -81,8 +81,8 @@ template<> struct data_manipulator<tag::cpu>{
      * with real arithmetic which is easier to vectorize.
      */
     template<typename precision_type>
-    static void scale(int num_entries, std::complex<precision_type> *data, double scale_factor){
-        scale<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    static void scale(void *queue, int num_entries, std::complex<precision_type> *data, double scale_factor){
+        scale<precision_type>(queue, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
 };
 
@@ -171,6 +171,8 @@ namespace backend {
         virtual ~auxiliary_variables() = default;
         //! \brief Returns the nullptr.
         void* gpu_queue(){ return nullptr; }
+        //! \brief Returns the nullptr (const case).
+        void* gpu_queue() const{ return nullptr; }
     };
 }
 

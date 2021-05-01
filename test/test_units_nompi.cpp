@@ -362,7 +362,7 @@ void test_gpu_scale(){
     for(auto &v : y) v *= 3.0;
     gpu::transfer data_manipulator;
     auto gx = data_manipulator.load(x);
-    data_scaling<tag::gpu>::apply(gx.size(), gx.data(), 3.0);
+    data_scaling<tag::gpu>::apply(nullptr, gx.size(), gx.data(), 3.0);
     x = data_manipulator.unload(gx);
     sassert(approx(x, y));
 
@@ -370,7 +370,7 @@ void test_gpu_scale(){
     std::vector<std::complex<double>> cy = cx;
     for(auto &v : cy) v /= 1.33;
     auto gcx = data_manipulator.load(cx);
-    data_scaling<tag::gpu>::apply(gcx.size(), gcx.data(), 1.0 / 1.33);
+    data_scaling<tag::gpu>::apply(nullptr, gcx.size(), gcx.data(), 1.0 / 1.33);
     cx = data_manipulator.unload(gcx);
     sassert(approx(cx, cy));
 }
@@ -681,7 +681,7 @@ void test_cross_reference_r2c(){
             fft_gpu.backward(curesult.data(), cuinverse.data());
 
             data_scaling<tag::cpu>::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
-            data_scaling<tag::gpu>::apply(cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling<tag::gpu>::apply(nullptr, cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
 
             if (std::is_same<scalar_type, float>::value){
                 sassert(approx(inverse, input));

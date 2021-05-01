@@ -215,7 +215,7 @@ template<> struct data_scaling<tag::cpu>{
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
-    static void apply(index num_entries, scalar_type *data, double scale_factor){;
+    static void apply(void*, index num_entries, scalar_type *data, double scale_factor){;
         for(index i=0; i<num_entries; i++) data[i] *= scale_factor;
     }
     /*!
@@ -228,8 +228,16 @@ template<> struct data_scaling<tag::cpu>{
      * with real arithmetic which is easier to vectorize.
      */
     template<typename precision_type, typename index>
-    static void apply(index num_entries, std::complex<precision_type> *data, double scale_factor){
-        apply<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    static void apply(void *stream, index num_entries, std::complex<precision_type> *data, double scale_factor){
+        apply<precision_type>(stream, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    }
+    /*!
+     * \ingroup hefftepacking
+     * \brief Helper method that omits the stream for the CPU case.
+     */
+    template<typename scalar_type, typename index>
+    static void apply(index num_entries, scalar_type *data, double scale_factor){
+        apply(nullptr, num_entries, data, scale_factor);
     }
 };
 
