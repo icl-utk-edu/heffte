@@ -89,7 +89,7 @@ template<typename mode> struct direct_packer{};
 template<> struct direct_packer<tag::cpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+    void pack(void*, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
         scalar_type* buffer_iterator = buffer;
         for(index slow = 0; slow < plan.size[2]; slow++){
             for(index mid = 0; mid < plan.size[1]; mid++){
@@ -99,7 +99,7 @@ template<> struct direct_packer<tag::cpu>{
     }
     //! \brief Execute the planned unpack operation.
     template<typename scalar_type, typename index>
-    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
+    void unpack(void*, pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
         for(index slow = 0; slow < plan.size[2]; slow++){
             for(index mid = 0; mid < plan.size[1]; mid++){
                 std::copy_n(&buffer[(slow * plan.size[1] + mid) * plan.size[0]],
@@ -122,8 +122,8 @@ template<typename mode> struct transpose_packer{};
 template<> struct transpose_packer<tag::cpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        direct_packer<tag::cpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
+    void pack(void*, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        direct_packer<tag::cpu>().pack(nullptr, plan, data, buffer); // packing is done the same way as the direct_packer
     }
     /*!
      * \brief Execute the planned unpack operation.
@@ -132,7 +132,7 @@ template<> struct transpose_packer<tag::cpu>{
      * The transpose is done in blocks to maximize cache reuse.
      */
     template<typename scalar_type, typename index>
-    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
+    void unpack(void*, pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
         constexpr index stride = 256 / sizeof(scalar_type);
         if (plan.map[0] == 0 and plan.map[1] == 1){
             for(index i=0; i<plan.size[2]; i++)

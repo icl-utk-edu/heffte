@@ -71,11 +71,11 @@ std::vector<scalar_type> get_subdata(box3d<> const world, box3d<> const subbox){
 
 template<typename backend_tag, typename variant_tag>
 std::unique_ptr<reshape3d_base>
-make_test_reshape3d(std::vector<box3d<>> const &input_boxes, std::vector<box3d<>> const &output_boxes, MPI_Comm const comm){
+make_test_reshape3d(typename backend::auxiliary_variables<backend_tag>::queue_type q, std::vector<box3d<>> const &input_boxes, std::vector<box3d<>> const &output_boxes, MPI_Comm const comm){
     if (std::is_same<variant_tag, using_alltoall>::value){
-        return make_reshape3d_alltoallv<backend_tag>(input_boxes, output_boxes, comm);
+        return make_reshape3d_alltoallv<backend_tag>(q, input_boxes, output_boxes, comm);
     }else{
-        return make_reshape3d_pointtopoint<backend_tag>(input_boxes, output_boxes, comm);
+        return make_reshape3d_pointtopoint<backend_tag>(q, input_boxes, output_boxes, comm);
     }
 }
 
@@ -110,7 +110,7 @@ void test_cpu(MPI_Comm const comm){
     }
 
     // create caches for a reshape algorithm, including creating a new mpi comm
-    auto reshape = make_test_reshape3d<backend_tag, variant>(boxes, rotate_boxes, comm);
+    auto reshape = make_test_reshape3d<backend_tag, variant>(nullptr, boxes, rotate_boxes, comm);
     std::vector<scalar_type> workspace(reshape->size_workspace());
 
     auto input_data     = get_subdata<scalar_type>(world, boxes[me]);
@@ -163,7 +163,8 @@ void test_gpu(MPI_Comm const comm){
     }
 
     // create caches for a reshape algorithm, including creating a new mpi comm
-    auto reshape = make_test_reshape3d<backend_tag, variant>(boxes, rotate_boxes, comm);
+    backend::auxiliary_variables<backend_tag> device;
+    auto reshape = make_test_reshape3d<backend_tag, variant>(device.gpu_queue(), boxes, rotate_boxes, comm);
     gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
     auto input_data     = get_subdata<scalar_type>(world, boxes[me]);
@@ -212,14 +213,14 @@ void test_direct_reordered(MPI_Comm const comm){
 
     #ifdef Heffte_ENABLE_FFTW
     {
-        auto reshape = make_reshape3d_alltoallv<backend::fftw>(inboxes, outboxes, comm);
+        auto reshape = make_reshape3d_alltoallv<backend::fftw>(nullptr, inboxes, outboxes, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
         reshape->apply(input.data(), result.data(), workspace.data());
 
         tassert(match(result, reference));
     }{
-        auto reshape = make_reshape3d_pointtopoint<backend::fftw>(inboxes, outboxes, comm);
+        auto reshape = make_reshape3d_pointtopoint<backend::fftw>(nullptr, inboxes, outboxes, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
         reshape->apply(input.data(), result.data(), workspace.data());
@@ -230,7 +231,8 @@ void test_direct_reordered(MPI_Comm const comm){
 
     #ifdef Heffte_ENABLE_GPU
     {
-        auto reshape = make_reshape3d_alltoallv<gpu_backend>(inboxes, outboxes, comm);
+        backend::auxiliary_variables<gpu_backend> device;
+        auto reshape = make_reshape3d_alltoallv<gpu_backend>(device.gpu_queue(), inboxes, outboxes, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
         auto cuinput = gpu::transfer().load(input);
@@ -240,7 +242,8 @@ void test_direct_reordered(MPI_Comm const comm){
 
         tassert(match(curesult, reference));
     }{
-        auto reshape = make_reshape3d_pointtopoint<gpu_backend>(inboxes, outboxes, comm);
+        backend::auxiliary_variables<gpu_backend> device;
+        auto reshape = make_reshape3d_pointtopoint<gpu_backend>(device.gpu_queue(), inboxes, outboxes, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
         auto cuinput = gpu::transfer().load(input);
@@ -283,9 +286,9 @@ void test_reshape_transposed(MPI_Comm comm){
                 heffte::plan_options options = default_options<default_cpu_backend>();
                 options.use_alltoall = std::is_same<variant, using_alltoall>::value;
 
-                auto mpi_tanspose_shaper  = make_reshape3d<default_cpu_backend>(inboxes, outboxes, comm, options);
-                auto mpi_direct_shaper    = make_reshape3d<default_cpu_backend>(inboxes, ordered_outboxes, comm, options);
-                auto cpu_transpose_shaper = make_reshape3d<default_cpu_backend>(ordered_outboxes, outboxes, comm, options);
+                auto mpi_tanspose_shaper  = make_reshape3d<default_cpu_backend>(nullptr, inboxes, outboxes, comm, options);
+                auto mpi_direct_shaper    = make_reshape3d<default_cpu_backend>(nullptr, inboxes, ordered_outboxes, comm, options);
+                auto cpu_transpose_shaper = make_reshape3d<default_cpu_backend>(nullptr, ordered_outboxes, outboxes, comm, options);
 
                 std::vector<scalar_type> result(outboxes[me].count());
                 std::vector<scalar_type> reference(outboxes[me].count());
@@ -303,12 +306,13 @@ void test_reshape_transposed(MPI_Comm comm){
                 #endif
 
                 #ifdef Heffte_ENABLE_GPU
+                backend::auxiliary_variables<gpu_backend> device;
                 heffte::plan_options cuoptions = default_options<gpu_backend>();
                 cuoptions.use_alltoall = std::is_same<variant, using_alltoall>::value;
 
-                auto cumpi_tanspose_shaper = make_reshape3d<gpu_backend>(inboxes, outboxes, comm, cuoptions);
-                auto cumpi_direct_shaper   = make_reshape3d<gpu_backend>(inboxes, ordered_outboxes, comm, cuoptions);
-                auto cuda_transpose_shaper = make_reshape3d<gpu_backend>(ordered_outboxes, outboxes, comm, cuoptions);
+                auto cumpi_tanspose_shaper = make_reshape3d<gpu_backend>(device.gpu_queue(), inboxes, outboxes, comm, cuoptions);
+                auto cumpi_direct_shaper   = make_reshape3d<gpu_backend>(device.gpu_queue(), inboxes, ordered_outboxes, comm, cuoptions);
+                auto cuda_transpose_shaper = make_reshape3d<gpu_backend>(device.gpu_queue(), ordered_outboxes, outboxes, comm, cuoptions);
 
                 gpu::vector<scalar_type> cuinput = gpu::transfer().load(input);
                 gpu::vector<scalar_type> curesult(outboxes[me].count());

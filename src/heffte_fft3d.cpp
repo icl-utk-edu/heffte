@@ -50,8 +50,8 @@ fft3d<backend_tag, index>::fft3d(logic_plan3d<index> const &plan, int const this
     #endif
 {
     for(int i=0; i<4; i++){
-        forward_shaper[i]    = make_reshape3d<backend_tag>(plan.in_shape[i], plan.out_shape[i], comm, plan.options);
-        backward_shaper[3-i] = make_reshape3d<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm, plan.options);
+        forward_shaper[i]    = make_reshape3d<backend_tag>(this->gpu_queue(), plan.in_shape[i], plan.out_shape[i], comm, plan.options);
+        backward_shaper[3-i] = make_reshape3d<backend_tag>(this->gpu_queue(), plan.out_shape[i], plan.in_shape[i], comm, plan.options);
     }
 
     fft0 = one_dim_backend<backend_tag>::make(this->gpu_queue(), plan.out_shape[0][this_mpi_rank], plan.fft_direction[0]);

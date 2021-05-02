@@ -59,6 +59,8 @@ namespace backend{
         cudaStream_t gpu_queue() const{ return stream; }
         //! \brief The CUDA stream to be used in all operations.
         mutable cudaStream_t stream;
+        //! \brief The type for the internal stream.
+        using queue_type = cudaStream_t;
     };
 
     /*!
@@ -548,7 +550,7 @@ namespace cuda { // packer logic
  * Launches a CUDA kernel.
  */
 template<typename scalar_type, typename index>
-void direct_pack(index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
+void direct_pack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
 /*!
  * \ingroup hefftecuda
  * \brief Performs a direct-unpack operation for data sitting on the GPU device.
@@ -556,7 +558,7 @@ void direct_pack(index nfast, index nmid, index nslow, index line_stride, index 
  * Launches a CUDA kernel.
  */
 template<typename scalar_type, typename index>
-void direct_unpack(index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
+void direct_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
 /*!
  * \ingroup hefftecuda
  * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
@@ -564,7 +566,7 @@ void direct_unpack(index nfast, index nmid, index nslow, index line_stride, inde
  * Launches a CUDA kernel.
  */
 template<typename scalar_type, typename index>
-void transpose_unpack(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+void transpose_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
                       index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                       scalar_type const source[], scalar_type destination[]);
 
@@ -577,13 +579,13 @@ void transpose_unpack(index nfast, index nmid, index nslow, index line_stride, i
 template<> struct direct_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        cuda::direct_pack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
+    void pack(cudaStream_t stream, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        cuda::direct_pack(stream, plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
     }
     //! \brief Execute the planned unpack operation.
     template<typename scalar_type, typename index>
-    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        cuda::direct_unpack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
+    void unpack(cudaStream_t stream, pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
+        cuda::direct_unpack(stream, plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
     }
 };
 
@@ -594,13 +596,13 @@ template<> struct direct_packer<tag::gpu>{
 template<> struct transpose_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        direct_packer<tag::gpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
+    void pack(cudaStream_t stream, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        direct_packer<tag::gpu>().pack(stream, plan, data, buffer); // packing is done the same way as the direct_packer
     }
     //! \brief Execute the planned transpose-unpack operation.
     template<typename scalar_type, typename index>
-    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        cuda::transpose_unpack<scalar_type>(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
+    void unpack(cudaStream_t stream, pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
+        cuda::transpose_unpack<scalar_type>(stream, plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
                                             plan.buff_line_stride, plan.buff_plane_stride, plan.map[0], plan.map[1], plan.map[2], buffer, data);
     }
 };

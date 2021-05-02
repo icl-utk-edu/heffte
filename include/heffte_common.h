@@ -144,12 +144,16 @@ namespace backend {
     struct auxiliary_variables{
         //! \brief Empty constructor.
         auxiliary_variables(){}
+        //! \brief Empty constructor.
+        auxiliary_variables(void*){}
         //! \brief Default destructor.
         virtual ~auxiliary_variables() = default;
         //! \brief Returns the nullptr.
         void* gpu_queue(){ return nullptr; }
         //! \brief Returns the nullptr (const case).
         void* gpu_queue() const{ return nullptr; }
+        //! \brief The type for the internal stream, the cpu uses just a void pointer.
+        using queue_type = void*;
     };
 
     /*!

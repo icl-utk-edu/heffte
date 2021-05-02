@@ -159,6 +159,7 @@ void compute_overlap_map_transpose_pack<long long>(int me, int nprocs, box3d<lon
 
 template<typename backend_tag, template<typename device> class packer, typename index>
 reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
+                        typename backend::auxiliary_variables<backend_tag>::queue_type q,
                         int cinput_size, int coutput_size,
                         MPI_Comm master_comm, std::vector<int> const &pgroup,
                         std::vector<int> &&csend_offset, std::vector<int> &&csend_size, std::vector<int> const &send_proc,
@@ -166,6 +167,7 @@ reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
                         std::vector<pack_plan_3d<index>> &&cpackplan, std::vector<pack_plan_3d<index>> &&cunpackplan
                                                                 ) :
     reshape3d_base(cinput_size, coutput_size),
+    backend::auxiliary_variables<backend_tag>(q),
     comm(mpi::new_comm_from_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
@@ -190,7 +192,7 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
     { add_trace name("packing");
     for(auto isend : send.map){
         if (isend >= 0){ // something to send
-            packit.pack(packplan[isend], source + send_offset[isend], send_buffer + offset);
+            packit.pack(this->gpu_queue(), packplan[isend], source + send_offset[isend], send_buffer + offset);
             offset += send_size[isend];
         }
     }
@@ -229,7 +231,7 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
     { add_trace name("unpacking");
     for(auto irecv : recv.map){
         if (irecv >= 0){ // something received
-            packit.unpack(unpackplan[irecv], recv_buffer + offset, destination + recv_offset[irecv]);
+            packit.unpack(this->gpu_queue(), unpackplan[irecv], recv_buffer + offset, destination + recv_offset[irecv]);
             offset += recv_size[irecv];
         }
     }
@@ -238,7 +240,8 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
 
 template<typename backend_tag, template<typename device> class packer, typename index>
 std::unique_ptr<reshape3d_alltoallv<backend_tag, packer, index>>
-make_reshape3d_alltoallv(std::vector<box3d<index>> const &input_boxes,
+make_reshape3d_alltoallv(typename backend::auxiliary_variables<backend_tag>::queue_type q,
+                         std::vector<box3d<index>> const &input_boxes,
                          std::vector<box3d<index>> const &output_boxes,
                          MPI_Comm const comm){
 
@@ -275,7 +278,7 @@ make_reshape3d_alltoallv(std::vector<box3d<index>> const &input_boxes,
     }
 
     return std::unique_ptr<reshape3d_alltoallv<backend_tag, packer, index>>(new reshape3d_alltoallv<backend_tag, packer, index>(
-        inbox.count(), outbox.count(),
+        q, inbox.count(), outbox.count(),
         comm, a2a_group(send_proc, recv_proc, input_boxes, output_boxes),
         std::move(send_offset), std::move(send_size), send_proc,
         std::move(recv_offset), std::move(recv_size), recv_proc,
@@ -285,14 +288,16 @@ make_reshape3d_alltoallv(std::vector<box3d<index>> const &input_boxes,
 
 template<typename backend_tag, template<typename device> class packer, typename index>
 reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
+                        typename backend::auxiliary_variables<backend_tag>::queue_type q,
                         int cinput_size, int coutput_size, MPI_Comm ccomm,
                         std::vector<int> &&csend_offset, std::vector<int> &&csend_size, std::vector<int> &&csend_proc,
                         std::vector<int> &&crecv_offset, std::vector<int> &&crecv_size, std::vector<int> &&crecv_proc,
                         std::vector<int> &&crecv_loc,
                         std::vector<pack_plan_3d<index>> &&cpackplan, std::vector<pack_plan_3d<index>> &&cunpackplan
                                                                 ) :
-    reshape3d_base(cinput_size, coutput_size), comm(ccomm),
-    me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
+    reshape3d_base(cinput_size, coutput_size),
+    backend::auxiliary_variables<backend_tag>(q),
+    comm(ccomm), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     self_to_self(not crecv_proc.empty() and (crecv_proc.back() == me)), // check whether we should include "me" in the communication scheme
     requests(crecv_proc.size() + ((self_to_self) ? -1 : 0)), // remove 1 if using self-to-self
     send_proc(std::move(csend_proc)), send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
@@ -384,7 +389,7 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
     // perform the send commands, using blocking send
     for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
         { heffte::add_trace name("packing");
-        packit.pack(packplan[i], &source[send_offset[i]], send_buffer);
+        packit.pack(this->gpu_queue(), packplan[i], &source[send_offset[i]], send_buffer);
         }
 
         #ifdef Heffte_ENABLE_GPU
@@ -399,11 +404,11 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
 
     if (self_to_self){ // if using self-to-self, do not invoke an MPI command
         { heffte::add_trace name("self packing");
-        packit.pack(packplan.back(), source + send_offset.back(), recv_buffer + recv_loc.back());
+        packit.pack(this->gpu_queue(), packplan.back(), source + send_offset.back(), recv_buffer + recv_loc.back());
         }
 
         { heffte::add_trace name("self unpacking");
-        packit.unpack(unpackplan.back(), recv_buffer + recv_loc.back(), destination + recv_offset.back());
+        packit.unpack(this->gpu_queue(), unpackplan.back(), recv_buffer + recv_loc.back(), destination + recv_offset.back());
         }
     }
 
@@ -419,7 +424,7 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
         #endif
 
         { heffte::add_trace name("unpacking from " + std::to_string(irecv));
-        packit.unpack(unpackplan[irecv], recv_buffer + recv_loc[irecv], destination + recv_offset[irecv]);
+        packit.unpack(this->gpu_queue(), unpackplan[irecv], recv_buffer + recv_loc[irecv], destination + recv_offset[irecv]);
         }
     }
 
@@ -431,7 +436,8 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
 
 template<typename backend_tag, template<typename device> class packer, typename index>
 std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer, index>>
-make_reshape3d_pointtopoint(std::vector<box3d<index>> const &input_boxes,
+make_reshape3d_pointtopoint(typename backend::auxiliary_variables<backend_tag>::queue_type stream,
+                         std::vector<box3d<index>> const &input_boxes,
                          std::vector<box3d<index>> const &output_boxes,
                          MPI_Comm const comm){
 
@@ -473,7 +479,7 @@ make_reshape3d_pointtopoint(std::vector<box3d<index>> const &input_boxes,
         recv_loc.push_back(recv_loc.back() + recv_size[i]);
 
     return std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer, index>>(new reshape3d_pointtopoint<backend_tag, packer, index>(
-        inbox.count(), outbox.count(), comm,
+        stream, inbox.count(), outbox.count(), comm,
         std::move(send_offset), std::move(send_size), std::move(send_proc),
         std::move(recv_offset), std::move(recv_size), std::move(recv_proc),
         std::move(recv_loc),
@@ -492,10 +498,10 @@ template void reshape3d_alltoallv<some_backend, transpose_packer, index>::apply_
 template void reshape3d_alltoallv<some_backend, transpose_packer, index>::apply_base<std::complex<double>>(std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
  \
 template std::unique_ptr<reshape3d_alltoallv<some_backend, direct_packer, index>> \
-make_reshape3d_alltoallv<some_backend, direct_packer, index>(std::vector<box3d<index>> const&, \
+make_reshape3d_alltoallv<some_backend, direct_packer, index>(typename backend::auxiliary_variables<some_backend>::queue_type, std::vector<box3d<index>> const&, \
                                                            std::vector<box3d<index>> const&, MPI_Comm const); \
 template std::unique_ptr<reshape3d_alltoallv<some_backend, transpose_packer, index>> \
-make_reshape3d_alltoallv<some_backend, transpose_packer, index>(std::vector<box3d<index>> const&, \
+make_reshape3d_alltoallv<some_backend, transpose_packer, index>(typename backend::auxiliary_variables<some_backend>::queue_type, std::vector<box3d<index>> const&, \
                                                               std::vector<box3d<index>> const&, MPI_Comm const); \
  \
 template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<float>(float const[], float[], float[]) const; \
@@ -508,10 +514,12 @@ template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::app
 template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::apply_base<std::complex<double>>(std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
  \
 template std::unique_ptr<reshape3d_pointtopoint<some_backend, direct_packer, index>> \
-make_reshape3d_pointtopoint<some_backend, direct_packer, index>(std::vector<box3d<index>> const&, \
+make_reshape3d_pointtopoint<some_backend, direct_packer, index>(typename backend::auxiliary_variables<some_backend>::queue_type, \
+                                                              std::vector<box3d<index>> const&, \
                                                               std::vector<box3d<index>> const&, MPI_Comm const); \
 template std::unique_ptr<reshape3d_pointtopoint<some_backend, transpose_packer, index>> \
-make_reshape3d_pointtopoint<some_backend, transpose_packer, index>(std::vector<box3d<index>> const&, \
+make_reshape3d_pointtopoint<some_backend, transpose_packer, index>(typename backend::auxiliary_variables<some_backend>::queue_type, \
+                                                                 std::vector<box3d<index>> const&, \
                                                                  std::vector<box3d<index>> const&, MPI_Comm const); \
 
 #ifdef Heffte_ENABLE_FFTW
