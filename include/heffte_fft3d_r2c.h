@@ -266,7 +266,7 @@ private:
                 return;
             }
             #endif
-            data_manipulator<location_tag>::scale(
+            data_scaling::apply(
                 this->gpu_queue(),
                 (dir == direction::forward) ? size_outbox() : size_inbox(),
                 data, get_scale_factor(scaling));

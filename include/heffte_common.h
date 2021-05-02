@@ -48,43 +48,20 @@ struct gpu{};
 
 /*!
  * \ingroup fft3dbackend
- * \brief Contains methods for data manipulation either on the CPU or GPU.
+ * \brief Common data-transfer and scaling operations.
  */
-template<typename location_tag> struct data_manipulator{};
-
-/*!
- * \ingroup fft3dbackend
- * \brief Specialization for manipulations on the CPU end.
- */
-template<> struct data_manipulator<tag::cpu>{
-    /*!
-     * \brief Wrapper around std::copy_n().
-     */
+namespace data_manipulator {
+    //! \brief Wrapper around std::copy_n().
     template<typename source_type, typename destination_type>
-    static void copy_n(source_type const source[], size_t num_entries, destination_type destination[]){
+    void copy_n(void*, source_type const source[], size_t num_entries, destination_type destination[]){
         std::copy_n(source, num_entries, destination);
     }
-    /*!
-     * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
-     */
-    template<typename scalar_type>
-    static void scale(void*, int num_entries, scalar_type *data, double scale_factor){
-        scalar_type alpha = static_cast<scalar_type>(scale_factor);
-        for(int i=0; i<num_entries; i++) data[i] *= alpha;
+    //! \brief Wrapper around std::copy_n().
+    template<typename source_type, typename destination_type>
+    void copy_n(source_type const source[], size_t num_entries, destination_type destination[]){
+        std::copy_n(source, num_entries, destination);
     }
-    /*!
-     * \brief Complex by real scaling.
-     *
-     * Depending on the compiler and type of operation, C++ complex numbers can have bad
-     * performance compared to float and double operations.
-     * Since the scaling factor is always real, scaling can be performed
-     * with real arithmetic which is easier to vectorize.
-     */
-    template<typename precision_type>
-    static void scale(void *queue, int num_entries, std::complex<precision_type> *data, double scale_factor){
-        scale<precision_type>(queue, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
-    }
-};
+}
 
 /*!
  * \ingroup fft3dbackend
@@ -173,6 +150,18 @@ namespace backend {
         void* gpu_queue(){ return nullptr; }
         //! \brief Returns the nullptr (const case).
         void* gpu_queue() const{ return nullptr; }
+    };
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Defines inverse mapping from the location tag to a default backend tag.
+     *
+     * Used in conjunction with backend::auxiliary_variables,
+     * by default the auxiliary_variables are not dependent on the tag so the map makes no difference.
+     */
+    template<typename location_tag> struct from_location{
+        //! \brief Defaults to the same label.
+        using type = location_tag;
     };
 }
 

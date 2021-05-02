@@ -316,7 +316,7 @@ make_reshape3d_pointtopoint(std::vector<box3d<index>> const &input_boxes,
  * The operations is implemented as a single unpack operation using the transpose_packer with the same location tag.
  */
 template<typename location_tag, typename index>
-class reshape3d_transpose : public reshape3d_base{
+class reshape3d_transpose : public reshape3d_base, backend::auxiliary_variables<typename backend::from_location<location_tag>::type>{
 public:
     //! \brief Constructor using the provided unpack plan.
     reshape3d_transpose(pack_plan_3d<index> const cplan) :
@@ -345,7 +345,7 @@ private:
     template<typename scalar_type>
     void transpose(scalar_type const *source, scalar_type *destination, scalar_type *workspace) const{
         if (source == destination){ // in-place transpose will need workspace
-            data_manipulator<location_tag>::copy_n(source, size_intput(), workspace);
+            data_manipulator::copy_n(this->gpu_queue(), source, size_intput(), workspace);
             transpose_packer<location_tag>().unpack(plan, workspace, destination);
         }else{
             transpose_packer<location_tag>().unpack(plan, source, destination);

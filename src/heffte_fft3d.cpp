@@ -93,7 +93,7 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
         if (last == 0){
             shaper[0]->apply(input, output, workspace);
         }else if (input != output){
-            data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), output);
+            data_manipulator::copy_n(this->gpu_queue(), input, executor[0]->box_size(), output);
         }
         for(int i=0; i<3; i++)
             apply_fft(i, output);
@@ -108,7 +108,7 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
         std::complex<scalar_type> *effective_input = output;
         if (input != output){
             add_trace name("copy");
-            data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer);
+            data_manipulator::copy_n(this->gpu_queue(), input, executor[0]->box_size(), temp_buffer);
             effective_input = temp_buffer;
         }
         for(int i=0; i<last; i++)
@@ -131,7 +131,7 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
             shaper[0]->apply(input, temp_buffer, workspace);
         }else{
             add_trace name("copy");
-            data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer);
+            data_manipulator::copy_n(this->gpu_queue(), input, executor[0]->box_size(), temp_buffer);
         }
         active_shaper = 1;
     }else{
@@ -237,7 +237,7 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
         shaper[0]->apply(input, temp_buffer, workspace);
     }else{
         add_trace name("copy");
-        data_manipulator<location_tag>::copy_n(input, executor[0]->box_size(), temp_buffer);
+        data_manipulator::copy_n(this->gpu_queue(), input, executor[0]->box_size(), temp_buffer);
     }
 
     for(int i=0; i<2; i++){ // apply the two complex-to-complex ffts

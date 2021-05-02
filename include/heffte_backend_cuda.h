@@ -60,6 +60,15 @@ namespace backend{
         //! \brief The CUDA stream to be used in all operations.
         mutable cudaStream_t stream;
     };
+
+    /*!
+     * \ingroup hefftecuda
+     * \brief In CUDA mode, the auxiliary_variables for location gpu are the same as the cufft backend.
+     */
+    template<> struct from_location<tag::gpu>{
+        //! \brief Set the cufft tag.
+        using type = cufft;
+    };
 }
 
 /*!
@@ -147,7 +156,7 @@ namespace cuda {
      * Launches a CUDA kernel.
      */
     template<typename precision_type, typename index>
-    void convert(index num_entries, precision_type const source[], std::complex<precision_type> destination[]);
+    void convert(cudaStream_t stream, index num_entries, precision_type const source[], std::complex<precision_type> destination[]);
     /*!
      * \ingroup hefftecuda
      * \brief Convert complex numbers to real when both are located on the GPU device.
@@ -155,7 +164,7 @@ namespace cuda {
      * Launches a CUDA kernel.
      */
     template<typename precision_type, typename index>
-    void convert(index num_entries, std::complex<precision_type> const source[], precision_type destination[]);
+    void convert(cudaStream_t stream, index num_entries, std::complex<precision_type> const source[], precision_type destination[]);
 
     /*!
      * \ingroup hefftecuda
@@ -165,39 +174,21 @@ namespace cuda {
     void scale_data(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor);
 }
 
-/*!
- * \ingroup hefftecuda
- * \brief Data manipulations on the GPU end.
- */
-template<> struct data_manipulator<tag::gpu>{
+namespace data_manipulator {
     //! \brief Equivalent to std::copy_n() but using CUDA arrays.
     template<typename scalar_type>
-    static void copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]);
+    void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]);
     //! \brief Copy-convert complex-to-real.
     template<typename scalar_type>
-    static void copy_n(std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
-        cuda::convert(static_cast<long long>(num_entries), source, destination);
+    void copy_n(cudaStream_t stream, std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
+        cuda::convert(stream, static_cast<long long>(num_entries), source, destination);
     }
     //! \brief Copy-convert real-to-complex.
     template<typename scalar_type>
-    static void copy_n(scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
-        cuda::convert(static_cast<long long>(num_entries), source, destination);
+    void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
+        cuda::convert(stream, static_cast<long long>(num_entries), source, destination);
     }
-    /*!
-     * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
-     */
-    template<typename scalar_type, typename index>
-    static void scale(cudaStream_t stream, index num_entries, scalar_type data[], double scale_factor){
-        cuda::scale_data(stream, num_entries, data, scale_factor);
-    }
-    /*!
-     * \brief Complex by real scaling.
-     */
-    template<typename precision_type, typename index>
-    static void scale(cudaStream_t stream, index num_entries, std::complex<precision_type> data[], double scale_factor){
-        scale<precision_type>(stream, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
-    }
-};
+}
 
 /*!
  * \ingroup hefftecuda
@@ -311,23 +302,23 @@ public:
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
     void forward(float const indata[], std::complex<float> outdata[]) const{
-        cuda::convert(total_size, indata, outdata);
+        cuda::convert(stream, total_size, indata, outdata);
         forward(outdata);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
     void backward(std::complex<float> indata[], float outdata[]) const{
         backward(indata);
-        cuda::convert(total_size, indata, outdata);
+        cuda::convert(stream, total_size, indata, outdata);
     }
     //! \brief Converts the deal data to complex and performs double-complex forward transform.
     void forward(double const indata[], std::complex<double> outdata[]) const{
-        cuda::convert(total_size, indata, outdata);
+        cuda::convert(stream, total_size, indata, outdata);
         forward(outdata);
     }
     //! \brief Performs backward double-complex transform and truncates the complex part of the result.
     void backward(std::complex<double> indata[], double outdata[]) const{
         backward(indata);
-        cuda::convert(total_size, indata, outdata);
+        cuda::convert(stream, total_size, indata, outdata);
     }
 
     //! \brief Returns the size of the box.
@@ -340,7 +331,7 @@ private:
         if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, howmanyffts, stride, dist));
     }
 
-    cudaStream_t stream;
+    mutable cudaStream_t stream;
 
     int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
     mutable std::unique_ptr<plan_cufft<std::complex<float>>> ccomplex_plan;
@@ -618,19 +609,19 @@ template<> struct transpose_packer<tag::gpu>{
  * \ingroup hefftecuda
  * \brief Specialization for the CPU case.
  */
-template<> struct data_scaling<tag::gpu>{
+namespace data_scaling {
     /*!
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
-    static void apply(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor){
+    void apply(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor){
         cuda::scale_data(stream, static_cast<long long>(num_entries), data, scale_factor);
     }
     /*!
      * \brief Complex by real scaling.
      */
     template<typename precision_type, typename index>
-    static void apply(cudaStream_t stream, index num_entries, std::complex<precision_type> *data, double scale_factor){
+    void apply(cudaStream_t stream, index num_entries, std::complex<precision_type> *data, double scale_factor){
         apply<precision_type>(stream, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
 };

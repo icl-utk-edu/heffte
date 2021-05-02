@@ -103,7 +103,7 @@ void fft3d_r2c<backend_tag, index>::standard_transform(std::complex<scalar_type>
         backward_shaper[0]->apply(input, temp_buffer, workspace);
     }else{
         add_trace name("copy");
-        data_manipulator<location_tag>::copy_n(input, executor[1]->box_size(), temp_buffer);
+        data_manipulator::copy_n(this->gpu_queue(), input, executor[1]->box_size(), temp_buffer);
     }
 
     for(int i=0; i<2; i++){ // apply the two complex-to-complex ffts

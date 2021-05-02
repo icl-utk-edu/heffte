@@ -51,7 +51,7 @@ std::vector<scalar_type> rescale(box3d<> const world, std::vector<scalar_type> c
     double scaling_factor = (scaling == scale::none) ? 1.0 : 1.0 / static_cast<double>(world.count());
     if (scaling == scale::symmetric) scaling_factor = std::sqrt(scaling_factor);
     if (scaling != scale::none)
-        data_scaling<tag::cpu>::apply(result.size(), result.data(), scaling_factor);
+        data_scaling::apply(result.size(), result.data(), scaling_factor);
     return result;
 }
 
@@ -296,7 +296,7 @@ void test_fft3d_arrays(MPI_Comm comm){
                        cbackward_result));
 
         output_container inplace_buffer(std::max(fft.size_inbox(), fft.size_outbox()));
-        data_manipulator<typename fft3d<backend_tag>::location_tag>::copy_n(local_input.data(), fft.size_inbox(), inplace_buffer.data());
+        data_manipulator::copy_n(fft.gpu_queue(), local_input.data(), fft.size_inbox(), inplace_buffer.data());
         fft.forward(inplace_buffer.data(), inplace_buffer.data());
         output_container inplace_forward(inplace_buffer.data(), inplace_buffer.data() + fft.size_outbox());
         tassert(approx(inplace_forward, reference_fft)); // compare to the reference

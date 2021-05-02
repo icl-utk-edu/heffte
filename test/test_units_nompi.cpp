@@ -74,13 +74,13 @@ void test_cpu_scale(){
     std::vector<float> x = {1.0, 33.0, 88.0, -11.0, 2.0};
     std::vector<float> y = x;
     for(auto &v : y) v *= 3.0;
-    data_scaling<tag::cpu>::apply(x.size(), x.data(), 3.0);
+    data_scaling::apply(x.size(), x.data(), 3.0);
     sassert(approx(x, y));
 
     std::vector<std::complex<double>> cx = {{1.0, -11.0}, {33.0, 8.0}, {88.0, -11.0}, {2.0, -9.0}};
     std::vector<std::complex<double>> cy = cx;
     for(auto &v : cy) v /= 1.33;
-    data_scaling<tag::cpu>::apply(cx.size(), cx.data(), 1.0 / 1.33);
+    data_scaling::apply(cx.size(), cx.data(), 1.0 / 1.33);
     sassert(approx(cx, cy));
 }
 
@@ -362,7 +362,8 @@ void test_gpu_scale(){
     for(auto &v : y) v *= 3.0;
     gpu::transfer data_manipulator;
     auto gx = data_manipulator.load(x);
-    data_scaling<tag::gpu>::apply(nullptr, gx.size(), gx.data(), 3.0);
+    backend::auxiliary_variables<backend::from_location<tag::gpu>::type> device;
+    data_scaling::apply(device.gpu_queue(), gx.size(), gx.data(), 3.0);
     x = data_manipulator.unload(gx);
     sassert(approx(x, y));
 
@@ -370,7 +371,7 @@ void test_gpu_scale(){
     std::vector<std::complex<double>> cy = cx;
     for(auto &v : cy) v /= 1.33;
     auto gcx = data_manipulator.load(cx);
-    data_scaling<tag::gpu>::apply(nullptr, gcx.size(), gcx.data(), 1.0 / 1.33);
+    data_scaling::apply(device.gpu_queue(), gcx.size(), gcx.data(), 1.0 / 1.33);
     cx = data_manipulator.unload(gcx);
     sassert(approx(cx, cy));
 }
@@ -646,6 +647,7 @@ void test_cross_reference_type(){
 template<typename scalar_type>
 void test_cross_reference_r2c(){
     current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
+    backend::auxiliary_variables<backend::cufft> device;
 
     for(int case_counter = 0; case_counter < 2; case_counter++){
         // due to alignment issues on the cufft side
@@ -680,8 +682,8 @@ void test_cross_reference_r2c(){
             fft_cpu.backward(result.data(), inverse.data());
             fft_gpu.backward(curesult.data(), cuinverse.data());
 
-            data_scaling<tag::cpu>::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
-            data_scaling<tag::gpu>::apply(nullptr, cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling::apply(device.gpu_queue(), cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
 
             if (std::is_same<scalar_type, float>::value){
                 sassert(approx(inverse, input));

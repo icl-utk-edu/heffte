@@ -198,24 +198,15 @@ template<> struct transpose_packer<tag::cpu>{
 
 /*!
  * \ingroup hefftepacking
- * \brief Apply scaling to the CPU data.
- *
- * Similar to the packer, the scaling factors are divided into CPU and GPU variants
- * and not specific to the backend, e.g., FFTW and MKL use the same CPU scaling method.
- */
-template<typename mode> struct data_scaling{};
-
-/*!
- * \ingroup hefftepacking
  * \brief Specialization for the CPU case.
  */
-template<> struct data_scaling<tag::cpu>{
+namespace data_scaling {
     /*!
      * \ingroup hefftepacking
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
-    static void apply(void*, index num_entries, scalar_type *data, double scale_factor){;
+    void apply(void*, index num_entries, scalar_type *data, double scale_factor){;
         for(index i=0; i<num_entries; i++) data[i] *= scale_factor;
     }
     /*!
@@ -228,7 +219,7 @@ template<> struct data_scaling<tag::cpu>{
      * with real arithmetic which is easier to vectorize.
      */
     template<typename precision_type, typename index>
-    static void apply(void *stream, index num_entries, std::complex<precision_type> *data, double scale_factor){
+    void apply(void *stream, index num_entries, std::complex<precision_type> *data, double scale_factor){
         apply<precision_type>(stream, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
     /*!
@@ -236,7 +227,7 @@ template<> struct data_scaling<tag::cpu>{
      * \brief Helper method that omits the stream for the CPU case.
      */
     template<typename scalar_type, typename index>
-    static void apply(index num_entries, scalar_type *data, double scale_factor){
+    void apply(index num_entries, scalar_type *data, double scale_factor){
         apply(nullptr, num_entries, data, scale_factor);
     }
 };

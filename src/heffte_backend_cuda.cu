@@ -204,19 +204,19 @@ constexpr bool to_complex  = true;
 constexpr bool to_pack     = true;
 
 template<typename precision_type, typename index>
-void convert(index num_entries, precision_type const source[], std::complex<precision_type> destination[]){
+void convert(cudaStream_t stream, index num_entries, precision_type const source[], std::complex<precision_type> destination[]){
     thread_grid_1d grid(num_entries, max_threads);
-    real_complex_convert<precision_type, max_threads, to_complex><<<grid.blocks, grid.threads>>>(num_entries, source, reinterpret_cast<precision_type*>(destination));
+    real_complex_convert<precision_type, max_threads, to_complex><<<grid.blocks, grid.threads, 0, stream>>>(num_entries, source, reinterpret_cast<precision_type*>(destination));
 }
 template<typename precision_type, typename index>
-void convert(index num_entries, std::complex<precision_type> const source[], precision_type destination[]){
+void convert(cudaStream_t stream, index num_entries, std::complex<precision_type> const source[], precision_type destination[]){
     thread_grid_1d grid(num_entries, max_threads);
-    real_complex_convert<precision_type, max_threads, not to_complex><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<precision_type const*>(source), destination);
+    real_complex_convert<precision_type, max_threads, not to_complex><<<grid.blocks, grid.threads, 0, stream>>>(num_entries, reinterpret_cast<precision_type const*>(source), destination);
 }
 
 #define heffte_instantiate_convert(precision, index) \
-    template void convert<precision, index>(index num_entries, precision const source[], std::complex<precision> destination[]); \
-    template void convert<precision, index>(index num_entries, std::complex<precision> const source[], precision destination[]); \
+    template void convert<precision, index>(cudaStream_t, index num_entries, precision const source[], std::complex<precision> destination[]); \
+    template void convert<precision, index>(cudaStream_t, index num_entries, std::complex<precision> const source[], precision destination[]); \
 
 heffte_instantiate_convert(float, int)
 heffte_instantiate_convert(double, int)
@@ -335,15 +335,19 @@ template void scale_data<double, long long>(cudaStream_t, long long num_entries,
 
 } // namespace cuda
 
-template<typename scalar_type>
-void data_manipulator<tag::gpu>::copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]){
-    cuda::check_error(cudaMemcpy(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "data_manipulator::copy_n()");
+namespace data_manipulator{
+    template<typename scalar_type>
+    void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+        if (stream == nullptr)
+            cuda::check_error(cudaMemcpy(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "data_manipulator::copy_n()");
+        else
+            cuda::check_error(cudaMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice, stream), "data_manipulator::copy_n()");
+    }
+
+    template void copy_n<float>(cudaStream_t, float const[], size_t, float[]);
+    template void copy_n<double>(cudaStream_t, double const[], size_t, double[]);
+    template void copy_n<std::complex<float>>(cudaStream_t, std::complex<float> const[], size_t, std::complex<float>[]);
+    template void copy_n<std::complex<double>>(cudaStream_t, std::complex<double> const[], size_t, std::complex<double>[]);
 }
-
-template void data_manipulator<tag::gpu>::copy_n<float>(float const[], size_t, float[]);
-template void data_manipulator<tag::gpu>::copy_n<double>(double const[], size_t, double[]);
-template void data_manipulator<tag::gpu>::copy_n<std::complex<float>>(std::complex<float> const[], size_t, std::complex<float>[]);
-template void data_manipulator<tag::gpu>::copy_n<std::complex<double>>(std::complex<double> const[], size_t, std::complex<double>[]);
-
 
 } // namespace heffte
