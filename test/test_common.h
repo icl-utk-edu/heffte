@@ -157,6 +157,9 @@ using gpu_backend = heffte::backend::cufft;
 #ifdef Heffte_ENABLE_ROCM
 using gpu_backend = heffte::backend::rocfft;
 #endif
+#ifdef Heffte_ENABLE_ONEAPI
+using gpu_backend = heffte::backend::onemkl;
+#endif
 #ifdef Heffte_ENABLE_GPU
 template<typename T>
 inline bool match(heffte::gpu::vector<T> const &a, std::vector<T> const &b){

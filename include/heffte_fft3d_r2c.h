@@ -43,7 +43,7 @@ namespace heffte {
  * \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
  */
 template<typename backend_tag, typename index = int>
-class fft3d_r2c{
+class fft3d_r2c : public backend::auxiliary_variables<backend_tag>{
 public:
     //! \brief FFT executor for the complex-to-complex dimensions.
     using backend_executor_c2c = typename one_dim_backend<backend_tag>::type;

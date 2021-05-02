@@ -30,9 +30,9 @@ fft3d_r2c<backend_tag, index>::fft3d_r2c(logic_plan3d<index> const &plan, int co
         backward_shaper[3-i] = make_reshape3d<backend_tag>(plan.out_shape[i], plan.in_shape[i], comm, plan.options);
     }
 
-    executor_r2c = one_dim_backend<backend_tag>::make_r2c(plan.out_shape[0][this_mpi_rank], plan.fft_direction[0]);
-    executor[0] = one_dim_backend<backend_tag>::make(plan.out_shape[1][this_mpi_rank], plan.fft_direction[1]);
-    executor[1] = one_dim_backend<backend_tag>::make(plan.out_shape[2][this_mpi_rank], plan.fft_direction[2]);
+    executor_r2c = one_dim_backend<backend_tag>::make_r2c(this->gpu_queue(), plan.out_shape[0][this_mpi_rank], plan.fft_direction[0]);
+    executor[0] = one_dim_backend<backend_tag>::make(this->gpu_queue(), plan.out_shape[1][this_mpi_rank], plan.fft_direction[1]);
+    executor[1] = one_dim_backend<backend_tag>::make(this->gpu_queue(), plan.out_shape[2][this_mpi_rank], plan.fft_direction[2]);
 }
 
 template<typename backend_tag, typename index>
@@ -146,6 +146,10 @@ heffte_instantiate_fft3d_r2c(backend::cufft, long long)
 #ifdef Heffte_ENABLE_ROCM
 heffte_instantiate_fft3d_r2c(backend::rocfft, int)
 heffte_instantiate_fft3d_r2c(backend::rocfft, long long)
+#endif
+#ifdef Heffte_ENABLE_ONEAPI
+heffte_instantiate_fft3d_r2c(backend::onemkl, int)
+heffte_instantiate_fft3d_r2c(backend::onemkl, long long)
 #endif
 
 }

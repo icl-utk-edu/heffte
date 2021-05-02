@@ -13,6 +13,9 @@ using gpu_backend = heffte::backend::cufft;
 #ifdef Heffte_ENABLE_ROCM
 using gpu_backend = heffte::backend::rocfft;
 #endif
+#ifdef Heffte_ENABLE_ONEAPI
+using gpu_backend = heffte::backend::onemkl;
+#endif
 
 template<typename backend_tag, typename precision_type, typename index>
 void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &args){
@@ -206,6 +209,9 @@ int main(int argc, char *argv[]){
     #ifdef Heffte_ENABLE_ROCM
     backends += "rocfft ";
     #endif
+    #ifdef Heffte_ENABLE_ONEAPI
+    backends += "onemkl ";
+    #endif
     #ifdef Heffte_ENABLE_MKL
     backends += "mkl ";
     #endif
@@ -280,6 +286,9 @@ int main(int argc, char *argv[]){
     #endif
     #ifdef Heffte_ENABLE_ROCM
     valid_backend = valid_backend or perform_benchmark<backend::rocfft>(precision_string, backend_string, "rocfft", size_fft, arguments(argc, argv));
+    #endif
+    #ifdef Heffte_ENABLE_ONEAPI
+    valid_backend = valid_backend or perform_benchmark<backend::onemkl>(precision_string, backend_string, "onemkl", size_fft, arguments(argc, argv));
     #endif
 
     if (not valid_backend){

@@ -142,6 +142,25 @@ namespace backend {
      */
     template<typename backend_tag>
     inline std::string name(){ return "unknown"; }
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Holds the auxiliary variables needed by each backend.
+     *
+     * The idea is similar to <a href="https://en.cppreference.com/w/cpp/language/crtp">CRTP</a>
+     * heffte::fft3d and heffte::fft3d_r2c inherit from this class and specializations based
+     * on the backend-tag can define a different set of internal variables.
+     * Specifically, this is used to store the sycl::queue used by the DPC++ backend.
+     */
+    template<typename backend_tag>
+    struct auxiliary_variables{
+        //! \brief Empty constructor.
+        auxiliary_variables(){}
+        //! \brief Default destructor.
+        virtual ~auxiliary_variables() = default;
+        //! \brief Returns the nullptr.
+        void* gpu_queue(){ return nullptr; }
+    };
 }
 
 /*!

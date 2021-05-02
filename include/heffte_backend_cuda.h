@@ -562,12 +562,12 @@ template<> struct one_dim_backend<backend::cufft>{
 
     //! \brief Constructs a complex-to-complex executor.
     template<typename index>
-    static std::unique_ptr<cufft_executor> make(box3d<index> const box, int dimension){
+    static std::unique_ptr<cufft_executor> make(void*, box3d<index> const box, int dimension){
         return std::unique_ptr<cufft_executor>(new cufft_executor(box, dimension));
     }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
-    static std::unique_ptr<cufft_executor_r2c> make_r2c(box3d<index> const box, int dimension){
+    static std::unique_ptr<cufft_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
         return std::unique_ptr<cufft_executor_r2c>(new cufft_executor_r2c(box, dimension));
     }
 };

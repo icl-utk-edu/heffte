@@ -15,19 +15,21 @@ could be cleanly implemented in the rigid Makefile.
 
 | Compiler | Tested versions |
 |----|----|
-| gcc      | 6 - 8           |
-| clang    | 4 - 5           |
+| gcc      | 6 - 10          |
+| clang    | 4 - 10          |
 | icc      | 18              |
+| dpcpp    | 2021.2          |
 | OpenMPI  | 4.0.3           |
 
 Tested backend libraries:
 
-| Backend    | Tested versions |
+| Backend        | Tested versions |
 |----|----|
-| fftw3      | 3.3.7 - 3.3.8   |
-| mkl        | 2016            |
-| cuda/cufft | 9.0 - 11        |
-| rocm/rocfft| 3.8             |
+| fftw3          | 3.3.7 - 3.3.8   |
+| mkl            | 2016            |
+| oneapi/onemkl  | 2021.2          |
+| cuda/cufft     | 9.0 - 11        |
+| rocm/rocfft    | 3.8             |
 
 The listed tested versions are part of the continuous integration and nightly build systems,
 but heFFTe may yet work with other compilers and backend versions.
@@ -67,6 +69,7 @@ The standard CMake options are also accepted:
 Additional heFFTe options:
 ```
     Heffte_ENABLE_ROCM=<ON/OFF>      (enable the rocFFT backend)
+    Heffte_ENABLE_ONEAPI=<ON/OFF>    (enable the oneMKL backend)
     Heffte_ENABLE_MKL=<ON/OFF>       (enable the MKL backend)
     MKL_ROOT=<path>                  (path to the MKL folder)
     Heffte_ENABLE_DOXYGEN=<ON/OFF>   (build the documentation)
@@ -96,7 +99,15 @@ Note that fftw3 uses two different libraries for single and double precision, wh
     -D Heffte_ENABLE_MKL=ON
     -D MKL_ROOT=<path-to-mkl-installation>
 ```
-The `MKL_ROOT` default to the environment variable `MKLROOT` (chosen by Intel). MKL also requires the `iomp5` library, which is the Intel implementation of the OpenMP standard, heFFTe will find it by default if it is visible in the default CMake search path or the `LD_LIBRARY_PATH`.
+The `MKL_ROOT` default to the environment variable `MKLROOT` (chosen by Intel). The additional variable `Heffte_MKL_THREAD_LIBS` allows to choose the MKL threaded backend, tested with `mkl_gnu_thread` and `mkl_intel_thread`, the default is to use GNU-threads on GCC compiler and Intel otherwise. Note that `mkl_intel_thread` also requires `libiomp5.so` and heFFTe will search for it in the system paths and `LD_LIBRARY_PATH`, unless the variable `Heffte_MKL_IOMP5` is defined and pointing to `libiomp5.so`. GNU-threads do not use `libiomp5.so` but the GNU `libgomp.so` which CMake finds automatically.
+
+* **oneMKL** the [Intel oneMKL Library](https://spec.oneapi.com/versions/latest/elements/oneMKL/source/index.html) provides optimized FFT implementation targeting Intel GPUs and can be enabled within heFFTe with:
+```
+    -D CMAKE_CXX_COMPILER=dpcpp
+    -D Heffte_ENABLE_ONEAPI=ON
+    -D Heffte_ONEMKL_ROOT=<path-to-onemkl-installation>
+```
+The `Heffte_ONEMKL_ROOT` defaults to the environment variable `ONEAPI_ROOT`. The Intel oneAPI framework provides support for both CPU and GPU devices from the same code-base, thus the oneMKL libraries require the CPU MKL libraries and the MKL options will be enabled automatically if oneMKL is selected.
 
 * **CUFFT:** the [Nvidia CUDA framework](https://developer.nvidia.com/cuda-zone) provides a GPU accelerated FFT library [cuFFT](https://docs.nvidia.com/cuda/cufft/index.html), which can be enabled in heFFTe with:
 ```
@@ -110,7 +121,7 @@ The `MKL_ROOT` default to the environment variable `MKLROOT` (chosen by Intel). 
     -D Heffte_ENABLE_ROCM=ON
 ```
 
-**Note:** CUDA and ROCM cannot be enabled at the same time and both backends operate with arrays allocated in GPU device memory (or alternatively shared/managed memory). By default when using either GPU backend, heFFTe assumes that the MPI implementation is CUDA-Aware, see the next section.
+**Note:** Only one of the GPU backends can be enabled (CUDA, ROCM, or ONEAPI) since the three backends operate with arrays allocated in GPU device memory (or alternatively shared/managed memory). By default when using either GPU backend, heFFTe assumes that the MPI implementation is GPU-Aware, see the next section.
 
 
 ### GPU-Aware MPI
@@ -141,7 +152,7 @@ An example is installed in `<install-prefix>/share/heffte/examples/`.
 
 The package-config also provides a set of components corresponding to the different compile options, specifically:
 ```
-    FFTW MKL CUDA ROCM PYTHON Fortran GPUAWARE
+    FFTW MKL CUDA ROCM ONEAPI PYTHON Fortran GPUAWARE
 ```
 
 
