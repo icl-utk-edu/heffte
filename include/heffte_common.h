@@ -170,6 +170,15 @@ namespace backend {
 }
 
 /*!
+ * \ingroup fft3dbackend
+ * \brief Factory method to create new buffer container for the CPU backends.
+ */
+template<typename scalar_type>
+std::vector<scalar_type> make_buffer_container(void*, size_t size){
+    return std::vector<scalar_type>(size);
+}
+
+/*!
  * \ingroup fft3dmisc
  * \brief Indicates the direction of the FFT (internal use only).
  */

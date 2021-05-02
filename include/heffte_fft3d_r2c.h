@@ -84,6 +84,22 @@ public:
         assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
+    /*!
+     * \brief See the documentation for fft3d::fft3d()
+     */
+    fft3d_r2c(typename backend::auxiliary_variables<backend_tag>::queue_type gpu_stream,
+              box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
+              plan_options const options = default_options<backend_tag>()) :
+        fft3d_r2c(gpu_stream,
+                  plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction,
+                                  #ifdef Heffte_ENABLE_ROCM
+                                  (std::is_same<backend_tag, backend::rocfft>::value) ? force_reorder(options) :
+                                  #endif
+                                  options),
+                  mpi::comm_rank(comm), comm){
+        assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
+        static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
+    }
 
     //! \brief Internal use only, used by the Fortran interface
     fft3d_r2c(int il0, int il1, int il2, int ih0, int ih1, int ih2, int io0, int io1, int io2,
@@ -181,7 +197,7 @@ public:
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
         static_assert(std::is_same<input_type, float>::value or std::is_same<input_type, double>::value,
                       "The input to forward() must be real, i.e., either float or double.");
-        buffer_container<typename fft_output<input_type>::type> output(size_outbox());
+        auto output = make_buffer_container<typename fft_output<input_type>::type>(this->gpu_queue(), size_outbox());
         forward(input.data(), output.data(), scaling);
         return output;
     }
@@ -225,7 +241,7 @@ public:
     real_buffer_container<scalar_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
-        buffer_container<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());
+        auto result = make_buffer_container<typename define_standard_type<scalar_type>::type::value_type>(this->gpu_queue(), size_inbox());
         backward(input.data(), result.data(), scaling);
         return result;
     }
@@ -239,14 +255,21 @@ private:
     //! \brief Same as in the fft3d case.
     fft3d_r2c(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
 
+    //! \brief Same as in the fft3d case.
+    fft3d_r2c(typename backend::auxiliary_variables<backend_tag>::queue_type gpu_stream,
+              logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
+
+    //! \brief Setup the executors and the reshapes.
+    void setup(logic_plan3d<index> const &plan, MPI_Comm const comm);
+
     template<typename scalar_type>
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale scaling) const{
-        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->gpu_queue(), size_workspace());
         standard_transform(input, output, workspace.data(), scaling);
     }
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], scale scaling) const{
-        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->gpu_queue(), size_workspace());
         standard_transform(input, output, workspace.data(), scaling);
     }
 

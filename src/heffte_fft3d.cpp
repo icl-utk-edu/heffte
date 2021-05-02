@@ -39,7 +39,6 @@
 
 namespace heffte {
 
-
 template<typename backend_tag, typename index>
 fft3d<backend_tag, index>::fft3d(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
     backend::auxiliary_variables<backend_tag>(),
@@ -49,14 +48,32 @@ fft3d<backend_tag, index>::fft3d(logic_plan3d<index> const &plan, int const this
     , hmagma(this->gpu_queue())
     #endif
 {
+    setup(plan, comm);
+}
+
+template<typename backend_tag, typename index>
+fft3d<backend_tag, index>::fft3d(typename backend::auxiliary_variables<backend_tag>::queue_type gpu_stream,
+                                logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
+    backend::auxiliary_variables<backend_tag>(gpu_stream),
+    pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
+    scale_factor(1.0 / static_cast<double>(plan.index_count))
+    #ifdef Heffte_ENABLE_MAGMA
+    , hmagma(this->gpu_queue())
+    #endif
+{
+    setup(plan, comm);
+}
+
+template<typename backend_tag, typename index>
+void fft3d<backend_tag, index>::setup(logic_plan3d<index> const &plan, MPI_Comm const comm){
     for(int i=0; i<4; i++){
         forward_shaper[i]    = make_reshape3d<backend_tag>(this->gpu_queue(), plan.in_shape[i], plan.out_shape[i], comm, plan.options);
         backward_shaper[3-i] = make_reshape3d<backend_tag>(this->gpu_queue(), plan.out_shape[i], plan.in_shape[i], comm, plan.options);
     }
 
-    fft0 = one_dim_backend<backend_tag>::make(this->gpu_queue(), plan.out_shape[0][this_mpi_rank], plan.fft_direction[0]);
-    fft1 = one_dim_backend<backend_tag>::make(this->gpu_queue(), plan.out_shape[1][this_mpi_rank], plan.fft_direction[1]);
-    fft2 = one_dim_backend<backend_tag>::make(this->gpu_queue(), plan.out_shape[2][this_mpi_rank], plan.fft_direction[2]);
+    fft0 = one_dim_backend<backend_tag>::make(this->gpu_queue(), plan.out_shape[0][mpi::comm_rank(comm)], plan.fft_direction[0]);
+    fft1 = one_dim_backend<backend_tag>::make(this->gpu_queue(), plan.out_shape[1][mpi::comm_rank(comm)], plan.fft_direction[1]);
+    fft2 = one_dim_backend<backend_tag>::make(this->gpu_queue(), plan.out_shape[2][mpi::comm_rank(comm)], plan.fft_direction[2]);
 }
 
 template<typename backend_tag, typename index>

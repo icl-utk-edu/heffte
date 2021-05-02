@@ -122,8 +122,8 @@ template<typename mode> struct transpose_packer{};
 template<> struct transpose_packer<tag::cpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(void*, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        direct_packer<tag::cpu>().pack(nullptr, plan, data, buffer); // packing is done the same way as the direct_packer
+    void pack(void *q, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        direct_packer<tag::cpu>().pack(q, plan, data, buffer); // packing is done the same way as the direct_packer
     }
     /*!
      * \brief Execute the planned unpack operation.

@@ -117,6 +117,15 @@ namespace gpu {
 
 };
 
+/*!
+ * \ingroup hefftecuda
+ * \brief Factory method to create new buffer container for the CUDA backends.
+ */
+template<typename scalar_type>
+gpu::vector<scalar_type> make_buffer_container(cudaStream_t stream, size_t size){
+    return gpu::vector<scalar_type>(stream, size);
+}
+
 namespace backend{
     /*!
      * \ingroup hefftecuda
