@@ -61,6 +61,21 @@ namespace data_manipulator {
     void copy_n(source_type const source[], size_t num_entries, destination_type destination[]){
         std::copy_n(source, num_entries, destination);
     }
+    //! \brief Wrapper around std::copy_n().
+    template<typename source_type, typename destination_type>
+    void copy_device_to_host(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+        std::copy_n(source, num_entries, destination);
+    }
+    //! \brief Wrapper around std::copy_n().
+    template<typename source_type, typename destination_type>
+    void copy_device_to_device(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+        std::copy_n(source, num_entries, destination);
+    }
+    //! \brief Wrapper around std::copy_n().
+    template<typename source_type, typename destination_type>
+    void copy_host_to_device(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+        std::copy_n(source, num_entries, destination);
+    }
 }
 
 /*!
@@ -152,6 +167,8 @@ namespace backend {
         void* gpu_queue(){ return nullptr; }
         //! \brief Returns the nullptr (const case).
         void* gpu_queue() const{ return nullptr; }
+        //! \brief Syncs the execution with the queue, no-op in the CPU case.
+        void synchronize_device() const{}
         //! \brief The type for the internal stream, the cpu uses just a void pointer.
         using queue_type = void*;
     };

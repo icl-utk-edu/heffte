@@ -185,6 +185,62 @@ void test_fft3d_vectors(MPI_Comm comm){
     } // different option variants
 }
 
+template<typename backend_tag, typename scalar_type, int h0, int h1, int h2>
+void test_fft3d_queues(MPI_Comm comm){
+    // works with ranks 6, same logic as vectors but uses an external device stream/queue
+    // used complex numbers only
+    int const num_ranks = mpi::comm_size(comm);
+    assert(num_ranks == 6);
+    box3d<> const world = {{0, 0, 0}, {h0, h1, h2}};
+    current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d (stream)", comm);
+    int const me = mpi::comm_rank(comm);
+    auto world_input = make_data<scalar_type>(world);
+    auto world_fft = forward_fft<backend_tag>(world, world_input);
+
+    std::array<heffte::scale, 3> fscale = {heffte::scale::none, heffte::scale::symmetric, heffte::scale::full};
+    std::array<heffte::scale, 3> bscale = {heffte::scale::full, heffte::scale::symmetric, heffte::scale::none};
+
+    auto stream = make_stream<backend_tag>();
+
+    for(auto const &options : make_all_options<backend_tag>()){
+    if (mpi::world_rank(0)) std::cout << options << std::endl;
+
+    for(int i=0; i<3; i++){
+        std::array<int, 3> split = {1, 1, 1};
+        if (num_ranks == 6){
+            split[i] = 2;
+            split[(i+2) % 3] = 3;
+        }
+        std::vector<box3d<>> boxes = heffte::split_world(world, split);
+        // get a semi-random inbox and outbox
+        // makes sure that the boxes do not have to match
+        int iindex = me, oindex = me; // indexes of the input and outboxes
+        if (num_ranks == 6){ // shuffle the boxes
+            iindex = (me+1) % num_ranks;
+            oindex = (me+3) % num_ranks;
+        }
+
+        box3d<> const inbox  = boxes[iindex];
+        box3d<> const outbox = boxes[oindex];
+
+        auto local_input         = input_maker<backend_tag, scalar_type>::select(world, inbox, world_input);
+        auto reference_fft       = rescale(world, get_subbox(world, outbox, world_fft), fscale[i]);
+
+        sync_stream(stream);
+        heffte::fft3d<backend_tag> fft(stream, inbox, outbox, comm, options);
+        sync_stream(stream);
+
+        auto result = fft.forward(local_input, fscale[i]);
+        tassert(approx(result, reference_fft));
+
+        auto backward_cresult = fft.backward(result, bscale[i]);
+        auto backward_scaled_cresult = rescale(world, backward_cresult, scale::none);
+        tassert(approx(local_input, backward_scaled_cresult));
+    }
+    } // different option variants
+    free_stream(stream);
+}
+
 template<typename backend_tag, typename scalar_type, int h0, int h1>
 void test_fft3d_vectors_2d(MPI_Comm comm){
     // works with ranks 4 and 6 and std::complex<float> or std::complex<double> as scalar_type

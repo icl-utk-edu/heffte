@@ -32,6 +32,11 @@ heffte_add_mpi_test(NAME heffte_fft3d_np6   COMMAND test_fft3d RANKS 6)
 heffte_add_mpi_test(NAME heffte_fft3d_np8   COMMAND test_fft3d RANKS 8)
 heffte_add_mpi_test(NAME heffte_fft3d_np12  COMMAND test_fft3d RANKS 12)
 
+# test the user-provided streams
+add_executable(test_streams  test_fft3d.h test_streams.cpp)
+target_link_libraries(test_streams  Heffte)
+heffte_add_mpi_test(NAME heffte_streams_np6 COMMAND test_streams RANKS 6)
+
 # test the real-to-complex class
 add_executable(test_fft3d_r2c  test_fft3d.h test_fft3d_r2c.cpp)
 target_link_libraries(test_fft3d_r2c  Heffte)

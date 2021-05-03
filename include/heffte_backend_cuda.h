@@ -11,6 +11,8 @@
 
 #ifdef Heffte_ENABLE_CUDA
 
+#include <cuda_runtime_api.h>
+#include <cuda.h>
 #include <cufft.h>
 #include "heffte_backend_vector.h"
 
@@ -35,6 +37,76 @@
 
 namespace heffte{
 
+/*!
+ * \ingroup hefftecuda
+ * \brief Cuda specific methods.
+ */
+namespace cuda {
+    /*!
+     * \ingroup hefftecuda
+     * \brief Checks the status of a CUDA command and in case of a failure, converts it to a C++ exception.
+     */
+    inline void check_error(cudaError_t status, std::string const &function_name){
+        if (status != cudaSuccess)
+            throw std::runtime_error(function_name + " failed with message: " + cudaGetErrorString(status));
+    }
+    /*!
+     * \ingroup hefftecuda
+     * \brief Checks the status of a cufft command and in case of a failure, converts it to a C++ exception.
+     */
+    inline void check_error(cufftResult status, std::string const &function_name){
+        if (status != CUFFT_SUCCESS)
+            throw std::runtime_error(function_name + " failed with error code: " + std::to_string(status));
+    }
+    /*!
+     * \ingroup hefftecuda
+     * \brief Convert real numbers to complex when both are located on the GPU device.
+     *
+     * Launches a CUDA kernel.
+     */
+    template<typename precision_type, typename index>
+    void convert(cudaStream_t stream, index num_entries, precision_type const source[], std::complex<precision_type> destination[]);
+    /*!
+     * \ingroup hefftecuda
+     * \brief Convert complex numbers to real when both are located on the GPU device.
+     *
+     * Launches a CUDA kernel.
+     */
+    template<typename precision_type, typename index>
+    void convert(cudaStream_t stream, index num_entries, std::complex<precision_type> const source[], precision_type destination[]);
+
+    /*!
+     * \ingroup hefftecuda
+     * \brief Scales real data (double or float) by the scaling factor.
+     */
+    template<typename scalar_type, typename index>
+    void scale_data(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor);
+}
+
+namespace data_manipulator {
+    //! \brief Equivalent to std::copy_n() but using CUDA arrays.
+    template<typename scalar_type>
+    void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]);
+    //! \brief Copy-convert complex-to-real.
+    template<typename scalar_type>
+    void copy_n(cudaStream_t stream, std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
+        cuda::convert(stream, static_cast<long long>(num_entries), source, destination);
+    }
+    //! \brief Copy-convert real-to-complex.
+    template<typename scalar_type>
+    void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
+        cuda::convert(stream, static_cast<long long>(num_entries), source, destination);
+    }
+    //! \brief Wrapper around std::copy_n().
+    template<typename scalar_type>
+    void copy_device_to_host(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]);
+    //! \brief Wrapper around std::copy_n().
+    template<typename scalar_type>
+    void copy_device_to_device(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]);
+    //! \brief Wrapper around std::copy_n().
+    template<typename scalar_type>
+    void copy_host_to_device(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]);
+}
 
 namespace backend{
     /*!
@@ -57,6 +129,8 @@ namespace backend{
         cudaStream_t gpu_queue(){ return stream; }
         //! \brief Returns the nullptr (const case).
         cudaStream_t gpu_queue() const{ return stream; }
+        //! \brief Syncs the execution with the queue, no-op in the CPU case.
+        void synchronize_device() const{ cuda::check_error(cudaStreamSynchronize(stream), "device sync"); }
         //! \brief The CUDA stream to be used in all operations.
         mutable cudaStream_t stream;
         //! \brief The type for the internal stream.
@@ -138,67 +212,6 @@ namespace backend{
         //! \brief The data is managed by the cuda vector container.
         template<typename T> using container = heffte::gpu::vector<T>;
     };
-}
-
-/*!
- * \ingroup hefftecuda
- * \brief Cuda specific methods, vector-like container, error checking, etc.
- */
-namespace cuda {
-
-    /*!
-     * \ingroup hefftecuda
-     * \brief Checks the status of a CUDA command and in case of a failure, converts it to a C++ exception.
-     */
-    void check_error(cudaError_t status, std::string const &function_name);
-    /*!
-     * \ingroup hefftecuda
-     * \brief Checks the status of a cufft command and in case of a failure, converts it to a C++ exception.
-     */
-    inline void check_error(cufftResult status, std::string const &function_name){
-        if (status != CUFFT_SUCCESS)
-            throw std::runtime_error(function_name + " failed with error code: " + std::to_string(status));
-    }
-
-    /*!
-     * \ingroup hefftecuda
-     * \brief Convert real numbers to complex when both are located on the GPU device.
-     *
-     * Launches a CUDA kernel.
-     */
-    template<typename precision_type, typename index>
-    void convert(cudaStream_t stream, index num_entries, precision_type const source[], std::complex<precision_type> destination[]);
-    /*!
-     * \ingroup hefftecuda
-     * \brief Convert complex numbers to real when both are located on the GPU device.
-     *
-     * Launches a CUDA kernel.
-     */
-    template<typename precision_type, typename index>
-    void convert(cudaStream_t stream, index num_entries, std::complex<precision_type> const source[], precision_type destination[]);
-
-    /*!
-     * \ingroup hefftecuda
-     * \brief Scales real data (double or float) by the scaling factor.
-     */
-    template<typename scalar_type, typename index>
-    void scale_data(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor);
-}
-
-namespace data_manipulator {
-    //! \brief Equivalent to std::copy_n() but using CUDA arrays.
-    template<typename scalar_type>
-    void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]);
-    //! \brief Copy-convert complex-to-real.
-    template<typename scalar_type>
-    void copy_n(cudaStream_t stream, std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
-        cuda::convert(stream, static_cast<long long>(num_entries), source, destination);
-    }
-    //! \brief Copy-convert real-to-complex.
-    template<typename scalar_type>
-    void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
-        cuda::convert(stream, static_cast<long long>(num_entries), source, destination);
-    }
 }
 
 /*!
