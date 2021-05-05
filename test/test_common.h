@@ -157,17 +157,15 @@ struct test_traits{
     static std::vector<T> unload(container<T> const &x){ return x; }
 };
 
-template<typename backend_tag>
-typename backend::device_instance<backend_tag>::stream_type make_stream(){ return nullptr; } // CPU case
+template<typename backend_tag> void* make_stream(backend_tag){ return nullptr; } // CPU case
 void sync_stream(void*){}
 void free_stream(void*){}
 
 #ifdef Heffte_ENABLE_CUDA
 using gpu_backend = heffte::backend::cufft;
 
-template<> cudaStream_t make_stream<backend::cufft>(){
+cudaStream_t make_stream(backend::cufft){
     cudaStream_t result;
-    //cudaStreamCreate(&result);
     cudaStreamCreateWithFlags(&result, cudaStreamNonBlocking);
     return result;
 }
@@ -176,9 +174,23 @@ void free_stream(cudaStream_t stream){ cudaStreamDestroy(stream); }
 #endif
 #ifdef Heffte_ENABLE_ROCM
 using gpu_backend = heffte::backend::rocfft;
+
+hipStream_t make_stream(backend::rocfft){
+    hipStream_t result;
+    hipStreamCreateWithFlags(&result, hipStreamNonBlocking);
+    return result;
+}
+void sync_stream(hipStream_t stream){ hipStreamSynchronize(stream); }
+void free_stream(hipStream_t stream){ hipStreamDestroy(stream); }
 #endif
 #ifdef Heffte_ENABLE_ONEAPI
 using gpu_backend = heffte::backend::onemkl;
+
+sycl::queue make_stream(backend::onemkl){
+    return heffte::oapi::make_sycl_queue();
+}
+void sync_stream(sycl::queue &stream){ stream.wait(); }
+void free_stream(sycl::queue &stream){}
 #endif
 #ifdef Heffte_ENABLE_GPU
 template<typename T>

@@ -132,7 +132,7 @@ namespace backend{
         hipStream_t stream(){ return _stream; }
         //! \brief Returns the nullptr (const case).
         hipStream_t stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue, no-op in the CPU case.
+        //! \brief Syncs the execution with the queue.
         void synchronize_device() const{ rocm::check_error(hipStreamSynchronize(_stream), "device sync"); }
         //! \brief The CUDA stream to be used in all operations.
         mutable hipStream_t _stream;

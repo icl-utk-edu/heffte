@@ -215,9 +215,10 @@ void test_1d_complex(){
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+    backend::device_instance<backend_tag> device;
 
     for(size_t i=0; i<reference.size(); i++){
-        auto fft = heffte::one_dim_backend<backend_tag>::make(nullptr, box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make(device.stream(), box, i);
 
         auto forward_result = test_traits<backend_tag>::load(input);
         fft->forward(forward_result.data());
@@ -240,9 +241,10 @@ void test_1d_real(){
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+    backend::device_instance<backend_tag> device;
 
     for(size_t i=0; i<reference.size(); i++){
-        auto fft = heffte::one_dim_backend<backend_tag>::make(nullptr, box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make(device.stream(), box, i);
 
         auto load_input = test_traits<backend_tag>::load(input);
         typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(input.size());
@@ -266,6 +268,7 @@ void test_1d_r2c(){
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
+    backend::device_instance<backend_tag> device;
 
     #ifdef Heffte_ENABLE_ROCM
     if (std::is_same<backend_tag, backend::rocfft>::value)
@@ -273,7 +276,7 @@ void test_1d_r2c(){
     #endif
 
     for(size_t i=0; i<reference.size(); i++){
-        auto fft = heffte::one_dim_backend<backend_tag>::make_r2c(nullptr, box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make_r2c(device.stream(), box, i);
 
         auto load_input = test_traits<backend_tag>::load(input);
         typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(fft->complex_size());
@@ -359,19 +362,18 @@ void test_gpu_scale(){
     std::vector<float> x = {1.0, 33.0, 88.0, -11.0, 2.0};
     std::vector<float> y = x;
     for(auto &v : y) v *= 3.0;
-    gpu::transfer data_manipulator;
-    auto gx = data_manipulator.load(x);
+    auto gx = gpu::transfer::load(x);
     backend::device_instance<backend::default_backend<tag::gpu>::type> device;
     data_scaling::apply(device.stream(), gx.size(), gx.data(), 3.0);
-    x = data_manipulator.unload(gx);
+    x = gpu::transfer::unload(gx);
     sassert(approx(x, y));
 
     std::vector<std::complex<double>> cx = {{1.0, -11.0}, {33.0, 8.0}, {88.0, -11.0}, {2.0, -9.0}};
     std::vector<std::complex<double>> cy = cx;
     for(auto &v : cy) v /= 1.33;
-    auto gcx = data_manipulator.load(cx);
+    auto gcx = gpu::transfer::load(cx);
     data_scaling::apply(device.stream(), gcx.size(), gcx.data(), 1.0 / 1.33);
-    cx = data_manipulator.unload(gcx);
+    cx = gpu::transfer::unload(gcx);
     sassert(approx(cx, cy));
 }
 #else

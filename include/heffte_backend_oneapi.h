@@ -48,69 +48,15 @@ namespace heffte{
  */
 namespace oapi {
     //! \brief Creates a new SYCL queue.
-    sycl::queue* make_sycl_queue();
-
-    /*!
-     * \ingroup heffteoneapi
-     * \brief Memory management operation specific to SYCL/DPC++, see gpu::device_vector.
-     */
-    struct memory_manager{
-        //! \brief Allocate memory.
-        static void* allocate(size_t num_bytes);
-        //! \brief Free memory.
-        static void free(void *pntr);
-        //! \brief Send data to the device.
-        static void host_to_device(void const *source, size_t num_bytes, void *destination);
-        //! \brief Copy within the device.
-        static void device_to_device(void const *source, size_t num_bytes, void *destination);
-        //! \brief Receive from the device.
-        static void device_to_host(void const *source, size_t num_bytes, void *destination);
-    };
-
-    /*!
-     * \ingroup heffteoneapi
-     * \brief There is an instance of an internal sycl::queue, used mostly for testing.
-     */
-    struct heffte_internal_sycl_queue{
-        //! \brief Constructor, creates a default queue.
-        heffte_internal_sycl_queue(){
-            queue_ptr = std::unique_ptr<sycl::queue>(make_sycl_queue());
+    inline sycl::queue make_sycl_queue(){
+        try{
+            return sycl::queue(sycl::gpu_selector());
+        }catch(sycl::exception const&){
+            return sycl::queue(sycl::cpu_selector());
         }
-        //! \brief Returns a reference to the queue.
-        operator sycl::queue& () { return *queue_ptr.get(); }
-        //! \brief The queue is accessible through the -> operator.
-        sycl::queue* operator ->() { return queue_ptr.get(); }
-        //! \brief Sync the queue.
-        void wait(){ queue_ptr->wait(); }
+    }
 
-        //! \brief Container holding the queue.
-        std::unique_ptr<sycl::queue> queue_ptr;
-    };
-
-    extern heffte_internal_sycl_queue def_queue;
-}
-
-namespace gpu {
-    /*!
-     * \ingroup heffteoneapi
-     * \brief Device vector for the oneAPI backends.
-     */
-    template<typename scalar_type>
-    using vector = device_vector<scalar_type, oapi::memory_manager>;
-
-    /*!
-     * \ingroup heffteoneapi
-     * \brief Transfer helpers for the oneAPI backends.
-     */
-    using transfer = device_transfer<oapi::memory_manager>;
-
-};
-
-/*!
- * \ingroup heffteoneapi
- * \brief Cuda specific methods, vector-like container, error checking, etc.
- */
-namespace oapi {
+    extern sycl::queue internal_sycl_queue;
 
     /*!
      * \ingroup heffteoneapi
@@ -119,7 +65,7 @@ namespace oapi {
      * Launches a SYCL/DPC++ kernel.
      */
     template<typename precision_type, typename index>
-    void convert(index num_entries, precision_type const source[], std::complex<precision_type> destination[]);
+    void convert(sycl::queue &stream, index num_entries, precision_type const source[], std::complex<precision_type> destination[]);
     /*!
      * \ingroup heffteoneapi
      * \brief Convert complex numbers to real when both are located on the GPU device.
@@ -127,59 +73,45 @@ namespace oapi {
      * Launches a SYCL/DPC++ kernel.
      */
     template<typename precision_type, typename index>
-    void convert(index num_entries, std::complex<precision_type> const source[], precision_type destination[]);
+    void convert(sycl::queue &stream, index num_entries, std::complex<precision_type> const source[], precision_type destination[]);
 
     /*!
      * \ingroup heffteoneapi
      * \brief Scales real data (double or float) by the scaling factor.
      */
     template<typename scalar_type, typename index>
-    void scale_data(index num_entries, scalar_type *data, double scale_factor);
-}
+    void scale_data(sycl::queue &stream, index num_entries, scalar_type *data, double scale_factor);
 
-/*!
- * \ingroup heffteoneapi
- * \brief Data manipulations on the GPU end.
- */
-template<> struct data_manipulator<tag::gpu>{
-    /*!
-     * \brief Equivalent to std::copy_n() but using CUDA arrays.
-     */
-    template<typename scalar_type>
-    static void copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]);
-    //! \brief Copy-convert complex-to-real.
-    template<typename scalar_type>
-    static void copy_n(std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
-        oapi::convert(static_cast<long long>(num_entries), source, destination);
-    }
-    //! \brief Copy-convert real-to-complex.
-    template<typename scalar_type>
-    static void copy_n(scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
-        oapi::convert(static_cast<long long>(num_entries), source, destination);
-    }
-    /*!
-     * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
-     */
-    template<typename scalar_type, typename index>
-    static void scale(index num_entries, scalar_type data[], double scale_factor){
-        oapi::scale_data(num_entries, data, scale_factor);
-    }
-    /*!
-     * \brief Complex by real scaling.
-     */
-    template<typename precision_type, typename index>
-    static void scale(index num_entries, std::complex<precision_type> data[], double scale_factor){
-        scale<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
-    }
-};
-
-namespace backend{
     /*!
      * \ingroup heffteoneapi
-     * \brief Type-tag for the cuFFT backend
+     * \brief Performs a direct-pack operation for data sitting on the GPU device.
+     *
+     * Launches a SYCL/DPC++ kernel.
      */
-    struct onemkl{};
+    template<typename scalar_type, typename index>
+    void direct_pack(sycl::queue &stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Performs a direct-unpack operation for data sitting on the GPU device.
+     *
+     * Launches a SYCL/DPC++ kernel.
+     */
+    template<typename scalar_type, typename index>
+    void direct_unpack(sycl::queue &stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
+     *
+     * Launches a SYCL/DPC++ kernel.
+     */
+    template<typename scalar_type, typename index>
+    void transpose_unpack(sycl::queue &stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+                        index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
+                        scalar_type const source[], scalar_type destination[]);
 
+}
+
+namespace backend{
     /*!
      * \ingroup heffteoneapi
      * \brief Indicate that the cuFFT backend has been enabled.
@@ -188,36 +120,99 @@ namespace backend{
 
     /*!
      * \ingroup heffteoneapi
-     * \brief Defines the location type-tag and the cuda container.
+     * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
+     */
+    template<>
+    struct device_instance<onemkl>{
+        //! \brief Empty constructor.
+        device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
+        //! \brief Constructor assigning the queue.
+        device_instance(sycl::queue &new_stream) : _stream(new_stream){}
+        //! \brief Constructor assigning from an existing wrapper.
+        device_instance(std::reference_wrapper<sycl::queue> &new_stream) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        sycl::queue& stream(){ return _stream; }
+        //! \brief Returns the nullptr.
+        sycl::queue& stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue.
+        void synchronize_device() const{ _stream.get().wait(); }
+        //! \brief The sycl::queue, either user provided or created by heFFTe.
+        std::reference_wrapper<sycl::queue> _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = std::reference_wrapper<sycl::queue>;
+    };
+
+    /*!
+     * \ingroup heffterocm
+     * \brief In oneAPI mode, the default GPU backend is onemkl.
+     */
+    template<> struct default_backend<tag::gpu>{
+        //! \brief Set the onemkl tag.
+        using type = onemkl;
+    };
+
+    /*!
+     * \ingroup heffterocm
+     * \brief Specialization for the data operations in ROCm mode.
+     */
+    template<> struct data_manipulator<tag::gpu> {
+        //! \brief Defines the backend_device.
+        using backend_device = backend::device_instance<typename default_backend<tag::gpu>::type>;
+        //! \brief Allocate memory.
+        template<typename scalar_type>
+        static scalar_type* allocate(sycl::queue &stream, size_t num_entries){
+            scalar_type* result = sycl::malloc_device<scalar_type>(num_entries, stream);
+            stream.wait();
+            return result;
+        }
+        //! \brief Free memory.
+        template<typename scalar_type>
+        static void free(sycl::queue &stream, scalar_type *pntr){
+            if (pntr == nullptr) return;
+            sycl::free(pntr, stream);
+        }
+        //! \brief Equivalent to std::copy_n() but using CUDA arrays.
+        template<typename scalar_type>
+        static void copy_n(sycl::queue &stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+            stream.memcpy(destination, source, num_entries * sizeof(scalar_type)).wait();
+        }
+        //! \brief Copy-convert complex-to-real.
+        template<typename scalar_type>
+        static void copy_n(sycl::queue &stream, std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
+            oapi::convert(stream, static_cast<long long>(num_entries), source, destination);
+        }
+        //! \brief Copy-convert real-to-complex.
+        template<typename scalar_type>
+        static void copy_n(sycl::queue &stream, scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
+            oapi::convert(stream, static_cast<long long>(num_entries), source, destination);
+        }
+        //! \brief Copy the date from the device to the host.
+        template<typename scalar_type>
+        static void copy_device_to_host(sycl::queue &stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+            stream.memcpy(destination, source, num_entries * sizeof(scalar_type)).wait();
+        }
+        //! \brief Copy the date from the device to the device.
+        template<typename scalar_type>
+        static void copy_device_to_device(sycl::queue &stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+            stream.memcpy(destination, source, num_entries * sizeof(scalar_type)).wait();
+        }
+        //! \brief Copy the date from the host to the device.
+        template<typename scalar_type>
+        static void copy_host_to_device(sycl::queue &stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+            stream.memcpy(destination, source, num_entries * sizeof(scalar_type)).wait();
+        }
+    };
+
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Defines the location type-tag and the oneAPI container.
      */
     template<>
     struct buffer_traits<onemkl>{
         //! \brief The oneMKL library uses data on the gpu device.
         using location = tag::gpu;
-        //! \brief The data is managed by the cuda vector container.
-        template<typename T> using container = heffte::gpu::vector<T>;
-    };
-
-    /*!
-     * \ingroup heffteoneapi
-     * \brief Returns the human readable name of the FFTW backend.
-     */
-    template<> inline std::string name<onemkl>(){ return "onemkl"; }
-
-    /*!
-     * \ingroup heffteoneapi
-     * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
-     */
-    template<>
-    struct auxiliary_variables<onemkl>{
-        //! \brief Empty constructor.
-        auxiliary_variables() : queue_container(heffte::oapi::make_sycl_queue()){}
-        //! \brief Default destructor.
-        virtual ~auxiliary_variables() = default;
-        //! \brief Returns the nullptr.
-        sycl::queue* gpu_queue(){ return queue_container.get(); }
-        //! \brief The sycl::queue, either user provided or created by heFFTe.
-        std::unique_ptr<sycl::queue> queue_container;
+        //! \brief The data is managed by the oneAPI vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
     };
 }
 
@@ -232,7 +227,7 @@ class onemkl_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
-    onemkl_executor(sycl::queue *inq, box3d<index> const box, int dimension) :
+    onemkl_executor(sycl::queue &inq, box3d<index> const box, int dimension) :
         q(inq),
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
@@ -250,28 +245,28 @@ public:
         if (not init_cplan) make_plan(cplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(cplan, data + i * block_stride);
-        q->wait();
+        q.wait();
     }
     //! \brief Backward fft, float-complex case.
     void backward(std::complex<float> data[]) const{
         if (not init_cplan) make_plan(cplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(cplan, data + i * block_stride);
-        q->wait();
+        q.wait();
     }
     //! \brief Forward fft, double-complex case.
     void forward(std::complex<double> data[]) const{
         if (not init_zplan) make_plan(zplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(zplan, data + i * block_stride);
-        q->wait();
+        q.wait();
     }
     //! \brief Backward fft, double-complex case.
     void backward(std::complex<double> data[]) const{
         if (not init_zplan) make_plan(zplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(zplan, data + i * block_stride);
-        q->wait();
+        q.wait();
     }
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
@@ -309,8 +304,8 @@ private:
         plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, slstride);
         plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
         plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
-        plan.commit(*q);
-        q->wait();
+        plan.commit(q);
+        q.wait();
 
         if (std::is_same<oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::SINGLE, oneapi::mkl::dft::domain::COMPLEX>, onemkl_plan_type>::value)
             init_cplan = true;
@@ -318,7 +313,7 @@ private:
             init_zplan = true;
     }
 
-    sycl::queue *q;
+    sycl::queue &q;
     int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
 
     mutable bool init_cplan, init_zplan;
@@ -342,7 +337,7 @@ public:
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
     template<typename index>
-    onemkl_executor_r2c(sycl::queue *inq, box3d<index> const box, int dimension) :
+    onemkl_executor_r2c(sycl::queue &inq, box3d<index> const box, int dimension) :
         q(inq),
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
@@ -363,28 +358,28 @@ public:
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(splan, const_cast<float*>(indata + i * rblock_stride), reinterpret_cast<float*>(outdata + i * cblock_stride));
-        q->wait();
+        q.wait();
     }
     //! \brief Backward transform, single precision.
     void backward(std::complex<float> const indata[], float outdata[]) const{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
-        q->wait();
+        q.wait();
     }
     //! \brief Forward transform, double precision.
     void forward(double const indata[], std::complex<double> outdata[]) const{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(dplan, const_cast<double*>(indata + i * rblock_stride), reinterpret_cast<double*>(outdata + i * cblock_stride));
-        q->wait();
+        q.wait();
     }
     //! \brief Backward transform, double precision.
     void backward(std::complex<double> const indata[], double outdata[]) const{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
-        q->wait();
+        q.wait();
     }
 
     //! \brief Returns the size of the box with real data.
@@ -404,16 +399,16 @@ private:
         plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, slstride);
         plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) rdist);
         plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) cdist);
-        plan.commit(*q);
+        plan.commit(q);
 
         if (std::is_same<oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::SINGLE, oneapi::mkl::dft::domain::REAL>, onemkl_plan_type>::value)
             init_splan = true;
         else
             init_dplan = true;
-        q->wait();
+        q.wait();
     }
 
-    sycl::queue *q;
+    sycl::queue &q;
 
     int size, howmanyffts, stride, blocks;
     int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
@@ -438,50 +433,15 @@ template<> struct one_dim_backend<backend::onemkl>{
 
     //! \brief Constructs a complex-to-complex executor.
     template<typename index>
-    static std::unique_ptr<onemkl_executor> make(sycl::queue *q, box3d<index> const box, int dimension){
-        return (q != nullptr) ?
-            std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box, dimension)) :
-            std::unique_ptr<onemkl_executor>(new onemkl_executor(oapi::def_queue.queue_ptr.get(), box, dimension));
+    static std::unique_ptr<onemkl_executor> make(sycl::queue &q, box3d<index> const box, int dimension){
+        return std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box, dimension));
     }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
-    static std::unique_ptr<onemkl_executor_r2c> make_r2c(sycl::queue *q, box3d<index> const box, int dimension){
-        return (q != nullptr) ?
-            std::unique_ptr<onemkl_executor_r2c>(new onemkl_executor_r2c(q, box, dimension)) :
-            std::unique_ptr<onemkl_executor_r2c>(new onemkl_executor_r2c(oapi::def_queue.queue_ptr.get(), box, dimension));
+    static std::unique_ptr<onemkl_executor_r2c> make_r2c(sycl::queue &q, box3d<index> const box, int dimension){
+        return std::unique_ptr<onemkl_executor_r2c>(new onemkl_executor_r2c(q, box, dimension));
     }
 };
-
-namespace oapi { // packer logic
-
-/*!
- * \ingroup heffteoneapi
- * \brief Performs a direct-pack operation for data sitting on the GPU device.
- *
- * Launches a SYCL/DPC++ kernel.
- */
-template<typename scalar_type, typename index>
-void direct_pack(index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
-/*!
- * \ingroup heffteoneapi
- * \brief Performs a direct-unpack operation for data sitting on the GPU device.
- *
- * Launches a SYCL/DPC++ kernel.
- */
-template<typename scalar_type, typename index>
-void direct_unpack(index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
-/*!
- * \ingroup heffteoneapi
- * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
- *
- * Launches a SYCL/DPC++ kernel.
- */
-template<typename scalar_type, typename index>
-void transpose_unpack(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
-                      index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
-                      scalar_type const source[], scalar_type destination[]);
-
-}
 
 /*!
  * \ingroup hefftepacking
@@ -490,13 +450,13 @@ void transpose_unpack(index nfast, index nmid, index nslow, index line_stride, i
 template<> struct direct_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        oapi::direct_pack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
+    void pack(sycl::queue &stream, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        oapi::direct_pack(stream, plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
     }
     //! \brief Execute the planned unpack operation.
     template<typename scalar_type, typename index>
-    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        oapi::direct_unpack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
+    void unpack(sycl::queue &stream, pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
+        oapi::direct_unpack(stream, plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
     }
 };
 
@@ -507,13 +467,13 @@ template<> struct direct_packer<tag::gpu>{
 template<> struct transpose_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        direct_packer<tag::gpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
+    void pack(sycl::queue &stream, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        direct_packer<tag::gpu>().pack(stream, plan, data, buffer); // packing is done the same way as the direct_packer
     }
     //! \brief Execute the planned transpose-unpack operation.
     template<typename scalar_type, typename index>
-    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        oapi::transpose_unpack<scalar_type>(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
+    void unpack(sycl::queue &stream, pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
+        oapi::transpose_unpack<scalar_type>(stream, plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
                                             plan.buff_line_stride, plan.buff_plane_stride, plan.map[0], plan.map[1], plan.map[2], buffer, data);
     }
 };
@@ -522,20 +482,20 @@ template<> struct transpose_packer<tag::gpu>{
  * \ingroup heffteoneapi
  * \brief Specialization for the CPU case.
  */
-template<> struct data_scaling<tag::gpu>{
+namespace data_scaling {
     /*!
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
-    static void apply(index num_entries, scalar_type *data, double scale_factor){
-        oapi::scale_data(static_cast<long long>(num_entries), data, scale_factor);
+    static void apply(sycl::queue &stream, index num_entries, scalar_type *data, double scale_factor){
+        oapi::scale_data(stream, static_cast<long long>(num_entries), data, scale_factor);
     }
     /*!
      * \brief Complex by real scaling.
      */
     template<typename precision_type, typename index>
-    static void apply(index num_entries, std::complex<precision_type> *data, double scale_factor){
-        apply<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    static void apply(sycl::queue &stream, index num_entries, std::complex<precision_type> *data, double scale_factor){
+        apply<precision_type>(stream, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
 };
 

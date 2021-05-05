@@ -103,6 +103,12 @@ namespace backend {
     struct rocfft{};
 
     /*!
+     * \ingroup heffteoneapi
+     * \brief Type-tag for the oneMKL backend
+     */
+    struct onemkl{};
+
+    /*!
      * \ingroup fft3dbackend
      * \brief Allows to define whether a specific backend interface has been enabled.
      *
@@ -163,6 +169,12 @@ namespace backend {
      * \brief Returns the human readable name of the ROCm backend.
      */
     template<> inline std::string name<rocfft>(){ return "rocfft"; }
+
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Returns the human readable name of the oneMKL backend.
+     */
+    template<> inline std::string name<onemkl>(){ return "onemkl"; }
 
     /*!
      * \ingroup fft3dbackend

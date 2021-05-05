@@ -91,17 +91,19 @@ std::vector<scalar_type> rescale(box3d<index> const world, gpu::vector<scalar_ty
 template<typename backend_tag, typename precision_type, typename index>
 std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<precision_type> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
+    backend::device_instance<backend_tag> device;
     typename test_traits<backend_tag>::template container<std::complex<precision_type>> loaded_result(input.size());
-    one_dim_backend<backend_tag>::make(nullptr, world, 0)->forward(loaded_input.data(), loaded_result.data());
+    one_dim_backend<backend_tag>::make(device.stream(), world, 0)->forward(loaded_input.data(), loaded_result.data());
     for(int i=1; i<3; i++)
-        one_dim_backend<backend_tag>::make(nullptr, world, i)->forward(loaded_result.data());
+        one_dim_backend<backend_tag>::make(device.stream(), world, i)->forward(loaded_result.data());
     return test_traits<backend_tag>::unload(loaded_result);
 }
 template<typename backend_tag, typename precision_type, typename index>
 std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<std::complex<precision_type>> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
+    backend::device_instance<backend_tag> device;
     for(int i=0; i<3; i++)
-        one_dim_backend<backend_tag>::make(nullptr, world, i)->forward(loaded_input.data());
+        one_dim_backend<backend_tag>::make(device.stream(), world, i)->forward(loaded_input.data());
     return test_traits<backend_tag>::unload(loaded_input);
 }
 
@@ -200,7 +202,7 @@ void test_fft3d_queues(MPI_Comm comm){
     std::array<heffte::scale, 3> fscale = {heffte::scale::none, heffte::scale::symmetric, heffte::scale::full};
     std::array<heffte::scale, 3> bscale = {heffte::scale::full, heffte::scale::symmetric, heffte::scale::none};
 
-    auto stream = make_stream<backend_tag>();
+    auto stream = make_stream(backend_tag());
 
     for(auto const &options : make_all_options<backend_tag>()){
     if (mpi::world_rank(0)) std::cout << options << std::endl;
