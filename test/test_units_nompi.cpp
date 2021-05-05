@@ -310,18 +310,17 @@ void test_gpu_vector(size_t num_entries){
     current_test<scalar_type, using_nompi> name("gpu::vector");
     std::vector<scalar_type> source(num_entries);
     std::iota(source.begin(), source.end(), 0); // fill source with 0, 1, 2, 3, 4 ...
-    gpu::transfer data_manipulator;
-    gpu::vector<scalar_type> v1 = data_manipulator.load(source);
+    gpu::vector<scalar_type> v1 = gpu::transfer::load(source);
     sassert(v1.size() == source.size());
     gpu::vector<scalar_type> v2 = v1; // test copy constructor
     sassert(v1.size() == v2.size());
-    std::vector<scalar_type> dest = data_manipulator.unload(v2);
+    std::vector<scalar_type> dest = gpu::transfer::unload(v2);
     sassert(match(dest, source));
 
     { // test move constructor
         gpu::vector<scalar_type> t = std::move(v2);
         dest = std::vector<scalar_type>(); // reset the destination
-        dest = data_manipulator.unload(t);
+        dest = gpu::transfer::unload(t);
         sassert(match(dest, source));
     }
 
@@ -330,20 +329,20 @@ void test_gpu_vector(size_t num_entries){
     sassert(v1.empty()); // test if moved out of v1
 
     dest = std::vector<scalar_type>(); // reset the destination
-    dest = data_manipulator.unload(v2);
+    dest = gpu::transfer::unload(v2);
     sassert(match(dest, source));
 
-    v1 = data_manipulator.load(source);
+    v1 = gpu::transfer::load(source);
     v2 = gpu::vector<scalar_type>(v1.data(), v1.data() + num_entries / 2);
     sassert(v2.size() == num_entries / 2);
-    dest = data_manipulator.unload(v2);
+    dest = gpu::transfer::unload(v2);
     source.resize(num_entries / 2);
     sassert(match(dest, source));
 
     size_t num_v2 = v2.size();
     scalar_type *raw_array = v2.release();
     sassert(v2.empty());
-    v2 = data_manipulator.capture(std::move(raw_array), num_v2);
+    v2 = gpu::transfer::capture(std::move(raw_array), num_v2);
     sassert(raw_array == nullptr);
     sassert(not v2.empty());
 }
@@ -362,8 +361,8 @@ void test_gpu_scale(){
     for(auto &v : y) v *= 3.0;
     gpu::transfer data_manipulator;
     auto gx = data_manipulator.load(x);
-    backend::auxiliary_variables<backend::from_location<tag::gpu>::type> device;
-    data_scaling::apply(device.gpu_queue(), gx.size(), gx.data(), 3.0);
+    backend::device_instance<backend::default_backend<tag::gpu>::type> device;
+    data_scaling::apply(device.stream(), gx.size(), gx.data(), 3.0);
     x = data_manipulator.unload(gx);
     sassert(approx(x, y));
 
@@ -371,7 +370,7 @@ void test_gpu_scale(){
     std::vector<std::complex<double>> cy = cx;
     for(auto &v : cy) v /= 1.33;
     auto gcx = data_manipulator.load(cx);
-    data_scaling::apply(device.gpu_queue(), gcx.size(), gcx.data(), 1.0 / 1.33);
+    data_scaling::apply(device.stream(), gcx.size(), gcx.data(), 1.0 / 1.33);
     cx = data_manipulator.unload(gcx);
     sassert(approx(cx, cy));
 }
@@ -524,7 +523,7 @@ void test_in_node_transpose(){
     using ltag = typename backend::buffer_traits<backend_tag>::location;
     current_test<scalar_type, using_nompi> name("reshape transpose");
 
-    backend::auxiliary_variables<backend_tag> device;
+    backend::device_instance<backend_tag> device;
     std::vector<int> proc, offset, sizes; // dummy variables, only needed to call the overlap map method
     std::vector<heffte::pack_plan_3d<int>> plans;
 
@@ -540,7 +539,7 @@ void test_in_node_transpose(){
 
     auto active_intput = test_traits<backend_tag>::load(input);
     vcontainer result(24);
-    heffte::reshape3d_transpose<ltag, int>(device.gpu_queue(), plans[0]).apply(active_intput.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(device.stream(), plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     sassert(match(result, reference));
 
@@ -548,7 +547,7 @@ void test_in_node_transpose(){
     box3d<> destination2(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{1, 2, 3}, std::array<int, 3>{2, 1, 0});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination2, {inbox}, proc, offset, sizes, plans);
-    heffte::reshape3d_transpose<ltag, int>(device.gpu_queue(), plans[0]).apply(active_intput.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(device.stream(), plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     reference = {1.0,  7.0, 13.0, 19.0,  3.0,  9.0, 15.0, 21.0,  5.0, 11.0, 17.0, 23.0,
                  2.0,  8.0, 14.0, 20.0,  4.0, 10.0, 16.0, 22.0,  6.0, 12.0, 18.0, 24.0};
@@ -558,14 +557,14 @@ void test_in_node_transpose(){
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, inbox, {destination2}, proc, offset, sizes, plans);
     auto active_reference = test_traits<backend_tag>::load(reference);
-    heffte::reshape3d_transpose<ltag, int>(device.gpu_queue(), plans[0]).apply(active_reference.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(device.stream(), plans[0]).apply(active_reference.data(), result.data(), nullptr);
     sassert(match(result, input));
 
     // test 3, transpose the data to order (0, 2, 1)
     box3d<> destination3(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{1, 2, 3}, std::array<int, 3>{0, 2, 1});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination3, {inbox}, proc, offset, sizes, plans);
-    heffte::reshape3d_transpose<ltag, int>(device.gpu_queue(), plans[0]).apply(active_intput.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(device.stream(), plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     reference = {1.0, 2.0,  7.0,  8.0, 13.0, 14.0, 19.0, 20.0,
                  3.0, 4.0,  9.0, 10.0, 15.0, 16.0, 21.0, 22.0,
@@ -648,7 +647,7 @@ void test_cross_reference_type(){
 template<typename scalar_type>
 void test_cross_reference_r2c(){
     current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
-    backend::auxiliary_variables<backend::cufft> device;
+    backend::device_instance<backend::cufft> device;
 
     for(int case_counter = 0; case_counter < 2; case_counter++){
         // due to alignment issues on the cufft side
@@ -684,7 +683,7 @@ void test_cross_reference_r2c(){
             fft_gpu.backward(curesult.data(), cuinverse.data());
 
             data_scaling::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
-            data_scaling::apply(device.gpu_queue(), cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling::apply(device.stream(), cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
 
             if (std::is_same<scalar_type, float>::value){
                 sassert(approx(inverse, input));

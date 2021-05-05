@@ -82,7 +82,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     #ifdef Heffte_ENABLE_GPU
     gpu::vector<std::complex<precision_type>> gpu_output;
     if (std::is_same<backend_tag, gpu_backend>::value){
-        gpu::transfer::load(output, gpu_output);
+        gpu_output = gpu::transfer::load(output);
         output_array = gpu_output.data();
     }
     #endif

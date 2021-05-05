@@ -352,7 +352,8 @@ void test_fft3d_arrays(MPI_Comm comm){
                        cbackward_result));
 
         output_container inplace_buffer(std::max(fft.size_inbox(), fft.size_outbox()));
-        data_manipulator::copy_n(fft.gpu_queue(), local_input.data(), fft.size_inbox(), inplace_buffer.data());
+        backend::data_manipulator<typename heffte::fft3d<backend_tag>::location_tag>::copy_n(
+            fft.stream(), local_input.data(), fft.size_inbox(), inplace_buffer.data());
         fft.forward(inplace_buffer.data(), inplace_buffer.data());
         output_container inplace_forward(inplace_buffer.data(), inplace_buffer.data() + fft.size_outbox());
         tassert(approx(inplace_forward, reference_fft)); // compare to the reference

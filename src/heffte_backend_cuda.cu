@@ -13,68 +13,6 @@
 
 namespace heffte {
 
-namespace cuda {
-void* memory_manager::allocate(size_t num_bytes) const{
-    void *new_data;
-//     if (stream == nullptr)
-//         check_error(cudaMalloc(&new_data, num_bytes), "cudaMalloc()");
-//     else
-//         check_error(cudaMallocAsync(&new_data, num_bytes, stream), "cudaMallocAsync()");
-    if (stream != nullptr) check_error( cudaStreamSynchronize(stream), "cudaStreamSynchronize()");
-    check_error(cudaMalloc(&new_data, num_bytes), "cudaMalloc()");
-    return new_data;
-}
-void memory_manager::free(void *pntr) const{
-    if (pntr == nullptr) return;
-    if (stream != nullptr) check_error( cudaStreamSynchronize(stream), "cudaStreamSynchronize()");
-    check_error(cudaFree(pntr), "cudaFree()");
-//     if (stream == nullptr)
-//         check_error(cudaFree(pntr), "cudaFree()");
-//     else
-//         check_error(cudaFreeAsync(pntr, stream), "cudaFreeAsync()");
-}
-void memory_manager::host_to_device(void const *source, size_t num_bytes, void *destination) const{
-    check_error(cudaMemcpyAsync(destination, source, num_bytes, cudaMemcpyHostToDevice, stream), "host_to_device (cuda)");
-}
-void memory_manager::device_to_device(void const *source, size_t num_bytes, void *destination) const{
-    check_error(cudaMemcpyAsync(destination, source, num_bytes, cudaMemcpyDeviceToDevice, stream), "device_to_device (cuda)");
-}
-void memory_manager::device_to_host(void const *source, size_t num_bytes, void *destination) const{
-    check_error(cudaMemcpyAsync(destination, source, num_bytes, cudaMemcpyDeviceToHost, stream), "device_to_host (cuda)");
-}
-}
-
-namespace data_manipulator {
-template<typename scalar_type>
-void copy_device_to_host(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
-    cuda::check_error(cudaMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToHost, stream),
-                      "device_to_host (cuda)");
-}
-
-template<typename scalar_type>
-void copy_device_to_device(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
-    cuda::check_error(cudaMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice, stream),
-                      "device_to_device (cuda)");
-}
-
-template<typename scalar_type>
-void copy_host_to_device(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
-    cuda::check_error(cudaMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyHostToDevice, stream),
-                      "host_to_device (cuda)");
-}
-
-#define heffte_instatiate_device_transfer(scalar_type) \
-template void copy_device_to_host<scalar_type>(cudaStream_t, scalar_type const*, size_t, scalar_type*); \
-template void copy_device_to_device<scalar_type>(cudaStream_t, scalar_type const*, size_t, scalar_type*); \
-template void copy_host_to_device<scalar_type>(cudaStream_t, scalar_type const*, size_t, scalar_type*); \
-
-heffte_instatiate_device_transfer(float)
-heffte_instatiate_device_transfer(double)
-heffte_instatiate_device_transfer(std::complex<float>)
-heffte_instatiate_device_transfer(std::complex<double>)
-
-}
-
 namespace gpu {
 
 void device_set(int active_device){
@@ -96,11 +34,6 @@ int device_count(){
 }
 
 namespace cuda {
-
-// void check_error(cudaError_t status, std::string const &function_name){
-//     if (status != cudaSuccess)
-//         throw std::runtime_error(function_name + " failed with message: " + cudaGetErrorString(status));
-// }
 
 /*
  * Launch with one thread per entry.
@@ -366,19 +299,5 @@ template void scale_data<double, long long>(cudaStream_t, long long num_entries,
 
 } // namespace cuda
 
-namespace data_manipulator{
-    template<typename scalar_type>
-    void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
-        if (stream == nullptr)
-            cuda::check_error(cudaMemcpy(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "data_manipulator::copy_n()");
-        else
-            cuda::check_error(cudaMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice, stream), "data_manipulator::copy_n()");
-    }
-
-    template void copy_n<float>(cudaStream_t, float const[], size_t, float[]);
-    template void copy_n<double>(cudaStream_t, double const[], size_t, double[]);
-    template void copy_n<std::complex<float>>(cudaStream_t, std::complex<float> const[], size_t, std::complex<float>[]);
-    template void copy_n<std::complex<double>>(cudaStream_t, std::complex<double> const[], size_t, std::complex<double>[]);
-}
 
 } // namespace heffte

@@ -163,7 +163,7 @@ enum class scale{
  * </table>
  */
 template<typename backend_tag, typename index = int>
-class fft3d : public backend::auxiliary_variables<backend_tag>{
+class fft3d : public backend::device_instance<backend_tag>{
 public:
     //! \brief Alias to the wrapper class for the one dimensional backend library.
     using backend_executor = typename one_dim_backend<backend_tag>::type;
@@ -215,7 +215,7 @@ public:
      * If no stream is provided, heFFTe will use the default CUDA or HIP stream or a default internal SYCL queue;
      * note in the SYCL case the internal queue will create a new SYCL context which is probably not optimal.
      */
-    fft3d(typename backend::auxiliary_variables<backend_tag>::queue_type gpu_stream,
+    fft3d(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
           box3d<index> const inbox, box3d<index> const outbox, MPI_Comm const comm,
           plan_options const options = default_options<backend_tag>()) :
         fft3d(gpu_stream, plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, options), mpi::comm_rank(comm), comm){
@@ -339,7 +339,7 @@ public:
     output_buffer_container<input_type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
         if (input.size() < static_cast<size_t>(size_inbox()))
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
-        auto output = make_buffer_container<typename fft_output<input_type>::type>(this->gpu_queue(), size_outbox());
+        auto output = make_buffer_container<typename fft_output<input_type>::type>(this->stream(), size_outbox());
         forward(input.data(), output.data(), scaling);
         return output;
     }
@@ -398,7 +398,7 @@ public:
                       "Either calling backward() with non-complex input or using an unknown complex type.");
         if (input.size() < static_cast<size_t>(size_outbox()))
             throw std::invalid_argument("The input vector is smaller than size_outbox(), i.e., not enough entries provided to fill the outbox.");
-        auto result = make_buffer_container<scalar_type>(this->gpu_queue(), size_inbox());
+        auto result = make_buffer_container<scalar_type>(this->stream(), size_inbox());
         backward(input.data(), result.data(), scaling);
         return result;
     }
@@ -410,7 +410,7 @@ public:
     real_buffer_container<scalar_type> backward_real(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
-        auto result = make_buffer_container<typename define_standard_type<scalar_type>::type::value_type>(this->gpu_queue(), size_inbox());
+        auto result = make_buffer_container<typename define_standard_type<scalar_type>::type::value_type>(this->stream(), size_inbox());
         backward(input.data(), result.data(), scaling);
         return result;
     }
@@ -456,7 +456,7 @@ private:
     fft3d(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
 
     //! \brief Same as the other case but accepts the gpu_stream too.
-    fft3d(typename backend::auxiliary_variables<backend_tag>::queue_type gpu_stream,
+    fft3d(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
           logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
 
     //! \brief Setup the executors and the reshapes.
@@ -489,7 +489,7 @@ private:
     void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->gpu_queue(), size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
     /*!
@@ -508,7 +508,7 @@ private:
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->gpu_queue(), size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
     /*!
@@ -527,7 +527,7 @@ private:
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->gpu_queue(), size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
     //! \brief Applies the scaling factor to the data.
@@ -542,7 +542,7 @@ private:
             }
             #endif
             data_scaling::apply(
-                this->gpu_queue(),
+                this->stream(),
                 (dir == direction::forward) ? size_outbox() : size_inbox(),
                 data, get_scale_factor(scaling));
         }

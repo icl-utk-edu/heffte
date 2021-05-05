@@ -43,7 +43,7 @@ namespace heffte {
  * \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
  */
 template<typename backend_tag, typename index = int>
-class fft3d_r2c : public backend::auxiliary_variables<backend_tag>{
+class fft3d_r2c : public backend::device_instance<backend_tag>{
 public:
     //! \brief FFT executor for the complex-to-complex dimensions.
     using backend_executor_c2c = typename one_dim_backend<backend_tag>::type;
@@ -87,7 +87,7 @@ public:
     /*!
      * \brief See the documentation for fft3d::fft3d()
      */
-    fft3d_r2c(typename backend::auxiliary_variables<backend_tag>::queue_type gpu_stream,
+    fft3d_r2c(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
               box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
               plan_options const options = default_options<backend_tag>()) :
         fft3d_r2c(gpu_stream,
@@ -197,7 +197,7 @@ public:
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
         static_assert(std::is_same<input_type, float>::value or std::is_same<input_type, double>::value,
                       "The input to forward() must be real, i.e., either float or double.");
-        auto output = make_buffer_container<typename fft_output<input_type>::type>(this->gpu_queue(), size_outbox());
+        auto output = make_buffer_container<typename fft_output<input_type>::type>(this->stream(), size_outbox());
         forward(input.data(), output.data(), scaling);
         return output;
     }
@@ -241,7 +241,7 @@ public:
     real_buffer_container<scalar_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
-        auto result = make_buffer_container<typename define_standard_type<scalar_type>::type::value_type>(this->gpu_queue(), size_inbox());
+        auto result = make_buffer_container<typename define_standard_type<scalar_type>::type::value_type>(this->stream(), size_inbox());
         backward(input.data(), result.data(), scaling);
         return result;
     }
@@ -256,7 +256,7 @@ private:
     fft3d_r2c(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
 
     //! \brief Same as in the fft3d case.
-    fft3d_r2c(typename backend::auxiliary_variables<backend_tag>::queue_type gpu_stream,
+    fft3d_r2c(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
               logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
 
     //! \brief Setup the executors and the reshapes.
@@ -264,12 +264,12 @@ private:
 
     template<typename scalar_type>
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->gpu_queue(), size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), scaling);
     }
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->gpu_queue(), size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), scaling);
     }
 
@@ -290,7 +290,7 @@ private:
             }
             #endif
             data_scaling::apply(
-                this->gpu_queue(),
+                this->stream(),
                 (dir == direction::forward) ? size_outbox() : size_inbox(),
                 data, get_scale_factor(scaling));
         }

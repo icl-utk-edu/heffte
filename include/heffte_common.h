@@ -48,41 +48,47 @@ struct gpu{};
 
 /*!
  * \ingroup fft3dbackend
- * \brief Common data-transfer and scaling operations.
- */
-namespace data_manipulator {
-    //! \brief Wrapper around std::copy_n().
-    template<typename source_type, typename destination_type>
-    void copy_n(void*, source_type const source[], size_t num_entries, destination_type destination[]){
-        std::copy_n(source, num_entries, destination);
-    }
-    //! \brief Wrapper around std::copy_n().
-    template<typename source_type, typename destination_type>
-    void copy_n(source_type const source[], size_t num_entries, destination_type destination[]){
-        std::copy_n(source, num_entries, destination);
-    }
-    //! \brief Wrapper around std::copy_n().
-    template<typename source_type, typename destination_type>
-    void copy_device_to_host(void*, source_type const source[], size_t num_entries, destination_type destination[]){
-        std::copy_n(source, num_entries, destination);
-    }
-    //! \brief Wrapper around std::copy_n().
-    template<typename source_type, typename destination_type>
-    void copy_device_to_device(void*, source_type const source[], size_t num_entries, destination_type destination[]){
-        std::copy_n(source, num_entries, destination);
-    }
-    //! \brief Wrapper around std::copy_n().
-    template<typename source_type, typename destination_type>
-    void copy_host_to_device(void*, source_type const source[], size_t num_entries, destination_type destination[]){
-        std::copy_n(source, num_entries, destination);
-    }
-}
-
-/*!
- * \ingroup fft3dbackend
  * \brief Contains type tags and templates metadata for the various backends.
  */
 namespace backend {
+
+    /*!
+    * \ingroup fft3dbackend
+    * \brief Common data-transfer operations, must be specializes for each location (cpu/gpu).
+    */
+    template<typename location_tag> struct data_manipulator{};
+
+    /*!
+    * \ingroup fft3dbackend
+    * \brief Common data-transfer operations on the cpu.
+    */
+    template<> struct data_manipulator<tag::cpu> {
+        //! \brief Wrapper around std::copy_n().
+        template<typename source_type, typename destination_type>
+        static void copy_n(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+            std::copy_n(source, num_entries, destination);
+        }
+        //! \brief Wrapper around std::copy_n().
+        template<typename source_type, typename destination_type>
+        static void copy_n(source_type const source[], size_t num_entries, destination_type destination[]){
+            std::copy_n(source, num_entries, destination);
+        }
+        //! \brief Wrapper around std::copy_n().
+        template<typename source_type, typename destination_type>
+        static void copy_device_to_host(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+            std::copy_n(source, num_entries, destination);
+        }
+        //! \brief Wrapper around std::copy_n().
+        template<typename source_type, typename destination_type>
+        static void copy_device_to_device(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+            std::copy_n(source, num_entries, destination);
+        }
+        //! \brief Wrapper around std::copy_n().
+        template<typename source_type, typename destination_type>
+        static void copy_host_to_device(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+            std::copy_n(source, num_entries, destination);
+        }
+    };
 
     /*!
      * \ingroup hefftecuda
@@ -156,31 +162,28 @@ namespace backend {
      * Specifically, this is used to store the sycl::queue used by the DPC++ backend.
      */
     template<typename backend_tag>
-    struct auxiliary_variables{
+    struct device_instance{
         //! \brief Empty constructor.
-        auxiliary_variables(){}
-        //! \brief Empty constructor.
-        auxiliary_variables(void*){}
+        device_instance(void* = nullptr){}
         //! \brief Default destructor.
-        virtual ~auxiliary_variables() = default;
+        virtual ~device_instance() = default;
         //! \brief Returns the nullptr.
-        void* gpu_queue(){ return nullptr; }
+        void* stream(){ return nullptr; }
         //! \brief Returns the nullptr (const case).
-        void* gpu_queue() const{ return nullptr; }
+        void* stream() const{ return nullptr; }
         //! \brief Syncs the execution with the queue, no-op in the CPU case.
         void synchronize_device() const{}
         //! \brief The type for the internal stream, the cpu uses just a void pointer.
-        using queue_type = void*;
+        using stream_type = void*;
     };
 
     /*!
      * \ingroup fft3dbackend
      * \brief Defines inverse mapping from the location tag to a default backend tag.
      *
-     * Used in conjunction with backend::auxiliary_variables,
-     * by default the auxiliary_variables are not dependent on the tag so the map makes no difference.
+     * Defines a default backend for a given location tag.
      */
-    template<typename location_tag> struct from_location{
+    template<typename location_tag> struct default_backend{
         //! \brief Defaults to the same label.
         using type = location_tag;
     };

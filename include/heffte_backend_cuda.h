@@ -81,31 +81,34 @@ namespace cuda {
      */
     template<typename scalar_type, typename index>
     void scale_data(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor);
-}
 
-namespace data_manipulator {
-    //! \brief Equivalent to std::copy_n() but using CUDA arrays.
-    template<typename scalar_type>
-    void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]);
-    //! \brief Copy-convert complex-to-real.
-    template<typename scalar_type>
-    void copy_n(cudaStream_t stream, std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
-        cuda::convert(stream, static_cast<long long>(num_entries), source, destination);
-    }
-    //! \brief Copy-convert real-to-complex.
-    template<typename scalar_type>
-    void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
-        cuda::convert(stream, static_cast<long long>(num_entries), source, destination);
-    }
-    //! \brief Wrapper around std::copy_n().
-    template<typename scalar_type>
-    void copy_device_to_host(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]);
-    //! \brief Wrapper around std::copy_n().
-    template<typename scalar_type>
-    void copy_device_to_device(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]);
-    //! \brief Wrapper around std::copy_n().
-    template<typename scalar_type>
-    void copy_host_to_device(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]);
+    /*!
+     * \ingroup hefftecuda
+     * \brief Performs a direct-pack operation for data sitting on the GPU device.
+     *
+     * Launches a CUDA kernel.
+     */
+    template<typename scalar_type, typename index>
+    void direct_pack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
+    /*!
+     * \ingroup hefftecuda
+     * \brief Performs a direct-unpack operation for data sitting on the GPU device.
+     *
+     * Launches a CUDA kernel.
+     */
+    template<typename scalar_type, typename index>
+    void direct_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
+    /*!
+     * \ingroup hefftecuda
+     * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
+     *
+     * Launches a CUDA kernel.
+     */
+    template<typename scalar_type, typename index>
+    void transpose_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+                        index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
+                        scalar_type const source[], scalar_type destination[]);
+
 }
 
 namespace backend{
@@ -120,87 +123,90 @@ namespace backend{
      * \brief The CUDA backend uses a CUDA stream.
      */
     template<>
-    struct auxiliary_variables<cufft>{
-        //! \brief Empty constructor.
-        auxiliary_variables(cudaStream_t new_stream = nullptr) : stream(new_stream){}
-        //! \brief Default destructor.
-        virtual ~auxiliary_variables() = default;
+    struct device_instance<cufft>{
+        //! \brief Constructor, sets up the stream.
+        device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
         //! \brief Returns the nullptr.
-        cudaStream_t gpu_queue(){ return stream; }
+        cudaStream_t stream(){ return _stream; }
         //! \brief Returns the nullptr (const case).
-        cudaStream_t gpu_queue() const{ return stream; }
+        cudaStream_t stream() const{ return _stream; }
         //! \brief Syncs the execution with the queue, no-op in the CPU case.
-        void synchronize_device() const{ cuda::check_error(cudaStreamSynchronize(stream), "device sync"); }
+        void synchronize_device() const{ cuda::check_error(cudaStreamSynchronize(_stream), "device sync"); }
         //! \brief The CUDA stream to be used in all operations.
-        mutable cudaStream_t stream;
+        mutable cudaStream_t _stream;
         //! \brief The type for the internal stream.
-        using queue_type = cudaStream_t;
+        using stream_type = cudaStream_t;
     };
 
     /*!
      * \ingroup hefftecuda
-     * \brief In CUDA mode, the auxiliary_variables for location gpu are the same as the cufft backend.
+     * \brief In CUDA mode, the default GPU backend is cufft.
      */
-    template<> struct from_location<tag::gpu>{
+    template<> struct default_backend<tag::gpu>{
         //! \brief Set the cufft tag.
         using type = cufft;
     };
-}
 
-/*!
- * \ingroup hefftecuda
- * \brief CUDA specific methods, vector-like container, error checking, etc.
- */
-namespace cuda {
     /*!
      * \ingroup hefftecuda
-     * \brief Memory management operation specific to CUDA, see gpu::device_vector.
+     * \brief Specialization for the data operations in CUDA mode.
      */
-    struct memory_manager{
-        //! \brief Create a new instance of memory manager with the given stream.
-        memory_manager(cudaStream_t new_stream = nullptr) : stream(new_stream){}
+    template<> struct data_manipulator<tag::gpu> {
+        //! \brief Defines the backend_device.
+        using backend_device = backend::device_instance<backend::cufft>;
         //! \brief Allocate memory.
-        void* allocate(size_t num_bytes) const;
+        template<typename scalar_type>
+        static scalar_type* allocate(cudaStream_t stream, size_t num_entries){
+            void *new_data;
+            if (stream != nullptr) cuda::check_error( cudaStreamSynchronize(stream), "cudaStreamSynchronize()");
+            cuda::check_error(cudaMalloc(&new_data, num_entries * sizeof(scalar_type)), "cudaMalloc()");
+            return reinterpret_cast<scalar_type*>(new_data);
+        }
         //! \brief Free memory.
-        void free(void *pntr) const;
-        //! \brief Send data to the device.
-        void host_to_device(void const *source, size_t num_bytes, void *destination) const;
-        //! \brief Copy within the device.
-        void device_to_device(void const *source, size_t num_bytes, void *destination) const;
-        //! \brief Receive from the device.
-        void device_to_host(void const *source, size_t num_bytes, void *destination) const;
-
-    private:
-        mutable cudaStream_t stream;
+        template<typename scalar_type>
+        static void free(cudaStream_t stream, scalar_type *pntr){
+            if (pntr == nullptr) return;
+            if (stream != nullptr) cuda::check_error( cudaStreamSynchronize(stream), "cudaStreamSynchronize()");
+            cuda::check_error(cudaFree(pntr), "cudaFree()");
+        }
+        //! \brief Equivalent to std::copy_n() but using CUDA arrays.
+        template<typename scalar_type>
+        static void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+            if (stream == nullptr)
+                cuda::check_error(cudaMemcpy(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "data_manipulator::copy_n()");
+            else
+                cuda::check_error(cudaMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice, stream), "data_manipulator::copy_n()");
+        }
+        //! \brief Copy-convert complex-to-real.
+        template<typename scalar_type>
+        static void copy_n(cudaStream_t stream, std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
+            cuda::convert(stream, static_cast<long long>(num_entries), source, destination);
+        }
+        //! \brief Copy-convert real-to-complex.
+        template<typename scalar_type>
+        static void copy_n(cudaStream_t stream, scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
+            cuda::convert(stream, static_cast<long long>(num_entries), source, destination);
+        }
+        //! \brief Copy the date from the device to the host.
+        template<typename scalar_type>
+        static void copy_device_to_host(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+            cuda::check_error(cudaMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToHost, stream),
+                            "device_to_host (cuda)");
+        }
+        //! \brief Copy the date from the device to the device.
+        template<typename scalar_type>
+        static void copy_device_to_device(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+                cuda::check_error(cudaMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice, stream),
+                                "device_to_device (cuda)");
+        }
+        //! \brief Copy the date from the host to the device.
+        template<typename scalar_type>
+        static void copy_host_to_device(cudaStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+            cuda::check_error(cudaMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyHostToDevice, stream),
+                            "host_to_device (cuda)");
+        }
     };
-}
 
-namespace gpu {
-    /*!
-     * \ingroup hefftecuda
-     * \brief Device vector for the CUDA backends.
-     */
-    template<typename scalar_type>
-    using vector = device_vector<scalar_type, cuda::memory_manager>;
-
-    /*!
-     * \ingroup hefftecuda
-     * \brief Transfer helpers for the CUDA backends.
-     */
-    using transfer = device_transfer<cuda::memory_manager>;
-
-};
-
-/*!
- * \ingroup hefftecuda
- * \brief Factory method to create new buffer container for the CUDA backends.
- */
-template<typename scalar_type>
-gpu::vector<scalar_type> make_buffer_container(cudaStream_t stream, size_t size){
-    return gpu::vector<scalar_type>(stream, size);
-}
-
-namespace backend{
     /*!
      * \ingroup hefftecuda
      * \brief Defines the location type-tag and the cuda container.
@@ -210,7 +216,7 @@ namespace backend{
         //! \brief The cufft library uses data on the gpu device.
         using location = tag::gpu;
         //! \brief The data is managed by the cuda vector container.
-        template<typename T> using container = heffte::gpu::vector<T>;
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
     };
 }
 
@@ -452,10 +458,9 @@ public:
             }
         }else{
             // need to create a temporary copy of the data since cufftExecR2C() requires aligned input
-            gpu::vector<float> rdata(stream, rblock_stride);
-            gpu::transfer data_manipulator(stream);
+            backend::buffer_traits<backend::cufft>::container<float> rdata(stream, rblock_stride);
             for(int i=0; i<blocks; i++){
-                data_manipulator.copy(indata + i * rblock_stride, rdata);
+                backend::data_manipulator<tag::gpu>::copy_n(stream, indata + i * rblock_stride, rblock_stride, rdata.data());
                 cufftComplex* cdata = reinterpret_cast<cufftComplex*>(outdata + i * cblock_stride);
                 cuda::check_error(cufftExecR2C(*sforward, rdata.data(), cdata), "cufft_executor::cufftExecR2C()");
             }
@@ -470,12 +475,11 @@ public:
                 cuda::check_error(cufftExecC2R(*sbackward, cdata, outdata + i * rblock_stride), "cufft_executor::cufftExecC2R()");
             }
         }else{
-            gpu::vector<float> odata(stream, rblock_stride);
-            gpu::transfer data_manipulator(stream);
+            backend::buffer_traits<backend::cufft>::container<float> odata(stream, rblock_stride);
             for(int i=0; i<blocks; i++){
                 cufftComplex* cdata = const_cast<cufftComplex*>(reinterpret_cast<cufftComplex const*>(indata + i * cblock_stride));
                 cuda::check_error(cufftExecC2R(*sbackward, cdata, odata.data()), "cufft_executor::cufftExecC2R()");
-                data_manipulator.copy(odata, outdata + i * rblock_stride);
+                backend::data_manipulator<tag::gpu>::copy_n(stream, odata.data(), rblock_stride, outdata + i * rblock_stride);
             }
         }
     }
@@ -489,10 +493,9 @@ public:
                 cuda::check_error(cufftExecD2Z(*dforward, rdata, cdata), "cufft_executor::cufftExecD2Z()");
             }
         }else{
-            gpu::vector<double> rdata(stream, rblock_stride);
-            gpu::transfer data_manipulator(stream);
+            backend::buffer_traits<backend::cufft>::container<double> rdata(stream, rblock_stride);
             for(int i=0; i<blocks; i++){
-                data_manipulator.copy(indata + i * rblock_stride, rdata);
+                backend::data_manipulator<tag::gpu>::copy_n(stream, indata + i * rblock_stride, rblock_stride, rdata.data());
                 cufftDoubleComplex* cdata = reinterpret_cast<cufftDoubleComplex*>(outdata + i * cblock_stride);
                 cuda::check_error(cufftExecD2Z(*dforward, rdata.data(), cdata), "cufft_executor::cufftExecD2Z()");
             }
@@ -507,12 +510,11 @@ public:
                 cuda::check_error(cufftExecZ2D(*dbackward, cdata, outdata + i * rblock_stride), "cufft_executor::cufftExecZ2D()");
             }
         }else{
-            gpu::vector<double> odata(stream, rblock_stride);
-            gpu::transfer data_manipulator(stream);
+            backend::buffer_traits<backend::cufft>::container<double> odata(stream, rblock_stride);
             for(int i=0; i<blocks; i++){
                 cufftDoubleComplex* cdata = const_cast<cufftDoubleComplex*>(reinterpret_cast<cufftDoubleComplex const*>(indata + i * cblock_stride));
                 cuda::check_error(cufftExecZ2D(*dbackward, cdata, odata.data()), "cufft_executor::cufftExecZ2D()");
-                data_manipulator.copy(odata, outdata + i * rblock_stride);
+                backend::data_manipulator<tag::gpu>::copy_n(stream, odata.data(), rblock_stride, outdata + i * rblock_stride);
             }
         }
     }
@@ -562,37 +564,6 @@ template<> struct one_dim_backend<backend::cufft>{
         return std::unique_ptr<cufft_executor_r2c>(new cufft_executor_r2c(stream, box, dimension));
     }
 };
-
-namespace cuda { // packer logic
-
-/*!
- * \ingroup hefftecuda
- * \brief Performs a direct-pack operation for data sitting on the GPU device.
- *
- * Launches a CUDA kernel.
- */
-template<typename scalar_type, typename index>
-void direct_pack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
-/*!
- * \ingroup hefftecuda
- * \brief Performs a direct-unpack operation for data sitting on the GPU device.
- *
- * Launches a CUDA kernel.
- */
-template<typename scalar_type, typename index>
-void direct_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
-/*!
- * \ingroup hefftecuda
- * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
- *
- * Launches a CUDA kernel.
- */
-template<typename scalar_type, typename index>
-void transpose_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
-                      index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
-                      scalar_type const source[], scalar_type destination[]);
-
-}
 
 /*!
  * \ingroup hefftepacking

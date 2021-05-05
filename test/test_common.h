@@ -158,7 +158,7 @@ struct test_traits{
 };
 
 template<typename backend_tag>
-typename backend::auxiliary_variables<backend_tag>::queue_type  make_stream(){ return nullptr; } // CPU case
+typename backend::device_instance<backend_tag>::stream_type make_stream(){ return nullptr; } // CPU case
 void sync_stream(void*){}
 void free_stream(void*){}
 
