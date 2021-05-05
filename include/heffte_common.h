@@ -97,6 +97,12 @@ namespace backend {
     struct cufft{};
 
     /*!
+     * \ingroup heffterocm
+     * \brief Type-tag for the rocFFT backend
+     */
+    struct rocfft{};
+
+    /*!
      * \ingroup fft3dbackend
      * \brief Allows to define whether a specific backend interface has been enabled.
      *
@@ -151,6 +157,12 @@ namespace backend {
      * \brief Returns the human readable name of the cuFFT backend.
      */
     template<> inline std::string name<cufft>(){ return "cufft"; }
+
+    /*!
+     * \ingroup heffterocm
+     * \brief Returns the human readable name of the ROCm backend.
+     */
+    template<> inline std::string name<rocfft>(){ return "rocfft"; }
 
     /*!
      * \ingroup fft3dbackend

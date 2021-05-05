@@ -600,12 +600,9 @@ template<> struct transpose_packer<tag::gpu>{
     }
 };
 
-/*!
- * \ingroup hefftecuda
- * \brief Specialization for the CPU case.
- */
 namespace data_scaling {
     /*!
+     * \ingroup hefftecuda
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
@@ -613,6 +610,7 @@ namespace data_scaling {
         cuda::scale_data(stream, static_cast<long long>(num_entries), data, scale_factor);
     }
     /*!
+     * \ingroup hefftecuda
      * \brief Complex by real scaling.
      */
     template<typename precision_type, typename index>

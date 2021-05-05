@@ -431,28 +431,27 @@ void test_1d_reorder(){
     #endif
 
     #ifdef Heffte_ENABLE_CUDA
-    gpu::transfer data_manipulator;
     for(size_t i=0; i<3; i++){
         heffte::cufft_executor fft(nullptr, box, box.order[i]);
 
-        auto cresult = data_manipulator.load(cinput);
+        auto cresult = gpu::transfer::load(cinput);
         fft.forward(cresult.data());
         sassert(approx(cresult, creference[i]));
 
         fft.backward(cresult.data());
-        auto cpu_cresult = data_manipulator.unload(cresult);
+        auto cpu_cresult = gpu::transfer::unload(cresult);
         for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
         sassert(approx(cpu_cresult, cinput));
 
         heffte::cufft_executor_r2c fft_r2c(nullptr, box, box.order[i]);
 
         gpu::vector<ctype> rresult(rreference[i].size());
-        fft_r2c.forward(data_manipulator.load(rinput).data(), rresult.data());
+        fft_r2c.forward(gpu::transfer::load(rinput).data(), rresult.data());
         sassert(approx(rresult, rreference[i]));
 
         gpu::vector<rtype> brresult(rinput.size());
         fft_r2c.backward(rresult.data(), brresult.data());
-        auto cpu_brresult = data_manipulator.unload(brresult);
+        auto cpu_brresult = gpu::transfer::unload(brresult);
         for(auto &r : cpu_brresult) r /= (2.0 + box.order[i]);
         sassert(approx(cpu_brresult, rinput));
     }
@@ -460,7 +459,7 @@ void test_1d_reorder(){
 
     #ifdef Heffte_ENABLE_ROCM
     for(size_t i=0; i<3; i++){
-        heffte::rocfft_executor fft(box, box.order[i]);
+        heffte::rocfft_executor fft(nullptr, box, box.order[i]);
 
         auto cresult = gpu::transfer::load(cinput);
         fft.forward(cresult.data());
@@ -472,7 +471,7 @@ void test_1d_reorder(){
         sassert(approx(cpu_cresult, cinput));
 
         if (i == 0){
-            heffte::rocfft_executor_r2c fft_r2c(box, box.order[i]);
+            heffte::rocfft_executor_r2c fft_r2c(nullptr, box, box.order[i]);
 
             gpu::vector<ctype> rresult(rreference[i].size());
             fft_r2c.forward(gpu::transfer::load(rinput).data(), rresult.data());
@@ -719,7 +718,7 @@ void test_cross_reference_type(){
 
     for(int i=0; i<3; i++){
         heffte::fftw_executor  fft_cpu(box, i);
-        heffte::rocfft_executor fft_gpu(box, i);
+        heffte::rocfft_executor fft_gpu(nullptr, box, i);
 
         std::vector<std::complex<precision_type>> coutput(rinput.size());
         auto crocoutput = gpu::transfer::load(coutput);
@@ -747,10 +746,11 @@ void test_cross_reference_type(){
 }
 template<typename scalar_type>
 void test_cross_reference_r2c(){
-    current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
+    current_test<scalar_type, using_nompi> name("rocfft - fftw reference r2c");
+    backend::device_instance<backend::rocfft> device;
 
     for(int case_counter = 0; case_counter < 2; case_counter++){
-        // due to alignment issues on the cufft side
+        // due to alignment issues on the rocfft side
         // need to check the case when both size[0] and size[1] are odd
         //                        when at least one is even
         box3d<> box = (case_counter == 0) ?
@@ -763,7 +763,7 @@ void test_cross_reference_r2c(){
         //for(int i=0; i<3; i++){
         for(int i=0; i<1; i++){
             heffte::fftw_executor_r2c  fft_cpu(box, i);
-            heffte::rocfft_executor_r2c fft_gpu(box, i);
+            heffte::rocfft_executor_r2c fft_gpu(nullptr, box, i);
 
             std::vector<typename fft_output<scalar_type>::type> result(fft_cpu.complex_size());
             gpu::vector<typename fft_output<scalar_type>::type> curesult(fft_gpu.complex_size());
@@ -784,8 +784,8 @@ void test_cross_reference_r2c(){
             fft_cpu.backward(result.data(), inverse.data());
             fft_gpu.backward(curesult.data(), cuinverse.data());
 
-            data_scaling<tag::cpu>::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
-            data_scaling<tag::gpu>::apply(cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling::apply(device.stream(), cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
 
             sassert(approx(inverse, input));
             sassert(approx(cuinverse, input));
