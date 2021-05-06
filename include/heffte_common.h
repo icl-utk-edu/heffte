@@ -91,6 +91,18 @@ namespace backend {
     };
 
     /*!
+     * \ingroup hefftefftw
+     * \brief Type-tag for the FFTW backend
+     */
+    struct fftw{};
+
+    /*!
+     * \ingroup hefftemkl
+     * \brief Type-tag for the MKL backend
+     */
+    struct mkl{};
+
+    /*!
      * \ingroup hefftecuda
      * \brief Type-tag for the cuFFT backend
      */
@@ -159,6 +171,16 @@ namespace backend {
     inline std::string name(){ return "unknown"; }
 
     /*!
+     * \ingroup hefftefftw
+     * \brief Returns the human readable name of the FFTW backend.
+     */
+    template<> inline std::string name<fftw>(){ return "fftw"; }
+    /*!
+     * \ingroup hefftemkl
+     * \brief Returns the human readable name of the MKL backend.
+     */
+    template<> inline std::string name<mkl>(){ return "mkl"; }
+    /*!
      * \ingroup hefftecuda
      * \brief Returns the human readable name of the cuFFT backend.
      */
@@ -166,7 +188,7 @@ namespace backend {
 
     /*!
      * \ingroup heffterocm
-     * \brief Returns the human readable name of the ROCm backend.
+     * \brief Returns the human readable name of the rocFFT backend.
      */
     template<> inline std::string name<rocfft>(){ return "rocfft"; }
 
