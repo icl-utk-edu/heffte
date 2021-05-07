@@ -24,14 +24,15 @@ namespace heffte {
 
 namespace gpu {
 
-magma_handle<tag::gpu>::magma_handle(){
+magma_handle<tag::gpu>::magma_handle(void *gpu_stream){
     magma_init();
     int device;
     #ifdef Heffte_ENABLE_CUDA
+    cudaStream_t stream = reinterpret_cast<cudaStream_t>(gpu_stream);
     cudaError_t status = cudaGetDevice(&device);
     if (status != cudaSuccess)
         throw std::runtime_error(std::string("cudaGetDevice() failed with message: ") + cudaGetErrorString(status));
-    magma_queue_create_from_cuda(device, nullptr, nullptr, nullptr, reinterpret_cast<magma_queue_t*>(&handle));
+    magma_queue_create_from_cuda(device, stream, nullptr, nullptr, reinterpret_cast<magma_queue_t*>(&handle));
     #else
     hipError_t status = hipGetDevice(&device);
     if (status != hipSuccess)

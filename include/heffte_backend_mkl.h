@@ -29,21 +29,9 @@ namespace heffte{
 namespace backend{
     /*!
      * \ingroup hefftemkl
-     * \brief Type-tag for the MKL backend
-     */
-    struct mkl{};
-
-    /*!
-     * \ingroup hefftemkl
      * \brief Indicate that the MKL backend has been enabled.
      */
     template<> struct is_enabled<mkl> : std::true_type{};
-
-    /*!
-     * \ingroup hefftemkl
-     * \brief Returns the human readable name of the MKL backend.
-     */
-    template<> inline std::string name<mkl>(){ return "mkl"; }
 }
 
 /*!

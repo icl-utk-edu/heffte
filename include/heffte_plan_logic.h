@@ -50,6 +50,18 @@ struct plan_options{
 };
 
 /*!
+ * \ingroup fft3d
+ * \brief Simple I/O for the plan options struct.
+ */
+inline std::ostream & operator << (std::ostream &os, plan_options const options){
+    os << "options = ("
+       << ((options.use_reorder) ? "fft1d:contiguous" : "fft1d:strided") << ", "
+       << ((options.use_alltoall) ? "mpi:alltoallv" : "mpi:point-to-point") << ", "
+       << ((options.use_pencils) ? "decomposition:pencil" : "decomposition:slab") << ")";
+    return os;
+}
+
+/*!
  * \ingroup heffterocm
  * \brief Forces the reorder logic for the ROCM r2c variant.
  */

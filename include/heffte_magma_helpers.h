@@ -28,6 +28,8 @@ namespace gpu {
      * The MAGMA capabilities are implemented in the tag::gpu specialization.
      */
     template<typename> struct magma_handle{
+        //! \brief No-op constructor, see the GPU specialization.
+        magma_handle(void*){}
         //! \brief Wrapper around MAGMA sscal()/dscal(), but no-op in a CPU context.
         template<typename scalar_type> void scal(int, double, scalar_type*) const{}
     };
@@ -39,8 +41,8 @@ namespace gpu {
      */
     template<>
     struct magma_handle<tag::gpu>{
-        //! \brief Constructor, calls magma_init() and creates a new queue on the default stream.
-        magma_handle();
+        //! \brief Constructor, calls magma_init() and creates a new queue on the given stream.
+        magma_handle(void* gpu_stream);
         //! \brief Destructor, cleans the queue and calls magma_finaliza().
         ~magma_handle();
         //! \brief Wrapper around magma_sscal()

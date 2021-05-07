@@ -163,7 +163,7 @@ enum class scale{
  * </table>
  */
 template<typename backend_tag, typename index = int>
-class fft3d : public backend::auxiliary_variables<backend_tag>{
+class fft3d : public backend::device_instance<backend_tag>{
 public:
     //! \brief Alias to the wrapper class for the one dimensional backend library.
     using backend_executor = typename one_dim_backend<backend_tag>::type;
@@ -198,6 +198,30 @@ public:
         fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, options), mpi::comm_rank(comm), comm){
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
+    /*!
+     * \brief Identical to the other constructor but accepts a GPU stream or queue.
+     *
+     * \param stream is an initialized GPU stream or queue, the actual type depends on the backend as follows:
+     *
+     * <table>
+     * <tr><td> CPU backend </td><td> void*, the stream is never referenced </td></tr>
+     * <tr><td> CUDA backend </td><td> cudaStream_t </td></tr>
+     * <tr><td> ROCm backend </td><td> hipStream_t </td></tr>
+     * <tr><td> oneAPI backend </td><td> sycl::queue const& </td></tr>
+     * </table>
+     *
+     * In all cases, heFFTe takes a non-owning reference or alias to the stream;
+     * deleting the stream is a responsibility of the user but should not be done before the heFFTe object is destroyed.
+     * If no stream is provided, heFFTe will use the default CUDA or HIP stream or a default internal SYCL queue;
+     * note in the SYCL case the internal queue will create a new SYCL context which is probably not optimal.
+     */
+    fft3d(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
+          box3d<index> const inbox, box3d<index> const outbox, MPI_Comm const comm,
+          plan_options const options = default_options<backend_tag>()) :
+        fft3d(gpu_stream, plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, options), mpi::comm_rank(comm), comm){
+        static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
+    }
+
 
     //! \brief Internal use only, used by the Fortran interface
     fft3d(int il0, int il1, int il2, int ih0, int ih1, int ih2, int io0, int io1, int io2,
@@ -315,7 +339,7 @@ public:
     output_buffer_container<input_type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
         if (input.size() < static_cast<size_t>(size_inbox()))
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
-        buffer_container<typename fft_output<input_type>::type> output(size_outbox());
+        auto output = make_buffer_container<typename fft_output<input_type>::type>(this->stream(), size_outbox());
         forward(input.data(), output.data(), scaling);
         return output;
     }
@@ -374,7 +398,7 @@ public:
                       "Either calling backward() with non-complex input or using an unknown complex type.");
         if (input.size() < static_cast<size_t>(size_outbox()))
             throw std::invalid_argument("The input vector is smaller than size_outbox(), i.e., not enough entries provided to fill the outbox.");
-        buffer_container<scalar_type> result(size_inbox());
+        auto result = make_buffer_container<scalar_type>(this->stream(), size_inbox());
         backward(input.data(), result.data(), scaling);
         return result;
     }
@@ -386,7 +410,7 @@ public:
     real_buffer_container<scalar_type> backward_real(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
-        buffer_container<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());
+        auto result = make_buffer_container<typename define_standard_type<scalar_type>::type::value_type>(this->stream(), size_inbox());
         backward(input.data(), result.data(), scaling);
         return result;
     }
@@ -431,6 +455,13 @@ private:
      */
     fft3d(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
 
+    //! \brief Same as the other case but accepts the gpu_stream too.
+    fft3d(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
+          logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
+
+    //! \brief Setup the executors and the reshapes.
+    void setup(logic_plan3d<index> const &plan, MPI_Comm const comm);
+
     /*!
      * \brief Performs the FFT assuming the input types match the C++ standard.
      *
@@ -458,7 +489,7 @@ private:
     void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
     /*!
@@ -477,7 +508,7 @@ private:
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
     /*!
@@ -496,7 +527,7 @@ private:
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
                             std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
     //! \brief Applies the scaling factor to the data.
@@ -510,7 +541,8 @@ private:
                 return;
             }
             #endif
-            data_manipulator<location_tag>::scale(
+            data_scaling::apply(
+                this->stream(),
                 (dir == direction::forward) ? size_outbox() : size_inbox(),
                 data, get_scale_factor(scaling));
         }

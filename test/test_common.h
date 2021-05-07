@@ -9,6 +9,12 @@
 
 #include "heffte.h"
 
+#ifdef Heffte_ENABLE_CUDA
+#include <cuda_runtime_api.h>
+#include <cuda.h>
+#include <cufft.h>
+#endif
+
 #define tassert(_result_)          \
     if (!(_result_)){              \
         heffte_test_pass = false;  \
@@ -151,14 +157,40 @@ struct test_traits{
     static std::vector<T> unload(container<T> const &x){ return x; }
 };
 
+template<typename backend_tag> void* make_stream(backend_tag){ return nullptr; } // CPU case
+void sync_stream(void*){}
+void free_stream(void*){}
+
 #ifdef Heffte_ENABLE_CUDA
 using gpu_backend = heffte::backend::cufft;
+
+cudaStream_t make_stream(backend::cufft){
+    cudaStream_t result;
+    cudaStreamCreateWithFlags(&result, cudaStreamNonBlocking);
+    return result;
+}
+void sync_stream(cudaStream_t stream){ cudaStreamSynchronize(stream); }
+void free_stream(cudaStream_t stream){ cudaStreamDestroy(stream); }
 #endif
 #ifdef Heffte_ENABLE_ROCM
 using gpu_backend = heffte::backend::rocfft;
+
+hipStream_t make_stream(backend::rocfft){
+    hipStream_t result;
+    hipStreamCreateWithFlags(&result, hipStreamNonBlocking);
+    return result;
+}
+void sync_stream(hipStream_t stream){ hipStreamSynchronize(stream); }
+void free_stream(hipStream_t stream){ hipStreamDestroy(stream); }
 #endif
 #ifdef Heffte_ENABLE_ONEAPI
 using gpu_backend = heffte::backend::onemkl;
+
+sycl::queue make_stream(backend::onemkl){
+    return heffte::oapi::make_sycl_queue();
+}
+void sync_stream(sycl::queue &stream){ stream.wait(); }
+void free_stream(sycl::queue &stream){}
 #endif
 #ifdef Heffte_ENABLE_GPU
 template<typename T>
@@ -167,7 +199,7 @@ inline bool match(heffte::gpu::vector<T> const &a, std::vector<T> const &b){
 }
 template<typename T>
 inline bool approx(heffte::gpu::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
-    return approx(heffte::gpu::transfer::unload(a), b, correction);
+    return approx(heffte::gpu::transfer().unload(a), b, correction);
 }
 template<typename T>
 inline bool approx(heffte::gpu::vector<T> const &a, heffte::gpu::vector<T> const &b, double correction = 1.0){
@@ -177,9 +209,9 @@ template<typename backend_tag>
 struct test_traits<backend_tag, typename std::enable_if<backend::uses_gpu<backend_tag>::value, void>::type>{
     template<typename T> using container = gpu::vector<T>;
     template<typename T>
-    static container<T> load(std::vector<T> const &x){ return gpu::transfer::load(x); }
+    static container<T> load(std::vector<T> const &x){ return gpu::transfer().load(x); }
     template<typename T>
-    static std::vector<T> unload(container<T> const &x){ return gpu::transfer::unload(x); }
+    static std::vector<T> unload(container<T> const &x){ return gpu::transfer().unload(x); }
 };
 #endif
 

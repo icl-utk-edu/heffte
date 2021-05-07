@@ -29,12 +29,6 @@ namespace heffte{
 namespace backend{
     /*!
      * \ingroup hefftefftw
-     * \brief Type-tag for the FFTW backend
-     */
-    struct fftw{};
-
-    /*!
-     * \ingroup hefftefftw
      * \brief Indicate that the FFTW backend has been enabled.
      */
     template<> struct is_enabled<fftw> : std::true_type{};
@@ -45,12 +39,6 @@ namespace backend{
 //         using location = tag::cpu;
 //         template<typename T> using container = std::vector<T>;
 //     };
-
-    /*!
-     * \ingroup hefftefftw
-     * \brief Returns the human readable name of the FFTW backend.
-     */
-    template<> inline std::string name<fftw>(){ return "fftw"; }
 }
 
 /*!
