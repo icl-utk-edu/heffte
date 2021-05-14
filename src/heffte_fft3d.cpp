@@ -13,27 +13,27 @@
 #define heffte_instantiate_fft3d(some_backend, index) \
     template class fft3d<some_backend, index>; \
     template void fft3d<some_backend, index>::standard_transform<float>(float const[], std::complex<float>[], std::complex<float>[], \
-                                                                 std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                 std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                  direction, scale  \
                                                                 ) const;    \
     template void fft3d<some_backend, index>::standard_transform<double>(double const[], std::complex<double>[], std::complex<double>[], \
-                                                                  std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                  std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                   direction, scale \
                                                                  ) const;   \
     template void fft3d<some_backend, index>::standard_transform<float>(std::complex<float> const[], float[], std::complex<float>[], \
-                                                                 std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                 std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                  direction, scale  \
                                                                 ) const;    \
     template void fft3d<some_backend, index>::standard_transform<double>(std::complex<double> const[], double[], std::complex<double>[], \
-                                                                  std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                  std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                   direction, scale \
                                                                  ) const;   \
     template void fft3d<some_backend, index>::standard_transform<float>(std::complex<float> const[], std::complex<float>[], std::complex<float>[], \
-                                                                 std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                 std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                  direction, scale  \
                                                                 ) const;    \
     template void fft3d<some_backend, index>::standard_transform<double>(std::complex<double> const[], std::complex<double>[], std::complex<double>[], \
-                                                                  std::array<std::unique_ptr<reshape3d_base>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                  std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                   direction, scale \
                                                                  ) const;   \
 
@@ -80,7 +80,7 @@ template<typename backend_tag, typename index>
 template<typename scalar_type> // complex to complex case
 void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
                                             std::complex<scalar_type> workspace[],
-                                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                                             std::array<backend_executor*, 3> const executor,
                                             direction dir, scale scaling) const{
     /*
@@ -184,7 +184,7 @@ template<typename backend_tag, typename index>
 template<typename scalar_type> // real to complex case
 void fft3d<backend_tag, index>::standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
                                             std::complex<scalar_type> workspace[],
-                                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                                             std::array<typename one_dim_backend<backend_tag>::type*, 3> const executor,
                                             direction, scale scaling) const{
     /*
@@ -240,7 +240,7 @@ template<typename backend_tag, typename index>
 template<typename scalar_type> // complex to real case
 void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
                                             std::complex<scalar_type> workspace[],
-                                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                                             std::array<backend_executor*, 3> const executor, direction, scale scaling) const{
     /*
      * Follows logic similar to the complex-to-complex case but the last shaper and executor will be applied to real data.

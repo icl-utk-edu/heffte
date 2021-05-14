@@ -170,7 +170,7 @@ reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
                         std::vector<int> &&crecv_offset, std::vector<int> &&crecv_size, std::vector<int> const &recv_proc,
                         std::vector<pack_plan_3d<index>> &&cpackplan, std::vector<pack_plan_3d<index>> &&cunpackplan
                                                                 ) :
-    reshape3d_base(cinput_size, coutput_size),
+    reshape3d_base<index>(cinput_size, coutput_size),
     backend::device_instance<backend_tag>(q),
     comm(mpi::new_comm_from_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
@@ -187,7 +187,7 @@ template<typename scalar_type>
 void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
 
     scalar_type *send_buffer = workspace;
-    scalar_type *recv_buffer = workspace + input_size;
+    scalar_type *recv_buffer = workspace + this->input_size;
 
     packer<typename backend::buffer_traits<backend_tag>::location> packit;
 
@@ -296,7 +296,7 @@ reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
                         std::vector<int> &&crecv_loc,
                         std::vector<pack_plan_3d<index>> &&cpackplan, std::vector<pack_plan_3d<index>> &&cunpackplan
                                                                 ) :
-    reshape3d_base(cinput_size, coutput_size),
+    reshape3d_base<index>(cinput_size, coutput_size),
     backend::device_instance<backend_tag>(q),
     comm(ccomm), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     self_to_self(not crecv_proc.empty() and (crecv_proc.back() == me)), // check whether we should include "me" in the communication scheme
@@ -314,9 +314,9 @@ template<typename backend_tag, template<typename device> class packer, typename 
 template<typename scalar_type>
 void reshape3d_pointtopoint<backend_tag, packer, index>::no_gpuaware_send_recv(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
     scalar_type *send_buffer = workspace;
-    scalar_type *recv_buffer = workspace + input_size;
+    scalar_type *recv_buffer = workspace + this->input_size;
 
-    std::vector<scalar_type> cpu_send, cpu_recv(output_size);
+    std::vector<scalar_type> cpu_send, cpu_recv(this->output_size);
 
     using location_tag = typename backend::buffer_traits<backend_tag>::location;
 
@@ -378,7 +378,7 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
     #endif
 
     scalar_type *send_buffer = workspace;
-    scalar_type *recv_buffer = workspace + input_size;
+    scalar_type *recv_buffer = workspace + this->input_size;
 
     packer<typename backend::buffer_traits<backend_tag>::location> packit;
 
