@@ -298,8 +298,8 @@ private:
 
     std::unique_ptr<box3d<index>> pinbox, poutbox;
     double scale_factor;
-    std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
-    std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
+    std::array<std::unique_ptr<reshape3d_base<index>>, 4> forward_shaper;
+    std::array<std::unique_ptr<reshape3d_base<index>>, 4> backward_shaper;
 
     std::unique_ptr<backend_executor_r2c> executor_r2c;
     std::array<std::unique_ptr<backend_executor_c2c>, 2> executor;

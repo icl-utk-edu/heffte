@@ -69,8 +69,8 @@ std::vector<scalar_type> get_subdata(box3d<> const world, box3d<> const subbox){
     return result;
 }
 
-template<typename backend_tag, typename variant_tag>
-std::unique_ptr<reshape3d_base>
+template<typename backend_tag, typename variant_tag, typename index = int>
+std::unique_ptr<reshape3d_base<index>>
 make_test_reshape3d(typename backend::device_instance<backend_tag>::stream_type q, std::vector<box3d<>> const &input_boxes, std::vector<box3d<>> const &output_boxes, MPI_Comm const comm){
     if (std::is_same<variant_tag, using_alltoall>::value){
         return make_reshape3d_alltoallv<backend_tag>(q, input_boxes, output_boxes, comm);

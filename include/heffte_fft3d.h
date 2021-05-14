@@ -482,12 +482,12 @@ private:
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
                             std::complex<scalar_type> workspace[],
-                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const; // complex to complex
     //! \brief Overload that allocates and deallocates the workspace.
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
-                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
         auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
@@ -501,13 +501,14 @@ private:
     template<typename scalar_type>
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
                             std::complex<scalar_type> workspace[],
-                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction, scale) const; // real to complex
     //! \brief Overload that allocates and deallocates the workspace.
     template<typename scalar_type>
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
-                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
+        std::cout << " making the workspace vector = " << size_workspace() << std::endl;
         auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
@@ -520,12 +521,12 @@ private:
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
                             std::complex<scalar_type> workspace[],
-                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale) const; // complex to real
     //! \brief Overload that allocates and deallocates the workspace.
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
-                            std::array<std::unique_ptr<reshape3d_base>, 4> const &shaper,
+                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
         auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
@@ -550,8 +551,8 @@ private:
 
     std::unique_ptr<box3d<index>> pinbox, poutbox; // inbox/output for this process
     double scale_factor;
-    std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
-    std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
+    std::array<std::unique_ptr<reshape3d_base<index>>, 4> forward_shaper;
+    std::array<std::unique_ptr<reshape3d_base<index>>, 4> backward_shaper;
 
     std::unique_ptr<backend_executor> fft0, fft1, fft2;
     #ifdef Heffte_ENABLE_MAGMA
