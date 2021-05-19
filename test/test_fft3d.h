@@ -205,7 +205,7 @@ void test_fft3d_queues(MPI_Comm comm){
     auto stream = make_stream(backend_tag());
 
     for(auto const &options : make_all_options<backend_tag>()){
-    if (mpi::world_rank(0)) std::cout << options << std::endl;
+    //if (mpi::world_rank(0)) std::cout << options << std::endl;
 
     for(int i=0; i<3; i++){
         std::array<int, 3> split = {1, 1, 1};
