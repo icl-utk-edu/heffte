@@ -508,7 +508,6 @@ private:
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
                             std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        std::cout << " making the workspace vector = " << size_workspace() << std::endl;
         auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
