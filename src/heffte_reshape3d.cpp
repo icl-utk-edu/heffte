@@ -208,8 +208,8 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
     // the device_synchronize() is needed to flush the kernels of the asynchronous packing
     std::vector<scalar_type> cpu_send, cpu_recv;
     if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
-        cpu_send = gpu::transfer::unload(this->stream(), send_buffer, input_size);
-        cpu_recv = std::vector<scalar_type>(output_size);
+        cpu_send = gpu::transfer::unload(this->stream(), send_buffer, this->input_size);
+        cpu_recv = std::vector<scalar_type>(this->output_size);
         send_buffer = cpu_send.data();
         recv_buffer = cpu_recv.data();
     }
@@ -223,7 +223,7 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
 
     #if defined(Heffte_DISABLE_GPU_AWARE_MPI) and defined(Heffte_ENABLE_GPU)
     if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
-        recv_buffer = workspace + input_size;
+        recv_buffer = workspace + this->input_size;
         gpu::transfer::load(this->stream(), cpu_recv, recv_buffer);
     }
     #endif
