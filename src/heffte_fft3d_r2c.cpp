@@ -25,7 +25,7 @@ fft3d_r2c<backend_tag, index>::fft3d_r2c(logic_plan3d<index> const &plan, int co
     pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
     scale_factor(1.0 / static_cast<double>(plan.index_count))
     #ifdef Heffte_ENABLE_MAGMA
-    , hmagma(this->gpu_queue())
+    , hmagma(this->stream())
     #endif
 {
     setup(plan, comm);
