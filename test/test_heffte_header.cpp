@@ -28,6 +28,8 @@ int main(int, char**){
      * It also does several compile-time checks for class properties.
      */
 
+    assert_move_and_not_copy<heffte::fft3d<heffte::backend::stock>>();
+    assert_move_and_not_copy<heffte::fft3d_r2c<heffte::backend::stock>>();
     #ifdef Heffte_ENABLE_FFTW
     assert_move_and_not_copy<heffte::fft3d<heffte::backend::fftw>>();
     assert_move_and_not_copy<heffte::fft3d_r2c<heffte::backend::fftw>>();

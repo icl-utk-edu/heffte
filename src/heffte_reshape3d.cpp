@@ -526,6 +526,8 @@ make_reshape3d_pointtopoint<some_backend, transpose_packer, index>(typename back
                                                                  std::vector<box3d<index>> const&, \
                                                                  std::vector<box3d<index>> const&, MPI_Comm const); \
 
+heffte_instantiate_reshape3d(backend::stock, int)
+heffte_instantiate_reshape3d(backend::stock, long long)
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_reshape3d(backend::fftw, int)
 heffte_instantiate_reshape3d(backend::fftw, long long)

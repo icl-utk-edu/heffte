@@ -24,6 +24,7 @@ void test_fft3d_queues(MPI_Comm const comm){
 void perform_tests(MPI_Comm const comm){
     all_tests<> name("heffte::fft streams");
 
+    test_fft3d_queues<backend::stock>(comm);
     #ifdef Heffte_ENABLE_FFTW
     test_fft3d_queues<backend::fftw>(comm);
     #endif

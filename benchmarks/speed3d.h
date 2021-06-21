@@ -199,7 +199,7 @@ int main(int argc, char *argv[]){
     std::string bench_executable = "./speed3d_r2c";
     #endif
 
-    std::string backends = "";
+    std::string backends = "stock ";
     #ifdef Heffte_ENABLE_FFTW
     backends += "fftw ";
     #endif
@@ -278,6 +278,7 @@ int main(int argc, char *argv[]){
     #ifdef Heffte_ENABLE_FFTW
     valid_backend = valid_backend or perform_benchmark<backend::fftw>(precision_string, backend_string, "fftw", size_fft, arguments(argc, argv));
     #endif
+    valid_backend = valid_backend or perform_benchmark<backend::stock>(precision_string, backend_string, "stock", size_fft, arguments(argc, argv));
     #ifdef Heffte_ENABLE_MKL
     valid_backend = valid_backend or perform_benchmark<backend::mkl>(precision_string, backend_string, "mkl", size_fft, arguments(argc, argv));
     #endif

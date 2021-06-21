@@ -29,16 +29,6 @@ if (Heffte_ENABLE_FORTRAN)
     enable_language(Fortran)
 endif()
 
-# check if at least one backend has been enabled
-if (NOT Heffte_ENABLE_FFTW AND
-    NOT Heffte_ENABLE_CUDA AND
-    NOT Heffte_ENABLE_ROCM AND
-    NOT Heffte_ENABLE_ONEAPI AND
-    NOT Heffte_ENABLE_MKL
-    )
-    message(FATAL_ERROR "HeFFTe requires at least one enabled backend!")
-endif()
-
 # oneAPI requires regular MKL as a CPU backend
 if (Heffte_ENABLE_ONEAPI)
     set(Heffte_ENABLE_MKL ON CACHE BOOL "oneAPI requires Intel MKL backend to be enabled" FORCE)
@@ -119,6 +109,13 @@ endif()
 
 # handle other dependencies
 target_link_libraries(Heffte MPI::MPI_CXX)
+
+# Handle stock flags for compilation
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mtune=native")
+
+list(APPEND Heffte_common_sources
+     include/stock_fft/*
+    )
 
 if (Heffte_ENABLE_FFTW)
     find_package(HeffteFFTW REQUIRED)

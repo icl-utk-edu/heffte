@@ -11,6 +11,7 @@
 #include "heffte_backend_vector.h"
 
 // the individual backends
+#include "heffte_backend_stock.h"
 #include "heffte_backend_fftw.h"
 #include "heffte_backend_mkl.h"
 

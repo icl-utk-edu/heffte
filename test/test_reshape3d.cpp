@@ -11,11 +11,10 @@
 using default_cpu_backend = heffte::backend::fftw;
 #elif defined(Heffte_ENABLE_MKL)
 using default_cpu_backend = heffte::backend::mkl;
+#else
+using default_cpu_backend = heffte::backend::stock;
 #endif
 
-#if defined(Heffte_ENABLE_FFTW) || defined(Heffte_ENABLE_MKL)
-#define HAS_CPU_BACKEND
-#endif
 
 /*
  * Simple unit test that checks the operation that gathers boxes across an mpi comm.
@@ -211,6 +210,22 @@ void test_direct_reordered(MPI_Comm const comm){
     std::vector<box3d<>> temp = split_world(world, {2, 1, 2}); // need to swap the middle two entries
     for(auto i : std::vector<int>{0, 2, 1, 3}) outboxes.push_back({temp[i].low, temp[i].high, world.order});
 
+    {
+        auto reshape = make_reshape3d_alltoallv<backend::stock>(nullptr, inboxes, outboxes, comm);
+        std::vector<scalar_type> result(ordered_outboxes[me].count());
+        std::vector<scalar_type> workspace(reshape->size_workspace());
+        reshape->apply(input.data(), result.data(), workspace.data());
+
+        tassert(match(result, reference));
+    }{
+        auto reshape = make_reshape3d_pointtopoint<backend::stock>(nullptr, inboxes, outboxes, comm);
+        std::vector<scalar_type> result(ordered_outboxes[me].count());
+        std::vector<scalar_type> workspace(reshape->size_workspace());
+        reshape->apply(input.data(), result.data(), workspace.data());
+
+        tassert(match(result, reference));
+    }
+
     #ifdef Heffte_ENABLE_FFTW
     {
         auto reshape = make_reshape3d_alltoallv<backend::fftw>(nullptr, inboxes, outboxes, comm);
@@ -282,7 +297,6 @@ void test_reshape_transposed(MPI_Comm comm){
                 std::vector<box3d<>> outboxes;
                 for(auto b : ordered_outboxes) outboxes.push_back(box3d<>(b.low, b.high, order));
 
-                #ifdef HAS_CPU_BACKEND
                 heffte::plan_options options = default_options<default_cpu_backend>();
                 options.use_alltoall = std::is_same<variant, using_alltoall>::value;
 
@@ -303,7 +317,6 @@ void test_reshape_transposed(MPI_Comm comm){
                 mpi_tanspose_shaper->apply(input.data(), result.data(), workspace.data());
 
                 tassert(match(result, reference));
-                #endif
 
                 #ifdef Heffte_ENABLE_GPU
                 backend::device_instance<gpu_backend> device;
@@ -340,29 +353,56 @@ void perform_tests_cpu(){
 
     test_boxes(comm);
 
+    switch(mpi::comm_size(comm)) {
+        // note that the number of boxes must match the comm size
+        // that is the product of the last three of the box dimensions
+        case 4:
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::stock, using_pointtopoint>(comm);
+            break;
+        case 12:
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::stock, using_pointtopoint>(comm);
+            break;
+        default:
+            // unknown test
+            break;
+    }
     #ifdef Heffte_ENABLE_FFTW
     switch(mpi::comm_size(comm)) {
         // note that the number of boxes must match the comm size
         // that is the product of the last three of the box dimensions
         case 4:
-            test_cpu<10, 13, 10, 2, 2, 1, float, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<10, 13, 10, 2, 2, 1, float, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, default_cpu_backend, using_pointtopoint>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::fftw, using_pointtopoint>(comm);
             break;
         case 12:
-            test_cpu<13, 13, 10, 3, 4, 1, float, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<13, 13, 10, 3, 4, 1, float, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, default_cpu_backend, using_pointtopoint>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::fftw, using_pointtopoint>(comm);
             break;
         default:
             // unknown test

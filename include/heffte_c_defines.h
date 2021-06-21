@@ -46,6 +46,13 @@
 
 #include "heffte_config.h"
 
+
+/*!
+ * \ingroup cfft
+ * \brief Set the use of the stock backend.
+ */
+#define Heffte_BACKEND_STOCK 0
+
 #ifdef Heffte_ENABLE_FFTW
 /*!
  * \ingroup cfft

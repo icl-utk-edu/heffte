@@ -407,6 +407,29 @@ void test_1d_reorder(){
         creference[i] = reorder_box(box.size, box.order, creference[i]);
     }
 
+    for(size_t i=0; i<3; i++){
+        heffte::stock_fft_executor fft(box, box.order[i]);
+
+        std::vector<ctype> cresult = cinput;
+        fft.forward(cresult.data());
+        sassert(approx(cresult, creference[i]));
+
+        fft.backward(cresult.data());
+        for(auto &r : cresult) r /= (2.0 + box.order[i]);
+        sassert(approx(cresult, cinput));
+
+        heffte::stock_fft_executor_r2c fft_r2c(box, box.order[i]);
+
+        std::vector<ctype> rresult(rreference[i].size());
+        fft_r2c.forward(rinput.data(), rresult.data());
+        sassert(approx(rresult, rreference[i]));
+
+        std::vector<rtype> brresult(rinput.size());
+        fft_r2c.backward(rresult.data(), brresult.data());
+        for(auto &r : brresult) r /= (2.0 + box.order[i]);
+        sassert(approx(brresult, rinput));
+    }
+
     #ifdef Heffte_ENABLE_FFTW
     for(size_t i=0; i<3; i++){
         heffte::fftw_executor fft(box, box.order[i]);
@@ -574,6 +597,7 @@ void test_in_node_transpose(){
 }
 // Instantiates the in-node transpose test for all available backends.
 void test_transpose(){
+    test_in_node_transpose<backend::stock>();
     #ifdef Heffte_ENABLE_FFTW
     test_in_node_transpose<backend::fftw>();
     #endif
@@ -816,6 +840,7 @@ int main(int, char**){
     test_gpu_vector();
     test_gpu_scale();
 
+    test_1d<backend::stock>();
     #ifdef Heffte_ENABLE_FFTW
     test_1d<backend::fftw>();
     #endif

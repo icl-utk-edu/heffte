@@ -97,6 +97,12 @@ namespace backend {
     struct fftw{};
 
     /*!
+     * \ingroup 
+     * \brief Type-tag for the stock FFT backend
+     */
+    struct stock{};
+
+    /*!
      * \ingroup hefftemkl
      * \brief Type-tag for the MKL backend
      */
@@ -175,6 +181,13 @@ namespace backend {
      * \brief Returns the human readable name of the FFTW backend.
      */
     template<> inline std::string name<fftw>(){ return "fftw"; }
+
+    /*!
+     * \ingroup 
+     * \brief Returns the human readable name of the stock backend.
+     */
+    template<> inline std::string name<stock>(){ return "stock"; }
+
     /*!
      * \ingroup hefftemkl
      * \brief Returns the human readable name of the MKL backend.

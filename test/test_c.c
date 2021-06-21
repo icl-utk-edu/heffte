@@ -140,6 +140,7 @@ void perform_tests(int backend, MPI_Comm const comm){
         r2c_low[2] = 2;
 
     heffte_plan plan;
+
     hassert(heffte_plan_create(backend, full_low, full_high, NULL, full_low, full_high, NULL, comm, NULL, &plan) == Heffte_SUCCESS);
 
     hassert(heffte_plan_destroy(plan) == Heffte_SUCCESS); // test destorying a plan that's never used
@@ -446,6 +447,8 @@ int main(int argc, char **argv){
         printf("------------------------------------------------------------------------------\n\n");
     }
 
+    perform_tests(Heffte_BACKEND_STOCK, MPI_COMM_WORLD);
+    if (me == 0) printf("        Heffte_BACKEND_STOCK       OK\n");
     #ifdef Heffte_ENABLE_FFTW
     perform_tests(Heffte_BACKEND_FFTW, MPI_COMM_WORLD);
     if (me == 0) printf("        Heffte_BACKEND_FFTW        OK\n");

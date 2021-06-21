@@ -151,6 +151,8 @@ void fft3d_r2c<backend_tag, index>::standard_transform(std::complex<scalar_type>
     apply_scale(direction::backward, scaling, output);
 }
 
+heffte_instantiate_fft3d_r2c(backend::stock, int)
+heffte_instantiate_fft3d_r2c(backend::stock, long long)
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_fft3d_r2c(backend::fftw, int)
 heffte_instantiate_fft3d_r2c(backend::fftw, long long)

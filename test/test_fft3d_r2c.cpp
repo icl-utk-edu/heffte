@@ -203,6 +203,9 @@ void test_fft3d_r2c_vectors_2d(MPI_Comm comm){
 
 template<int fdimx, int fdimy, int fdimz, int ddimx, int ddimy, int ddimz>
 void perform_array_test(MPI_Comm const comm){
+    if (mpi::comm_size(comm) == 2) test_fft3d_r2c_const_dest2<backend::stock>(comm);
+    test_fft3d_r2c_arrays<backend::stock, float, fdimx, fdimy, fdimz>(comm);
+    test_fft3d_r2c_arrays<backend::stock, double, ddimx, ddimy, ddimz>(comm);
     #ifdef Heffte_ENABLE_FFTW
     if (mpi::comm_size(comm) == 2) test_fft3d_r2c_const_dest2<backend::fftw>(comm);
     test_fft3d_r2c_arrays<backend::fftw, float, fdimx, fdimy, fdimz>(comm);
@@ -231,6 +234,8 @@ void perform_array_test(MPI_Comm const comm){
 }
 template<int fdimx, int fdimy, int fdimz, int ddimx, int ddimy, int ddimz>
 void perform_vector_test(MPI_Comm const comm){
+    test_fft3d_r2c_vectors<backend::stock, float, fdimx, fdimy, fdimz>(comm);
+    test_fft3d_r2c_vectors<backend::stock, double, ddimx, ddimy, ddimz>(comm);
     #ifdef Heffte_ENABLE_FFTW
     test_fft3d_r2c_vectors<backend::fftw, float, fdimx, fdimy, fdimz>(comm);
     test_fft3d_r2c_vectors<backend::fftw, double, ddimx, ddimy, ddimz>(comm);
@@ -254,6 +259,8 @@ void perform_vector_test(MPI_Comm const comm){
 }
 template<int fdimx, int fdimy, int ddimx, int ddimy>
 void perform_vector_test_2d(MPI_Comm const comm){
+    test_fft3d_r2c_vectors_2d<backend::stock, float, fdimx, fdimy>(comm);
+    test_fft3d_r2c_vectors_2d<backend::stock, double, ddimx, ddimy>(comm);
     #ifdef Heffte_ENABLE_FFTW
     test_fft3d_r2c_vectors_2d<backend::fftw, float, fdimx, fdimy>(comm);
     test_fft3d_r2c_vectors_2d<backend::fftw, double, ddimx, ddimy>(comm);

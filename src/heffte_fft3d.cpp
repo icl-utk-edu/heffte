@@ -285,6 +285,8 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
     apply_scale(direction::backward, scaling, output);
 }
 
+heffte_instantiate_fft3d(backend::stock, int)
+heffte_instantiate_fft3d(backend::stock, long long)
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_fft3d(backend::fftw, int)
 heffte_instantiate_fft3d(backend::fftw, long long)
