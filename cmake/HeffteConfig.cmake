@@ -95,7 +95,7 @@ if (Heffte_FOUND OR "${Heffte_FOUND}" STREQUAL "")
     # oddly enough, Heffte_FOUND is empty when there is no error
     message(STATUS "Found Heffte: @CMAKE_INSTALL_PREFIX@ (found version @PROJECT_VERSION@)")
     set(Heffte_ALL_MODULES "")
-    foreach(_heffte_mod SHARED STATIC FFTW MKL CUDA ROCM GPUAWARE PYTHON Fortran)
+    foreach(_heffte_mod SHARED STATIC FFTW MKL CUDA ROCM ONEAPI GPUAWARE PYTHON Fortran)
         if (Heffte_${_heffte_mod}_FOUND)
             set(Heffte_ALL_MODULES "${Heffte_ALL_MODULES} ${_heffte_mod}")
         endif()
