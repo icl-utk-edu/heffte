@@ -11,7 +11,7 @@ void test_stock_complex_avx_template(std::array<std::complex<F>,L> ref1, std::ar
     heffte::stock::Complex<F,L2> comp3 = stockOp(comp1, comp2);
     std::vector<std::complex<F>> refVec {};
     std::vector<std::complex<F>> compVec {};
-    for(int i = 0; i < L; i++) {
+    for(size_t i = 0; i < L; i++) {
         refVec.push_back(stdOp(ref1[i], ref2[i]));
         compVec.push_back(comp3[i]);
     }
@@ -24,7 +24,7 @@ void test_stock_complex_avx_template(std::array<std::complex<F>,L> ref, F scalar
     heffte::stock::Complex<F,L2> comp_out = stockOp(comp_in, scalar);
     std::vector<std::complex<F>> refVec {};
     std::vector<std::complex<F>> compVec {};
-    for(int i = 0; i < L; i++) {
+    for(size_t i = 0; i < L; i++) {
         refVec.push_back(stdOp(ref[i], scalar));
         compVec.push_back(comp_out[i]);
     }
