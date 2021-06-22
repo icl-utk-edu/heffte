@@ -8,6 +8,7 @@
 #include <random>
 
 #include "test_common.h"
+#include "test_units_stock_complex.h"
 
 void test_factorize(){
     current_test<int, using_nompi> name("prime factorize");
@@ -828,6 +829,22 @@ void test_cross_reference_fftw_rocm(){
 void test_cross_reference_fftw_rocm(){}
 #endif
 
+#ifdef __AVX__
+void test_stock_complex(){
+    test_stock_complex_type<float>();
+    test_stock_complex_avx_type<float,4>();
+    test_stock_complex_avx_type<float,8>();
+    test_stock_complex_type<double>();
+    test_stock_complex_avx_type<double,2>();
+    test_stock_complex_avx_type<double,4>();
+}
+#else
+void test_stock_complex(){
+    test_stock_complex_type<float>();
+    test_stock_complex_type<double>();
+}
+#endif
+
 int main(int, char**){
 
     all_tests<using_nompi> name("Non-MPI Tests");
@@ -836,6 +853,7 @@ int main(int, char**){
     test_process_grid();
     test_split_pencils();
     test_cpu_scale();
+    test_stock_complex();
 
     test_gpu_vector();
     test_gpu_scale();
