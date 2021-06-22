@@ -244,6 +244,7 @@ std::unique_ptr<reshape3d_alltoallv<backend_tag, packer, index>>
 make_reshape3d_alltoallv(typename backend::device_instance<backend_tag>::stream_type q,
                          std::vector<box3d<index>> const &input_boxes,
                          std::vector<box3d<index>> const &output_boxes,
+                         bool uses_gpu_aware,
                          MPI_Comm const comm){
 
     int const me = mpi::comm_rank(comm);
@@ -443,6 +444,7 @@ std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer, index>>
 make_reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stream_type stream,
                          std::vector<box3d<index>> const &input_boxes,
                          std::vector<box3d<index>> const &output_boxes,
+                         bool uses_gpu_aware,
                          MPI_Comm const comm){
 
     int const me = mpi::comm_rank(comm);
@@ -503,10 +505,10 @@ template void reshape3d_alltoallv<some_backend, transpose_packer, index>::apply_
  \
 template std::unique_ptr<reshape3d_alltoallv<some_backend, direct_packer, index>> \
 make_reshape3d_alltoallv<some_backend, direct_packer, index>(typename backend::device_instance<some_backend>::stream_type, std::vector<box3d<index>> const&, \
-                                                           std::vector<box3d<index>> const&, MPI_Comm const); \
+                                                           std::vector<box3d<index>> const&, bool, MPI_Comm const); \
 template std::unique_ptr<reshape3d_alltoallv<some_backend, transpose_packer, index>> \
 make_reshape3d_alltoallv<some_backend, transpose_packer, index>(typename backend::device_instance<some_backend>::stream_type, std::vector<box3d<index>> const&, \
-                                                              std::vector<box3d<index>> const&, MPI_Comm const); \
+                                                              std::vector<box3d<index>> const&, bool, MPI_Comm const); \
  \
 template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<float>(float const[], float[], float[]) const; \
 template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<double>(double const[], double[], double[]) const; \
@@ -520,11 +522,11 @@ template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::app
 template std::unique_ptr<reshape3d_pointtopoint<some_backend, direct_packer, index>> \
 make_reshape3d_pointtopoint<some_backend, direct_packer, index>(typename backend::device_instance<some_backend>::stream_type, \
                                                               std::vector<box3d<index>> const&, \
-                                                              std::vector<box3d<index>> const&, MPI_Comm const); \
+                                                              std::vector<box3d<index>> const&, bool, MPI_Comm const); \
 template std::unique_ptr<reshape3d_pointtopoint<some_backend, transpose_packer, index>> \
 make_reshape3d_pointtopoint<some_backend, transpose_packer, index>(typename backend::device_instance<some_backend>::stream_type, \
                                                                  std::vector<box3d<index>> const&, \
-                                                                 std::vector<box3d<index>> const&, MPI_Comm const); \
+                                                                 std::vector<box3d<index>> const&, bool, MPI_Comm const); \
 
 heffte_instantiate_reshape3d(backend::stock, int)
 heffte_instantiate_reshape3d(backend::stock, long long)

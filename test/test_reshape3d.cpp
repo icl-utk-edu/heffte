@@ -72,9 +72,9 @@ template<typename backend_tag, typename variant_tag, typename index = int>
 std::unique_ptr<reshape3d_base<index>>
 make_test_reshape3d(typename backend::device_instance<backend_tag>::stream_type q, std::vector<box3d<>> const &input_boxes, std::vector<box3d<>> const &output_boxes, MPI_Comm const comm){
     if (std::is_same<variant_tag, using_alltoall>::value){
-        return make_reshape3d_alltoallv<backend_tag>(q, input_boxes, output_boxes, comm);
+        return make_reshape3d_alltoallv<backend_tag>(q, input_boxes, output_boxes, true, comm);
     }else{
-        return make_reshape3d_pointtopoint<backend_tag>(q, input_boxes, output_boxes, comm);
+        return make_reshape3d_pointtopoint<backend_tag>(q, input_boxes, output_boxes, true, comm);
     }
 }
 
@@ -211,14 +211,14 @@ void test_direct_reordered(MPI_Comm const comm){
     for(auto i : std::vector<int>{0, 2, 1, 3}) outboxes.push_back({temp[i].low, temp[i].high, world.order});
 
     {
-        auto reshape = make_reshape3d_alltoallv<backend::stock>(nullptr, inboxes, outboxes, comm);
+        auto reshape = make_reshape3d_alltoallv<backend::stock>(nullptr, inboxes, outboxes, false, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
         reshape->apply(input.data(), result.data(), workspace.data());
 
         tassert(match(result, reference));
     }{
-        auto reshape = make_reshape3d_pointtopoint<backend::stock>(nullptr, inboxes, outboxes, comm);
+        auto reshape = make_reshape3d_pointtopoint<backend::stock>(nullptr, inboxes, outboxes, false, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
         reshape->apply(input.data(), result.data(), workspace.data());
@@ -228,14 +228,14 @@ void test_direct_reordered(MPI_Comm const comm){
 
     #ifdef Heffte_ENABLE_FFTW
     {
-        auto reshape = make_reshape3d_alltoallv<backend::fftw>(nullptr, inboxes, outboxes, comm);
+        auto reshape = make_reshape3d_alltoallv<backend::fftw>(nullptr, inboxes, outboxes, false, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
         reshape->apply(input.data(), result.data(), workspace.data());
 
         tassert(match(result, reference));
     }{
-        auto reshape = make_reshape3d_pointtopoint<backend::fftw>(nullptr, inboxes, outboxes, comm);
+        auto reshape = make_reshape3d_pointtopoint<backend::fftw>(nullptr, inboxes, outboxes, false, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
         reshape->apply(input.data(), result.data(), workspace.data());
@@ -245,9 +245,10 @@ void test_direct_reordered(MPI_Comm const comm){
     #endif
 
     #ifdef Heffte_ENABLE_GPU
+    for(bool use_gpu_aware : std::array<bool, 2>{true, false}){
     {
         backend::device_instance<gpu_backend> device;
-        auto reshape = make_reshape3d_alltoallv<gpu_backend>(device.stream(), inboxes, outboxes, comm);
+        auto reshape = make_reshape3d_alltoallv<gpu_backend>(device.stream(), inboxes, outboxes, use_gpu_aware, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
         auto cuinput = gpu::transfer().load(input);
@@ -258,7 +259,7 @@ void test_direct_reordered(MPI_Comm const comm){
         tassert(match(curesult, reference));
     }{
         backend::device_instance<gpu_backend> device;
-        auto reshape = make_reshape3d_pointtopoint<gpu_backend>(device.stream(), inboxes, outboxes, comm);
+        auto reshape = make_reshape3d_pointtopoint<gpu_backend>(device.stream(), inboxes, outboxes, use_gpu_aware, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
         auto cuinput = gpu::transfer().load(input);
@@ -266,7 +267,7 @@ void test_direct_reordered(MPI_Comm const comm){
 
         reshape->apply(cuinput.data(), curesult.data(), workspace.data());
         tassert(match(curesult, reference));
-    }
+    }}
     #endif
 }
 
