@@ -211,12 +211,11 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
 
     #ifdef Heffte_ENABLE_GPU
     // the device_synchronize() is needed to flush the kernels of the asynchronous packing
-    std::vector<scalar_type> cpu_send, cpu_recv;
     if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
-        cpu_send = gpu::transfer::unload(this->stream(), send_buffer, this->input_size);
-        cpu_recv = std::vector<scalar_type>(this->output_size);
-        send_buffer = cpu_send.data();
-        recv_buffer = cpu_recv.data();
+        scalar_type *temp = cpu_send_buffer<scalar_type>(this->input_size);
+        gpu::transfer::unload(this->stream(), send_buffer, this->input_size, temp);
+        send_buffer = temp;
+        recv_buffer = cpu_recv_buffer<scalar_type>(this->output_size);
     }
     #endif
 
@@ -228,8 +227,9 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
 
     #ifdef Heffte_ENABLE_GPU
     if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
-        recv_buffer = workspace + this->input_size;
-        gpu::transfer::load(this->stream(), cpu_recv, recv_buffer);
+        scalar_type* temp = workspace + this->input_size;
+        gpu::transfer::load(this->stream(), recv_buffer, this->output_size, temp);
+        recv_buffer = temp;
     }
     #endif
 
