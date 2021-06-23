@@ -178,8 +178,7 @@ class alignas(L*sizeof(F)) Complex {
 
         //! \brief Access the ith Complex number as a std::complex
         std::complex<F> operator[](std::size_t idx) {
-            std::complex<F>* ret = reinterpret_cast<std::complex<F>*>(&var);
-            return ret[idx];
+            return std::complex<F>(reinterpret_cast<F*>(&var)[2*idx], reinterpret_cast<F*>(&var)[2*idx + 1]);
         }
 
         //! \brief Return a vector pack representation of this number
