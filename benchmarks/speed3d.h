@@ -230,6 +230,7 @@ int main(int argc, char *argv[]){
                  << "         -no-reorder: some of the 1-D will be strided (non contiguous)\n"
                  << "         -a2a: use MPI_Alltoallv() communication method\n"
                  << "         -p2p: use MPI_Send() and MPI_Irecv() communication methods\n"
+                 << "         -no-gpu-aware: move the data to the cpu before doing gpu operations (gpu backends only)\n"
                  << "         -pencils: use pencil reshape logic\n"
                  << "         -slabs: use slab reshape logic\n"
                  << "         -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries \n"

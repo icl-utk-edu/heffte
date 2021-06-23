@@ -118,7 +118,7 @@ public:
     ~reshape3d_alltoallv(){ mpi::comm_free(comm); }
     //! \brief Factory method, use to construct instances of the class.
     template<typename b, template<typename d> class p, typename i> friend std::unique_ptr<reshape3d_alltoallv<b, p, i>>
-    make_reshape3d_alltoallv(typename backend::device_instance<b>::stream_type, std::vector<box3d<i>> const&, std::vector<box3d<i>> const&, MPI_Comm const);
+    make_reshape3d_alltoallv(typename backend::device_instance<b>::stream_type, std::vector<box3d<i>> const&, std::vector<box3d<i>> const&, bool, MPI_Comm const);
 
     //! \brief Apply the reshape operations, single precision overload.
     void apply(float const source[], float destination[], float workspace[]) const override final{
@@ -147,13 +147,14 @@ private:
      */
     reshape3d_alltoallv(typename backend::device_instance<backend_tag>::stream_type q,
                         int input_size, int output_size,
-                        MPI_Comm master_comm, std::vector<int> const &pgroup,
+                        bool gpu_aware, MPI_Comm master_comm, std::vector<int> const &pgroup,
                         std::vector<int> &&send_offset, std::vector<int> &&send_size, std::vector<int> const &send_proc,
                         std::vector<int> &&recv_offset, std::vector<int> &&recv_size, std::vector<int> const &recv_proc,
                         std::vector<pack_plan_3d<index>> &&packplan, std::vector<pack_plan_3d<index>> &&unpackplan);
 
     MPI_Comm const comm;
     int const me, nprocs;
+    bool const use_gpu_aware;
 
     std::vector<int> const send_offset;   // extraction loc for each send
     std::vector<int> const send_size;     // size of each send message
@@ -183,6 +184,22 @@ private:
     };
 
     iotripple const send, recv;
+
+    // buffers to be used in the no-gpu-aware algorithm for the temporary cpu storage
+    // the no-gpu-aware version alleviate the latency when working with small FFTs
+    // hence the cpu buffers will be small and will not cause issues
+    // note that the main API accepts a GPU buffer for scratch work and cannot be used here
+    template<typename scalar_type> scalar_type* cpu_send_buffer(size_t num_entries) const{
+        size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
+        send_unaware.resize(float_entries);
+        return reinterpret_cast<scalar_type*>(send_unaware.data());
+    }
+    template<typename scalar_type> scalar_type* cpu_recv_buffer(size_t num_entries) const{
+        size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
+        recv_unaware.resize(float_entries);
+        return reinterpret_cast<scalar_type*>(recv_unaware.data());
+    }
+    mutable std::vector<float> send_unaware, recv_unaware;
 };
 
 /*!
@@ -198,6 +215,7 @@ private:
  *
  * \param input_boxes list of all input boxes across all ranks in the comm
  * \param output_boxes list of all output boxes across all ranks in the comm
+ * \param use_gpu_aware use MPI calls directly from the GPU (GPU backends only)
  * \param comm the communicator associated with all the boxes
  *
  * \returns unique_ptr containing an instance of the heffte::reshape3d_alltoallv
@@ -210,6 +228,7 @@ std::unique_ptr<reshape3d_alltoallv<backend_tag, packer, index>>
 make_reshape3d_alltoallv(typename backend::device_instance<backend_tag>::stream_type q,
                          std::vector<box3d<index>> const &input_boxes,
                          std::vector<box3d<index>> const &output_boxes,
+                         bool use_gpu_aware,
                          MPI_Comm const comm);
 
 /*!
@@ -229,7 +248,7 @@ public:
     ~reshape3d_pointtopoint() = default;
     //! \brief Factory method, use to construct instances of the class.
     template<typename b, template<typename d> class p, typename i> friend std::unique_ptr<reshape3d_pointtopoint<b, p, i>>
-    make_reshape3d_pointtopoint(typename backend::device_instance<b>::stream_type, std::vector<box3d<i>> const&, std::vector<box3d<i>> const&, MPI_Comm const);
+    make_reshape3d_pointtopoint(typename backend::device_instance<b>::stream_type, std::vector<box3d<i>> const&, std::vector<box3d<i>> const&, bool, MPI_Comm const);
 
     //! \brief Apply the reshape operations, single precision overload.
     void apply(float const source[], float destination[], float workspace[]) const override final{
@@ -261,7 +280,7 @@ private:
      * \brief Private constructor that accepts a set of arrays that have been pre-computed by the factory.
      */
     reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stream_type stream,
-                           int input_size, int output_size, MPI_Comm ccomm,
+                           int input_size, int output_size, bool gpu_aware,  MPI_Comm ccomm,
                            std::vector<int> &&send_offset, std::vector<int> &&send_size, std::vector<int> &&send_proc,
                            std::vector<int> &&recv_offset, std::vector<int> &&recv_size, std::vector<int> &&recv_proc,
                            std::vector<int> &&recv_loc,
@@ -270,6 +289,7 @@ private:
     MPI_Comm const comm;
     int const me, nprocs;
     bool const self_to_self;
+    bool const use_gpu_aware;
     mutable std::vector<MPI_Request> requests; // recv_proc.size() requests, but remove one if using self_to_self communication
 
     std::vector<int> const send_proc;     // processor to send towards
@@ -297,6 +317,7 @@ private:
  *
  * \param input_boxes list of all input boxes across all ranks in the comm
  * \param output_boxes list of all output boxes across all ranks in the comm
+ * \param use_gpu_aware use MPI calls directly from the GPU (GPU backends only)
  * \param comm the communicator associated with all the boxes
  *
  * \returns unique_ptr containing an instance of the heffte::reshape3d_pointtopoint
@@ -309,6 +330,7 @@ std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer, index>>
 make_reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stream_type stream,
                             std::vector<box3d<index>> const &input_boxes,
                             std::vector<box3d<index>> const &output_boxes,
+                            bool use_gpu_aware,
                             MPI_Comm const comm);
 
 /*!
@@ -395,15 +417,19 @@ std::unique_ptr<reshape3d_base<index>> make_reshape3d(typename backend::device_i
     }else{
         if (options.use_alltoall){
             if (input_boxes[0].ordered_same_as(output_boxes[0])){
-                return make_reshape3d_alltoallv<backend_tag, direct_packer, index>(stream, input_boxes, output_boxes, comm);
+                return make_reshape3d_alltoallv<backend_tag, direct_packer, index>(stream, input_boxes, output_boxes,
+                                                                                   options.use_gpu_aware, comm);
             }else{
-                return make_reshape3d_alltoallv<backend_tag, transpose_packer, index>(stream, input_boxes, output_boxes, comm);
+                return make_reshape3d_alltoallv<backend_tag, transpose_packer, index>(stream, input_boxes, output_boxes,
+                                                                                      options.use_gpu_aware, comm);
             }
         }else{
             if (input_boxes[0].ordered_same_as(output_boxes[0])){
-                return make_reshape3d_pointtopoint<backend_tag, direct_packer, index>(stream, input_boxes, output_boxes, comm);
+                return make_reshape3d_pointtopoint<backend_tag, direct_packer, index>(stream, input_boxes, output_boxes,
+                                                                                      options.use_gpu_aware, comm);
             }else{
-                return make_reshape3d_pointtopoint<backend_tag, transpose_packer, index>(stream, input_boxes, output_boxes, comm);
+                return make_reshape3d_pointtopoint<backend_tag, transpose_packer, index>(stream, input_boxes, output_boxes,
+                                                                                         options.use_gpu_aware, comm);
             }
         }
     }

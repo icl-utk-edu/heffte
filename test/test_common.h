@@ -241,6 +241,8 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
             options.use_pencils = true;
         }else if (s == "-slabs"){
             options.use_pencils = false;
+        }else if (s == "-no-gpu-aware"){
+            options.use_gpu_aware = false;
         }
     }
     return options;
