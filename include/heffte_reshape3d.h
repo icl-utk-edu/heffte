@@ -147,13 +147,14 @@ private:
      */
     reshape3d_alltoallv(typename backend::device_instance<backend_tag>::stream_type q,
                         int input_size, int output_size,
-                        MPI_Comm master_comm, std::vector<int> const &pgroup,
+                        bool gpu_aware, MPI_Comm master_comm, std::vector<int> const &pgroup,
                         std::vector<int> &&send_offset, std::vector<int> &&send_size, std::vector<int> const &send_proc,
                         std::vector<int> &&recv_offset, std::vector<int> &&recv_size, std::vector<int> const &recv_proc,
                         std::vector<pack_plan_3d<index>> &&packplan, std::vector<pack_plan_3d<index>> &&unpackplan);
 
     MPI_Comm const comm;
     int const me, nprocs;
+    bool const use_gpu_aware;
 
     std::vector<int> const send_offset;   // extraction loc for each send
     std::vector<int> const send_size;     // size of each send message
@@ -263,7 +264,7 @@ private:
      * \brief Private constructor that accepts a set of arrays that have been pre-computed by the factory.
      */
     reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stream_type stream,
-                           int input_size, int output_size, MPI_Comm ccomm,
+                           int input_size, int output_size, bool gpu_aware,  MPI_Comm ccomm,
                            std::vector<int> &&send_offset, std::vector<int> &&send_size, std::vector<int> &&send_proc,
                            std::vector<int> &&recv_offset, std::vector<int> &&recv_size, std::vector<int> &&recv_proc,
                            std::vector<int> &&recv_loc,
@@ -272,6 +273,7 @@ private:
     MPI_Comm const comm;
     int const me, nprocs;
     bool const self_to_self;
+    bool const use_gpu_aware;
     mutable std::vector<MPI_Request> requests; // recv_proc.size() requests, but remove one if using self_to_self communication
 
     std::vector<int> const send_proc;     // processor to send towards

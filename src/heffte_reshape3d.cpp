@@ -165,7 +165,7 @@ template<typename backend_tag, template<typename device> class packer, typename 
 reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
                         typename backend::device_instance<backend_tag>::stream_type q,
                         int cinput_size, int coutput_size,
-                        MPI_Comm master_comm, std::vector<int> const &pgroup,
+                        bool gpu_aware, MPI_Comm master_comm, std::vector<int> const &pgroup,
                         std::vector<int> &&csend_offset, std::vector<int> &&csend_size, std::vector<int> const &send_proc,
                         std::vector<int> &&crecv_offset, std::vector<int> &&crecv_size, std::vector<int> const &recv_proc,
                         std::vector<pack_plan_3d<index>> &&cpackplan, std::vector<pack_plan_3d<index>> &&cunpackplan
@@ -173,6 +173,11 @@ reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
     reshape3d_base<index>(cinput_size, coutput_size),
     backend::device_instance<backend_tag>(q),
     comm(mpi::new_comm_from_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
+    #ifdef Heffte_DISABLE_GPU_AWARE_MPI
+    use_gpu_aware(false),
+    #else
+    use_gpu_aware(gpu_aware),
+    #endif
     send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
     send_total(std::accumulate(send_size.begin(), send_size.end(), 0)),
@@ -204,10 +209,10 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
 
     this->synchronize_device();
 
-    #if defined(Heffte_DISABLE_GPU_AWARE_MPI) and defined(Heffte_ENABLE_GPU)
+    #ifdef Heffte_ENABLE_GPU
     // the device_synchronize() is needed to flush the kernels of the asynchronous packing
     std::vector<scalar_type> cpu_send, cpu_recv;
-    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
+    if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
         cpu_send = gpu::transfer::unload(this->stream(), send_buffer, this->input_size);
         cpu_recv = std::vector<scalar_type>(this->output_size);
         send_buffer = cpu_send.data();
@@ -221,8 +226,8 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
                   comm);
     }
 
-    #if defined(Heffte_DISABLE_GPU_AWARE_MPI) and defined(Heffte_ENABLE_GPU)
-    if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
+    #ifdef Heffte_ENABLE_GPU
+    if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
         recv_buffer = workspace + this->input_size;
         gpu::transfer::load(this->stream(), cpu_recv, recv_buffer);
     }
@@ -281,7 +286,7 @@ make_reshape3d_alltoallv(typename backend::device_instance<backend_tag>::stream_
 
     return std::unique_ptr<reshape3d_alltoallv<backend_tag, packer, index>>(new reshape3d_alltoallv<backend_tag, packer, index>(
         q, inbox.count(), outbox.count(),
-        comm, a2a_group(send_proc, recv_proc, input_boxes, output_boxes),
+        uses_gpu_aware, comm, a2a_group(send_proc, recv_proc, input_boxes, output_boxes),
         std::move(send_offset), std::move(send_size), send_proc,
         std::move(recv_offset), std::move(recv_size), recv_proc,
         std::move(packplan), std::move(unpackplan)
@@ -291,7 +296,7 @@ make_reshape3d_alltoallv(typename backend::device_instance<backend_tag>::stream_
 template<typename backend_tag, template<typename device> class packer, typename index>
 reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
                         typename backend::device_instance<backend_tag>::stream_type q,
-                        int cinput_size, int coutput_size, MPI_Comm ccomm,
+                        int cinput_size, int coutput_size, bool gpu_aware, MPI_Comm ccomm,
                         std::vector<int> &&csend_offset, std::vector<int> &&csend_size, std::vector<int> &&csend_proc,
                         std::vector<int> &&crecv_offset, std::vector<int> &&crecv_size, std::vector<int> &&crecv_proc,
                         std::vector<int> &&crecv_loc,
@@ -301,6 +306,11 @@ reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
     backend::device_instance<backend_tag>(q),
     comm(ccomm), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     self_to_self(not crecv_proc.empty() and (crecv_proc.back() == me)), // check whether we should include "me" in the communication scheme
+    #ifdef Heffte_DISABLE_GPU_AWARE_MPI
+    use_gpu_aware(false),
+    #else
+    use_gpu_aware(gpu_aware),
+    #endif
     requests(crecv_proc.size() + ((self_to_self) ? -1 : 0)), // remove 1 if using self-to-self
     send_proc(std::move(csend_proc)), send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_proc(std::move(crecv_proc)), recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
@@ -371,8 +381,8 @@ template<typename backend_tag, template<typename device> class packer, typename 
 template<typename scalar_type>
 void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
 
-    #ifdef Heffte_DISABLE_GPU_AWARE_MPI
-    if (backend::uses_gpu<backend_tag>::value){
+    #ifdef Heffte_ENABLE_GPU
+    if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
         no_gpuaware_send_recv(source, destination, workspace);
         return;
     }
@@ -485,7 +495,7 @@ make_reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stre
         recv_loc.push_back(recv_loc.back() + recv_size[i]);
 
     return std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer, index>>(new reshape3d_pointtopoint<backend_tag, packer, index>(
-        stream, inbox.count(), outbox.count(), comm,
+        stream, inbox.count(), outbox.count(), uses_gpu_aware, comm,
         std::move(send_offset), std::move(send_size), std::move(send_proc),
         std::move(recv_offset), std::move(recv_size), std::move(recv_proc),
         std::move(recv_loc),
