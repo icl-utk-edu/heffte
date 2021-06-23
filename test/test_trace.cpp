@@ -12,11 +12,7 @@ void perform_tracing_test(MPI_Comm const comm){
     int const num_ranks = mpi::comm_size(comm);
     assert(num_ranks == 2);
 
-    #if defined(Heffte_ENABLE_FFTW)
-    test_fft3d_arrays<backend::fftw, double, 9, 9, 9>(comm);
-    #elif defined(Heffte_ENABLE_CUDA)
-    test_fft3d_arrays<backend::cufft, double, 9, 9, 9>(comm);
-    #endif
+    test_fft3d_arrays<backend::stock, double, 9, 9, 9>(comm);
 }
 
 int main(int argc, char *argv[]){
