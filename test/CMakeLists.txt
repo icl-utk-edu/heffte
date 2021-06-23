@@ -10,6 +10,10 @@ endmacro()
 add_executable(test_heffte_header  test_heffte_header.cpp)
 target_link_libraries(test_heffte_header  Heffte)
 
+# sandbox executable for testing purposes
+add_executable(sandbox  sandbox.cpp)
+target_link_libraries(sandbox  Heffte)
+
 # no MPI test of different aspects of the on-node algorithms
 add_executable(test_unit_nompi test_units_nompi.cpp)
 target_link_libraries(test_unit_nompi  Heffte)
