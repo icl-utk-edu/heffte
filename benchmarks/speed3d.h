@@ -96,7 +96,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     fft.backward(output_array, output_array);
 
     // Execution
-    int const ntest = 5;
+    int const ntest = nruns(args);
     MPI_Barrier(fft_comm);
     double t = -MPI_Wtime();
     for(int i = 0; i < ntest; ++i) {
@@ -236,6 +236,7 @@ int main(int argc, char *argv[]){
                  << "         -slabs: use slab reshape logic\n"
                  << "         -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries \n"
                  << "         -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices\n"
+                 << "         -nX: number of times to repeat the run, accepted variants are -n5 (default), -n10, -n50\n"
                  << "Examples:\n"
                  << "    mpirun -np  4 " << bench_executable << " fftw  double 128 128 128 -no-reorder\n"
                  << "    mpirun -np  8 " << bench_executable << " cufft float  256 256 256\n"

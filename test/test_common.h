@@ -282,4 +282,13 @@ bool has_mps(std::deque<std::string> const &args){
     return false;
 }
 
+int nruns(std::deque<std::string> const &args){
+    for(auto &s : args)
+        if (s == "-n10")
+            return 10;
+        else if (s == "-n50")
+            return 50;
+    return 5;
+}
+
 #endif
