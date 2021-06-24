@@ -237,6 +237,8 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
             options.algorithm = reshape_algorithm::alltoallv;
         }else if (s == "-p2p"){
             options.algorithm = reshape_algorithm::p2p;
+        }else if (s == "-p2p_pl"){
+            options.algorithm = reshape_algorithm::p2p_plined;
         }else if (s == "-pencils"){
             options.use_pencils = true;
         }else if (s == "-slabs"){
