@@ -413,15 +413,10 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
         packit.pack(this->stream(), packplan[i], &source[send_offset[i]], send_buffer + offset);
         }
 
-//         #ifdef Heffte_ENABLE_GPU
-//         if (backend::uses_gpu<backend_tag>::value)
-//             gpu::synchronize_default_stream();
-//         #endif
         this->synchronize_device();
 
         if (algorithm == reshape_algorithm::p2p_plined){
             heffte::add_trace name("isend " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
-            //MPI_Send(send_buffer + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
             MPI_Isend(send_buffer + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm, &isends[i]);
         }else{
             heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
@@ -459,10 +454,6 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
     if (algorithm == reshape_algorithm::p2p_plined)
         MPI_Waitall(isends.size(), isends.data(), MPI_STATUS_IGNORE);
 
-//     #ifdef Heffte_ENABLE_GPU
-//     if (backend::uses_gpu<backend_tag>::value)
-//         gpu::synchronize_default_stream();
-//     #endif
     this->synchronize_device();
 }
 
