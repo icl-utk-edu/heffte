@@ -190,7 +190,7 @@ sycl::queue make_stream(backend::onemkl){
     return heffte::oapi::make_sycl_queue();
 }
 void sync_stream(sycl::queue &stream){ stream.wait(); }
-void free_stream(sycl::queue &stream){}
+void free_stream(sycl::queue&){}
 #endif
 #ifdef Heffte_ENABLE_GPU
 template<typename T>

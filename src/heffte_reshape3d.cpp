@@ -19,6 +19,19 @@ namespace heffte {
 
 #endif
 
+    /*!
+     * \internal
+     * \ingroup hefftereshape
+     * \brief Struct type to convert pre-processor define Heffte_DISABLE_GPU_AWARE_MPI to boolean.
+     *
+     * \endinternal
+     */
+#ifdef Heffte_DISABLE_GPU_AWARE_MPI
+    struct disable_gpu_aware : std::true_type {};
+#else
+    struct disable_gpu_aware : std::false_type {};
+#endif
+
 
 /*!
  * \brief Counts how many boxes from the list have a non-empty intersection with the reference box.
@@ -173,11 +186,7 @@ reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
     reshape3d_base<index>(cinput_size, coutput_size),
     backend::device_instance<backend_tag>(q),
     comm(mpi::new_comm_from_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
-    #ifdef Heffte_DISABLE_GPU_AWARE_MPI
-    use_gpu_aware(false),
-    #else
-    use_gpu_aware(gpu_aware),
-    #endif
+    use_gpu_aware( (disable_gpu_aware::value) ? false : gpu_aware ),
     send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
     send_total(std::accumulate(send_size.begin(), send_size.end(), 0)),
@@ -306,11 +315,7 @@ reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
     backend::device_instance<backend_tag>(q),
     comm(ccomm), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     self_to_self(not crecv_proc.empty() and (crecv_proc.back() == me)), // check whether we should include "me" in the communication scheme
-    #ifdef Heffte_DISABLE_GPU_AWARE_MPI
-    use_gpu_aware(false),
-    #else
-    use_gpu_aware(gpu_aware),
-    #endif
+    use_gpu_aware( (disable_gpu_aware::value) ? false : gpu_aware ),
     requests(crecv_proc.size() + ((self_to_self) ? -1 : 0)), // remove 1 if using self-to-self
     send_proc(std::move(csend_proc)), send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_proc(std::move(crecv_proc)), recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),

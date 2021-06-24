@@ -12,7 +12,7 @@
  * on sub-modules, e.g., a single reshape operation
  * or direct call to a backend.
  */
-void test_sandbox(MPI_Comm const comm){
+void test_sandbox(MPI_Comm const){
     // add code here to be tested by the system
 }
 

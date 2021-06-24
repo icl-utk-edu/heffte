@@ -9,8 +9,7 @@
 
 void perform_tracing_test(MPI_Comm const comm){
     all_tests<> name("tracing mechanism");
-    int const num_ranks = mpi::comm_size(comm);
-    assert(num_ranks == 2);
+    assert(mpi::comm_size(comm) == 2);
 
     #if defined(Heffte_ENABLE_FFTW)
     test_fft3d_arrays<backend::fftw, double, 9, 9, 9>(comm);
