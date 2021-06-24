@@ -325,7 +325,14 @@ reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
     send_total(std::accumulate(send_size.begin(), send_size.end(), 0)),
     recv_total(std::accumulate(recv_size.begin(), recv_size.end(), 0)),
     packplan(std::move(cpackplan)), unpackplan(std::move(cunpackplan))
-{}
+{
+    if (algorithm == reshape_algorithm::p2p_plined){
+        max_send_size = this->input_size;
+    }else{
+        max_send_size = 0;
+        for(auto s : send_size) if (max_send_size < s) max_send_size = s;
+    }
+}
 
 #ifdef Heffte_ENABLE_GPU
 template<typename backend_tag, template<typename device> class packer, typename index>
@@ -334,7 +341,8 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::no_gpuaware_send_recv(s
     scalar_type *send_buffer = workspace;
     scalar_type *recv_buffer = workspace + this->input_size;
 
-    std::vector<scalar_type> cpu_send, cpu_recv(this->output_size);
+    scalar_type *cpu_send = cpu_send_buffer<scalar_type>(max_send_size);
+    scalar_type *cpu_recv = cpu_recv_buffer<scalar_type>(this->output_size);
 
     using location_tag = typename backend::buffer_traits<backend_tag>::location;
 
@@ -343,19 +351,35 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::no_gpuaware_send_recv(s
     // queue the receive messages, using asynchronous receive
     for(size_t i=0; i<requests.size(); i++){
         heffte::add_trace name("irecv " + std::to_string(recv_size[i]) + " from " + std::to_string(recv_proc[i]));
-        MPI_Irecv(cpu_recv.data() + recv_loc[i], recv_size[i], mpi::type_from<scalar_type>(), recv_proc[i], 0, comm, &requests[i]);
+        MPI_Irecv(cpu_recv + recv_loc[i], recv_size[i], mpi::type_from<scalar_type>(), recv_proc[i], 0, comm, &requests[i]);
     }
 
     // perform the send commands, using blocking send
-    for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
-        { heffte::add_trace name("packing");
-        packit.pack(this->stream(), packplan[i], source + send_offset[i], send_buffer);
+    if (algorithm == reshape_algorithm::p2p_plined){
+        size_t offset = 0;
+        for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
+            { heffte::add_trace name("packing");
+            packit.pack(this->stream(), packplan[i], source + send_offset[i], send_buffer + offset);
+            }
+
+            gpu::transfer::unload(this->stream(), send_buffer + offset, send_size[i], cpu_send + offset);
+
+            { heffte::add_trace name("isend " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
+            MPI_Isend(cpu_send + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm, &isends[i]);
+            }
+            offset += send_size[i];
         }
+    }else{
+        for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
+            { heffte::add_trace name("packing");
+            packit.pack(this->stream(), packplan[i], source + send_offset[i], send_buffer);
+            }
 
-        cpu_send = gpu::transfer::unload(this->stream(), send_buffer, send_size[i]);
+            gpu::transfer::unload(this->stream(), send_buffer, send_size[i], cpu_send);
 
-        { heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
-        MPI_Send(cpu_send.data(), send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
+            { heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
+            MPI_Send(cpu_send, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
+            }
         }
     }
 
@@ -374,11 +398,14 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::no_gpuaware_send_recv(s
         { heffte::add_trace name("waitany");
         MPI_Waitany(requests.size(), requests.data(), &irecv, MPI_STATUS_IGNORE);
         }
-        auto rocvec = gpu::transfer::load(this->stream(), cpu_recv.data() + recv_loc[irecv], recv_size[irecv]);
+        gpu::transfer::load(this->stream(), cpu_recv + recv_loc[irecv], recv_size[irecv], recv_buffer + recv_loc[irecv]);
         { heffte::add_trace name("unpacking from " + std::to_string(recv_proc[irecv]));
-        packit.unpack(this->stream(), unpackplan[irecv], rocvec.data(), destination + recv_offset[irecv]);
+        packit.unpack(this->stream(), unpackplan[irecv], recv_buffer + recv_loc[irecv], destination + recv_offset[irecv]);
         }
     }
+
+    if (algorithm == reshape_algorithm::p2p_plined)
+        MPI_Waitall(isends.size(), isends.data(), MPI_STATUS_IGNORE);
 
     this->synchronize_device();
 }

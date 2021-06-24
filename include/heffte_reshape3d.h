@@ -304,6 +304,20 @@ private:
     int const send_total, recv_total;
 
     std::vector<pack_plan_3d<index>> const packplan, unpackplan;
+
+    // see the alltoallv variant for documentation
+    template<typename scalar_type> scalar_type* cpu_send_buffer(size_t num_entries) const{
+        size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
+        send_unaware.resize(float_entries);
+        return reinterpret_cast<scalar_type*>(send_unaware.data());
+    }
+    template<typename scalar_type> scalar_type* cpu_recv_buffer(size_t num_entries) const{
+        size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
+        recv_unaware.resize(float_entries);
+        return reinterpret_cast<scalar_type*>(recv_unaware.data());
+    }
+    int max_send_size;
+    mutable std::vector<float> send_unaware, recv_unaware;
 };
 
 /*!
