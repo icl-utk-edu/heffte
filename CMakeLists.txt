@@ -9,7 +9,7 @@ option(Heffte_ENABLE_ONEAPI   "Enable the oneAPI/DPC++ and oneMKL backend"  OFF)
 option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
-option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGAM for GPU backends"   OFF)
+option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGMA for GPU backends"   OFF)
 
 option(Heffte_ENABLE_PYTHON   "Configure the Python scripts"     OFF)
 option(Heffte_ENABLE_FORTRAN  "Build the Fortran modules for the selected backends." OFF)
