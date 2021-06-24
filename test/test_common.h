@@ -234,9 +234,9 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
         }else if (s == "-no-reorder"){
             options.use_reorder = false;
         }else if (s == "-a2a"){
-            options.use_alltoall = true;
+            options.algorithm = reshape_algorithm::alltoallv;
         }else if (s == "-p2p"){
-            options.use_alltoall = false;
+            options.algorithm = reshape_algorithm::p2p;
         }else if (s == "-pencils"){
             options.use_pencils = true;
         }else if (s == "-slabs"){
@@ -253,11 +253,11 @@ std::vector<heffte::plan_options> make_all_options(){
     std::vector<heffte::plan_options> result;
     for(int shape = 0; shape < 2; shape++){
         for(int reorder = 0; reorder < 2; reorder++){
-            for(int alltoall = 0; alltoall < 2; alltoall++){
+            for(reshape_algorithm alg : std::array<reshape_algorithm, 2>{reshape_algorithm::alltoallv, reshape_algorithm::p2p}){
                 heffte::plan_options options = default_options<backend_tag>();
                 options.use_pencils = (shape == 0);
                 options.use_reorder = (reorder == 0);
-                options.use_alltoall = (alltoall == 0);
+                options.algorithm = alg;
                 result.push_back(options);
             }
         }

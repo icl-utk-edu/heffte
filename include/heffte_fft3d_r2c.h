@@ -105,11 +105,11 @@ public:
     fft3d_r2c(int il0, int il1, int il2, int ih0, int ih1, int ih2, int io0, int io1, int io2,
               int ol0, int ol1, int ol2, int oh0, int oh1, int oh2, int oo0, int oo1, int oo2,
               int r2c_direction, MPI_Comm const comm,
-              bool use_reorder, bool use_alltoall, bool use_pencils)
+              bool use_reorder, int algorithm, bool use_pencils)
         : fft3d_r2c(box3d<index>({il0, il1, il2}, {ih0, ih1, ih2}, {io0, io1, io2}),
                     box3d<index>({ol0, ol1, ol2}, {oh0, oh1, oh2}, {oo0, oo1, oo2}),
                     r2c_direction, comm,
-                plan_options(use_reorder, use_alltoall, use_pencils))
+                plan_options(use_reorder, static_cast<reshape_algorithm>(algorithm), use_pencils))
     {}
     //! \brief Internal use only, used by the Fortran interface
     fft3d_r2c(int il0, int il1, int il2, int ih0, int ih1, int ih2, int io0, int io1, int io2,

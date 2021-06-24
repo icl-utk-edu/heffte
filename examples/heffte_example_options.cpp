@@ -55,7 +55,7 @@ void compute_dft(MPI_Comm comm){
     // collaborative all-to-all and individual point-to-point communications are two alternatives
     // one may be better than the other depending on
     // the version of MPI, the hardware interconnect, and the problem size
-    options.use_alltoall = false;
+    options.algorithm = heffte::reshape_algorithm::alltoallv;
 
     // in the intermediate steps, the data can be shapes as either 2-D slabs or 1-D pencils
     // for sufficiently large problem, it is expected that the pencil decomposition is better

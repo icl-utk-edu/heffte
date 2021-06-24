@@ -90,6 +90,22 @@
 
 /*!
  * \ingroup cfft
+ * \brief Corresponds to heffte::reshape_algorithm::alltoallv
+ */
+#define Heffte_RESHAPE_ALGORITHM_ALLTOALLV 0
+/*!
+ * \ingroup cfft
+ * \brief Corresponds to heffte::reshape_algorithm::p2p_plined
+ */
+#define Heffte_RESHAPE_ALGORITHM_P2P_PLINED 1
+/*!
+ * \ingroup cfft
+ * \brief Corresponds to heffte::reshape_algorithm::p2p
+ */
+#define Heffte_RESHAPE_ALGORITHM_P2P 2
+
+/*!
+ * \ingroup cfft
  * \brief Equivalent to heffte::plan_options but defined for the C API.
  *
  * The int variables use the C logic 0 means false, not 0 means true.
@@ -97,10 +113,12 @@
 typedef struct{
     //! \brief Corresponds to heffte::plan_options::use_reorder
     int use_reorder;
-    //! \brief Corresponds to heffte::plan_options::use_alltoall
-    int use_alltoall;
+    //! \brief Corresponds to heffte::plan_options::use_alltoall, must be one of the Heffte_RESHAPE_ALGORITHM options.
+    int algorithm;
     //! \brief Corresponds to heffte::plan_options::use_pencils
     int use_pencils;
+    //! \brief Corresponds to heffte::plan_options::use_gpu_aware
+    int use_gpu_aware;
 } heffte_plan_options;
 
 /*!
