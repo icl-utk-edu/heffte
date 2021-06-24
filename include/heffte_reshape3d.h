@@ -291,6 +291,7 @@ private:
     bool const self_to_self;
     bool const use_gpu_aware;
     mutable std::vector<MPI_Request> requests; // recv_proc.size() requests, but remove one if using self_to_self communication
+    mutable std::vector<MPI_Request> isends;
 
     std::vector<int> const send_proc;     // processor to send towards
     std::vector<int> const send_offset;   // extraction loc for each send

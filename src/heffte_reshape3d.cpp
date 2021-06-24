@@ -317,6 +317,7 @@ reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
     self_to_self(not crecv_proc.empty() and (crecv_proc.back() == me)), // check whether we should include "me" in the communication scheme
     use_gpu_aware( (disable_gpu_aware::value) ? false : gpu_aware ),
     requests(crecv_proc.size() + ((self_to_self) ? -1 : 0)), // remove 1 if using self-to-self
+    isends(csend_proc.size() + ((self_to_self) ? -1 : 0)), // remove 1 if using self-to-self
     send_proc(std::move(csend_proc)), send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_proc(std::move(crecv_proc)), recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
     recv_loc(std::move(crecv_loc)),
@@ -405,9 +406,10 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
     }
 
     // perform the send commands, using blocking send
+    size_t offset = 0;
     for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
         { heffte::add_trace name("packing");
-        packit.pack(this->stream(), packplan[i], &source[send_offset[i]], send_buffer);
+        packit.pack(this->stream(), packplan[i], &source[send_offset[i]], send_buffer + offset);
         }
 
 //         #ifdef Heffte_ENABLE_GPU
@@ -417,8 +419,10 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
         this->synchronize_device();
 
         { heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
-        MPI_Send(send_buffer, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
+        //MPI_Send(send_buffer + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
+        MPI_Isend(send_buffer + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm, &isends[i]);
         }
+        offset += send_size[i];
     }
 
     if (self_to_self){ // if using self-to-self, do not invoke an MPI command
@@ -446,6 +450,8 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
         packit.unpack(this->stream(), unpackplan[irecv], recv_buffer + recv_loc[irecv], destination + recv_offset[irecv]);
         }
     }
+
+    MPI_Waitall(isends.size(), isends.data(), MPI_STATUS_IGNORE);
 
 //     #ifdef Heffte_ENABLE_GPU
 //     if (backend::uses_gpu<backend_tag>::value)
