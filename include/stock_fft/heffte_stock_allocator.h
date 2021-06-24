@@ -39,7 +39,11 @@ class complex_allocator_t {
 
         //! \brief Define allocation for complex type
         pointer allocate(size_type n, typename std::allocator<void>::const_pointer = nullptr) {
+            #ifdef __AVX__
             return reinterpret_cast<pointer>(aligned_alloc(alignof(F), n*sizeof(F)));
+            #else
+            return reinterpret_cast<pointer>(malloc(n*sizeof(F)));
+            #endif
         }
         //! \brief Define deallocation for complex type
         inline void deallocate(pointer p, size_type) {
