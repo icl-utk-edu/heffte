@@ -57,6 +57,16 @@ namespace gpu {
             manipulator::copy_host_to_device(stream, cpu_source, num_entries, result.data());
             return result;
         }
+        //! \brief Using only arrays.
+        template<typename scalar_type>
+        static void load(typename backend_device::stream_type stream, scalar_type const *cpu_source, size_t num_entries, scalar_type *gpu_destination){
+            manipulator::copy_host_to_device(stream, cpu_source, num_entries, gpu_destination);
+        }
+        //! \brief Using only arrays with both vectors on the CPU.
+        template<typename scalar_type>
+        static void load(void*, scalar_type const *cpu_source, size_t num_entries, scalar_type *gpu_destination){
+            std::copy_n(cpu_source, num_entries, gpu_destination);
+        }
         //! \brief Using the default stream.
         template<typename scalar_type>
         static device_vector<scalar_type, manipulator> load(scalar_type const *cpu_source, size_t num_entries){
@@ -135,6 +145,16 @@ namespace gpu {
         template<typename scalar_type>
         static void unload(device_vector<scalar_type, manipulator> const &gpu_source, scalar_type *cpu_result){
             manipulator::copy_device_to_host(gpu_source.device_stream(), gpu_source.data(), gpu_source.size(), cpu_result);
+        }
+        //! \brief Unload using a raw-array interface.
+        template<typename scalar_type>
+        static void unload(typename backend_device::stream_type stream, scalar_type const *gpu_source, size_t num_entries, scalar_type *cpu_result){
+            manipulator::copy_device_to_host(stream, gpu_source, num_entries, cpu_result);
+        }
+        //! \brief Another silly template due to lack of constexpr-if
+        template<typename scalar_type>
+        static void unload(void*, scalar_type const *gpu_source, size_t num_entries, scalar_type *cpu_result){
+            std::copy_n(gpu_source, num_entries, cpu_result); // void* stream indicates CPU backend
         }
 
         //! \brief Similar to unload() but copies the data into a std::vector.
