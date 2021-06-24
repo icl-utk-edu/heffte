@@ -110,9 +110,6 @@ endif()
 # handle other dependencies
 target_link_libraries(Heffte MPI::MPI_CXX)
 
-# Handle stock flags for compilation
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mtune=native")
-
 list(APPEND Heffte_common_sources
      include/stock_fft/*
     )
