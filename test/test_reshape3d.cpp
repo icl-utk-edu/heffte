@@ -74,7 +74,7 @@ make_test_reshape3d(typename backend::device_instance<backend_tag>::stream_type 
     if (std::is_same<variant_tag, using_alltoall>::value){
         return make_reshape3d_alltoallv<backend_tag>(q, input_boxes, output_boxes, true, comm);
     }else{
-        return make_reshape3d_pointtopoint<backend_tag>(q, input_boxes, output_boxes, true, comm);
+        return make_reshape3d_pointtopoint<backend_tag>(q, input_boxes, output_boxes, reshape_algorithm::p2p, true, comm);
     }
 }
 
@@ -218,7 +218,7 @@ void test_direct_reordered(MPI_Comm const comm){
 
         tassert(match(result, reference));
     }{
-        auto reshape = make_reshape3d_pointtopoint<backend::stock>(nullptr, inboxes, outboxes, false, comm);
+        auto reshape = make_reshape3d_pointtopoint<backend::stock>(nullptr, inboxes, outboxes, reshape_algorithm::p2p, false, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
         reshape->apply(input.data(), result.data(), workspace.data());
@@ -235,7 +235,7 @@ void test_direct_reordered(MPI_Comm const comm){
 
         tassert(match(result, reference));
     }{
-        auto reshape = make_reshape3d_pointtopoint<backend::fftw>(nullptr, inboxes, outboxes, false, comm);
+        auto reshape = make_reshape3d_pointtopoint<backend::fftw>(nullptr, inboxes, outboxes, reshape_algorithm::p2p_plined, false, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
         reshape->apply(input.data(), result.data(), workspace.data());
@@ -259,7 +259,7 @@ void test_direct_reordered(MPI_Comm const comm){
         tassert(match(curesult, reference));
     }{
         backend::device_instance<gpu_backend> device;
-        auto reshape = make_reshape3d_pointtopoint<gpu_backend>(device.stream(), inboxes, outboxes, use_gpu_aware, comm);
+        auto reshape = make_reshape3d_pointtopoint<gpu_backend>(device.stream(), inboxes, outboxes, reshape_algorithm::p2p_plined, use_gpu_aware, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
         auto cuinput = gpu::transfer().load(input);
@@ -299,7 +299,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 for(auto b : ordered_outboxes) outboxes.push_back(box3d<>(b.low, b.high, order));
 
                 heffte::plan_options options = default_options<default_cpu_backend>();
-                options.use_alltoall = std::is_same<variant, using_alltoall>::value;
+                options.algorithm = (std::is_same<variant, using_alltoall>::value) ? reshape_algorithm::alltoallv : reshape_algorithm::p2p_plined;
 
                 auto mpi_tanspose_shaper  = make_reshape3d<default_cpu_backend>(nullptr, inboxes, outboxes, comm, options);
                 auto mpi_direct_shaper    = make_reshape3d<default_cpu_backend>(nullptr, inboxes, ordered_outboxes, comm, options);
@@ -322,7 +322,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 #ifdef Heffte_ENABLE_GPU
                 backend::device_instance<gpu_backend> device;
                 heffte::plan_options cuoptions = default_options<gpu_backend>();
-                cuoptions.use_alltoall = std::is_same<variant, using_alltoall>::value;
+                cuoptions.algorithm = (std::is_same<variant, using_alltoall>::value) ? reshape_algorithm::alltoallv : reshape_algorithm::p2p_plined;
 
                 auto cumpi_tanspose_shaper = make_reshape3d<gpu_backend>(device.stream(), inboxes, outboxes, comm, cuoptions);
                 auto cumpi_direct_shaper   = make_reshape3d<gpu_backend>(device.stream(), inboxes, ordered_outboxes, comm, cuoptions);

@@ -60,7 +60,14 @@ namespace heffte{
         plan_options opts = heffte::default_options<heffte::dummy_backend>();
         opts.use_reorder  = (options->use_reorder != 0);
         opts.use_pencils  = (options->use_pencils != 0);
-        opts.use_alltoall = (options->use_alltoall != 0);
+        switch (options->algorithm){
+            case Heffte_RESHAPE_ALGORITHM_ALLTOALLV  : opts.algorithm = reshape_algorithm::alltoallv; break;
+            case Heffte_RESHAPE_ALGORITHM_P2P_PLINED : opts.algorithm = reshape_algorithm::p2p_plined; break;
+            case Heffte_RESHAPE_ALGORITHM_P2P        : opts.algorithm = reshape_algorithm::p2p; break;
+            default:
+                throw std::runtime_error("Invalid reshape algorithm in heffte_plan_options");
+        };
+        opts.use_gpu_aware = (options->use_gpu_aware != 0);
         return opts;
     }
 
@@ -214,7 +221,7 @@ int heffte_set_default_options(int backend, heffte_plan_options *options){
         return heffte::default_options<heffte::dummy_backend>(); // will never happen
     }();
     options->use_reorder = (opts.use_reorder) ? 1 : 0;
-    options->use_alltoall = (opts.use_alltoall) ? 1 : 0;
+    options->algorithm = Heffte_RESHAPE_ALGORITHM_ALLTOALLV;
     options->use_pencils = (opts.use_pencils) ? 1 : 0;
     return Heffte_SUCCESS;
 }
