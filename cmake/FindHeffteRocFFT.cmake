@@ -3,7 +3,7 @@ execute_process(COMMAND ${CMAKE_CXX_COMPILER} --version OUTPUT_VARIABLE heffte_c
 string(REGEX MATCH "^HIP" heffte_haship "${heffte_cxx_version}")
 
 if (NOT heffte_haship)
-    message(WARNING "Tasmanian_ENABLE_ROCM requires that the CMAKE_CXX_COMPILER is set to the Rocm hipcc compiler.")
+    message(WARNING "Heffte_ENABLE_ROCM requires that the CMAKE_CXX_COMPILER is set to the Rocm hipcc compiler.")
 endif()
 
 get_filename_component(heffte_hipccroot ${CMAKE_CXX_COMPILER} DIRECTORY)
