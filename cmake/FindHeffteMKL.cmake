@@ -91,8 +91,19 @@ heffte_find_mkl_libraries(
                                )
 
 if (mkl_intel_thread IN_LIST Heffte_MKL_THREAD_LIBS)
-    heffte_mkl_find_iomp5()
-    list(APPEND Heffte_MKL_LIBRARIES ${Heffte_MKL_IOMP5})
+    if (Heffte_ENABLE_ONEAPI)
+        # CMake doesn't recognize the DPC++ compiler and doesn't know how to handle OpenMP
+        # using the dpcpp -fiopenmp flags in place of searching for the library
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fiopenmp")
+    elseif (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        # Intel and Clang use intel iomp5, just look for OpenMP using the standard CMake package
+        find_package(OpenMP REQUIRED)
+        list(APPEND Heffte_MKL_LIBRARIES ${OpenMP_CXX_LIBRARIES})
+    else()
+        # using Intel threads, we need iomp5, let's try to find it
+        heffte_mkl_find_iomp5()
+        list(APPEND Heffte_MKL_LIBRARIES ${Heffte_MKL_IOMP5})
+    endif()
 elseif(mkl_gnu_thread IN_LIST Heffte_MKL_THREAD_LIBS)
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         find_package(OpenMP REQUIRED)

@@ -89,7 +89,7 @@ template<typename mode> struct direct_packer{};
 template<> struct direct_packer<tag::cpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+    void pack(void*, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
         scalar_type* buffer_iterator = buffer;
         for(index slow = 0; slow < plan.size[2]; slow++){
             for(index mid = 0; mid < plan.size[1]; mid++){
@@ -99,7 +99,7 @@ template<> struct direct_packer<tag::cpu>{
     }
     //! \brief Execute the planned unpack operation.
     template<typename scalar_type, typename index>
-    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
+    void unpack(void*, pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
         for(index slow = 0; slow < plan.size[2]; slow++){
             for(index mid = 0; mid < plan.size[1]; mid++){
                 std::copy_n(&buffer[(slow * plan.size[1] + mid) * plan.size[0]],
@@ -122,8 +122,8 @@ template<typename mode> struct transpose_packer{};
 template<> struct transpose_packer<tag::cpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        direct_packer<tag::cpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
+    void pack(void *q, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        direct_packer<tag::cpu>().pack(q, plan, data, buffer); // packing is done the same way as the direct_packer
     }
     /*!
      * \brief Execute the planned unpack operation.
@@ -132,7 +132,7 @@ template<> struct transpose_packer<tag::cpu>{
      * The transpose is done in blocks to maximize cache reuse.
      */
     template<typename scalar_type, typename index>
-    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
+    void unpack(void*, pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
         constexpr index stride = 256 / sizeof(scalar_type);
         if (plan.map[0] == 0 and plan.map[1] == 1){
             for(index i=0; i<plan.size[2]; i++)
@@ -198,24 +198,15 @@ template<> struct transpose_packer<tag::cpu>{
 
 /*!
  * \ingroup hefftepacking
- * \brief Apply scaling to the CPU data.
- *
- * Similar to the packer, the scaling factors are divided into CPU and GPU variants
- * and not specific to the backend, e.g., FFTW and MKL use the same CPU scaling method.
- */
-template<typename mode> struct data_scaling{};
-
-/*!
- * \ingroup hefftepacking
  * \brief Specialization for the CPU case.
  */
-template<> struct data_scaling<tag::cpu>{
+namespace data_scaling {
     /*!
      * \ingroup hefftepacking
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
-    static void apply(index num_entries, scalar_type *data, double scale_factor){;
+    void apply(void*, index num_entries, scalar_type *data, double scale_factor){;
         for(index i=0; i<num_entries; i++) data[i] *= scale_factor;
     }
     /*!
@@ -228,8 +219,16 @@ template<> struct data_scaling<tag::cpu>{
      * with real arithmetic which is easier to vectorize.
      */
     template<typename precision_type, typename index>
-    static void apply(index num_entries, std::complex<precision_type> *data, double scale_factor){
-        apply<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    void apply(void *stream, index num_entries, std::complex<precision_type> *data, double scale_factor){
+        apply<precision_type>(stream, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    }
+    /*!
+     * \ingroup hefftepacking
+     * \brief Helper method that omits the stream for the CPU case.
+     */
+    template<typename scalar_type, typename index>
+    void apply(index num_entries, scalar_type *data, double scale_factor){
+        apply(nullptr, num_entries, data, scale_factor);
     }
 };
 

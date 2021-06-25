@@ -199,7 +199,7 @@ int main(int argc, char *argv[]){
     std::string bench_executable = "./speed3d_r2c";
     #endif
 
-    std::string backends = "";
+    std::string backends = "stock ";
     #ifdef Heffte_ENABLE_FFTW
     backends += "fftw ";
     #endif
@@ -230,6 +230,7 @@ int main(int argc, char *argv[]){
                  << "         -no-reorder: some of the 1-D will be strided (non contiguous)\n"
                  << "         -a2a: use MPI_Alltoallv() communication method\n"
                  << "         -p2p: use MPI_Send() and MPI_Irecv() communication methods\n"
+                 << "         -no-gpu-aware: move the data to the cpu before doing gpu operations (gpu backends only)\n"
                  << "         -pencils: use pencil reshape logic\n"
                  << "         -slabs: use slab reshape logic\n"
                  << "         -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries \n"
@@ -278,6 +279,7 @@ int main(int argc, char *argv[]){
     #ifdef Heffte_ENABLE_FFTW
     valid_backend = valid_backend or perform_benchmark<backend::fftw>(precision_string, backend_string, "fftw", size_fft, arguments(argc, argv));
     #endif
+    valid_backend = valid_backend or perform_benchmark<backend::stock>(precision_string, backend_string, "stock", size_fft, arguments(argc, argv));
     #ifdef Heffte_ENABLE_MKL
     valid_backend = valid_backend or perform_benchmark<backend::mkl>(precision_string, backend_string, "mkl", size_fft, arguments(argc, argv));
     #endif

@@ -11,11 +11,10 @@
 using default_cpu_backend = heffte::backend::fftw;
 #elif defined(Heffte_ENABLE_MKL)
 using default_cpu_backend = heffte::backend::mkl;
+#else
+using default_cpu_backend = heffte::backend::stock;
 #endif
 
-#if defined(Heffte_ENABLE_FFTW) || defined(Heffte_ENABLE_MKL)
-#define HAS_CPU_BACKEND
-#endif
 
 /*
  * Simple unit test that checks the operation that gathers boxes across an mpi comm.
@@ -69,13 +68,13 @@ std::vector<scalar_type> get_subdata(box3d<> const world, box3d<> const subbox){
     return result;
 }
 
-template<typename backend_tag, typename variant_tag>
-std::unique_ptr<reshape3d_base>
-make_test_reshape3d(std::vector<box3d<>> const &input_boxes, std::vector<box3d<>> const &output_boxes, MPI_Comm const comm){
+template<typename backend_tag, typename variant_tag, typename index = int>
+std::unique_ptr<reshape3d_base<index>>
+make_test_reshape3d(typename backend::device_instance<backend_tag>::stream_type q, std::vector<box3d<>> const &input_boxes, std::vector<box3d<>> const &output_boxes, MPI_Comm const comm){
     if (std::is_same<variant_tag, using_alltoall>::value){
-        return make_reshape3d_alltoallv<backend_tag>(input_boxes, output_boxes, comm);
+        return make_reshape3d_alltoallv<backend_tag>(q, input_boxes, output_boxes, true, comm);
     }else{
-        return make_reshape3d_pointtopoint<backend_tag>(input_boxes, output_boxes, comm);
+        return make_reshape3d_pointtopoint<backend_tag>(q, input_boxes, output_boxes, true, comm);
     }
 }
 
@@ -110,7 +109,7 @@ void test_cpu(MPI_Comm const comm){
     }
 
     // create caches for a reshape algorithm, including creating a new mpi comm
-    auto reshape = make_test_reshape3d<backend_tag, variant>(boxes, rotate_boxes, comm);
+    auto reshape = make_test_reshape3d<backend_tag, variant>(nullptr, boxes, rotate_boxes, comm);
     std::vector<scalar_type> workspace(reshape->size_workspace());
 
     auto input_data     = get_subdata<scalar_type>(world, boxes[me]);
@@ -163,11 +162,12 @@ void test_gpu(MPI_Comm const comm){
     }
 
     // create caches for a reshape algorithm, including creating a new mpi comm
-    auto reshape = make_test_reshape3d<backend_tag, variant>(boxes, rotate_boxes, comm);
+    backend::device_instance<backend_tag> device;
+    auto reshape = make_test_reshape3d<backend_tag, variant>(device.stream(), boxes, rotate_boxes, comm);
     gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
     auto input_data     = get_subdata<scalar_type>(world, boxes[me]);
-    auto cuinput_data   = gpu::transfer::load(input_data);
+    auto cuinput_data   = gpu::transfer().load(input_data);
     auto reference_data = get_subdata<scalar_type>(world, rotate_boxes[me]);
     auto output_data    = gpu::vector<scalar_type>(rotate_boxes[me].count());
 
@@ -210,16 +210,32 @@ void test_direct_reordered(MPI_Comm const comm){
     std::vector<box3d<>> temp = split_world(world, {2, 1, 2}); // need to swap the middle two entries
     for(auto i : std::vector<int>{0, 2, 1, 3}) outboxes.push_back({temp[i].low, temp[i].high, world.order});
 
-    #ifdef Heffte_ENABLE_FFTW
     {
-        auto reshape = make_reshape3d_alltoallv<backend::fftw>(inboxes, outboxes, comm);
+        auto reshape = make_reshape3d_alltoallv<backend::stock>(nullptr, inboxes, outboxes, false, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
         reshape->apply(input.data(), result.data(), workspace.data());
 
         tassert(match(result, reference));
     }{
-        auto reshape = make_reshape3d_pointtopoint<backend::fftw>(inboxes, outboxes, comm);
+        auto reshape = make_reshape3d_pointtopoint<backend::stock>(nullptr, inboxes, outboxes, false, comm);
+        std::vector<scalar_type> result(ordered_outboxes[me].count());
+        std::vector<scalar_type> workspace(reshape->size_workspace());
+        reshape->apply(input.data(), result.data(), workspace.data());
+
+        tassert(match(result, reference));
+    }
+
+    #ifdef Heffte_ENABLE_FFTW
+    {
+        auto reshape = make_reshape3d_alltoallv<backend::fftw>(nullptr, inboxes, outboxes, false, comm);
+        std::vector<scalar_type> result(ordered_outboxes[me].count());
+        std::vector<scalar_type> workspace(reshape->size_workspace());
+        reshape->apply(input.data(), result.data(), workspace.data());
+
+        tassert(match(result, reference));
+    }{
+        auto reshape = make_reshape3d_pointtopoint<backend::fftw>(nullptr, inboxes, outboxes, false, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
         reshape->apply(input.data(), result.data(), workspace.data());
@@ -229,26 +245,29 @@ void test_direct_reordered(MPI_Comm const comm){
     #endif
 
     #ifdef Heffte_ENABLE_GPU
+    for(bool use_gpu_aware : std::array<bool, 2>{true, false}){
     {
-        auto reshape = make_reshape3d_alltoallv<gpu_backend>(inboxes, outboxes, comm);
+        backend::device_instance<gpu_backend> device;
+        auto reshape = make_reshape3d_alltoallv<gpu_backend>(device.stream(), inboxes, outboxes, use_gpu_aware, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
-        auto cuinput = gpu::transfer::load(input);
+        auto cuinput = gpu::transfer().load(input);
         gpu::vector<scalar_type> curesult(ordered_outboxes[me].count());
 
         reshape->apply(cuinput.data(), curesult.data(), workspace.data());
 
         tassert(match(curesult, reference));
     }{
-        auto reshape = make_reshape3d_pointtopoint<gpu_backend>(inboxes, outboxes, comm);
+        backend::device_instance<gpu_backend> device;
+        auto reshape = make_reshape3d_pointtopoint<gpu_backend>(device.stream(), inboxes, outboxes, use_gpu_aware, comm);
         gpu::vector<scalar_type> workspace(reshape->size_workspace());
 
-        auto cuinput = gpu::transfer::load(input);
+        auto cuinput = gpu::transfer().load(input);
         gpu::vector<scalar_type> curesult(ordered_outboxes[me].count());
 
         reshape->apply(cuinput.data(), curesult.data(), workspace.data());
         tassert(match(curesult, reference));
-    }
+    }}
     #endif
 }
 
@@ -279,13 +298,12 @@ void test_reshape_transposed(MPI_Comm comm){
                 std::vector<box3d<>> outboxes;
                 for(auto b : ordered_outboxes) outboxes.push_back(box3d<>(b.low, b.high, order));
 
-                #ifdef HAS_CPU_BACKEND
                 heffte::plan_options options = default_options<default_cpu_backend>();
                 options.use_alltoall = std::is_same<variant, using_alltoall>::value;
 
-                auto mpi_tanspose_shaper  = make_reshape3d<default_cpu_backend>(inboxes, outboxes, comm, options);
-                auto mpi_direct_shaper    = make_reshape3d<default_cpu_backend>(inboxes, ordered_outboxes, comm, options);
-                auto cpu_transpose_shaper = make_reshape3d<default_cpu_backend>(ordered_outboxes, outboxes, comm, options);
+                auto mpi_tanspose_shaper  = make_reshape3d<default_cpu_backend>(nullptr, inboxes, outboxes, comm, options);
+                auto mpi_direct_shaper    = make_reshape3d<default_cpu_backend>(nullptr, inboxes, ordered_outboxes, comm, options);
+                auto cpu_transpose_shaper = make_reshape3d<default_cpu_backend>(nullptr, ordered_outboxes, outboxes, comm, options);
 
                 std::vector<scalar_type> result(outboxes[me].count());
                 std::vector<scalar_type> reference(outboxes[me].count());
@@ -300,17 +318,17 @@ void test_reshape_transposed(MPI_Comm comm){
                 mpi_tanspose_shaper->apply(input.data(), result.data(), workspace.data());
 
                 tassert(match(result, reference));
-                #endif
 
                 #ifdef Heffte_ENABLE_GPU
+                backend::device_instance<gpu_backend> device;
                 heffte::plan_options cuoptions = default_options<gpu_backend>();
                 cuoptions.use_alltoall = std::is_same<variant, using_alltoall>::value;
 
-                auto cumpi_tanspose_shaper = make_reshape3d<gpu_backend>(inboxes, outboxes, comm, cuoptions);
-                auto cumpi_direct_shaper   = make_reshape3d<gpu_backend>(inboxes, ordered_outboxes, comm, cuoptions);
-                auto cuda_transpose_shaper = make_reshape3d<gpu_backend>(ordered_outboxes, outboxes, comm, cuoptions);
+                auto cumpi_tanspose_shaper = make_reshape3d<gpu_backend>(device.stream(), inboxes, outboxes, comm, cuoptions);
+                auto cumpi_direct_shaper   = make_reshape3d<gpu_backend>(device.stream(), inboxes, ordered_outboxes, comm, cuoptions);
+                auto cuda_transpose_shaper = make_reshape3d<gpu_backend>(device.stream(), ordered_outboxes, outboxes, comm, cuoptions);
 
-                gpu::vector<scalar_type> cuinput = gpu::transfer::load(input);
+                gpu::vector<scalar_type> cuinput = gpu::transfer().load(input);
                 gpu::vector<scalar_type> curesult(outboxes[me].count());
                 gpu::vector<scalar_type> cureference(outboxes[me].count());
                 gpu::vector<scalar_type> cuworkspace( // allocate one workspace vector for all reshape operations
@@ -323,7 +341,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 curesult = gpu::vector<scalar_type>(outboxes[me].count());
                 cumpi_tanspose_shaper->apply(cuinput.data(), curesult.data(), cuworkspace.data());
 
-                tassert(match(curesult, gpu::transfer::unload(cureference)));
+                tassert(match(curesult, gpu::transfer().unload(cureference)));
                 #endif
             }
         }
@@ -336,29 +354,56 @@ void perform_tests_cpu(){
 
     test_boxes(comm);
 
+    switch(mpi::comm_size(comm)) {
+        // note that the number of boxes must match the comm size
+        // that is the product of the last three of the box dimensions
+        case 4:
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::stock, using_pointtopoint>(comm);
+            break;
+        case 12:
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::stock, using_alltoall>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::stock, using_pointtopoint>(comm);
+            break;
+        default:
+            // unknown test
+            break;
+    }
     #ifdef Heffte_ENABLE_FFTW
     switch(mpi::comm_size(comm)) {
         // note that the number of boxes must match the comm size
         // that is the product of the last three of the box dimensions
         case 4:
-            test_cpu<10, 13, 10, 2, 2, 1, float, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<10, 13, 10, 2, 2, 1, float, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, default_cpu_backend, using_pointtopoint>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::fftw, using_pointtopoint>(comm);
             break;
         case 12:
-            test_cpu<13, 13, 10, 3, 4, 1, float, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, default_cpu_backend, using_alltoall>(comm);
-            test_cpu<13, 13, 10, 3, 4, 1, float, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, default_cpu_backend, using_pointtopoint>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::fftw, using_alltoall>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::fftw, using_pointtopoint>(comm);
             break;
         default:
             // unknown test

@@ -35,7 +35,8 @@ struct plan_options{
     template<typename backend_tag> plan_options(backend_tag const)
         : use_reorder(default_plan_options<backend_tag>::use_reorder),
           use_alltoall(true),
-          use_pencils(true)
+          use_pencils(true),
+          use_gpu_aware(true)
     {}
     //! \brief Constructor, initializes each variable, primarily for internal use.
     plan_options(bool reorder, bool alltoall, bool pencils)
@@ -47,7 +48,22 @@ struct plan_options{
     bool use_alltoall;
     //! \brief Defines whether to use pencil or slab data distribution in the reshape steps.
     bool use_pencils;
+    //! \brief Defines whether to use MPI calls directly from the GPU or to move to the CPU first.
+    bool use_gpu_aware;
 };
+
+/*!
+ * \ingroup fft3d
+ * \brief Simple I/O for the plan options struct.
+ */
+inline std::ostream & operator << (std::ostream &os, plan_options const options){
+    os << "options = ("
+       << ((options.use_reorder) ? "fft1d:contiguous" : "fft1d:strided") << ", "
+       << ((options.use_alltoall) ? "mpi:alltoallv" : "mpi:point-to-point") << ", "
+       << ((options.use_pencils) ? "decomposition:pencil" : "decomposition:slab") << ", "
+       << ((options.use_gpu_aware) ? "mpi:from-gpu" : "mpi:from-cpu") << ")";
+    return os;
+}
 
 /*!
  * \ingroup heffterocm

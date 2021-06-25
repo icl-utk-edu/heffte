@@ -11,6 +11,8 @@
 
 #ifdef Heffte_ENABLE_ROCM
 
+#define __HIP_PLATFORM_HCC__
+#include <hip/hip_runtime.h>
 #include <rocfft.h>
 #include "heffte_backend_vector.h"
 
@@ -42,40 +44,12 @@ namespace heffte{
 namespace rocm {
     /*!
      * \ingroup heffterocm
-     * \brief Memory management operation specific to ROCM, see gpu::device_vector.
+     * \brief Checks the status of a ROCm command and in case of a failure, converts it to a C++ exception.
      */
-    struct memory_manager{
-        //! \brief Allocate memory.
-        static void* allocate(size_t num_bytes);
-        //! \brief Free memory.
-        static void free(void *pntr);
-        //! \brief Send data to the device.
-        static void host_to_device(void const *source, size_t num_bytes, void *destination);
-        //! \brief Copy within the device.
-        static void device_to_device(void const *source, size_t num_bytes, void *destination);
-        //! \brief Receive from the device.
-        static void device_to_host(void const *source, size_t num_bytes, void *destination);
-    };
-}
-
-namespace gpu {
-    /*!
-     * \ingroup heffterocm
-     * \brief Device vector for the ROCM backends.
-     */
-    template<typename scalar_type>
-    using vector = device_vector<scalar_type, rocm::memory_manager>;
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Transfer helpers for the ROCM backends.
-     */
-    using transfer = device_transfer<rocm::memory_manager>;
-};
-
-
-namespace rocm {
-
+    inline void check_error(hipError_t status, std::string const &function_name){
+        if (status != hipSuccess)
+            throw std::runtime_error(function_name + " failed with message: " + std::to_string(status));
+    }
     /*!
      * \ingroup heffterocm
      * \brief Checks the status of a cufft command and in case of a failure, converts it to a C++ exception.
@@ -92,7 +66,7 @@ namespace rocm {
      * Launches a ROCM kernel.
      */
     template<typename precision_type, typename index>
-    void convert(index num_entries, precision_type const source[], std::complex<precision_type> destination[]);
+    void convert(hipStream_t stream, index num_entries, precision_type const source[], std::complex<precision_type> destination[]);
     /*!
      * \ingroup heffterocm
      * \brief Convert complex numbers to real when both are located on the GPU device.
@@ -100,59 +74,46 @@ namespace rocm {
      * Launches a ROCM kernel.
      */
     template<typename precision_type, typename index>
-    void convert(index num_entries, std::complex<precision_type> const source[], precision_type destination[]);
+    void convert(hipStream_t stream, index num_entries, std::complex<precision_type> const source[], precision_type destination[]);
 
     /*!
      * \ingroup heffterocm
      * \brief Scales real data (double or float) by the scaling factor.
      */
     template<typename scalar_type, typename index>
-    void scale_data(index num_entries, scalar_type *data, double scale_factor);
-}
+    void scale_data(hipStream_t stream, index num_entries, scalar_type *data, double scale_factor);
 
-/*!
- * \ingroup heffterocm
- * \brief Data manipulations on the GPU end.
- */
-template<> struct data_manipulator<tag::gpu>{
-    /*!
-     * \brief Equivalent to std::copy_n() but using ROCM arrays.
-     */
-    template<typename scalar_type>
-    static void copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]);
-    //! \brief Copy-convert complex-to-real.
-    template<typename scalar_type>
-    static void copy_n(std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
-        rocm::convert(static_cast<long long>(num_entries), source, destination);
-    }
-    //! \brief Copy-convert real-to-complex.
-    template<typename scalar_type>
-    static void copy_n(scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
-        rocm::convert(static_cast<long long>(num_entries), source, destination);
-    }
-    /*!
-     * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
-     */
-    template<typename scalar_type, typename index>
-    static void scale(index num_entries, scalar_type data[], double scale_factor){
-        rocm::scale_data(num_entries, data, scale_factor);
-    }
-    /*!
-     * \brief Complex by real scaling.
-     */
-    template<typename precision_type, typename index>
-    static void scale(index num_entries, std::complex<precision_type> data[], double scale_factor){
-        scale<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
-    }
-};
-
-namespace backend{
     /*!
      * \ingroup heffterocm
-     * \brief Type-tag for the rocFFT backend
+     * \brief Performs a direct-pack operation for data sitting on the GPU device.
+     *
+     * Launches a HIP kernel.
      */
-    struct rocfft{};
+    template<typename scalar_type, typename index>
+    void direct_pack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+                    scalar_type const source[], scalar_type destination[]);
+    /*!
+     * \ingroup heffterocm
+     * \brief Performs a direct-unpack operation for data sitting on the GPU device.
+     *
+     * Launches a HIP kernel.
+     */
+    template<typename scalar_type, typename index>
+    void direct_unpack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+                    scalar_type const source[], scalar_type destination[]);
+    /*!
+     * \ingroup heffterocm
+     * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
+     *
+     * Launches a HIP kernel.
+     */
+    template<typename scalar_type, typename index>
+    void transpose_unpack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+                        index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
+                        scalar_type const source[], scalar_type destination[]);
+}
 
+namespace backend{
     /*!
      * \ingroup heffterocm
      * \brief Indicate that the cuFFT backend has been enabled.
@@ -161,21 +122,104 @@ namespace backend{
 
     /*!
      * \ingroup heffterocm
-     * \brief Defines the location type-tag and the ROCM container.
+     * \brief The ROCm backend uses a HIP stream.
+     */
+    template<>
+    struct device_instance<rocfft>{
+        //! \brief Constructor, sets up the stream.
+        device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        hipStream_t stream(){ return _stream; }
+        //! \brief Returns the nullptr (const case).
+        hipStream_t stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue.
+        void synchronize_device() const{ rocm::check_error(hipStreamSynchronize(_stream), "device sync"); }
+        //! \brief The CUDA stream to be used in all operations.
+        mutable hipStream_t _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = hipStream_t;
+    };
+
+    /*!
+     * \ingroup heffterocm
+     * \brief In ROCm mode, the default GPU backend is rocfft.
+     */
+    template<> struct default_backend<tag::gpu>{
+        //! \brief Set the rocfft tag.
+        using type = rocfft;
+    };
+
+    /*!
+     * \ingroup heffterocm
+     * \brief Specialization for the data operations in ROCm mode.
+     */
+    template<> struct data_manipulator<tag::gpu> {
+        //! \brief Defines the backend_device.
+        using backend_device = backend::device_instance<typename default_backend<tag::gpu>::type>;
+        //! \brief Allocate memory.
+        template<typename scalar_type>
+        static scalar_type* allocate(hipStream_t stream, size_t num_entries){
+            void *new_data;
+            if (stream != nullptr) rocm::check_error( hipStreamSynchronize(stream), "hipStreamSynchronize()");
+            rocm::check_error(hipMalloc(&new_data, num_entries * sizeof(scalar_type)), "hipMalloc()");
+            return reinterpret_cast<scalar_type*>(new_data);
+        }
+        //! \brief Free memory.
+        template<typename scalar_type>
+        static void free(hipStream_t stream, scalar_type *pntr){
+            if (pntr == nullptr) return;
+            if (stream != nullptr) rocm::check_error( hipStreamSynchronize(stream), "hipStreamSynchronize()");
+            rocm::check_error(hipFree(pntr), "hipFree()");
+        }
+        //! \brief Equivalent to std::copy_n() but using CUDA arrays.
+        template<typename scalar_type>
+        static void copy_n(hipStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+            if (stream == nullptr)
+                rocm::check_error(hipMemcpy(destination, source, num_entries * sizeof(scalar_type), hipMemcpyDeviceToDevice), "data_manipulator::copy_n()");
+            else
+                rocm::check_error(hipMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), hipMemcpyDeviceToDevice, stream), "data_manipulator::copy_n()");
+        }
+        //! \brief Copy-convert complex-to-real.
+        template<typename scalar_type>
+        static void copy_n(hipStream_t stream, std::complex<scalar_type> const source[], size_t num_entries, scalar_type destination[]){
+            rocm::convert(stream, static_cast<long long>(num_entries), source, destination);
+        }
+        //! \brief Copy-convert real-to-complex.
+        template<typename scalar_type>
+        static void copy_n(hipStream_t stream, scalar_type const source[], size_t num_entries, std::complex<scalar_type> destination[]){
+            rocm::convert(stream, static_cast<long long>(num_entries), source, destination);
+        }
+        //! \brief Copy the date from the device to the host.
+        template<typename scalar_type>
+        static void copy_device_to_host(hipStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+            rocm::check_error(hipMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), hipMemcpyDeviceToHost, stream),
+                            "device_to_host (rocm)");
+        }
+        //! \brief Copy the date from the device to the device.
+        template<typename scalar_type>
+        static void copy_device_to_device(hipStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+                rocm::check_error(hipMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), hipMemcpyDeviceToDevice, stream),
+                                "device_to_device (rocm)");
+        }
+        //! \brief Copy the date from the host to the device.
+        template<typename scalar_type>
+        static void copy_host_to_device(hipStream_t stream, scalar_type const source[], size_t num_entries, scalar_type destination[]){
+            rocm::check_error(hipMemcpyAsync(destination, source, num_entries * sizeof(scalar_type), hipMemcpyHostToDevice, stream),
+                            "host_to_device (rocm)");
+        }
+    };
+
+    /*!
+     * \ingroup heffterocm
+     * \brief Defines the location type-tag and the cuda container.
      */
     template<>
     struct buffer_traits<rocfft>{
         //! \brief The rocfft library uses data on the gpu device.
         using location = tag::gpu;
-        //! \brief The data is managed by the ROCM vector container.
-        template<typename T> using container = heffte::gpu::vector<T>;
+        //! \brief The data is managed by the ROCm vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
     };
-
-    /*!
-     * \ingroup heffterocm
-     * \brief Returns the human readable name of the FFTW backend.
-     */
-    template<> inline std::string name<rocfft>(){ return "rocfft"; }
 }
 
 /*!
@@ -188,8 +232,9 @@ namespace backend{
 template<typename precision_type, direction dir>
 struct plan_rocfft{
     /*!
-     * \brief Constructor, takes inputs identical to cufftMakePlanMany().
+     * \brief Constructor and initializer of the plan.
      *
+     * \param stream the hipStream_t to use for the transform
      * \param dir is the direction (forward or backward) for the plan
      * \param size is the number of entries in a 1-D transform
      * \param batch is the number of transforms in the batch
@@ -308,7 +353,8 @@ class rocfft_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
-    rocfft_executor(box3d<index> const box, int dimension) :
+    rocfft_executor(hipStream_t active_stream, box3d<index> const box, int dimension) :
+        stream(active_stream),
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -321,7 +367,6 @@ public:
     //! \brief Perform an in-place FFT on the data in the given direction.
     template<typename precision_type, direction dir>
     void execute(std::complex<precision_type> data[]) const{
-        //rocm::synchronize_default_stream();
         if (std::is_same<precision_type, float>::value){
             if (dir == direction::forward)
                 make_plan(ccomplex_forward);
@@ -335,14 +380,15 @@ public:
         }
         rocfft_execution_info info;
         rocfft_execution_info_create(&info);
+        rocfft_execution_info_set_stream(info, stream);
 
         size_t wsize = (std::is_same<precision_type, float>::value) ?
                             ((dir == direction::forward) ? ccomplex_forward->size_work() : ccomplex_backward->size_work()) :
                             ((dir == direction::forward) ? zcomplex_forward->size_work() : zcomplex_backward->size_work());
-        gpu::vector<std::complex<precision_type>> work_buff;
+        backend::buffer_traits<backend::rocfft>::container<std::complex<precision_type>> work_buff;
 
         if (wsize > 0){
-            work_buff = gpu::vector<std::complex<precision_type>>(wsize);
+            work_buff = backend::buffer_traits<backend::rocfft>::container<std::complex<precision_type>>(stream, wsize);
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(work_buff.data()), wsize);
         }
 
@@ -355,7 +401,6 @@ public:
                 &block_data, nullptr, info), "rocfft execute");
         }
         rocfft_execution_info_destroy(info);
-        //rocm::synchronize_default_stream();
     }
 
     //! \brief Forward fft, float-complex case.
@@ -372,14 +417,14 @@ public:
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
     template<typename precision_type>
     void forward(precision_type const indata[], std::complex<precision_type> outdata[]) const{
-        rocm::convert(total_size, indata, outdata);
+        rocm::convert(stream, total_size, indata, outdata);
         forward(outdata);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
     template<typename precision_type>
     void backward(std::complex<precision_type> indata[], precision_type outdata[]) const{
         backward(indata);
-        rocm::convert(total_size, indata, outdata);
+        rocm::convert(stream, total_size, indata, outdata);
     }
 
     //! \brief Returns the size of the box.
@@ -391,6 +436,8 @@ private:
     void make_plan(std::unique_ptr<plan_rocfft<scalar_type, dir>> &plan) const{
         if (!plan) plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, howmanyffts, stride, dist));
     }
+
+    mutable hipStream_t stream;
 
     int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
     mutable std::unique_ptr<plan_rocfft<std::complex<float>, direction::forward>> ccomplex_forward;
@@ -415,7 +462,8 @@ public:
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
     template<typename index>
-    rocfft_executor_r2c(box3d<index> const box, int dimension) :
+    rocfft_executor_r2c(hipStream_t active_stream, box3d<index> const box, int dimension) :
+        stream(active_stream),
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -439,15 +487,16 @@ public:
 
         rocfft_execution_info info;
         rocfft_execution_info_create(&info);
+        rocfft_execution_info_set_stream(info, stream);
 
         size_t wsize = (std::is_same<precision_type, float>::value) ? sforward->size_work() : dforward->size_work();
-        gpu::vector<std::complex<precision_type>> work_buff;
+        backend::buffer_traits<backend::rocfft>::container<std::complex<precision_type>> work_buff;
 
         if (wsize > 0){
-            work_buff = gpu::vector<std::complex<precision_type>>(wsize);
+            work_buff = backend::buffer_traits<backend::rocfft>::container<std::complex<precision_type>>(stream, wsize);
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(work_buff.data()), wsize);
         }
-        gpu::vector<precision_type> copy_indata(indata, indata + real_size());
+        backend::buffer_traits<backend::rocfft>::container<precision_type> copy_indata(stream, indata, indata + real_size());
 
         for(int i=0; i<blocks; i++){
             void *rdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata.data() + i * rblock_stride));
@@ -471,13 +520,14 @@ public:
         rocfft_execution_info_create(&info);
 
         size_t wsize = (std::is_same<precision_type, float>::value) ? sbackward->size_work() : dbackward->size_work();
-        gpu::vector<std::complex<precision_type>> work_buff;
+        backend::buffer_traits<backend::rocfft>::container<std::complex<precision_type>> work_buff;
 
         if (wsize > 0){
-            work_buff = gpu::vector<std::complex<precision_type>>(wsize);
+            work_buff = backend::buffer_traits<backend::rocfft>::container<std::complex<precision_type>>(stream, wsize);
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(work_buff.data()), wsize);
         }
-        gpu::vector<std::complex<precision_type>> copy_indata(indata, indata + complex_size());
+        backend::buffer_traits<backend::rocfft>::container<std::complex<precision_type>>
+                copy_indata(stream, indata, indata + complex_size());
 
         for(int i=0; i<blocks; i++){
             void *cdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata.data() + i * cblock_stride));
@@ -501,6 +551,8 @@ private:
         if (!plan) plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, howmanyffts, stride, rdist, cdist));
     }
 
+    mutable hipStream_t stream;
+
     int size, howmanyffts, stride, blocks;
     int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
     mutable std::unique_ptr<plan_rocfft<float, direction::forward>> sforward;
@@ -523,48 +575,15 @@ template<> struct one_dim_backend<backend::rocfft>{
 
     //! \brief Constructs a complex-to-complex executor.
     template<typename index>
-    static std::unique_ptr<rocfft_executor> make(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<rocfft_executor>(new rocfft_executor(box, dimension));
+    static std::unique_ptr<rocfft_executor> make(hipStream_t stream, box3d<index> const box, int dimension){
+        return std::unique_ptr<rocfft_executor>(new rocfft_executor(stream, box, dimension));
     }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
-    static std::unique_ptr<rocfft_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<rocfft_executor_r2c>(new rocfft_executor_r2c(box, dimension));
+    static std::unique_ptr<rocfft_executor_r2c> make_r2c(hipStream_t stream, box3d<index> const box, int dimension){
+        return std::unique_ptr<rocfft_executor_r2c>(new rocfft_executor_r2c(stream, box, dimension));
     }
 };
-
-namespace rocm { // packer logic
-
-/*!
- * \ingroup heffterocm
- * \brief Performs a direct-pack operation for data sitting on the GPU device.
- *
- * Launches a HIP kernel.
- */
-template<typename scalar_type, typename index>
-void direct_pack(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
-                 scalar_type const source[], scalar_type destination[]);
-/*!
- * \ingroup heffterocm
- * \brief Performs a direct-unpack operation for data sitting on the GPU device.
- *
- * Launches a HIP kernel.
- */
-template<typename scalar_type, typename index>
-void direct_unpack(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
-                   scalar_type const source[], scalar_type destination[]);
-/*!
- * \ingroup heffterocm
- * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
- *
- * Launches a HIP kernel.
- */
-template<typename scalar_type, typename index>
-void transpose_unpack(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
-                      index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
-                      scalar_type const source[], scalar_type destination[]);
-
-}
 
 /*!
  * \ingroup hefftepacking
@@ -573,13 +592,13 @@ void transpose_unpack(index nfast, index nmid, index nslow, index line_stride, i
 template<> struct direct_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        rocm::direct_pack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
+    void pack(hipStream_t stream, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        rocm::direct_pack(stream, plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, data, buffer);
     }
     //! \brief Execute the planned unpack operation.
     template<typename scalar_type, typename index>
-    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        rocm::direct_unpack(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
+    void unpack(hipStream_t stream, pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
+        rocm::direct_unpack(stream, plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride, buffer, data);
     }
 };
 
@@ -590,35 +609,33 @@ template<> struct direct_packer<tag::gpu>{
 template<> struct transpose_packer<tag::gpu>{
     //! \brief Execute the planned pack operation.
     template<typename scalar_type, typename index>
-    void pack(pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
-        direct_packer<tag::gpu>().pack(plan, data, buffer); // packing is done the same way as the direct_packer
+    void pack(hipStream_t stream, pack_plan_3d<index> const &plan, scalar_type const data[], scalar_type buffer[]) const{
+        direct_packer<tag::gpu>().pack(stream, plan, data, buffer); // packing is done the same way as the direct_packer
     }
     //! \brief Execute the planned transpose-unpack operation.
     template<typename scalar_type, typename index>
-    void unpack(pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
-        rocm::transpose_unpack<scalar_type>(plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
+    void unpack(hipStream_t stream, pack_plan_3d<index> const &plan, scalar_type const buffer[], scalar_type data[]) const{
+        rocm::transpose_unpack<scalar_type>(stream, plan.size[0], plan.size[1], plan.size[2], plan.line_stride, plan.plane_stride,
                                             plan.buff_line_stride, plan.buff_plane_stride, plan.map[0], plan.map[1], plan.map[2], buffer, data);
     }
 };
 
-/*!
- * \ingroup heffterocm
- * \brief Specialization for the CPU case.
- */
-template<> struct data_scaling<tag::gpu>{
+namespace data_scaling {
     /*!
+     * \ingroup heffterocm
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
-    static void apply(index num_entries, scalar_type *data, double scale_factor){
-        rocm::scale_data<scalar_type, long long>(static_cast<long long>(num_entries), data, scale_factor);
+    static void apply(hipStream_t stream, index num_entries, scalar_type *data, double scale_factor){
+        rocm::scale_data<scalar_type, long long>(stream, static_cast<long long>(num_entries), data, scale_factor);
     }
     /*!
+     * \ingroup heffterocm
      * \brief Complex by real scaling.
      */
     template<typename precision_type, typename index>
-    static void apply(index num_entries, std::complex<precision_type> *data, double scale_factor){
-        apply<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
+    static void apply(hipStream_t stream, index num_entries, std::complex<precision_type> *data, double scale_factor){
+        apply<precision_type>(stream, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
 };
 

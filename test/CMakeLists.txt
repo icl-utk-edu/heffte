@@ -10,6 +10,10 @@ endmacro()
 add_executable(test_heffte_header  test_heffte_header.cpp)
 target_link_libraries(test_heffte_header  Heffte)
 
+# sandbox executable for testing purposes
+add_executable(sandbox  sandbox.cpp)
+target_link_libraries(sandbox  Heffte)
+
 # no MPI test of different aspects of the on-node algorithms
 add_executable(test_unit_nompi test_units_nompi.cpp)
 target_link_libraries(test_unit_nompi  Heffte)
@@ -31,6 +35,11 @@ heffte_add_mpi_test(NAME heffte_fft2d_np4   COMMAND test_fft3d RANKS 4)
 heffte_add_mpi_test(NAME heffte_fft3d_np6   COMMAND test_fft3d RANKS 6)
 heffte_add_mpi_test(NAME heffte_fft3d_np8   COMMAND test_fft3d RANKS 8)
 heffte_add_mpi_test(NAME heffte_fft3d_np12  COMMAND test_fft3d RANKS 12)
+
+# test the user-provided streams
+add_executable(test_streams  test_fft3d.h test_streams.cpp)
+target_link_libraries(test_streams  Heffte)
+# heffte_add_mpi_test(NAME heffte_streams_np6 COMMAND test_streams RANKS 6) # will enable once Volta issue is fixed
 
 # test the real-to-complex class
 add_executable(test_fft3d_r2c  test_fft3d.h test_fft3d_r2c.cpp)

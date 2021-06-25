@@ -15,6 +15,9 @@
 namespace heffte{
 
     bool backend_valid_c(int backend){
+        if (backend == Heffte_BACKEND_STOCK){
+            return true;
+        }else
         #ifdef Heffte_ENABLE_FFTW
         if (backend == Heffte_BACKEND_FFTW){
             return true;
@@ -40,6 +43,7 @@ namespace heffte{
         }
     }
 
+
     #if defined(Heffte_ENABLE_FFTW)
     using dummy_backend = heffte::backend::fftw;
     #elif defined(Heffte_ENABLE_MKL)
@@ -48,6 +52,8 @@ namespace heffte{
     using dummy_backend = heffte::backend::cufft;
     #elif defined(Heffte_ENABLE_ROCM)
     using dummy_backend = heffte::backend::rocfft;
+    #else
+    using dummy_backend = heffte::backend::stock;
     #endif
 
     plan_options options_from_c_options(heffte_plan_options const *options){
@@ -111,6 +117,8 @@ namespace heffte{
     template<typename fname, typename... vars>
     int call_returnable_c(heffte_plan const plan, vars... args){
         if (plan->using_r2c){
+            if (plan->backend_type == Heffte_BACKEND_STOCK)
+                return call_returnable_c_template(reinterpret_cast<heffte::fft3d_r2c<heffte::backend::stock> const*>(plan->fft), fname(), args...);
             #ifdef Heffte_ENABLE_FFTW
             if (plan->backend_type == Heffte_BACKEND_FFTW)
                 return call_returnable_c_template(reinterpret_cast<heffte::fft3d_r2c<heffte::backend::fftw> const*>(plan->fft), fname(), args...);
@@ -128,6 +136,8 @@ namespace heffte{
                 return call_returnable_c_template(reinterpret_cast<heffte::fft3d_r2c<heffte::backend::rocfft> const*>(plan->fft), fname(), args...);
             #endif
         }else{
+            if (plan->backend_type == Heffte_BACKEND_STOCK)
+                return call_returnable_c_template(reinterpret_cast<heffte::fft3d<heffte::backend::stock> const*>(plan->fft), fname(), args...);
             #ifdef Heffte_ENABLE_FFTW
             if (plan->backend_type == Heffte_BACKEND_FFTW)
                 return call_returnable_c_template(reinterpret_cast<heffte::fft3d<heffte::backend::fftw> const*>(plan->fft), fname(), args...);
@@ -150,6 +160,8 @@ namespace heffte{
 
     template<typename fname, typename... vars>
     int call_returnable_c_nor2c(heffte_plan const plan, vars... args){
+        if (plan->backend_type == Heffte_BACKEND_STOCK)
+            return call_returnable_c_template(reinterpret_cast<heffte::fft3d<heffte::backend::stock> const*>(plan->fft), fname(), args...);
         #ifdef Heffte_ENABLE_FFTW
         if (plan->backend_type == Heffte_BACKEND_FFTW)
             return call_returnable_c_template(reinterpret_cast<heffte::fft3d<heffte::backend::fftw> const*>(plan->fft), fname(), args...);
@@ -176,6 +188,9 @@ extern "C"{
 int heffte_set_default_options(int backend, heffte_plan_options *options){
     if (not heffte::backend_valid_c(backend)) return 1;
     heffte::plan_options opts = [=]()->heffte::plan_options{
+        if (backend == Heffte_BACKEND_STOCK){
+            return heffte::default_options<heffte::backend::stock>();
+        }
         #ifdef Heffte_ENABLE_FFTW
         if (backend == Heffte_BACKEND_FFTW){
             return heffte::default_options<heffte::backend::fftw>();
@@ -224,7 +239,9 @@ int heffte_plan_create(int backend, int const inbox_low[3], int const inbox_high
     heffte::plan_options cpp_opts = heffte::options_from_c_options(opts);
 
     try{
-
+    if (backend == Heffte_BACKEND_STOCK){
+        (*plan)->fft = reinterpret_cast<void*>(new heffte::fft3d<heffte::backend::stock>(inbox, outbox, comm, cpp_opts));
+    }
     #ifdef Heffte_ENABLE_FFTW
     if (backend == Heffte_BACKEND_FFTW){
         (*plan)->fft = reinterpret_cast<void*>(new heffte::fft3d<heffte::backend::fftw>(inbox, outbox, comm, cpp_opts));
@@ -258,6 +275,7 @@ int heffte_plan_create(int backend, int const inbox_low[3], int const inbox_high
 int heffte_plan_create_r2c(int backend, int const inbox_low[3], int const inbox_high[3], int const *inbox_order,
                            int const outbox_low[3], int const outbox_high[3], int const *outbox_order,
                            int r2c_direction, MPI_Comm const comm, heffte_plan_options const *options, heffte_plan *plan){
+
     if (not heffte::backend_valid_c(backend)) return 1;
     *plan = new heffte_fft_plan;
     (*plan)->backend_type = backend;
@@ -275,7 +293,9 @@ int heffte_plan_create_r2c(int backend, int const inbox_low[3], int const inbox_
     heffte::plan_options cpp_opts = heffte::options_from_c_options(opts);
 
     try{
-
+    if (backend == Heffte_BACKEND_STOCK){
+        (*plan)->fft = reinterpret_cast<void*>(new heffte::fft3d_r2c<heffte::backend::stock>(inbox, outbox, r2c_direction, comm, cpp_opts));
+    }
     #ifdef Heffte_ENABLE_FFTW
     if (backend == Heffte_BACKEND_FFTW){
         (*plan)->fft = reinterpret_cast<void*>(new heffte::fft3d_r2c<heffte::backend::fftw>(inbox, outbox, r2c_direction, comm, cpp_opts));
@@ -309,6 +329,8 @@ int heffte_plan_create_r2c(int backend, int const inbox_low[3], int const inbox_
 int heffte_plan_destroy(heffte_plan plan){
     if (not heffte::backend_valid_c(plan->backend_type)) return 3;
     if (plan->using_r2c){
+        if (plan->backend_type == Heffte_BACKEND_STOCK)
+            delete reinterpret_cast<heffte::fft3d_r2c<heffte::backend::stock>*>(plan->fft);
         #ifdef Heffte_ENABLE_FFTW
         if (plan->backend_type == Heffte_BACKEND_FFTW)
             delete reinterpret_cast<heffte::fft3d_r2c<heffte::backend::fftw>*>(plan->fft);
@@ -326,6 +348,8 @@ int heffte_plan_destroy(heffte_plan plan){
             delete reinterpret_cast<heffte::fft3d_r2c<heffte::backend::rocfft>*>(plan->fft);
         #endif
     }else{
+        if (plan->backend_type == Heffte_BACKEND_STOCK)
+            delete reinterpret_cast<heffte::fft3d<heffte::backend::stock>*>(plan->fft);
         #ifdef Heffte_ENABLE_FFTW
         if (plan->backend_type == Heffte_BACKEND_FFTW)
             delete reinterpret_cast<heffte::fft3d<heffte::backend::fftw>*>(plan->fft);

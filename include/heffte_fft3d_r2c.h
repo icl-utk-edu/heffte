@@ -43,7 +43,7 @@ namespace heffte {
  * \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
  */
 template<typename backend_tag, typename index = int>
-class fft3d_r2c : public backend::auxiliary_variables<backend_tag>{
+class fft3d_r2c : public backend::device_instance<backend_tag>{
 public:
     //! \brief FFT executor for the complex-to-complex dimensions.
     using backend_executor_c2c = typename one_dim_backend<backend_tag>::type;
@@ -76,6 +76,22 @@ public:
     fft3d_r2c(box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
               plan_options const options = default_options<backend_tag>()) :
         fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction,
+                                  #ifdef Heffte_ENABLE_ROCM
+                                  (std::is_same<backend_tag, backend::rocfft>::value) ? force_reorder(options) :
+                                  #endif
+                                  options),
+                  mpi::comm_rank(comm), comm){
+        assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
+        static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
+    }
+    /*!
+     * \brief See the documentation for fft3d::fft3d()
+     */
+    fft3d_r2c(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
+              box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
+              plan_options const options = default_options<backend_tag>()) :
+        fft3d_r2c(gpu_stream,
+                  plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction,
                                   #ifdef Heffte_ENABLE_ROCM
                                   (std::is_same<backend_tag, backend::rocfft>::value) ? force_reorder(options) :
                                   #endif
@@ -181,7 +197,7 @@ public:
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
         static_assert(std::is_same<input_type, float>::value or std::is_same<input_type, double>::value,
                       "The input to forward() must be real, i.e., either float or double.");
-        buffer_container<typename fft_output<input_type>::type> output(size_outbox());
+        auto output = make_buffer_container<typename fft_output<input_type>::type>(this->stream(), size_outbox());
         forward(input.data(), output.data(), scaling);
         return output;
     }
@@ -225,7 +241,7 @@ public:
     real_buffer_container<scalar_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
         static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
-        buffer_container<typename define_standard_type<scalar_type>::type::value_type> result(size_inbox());
+        auto result = make_buffer_container<typename define_standard_type<scalar_type>::type::value_type>(this->stream(), size_inbox());
         backward(input.data(), result.data(), scaling);
         return result;
     }
@@ -239,14 +255,21 @@ private:
     //! \brief Same as in the fft3d case.
     fft3d_r2c(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
 
+    //! \brief Same as in the fft3d case.
+    fft3d_r2c(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
+              logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
+
+    //! \brief Setup the executors and the reshapes.
+    void setup(logic_plan3d<index> const &plan, MPI_Comm const comm);
+
     template<typename scalar_type>
     void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale scaling) const{
-        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), scaling);
     }
     template<typename scalar_type>
     void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], scale scaling) const{
-        buffer_container<std::complex<scalar_type>> workspace(size_workspace());
+        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), scaling);
     }
 
@@ -266,7 +289,8 @@ private:
                 return;
             }
             #endif
-            data_manipulator<location_tag>::scale(
+            data_scaling::apply(
+                this->stream(),
                 (dir == direction::forward) ? size_outbox() : size_inbox(),
                 data, get_scale_factor(scaling));
         }
@@ -274,8 +298,8 @@ private:
 
     std::unique_ptr<box3d<index>> pinbox, poutbox;
     double scale_factor;
-    std::array<std::unique_ptr<reshape3d_base>, 4> forward_shaper;
-    std::array<std::unique_ptr<reshape3d_base>, 4> backward_shaper;
+    std::array<std::unique_ptr<reshape3d_base<index>>, 4> forward_shaper;
+    std::array<std::unique_ptr<reshape3d_base<index>>, 4> backward_shaper;
 
     std::unique_ptr<backend_executor_r2c> executor_r2c;
     std::array<std::unique_ptr<backend_executor_c2c>, 2> executor;

@@ -6,37 +6,12 @@
 
 #include "heffte_backend_cuda.h"
 
-#include <cuda_runtime_api.h>
-#include <cuda.h>
-#include <cufft.h>
-
 #ifdef Heffte_ENABLE_MAGMA
 #include <cublas.h>
 #include "magma_v2.h"
 #endif
 
 namespace heffte {
-
-namespace cuda {
-void* memory_manager::allocate(size_t num_bytes){
-    void *new_data;
-    check_error(cudaMalloc(&new_data, num_bytes), "cudaMalloc()");
-    return new_data;
-}
-void memory_manager::free(void *pntr){
-    if (pntr != nullptr)
-        check_error(cudaFree(pntr), "cudaFree()");
-}
-void memory_manager::host_to_device(void const *source, size_t num_bytes, void *destination){
-    check_error(cudaMemcpy(destination, source, num_bytes, cudaMemcpyHostToDevice), "host_to_device (cuda)");
-}
-void memory_manager::device_to_device(void const *source, size_t num_bytes, void *destination){
-    check_error(cudaMemcpy(destination, source, num_bytes, cudaMemcpyDeviceToDevice), "device_to_device (cuda)");
-}
-void memory_manager::device_to_host(void const *source, size_t num_bytes, void *destination){
-    check_error(cudaMemcpy(destination, source, num_bytes, cudaMemcpyDeviceToHost), "device_to_host (cuda)");
-}
-}
 
 namespace gpu {
 
@@ -47,7 +22,7 @@ void device_set(int active_device){
 }
 
 void synchronize_default_stream(){
-    cuda::check_error(cudaStreamSynchronize(nullptr), "device synch"); // synch the default stream
+    cuda::check_error(cudaStreamSynchronize(nullptr), "device sync"); // sync the default stream
 }
 
 int device_count(){
@@ -59,11 +34,6 @@ int device_count(){
 }
 
 namespace cuda {
-
-void check_error(cudaError_t status, std::string const &function_name){
-    if (status != cudaSuccess)
-        throw std::runtime_error(function_name + " failed with message: " + cudaGetErrorString(status));
-}
 
 /*
  * Launch with one thread per entry.
@@ -198,19 +168,19 @@ constexpr bool to_complex  = true;
 constexpr bool to_pack     = true;
 
 template<typename precision_type, typename index>
-void convert(index num_entries, precision_type const source[], std::complex<precision_type> destination[]){
+void convert(cudaStream_t stream, index num_entries, precision_type const source[], std::complex<precision_type> destination[]){
     thread_grid_1d grid(num_entries, max_threads);
-    real_complex_convert<precision_type, max_threads, to_complex><<<grid.blocks, grid.threads>>>(num_entries, source, reinterpret_cast<precision_type*>(destination));
+    real_complex_convert<precision_type, max_threads, to_complex><<<grid.blocks, grid.threads, 0, stream>>>(num_entries, source, reinterpret_cast<precision_type*>(destination));
 }
 template<typename precision_type, typename index>
-void convert(index num_entries, std::complex<precision_type> const source[], precision_type destination[]){
+void convert(cudaStream_t stream, index num_entries, std::complex<precision_type> const source[], precision_type destination[]){
     thread_grid_1d grid(num_entries, max_threads);
-    real_complex_convert<precision_type, max_threads, not to_complex><<<grid.blocks, grid.threads>>>(num_entries, reinterpret_cast<precision_type const*>(source), destination);
+    real_complex_convert<precision_type, max_threads, not to_complex><<<grid.blocks, grid.threads, 0, stream>>>(num_entries, reinterpret_cast<precision_type const*>(source), destination);
 }
 
 #define heffte_instantiate_convert(precision, index) \
-    template void convert<precision, index>(index num_entries, precision const source[], std::complex<precision> destination[]); \
-    template void convert<precision, index>(index num_entries, std::complex<precision> const source[], precision destination[]); \
+    template void convert<precision, index>(cudaStream_t, index num_entries, precision const source[], std::complex<precision> destination[]); \
+    template void convert<precision, index>(cudaStream_t, index num_entries, std::complex<precision> const source[], precision destination[]); \
 
 heffte_instantiate_convert(float, int)
 heffte_instantiate_convert(double, int)
@@ -231,85 +201,85 @@ template<typename precision_type> struct precision<std::complex<precision_type>>
 };
 
 template<typename scalar_type, typename index>
-void direct_pack(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+void direct_pack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
                  scalar_type const source[], scalar_type destination[]){
     constexpr index max_blocks = 65536;
     using prec = typename precision<scalar_type>::type;
     direct_packer<prec, max_threads, precision<scalar_type>::tuple_size, to_pack>
-            <<<std::min(nmid * nslow, max_blocks), max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
+            <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>(nfast, nmid, nslow, line_stride, plane_stide,
             reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
 }
 
 template<typename scalar_type, typename index>
-void direct_unpack(index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]){
+void direct_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]){
     constexpr index max_blocks = 65536;
     using prec = typename precision<scalar_type>::type;
     direct_packer<prec, max_threads, precision<scalar_type>::tuple_size, not to_pack>
-            <<<std::min(nmid * nslow, max_blocks), max_threads>>>(nfast, nmid, nslow, line_stride, plane_stide,
+            <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>(nfast, nmid, nslow, line_stride, plane_stide,
             reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
 }
 
 template<typename scalar_type, typename index>
-void transpose_unpack(index nfast, index nmid, index nslow, index line_stride, index plane_stride,
+void transpose_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride,
                       index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                       scalar_type const source[], scalar_type destination[]){
     constexpr index max_blocks = 65536;
     using prec = typename precision<scalar_type>::type;
     if (map0 == 0 and map1 == 1 and map2 == 2){
         transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 0, 1, 2>
-                <<<std::min(nmid * nslow, max_blocks), max_threads>>>
+                <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>
                 (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
                  reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
     }else if (map0 == 0 and map1 == 2 and map2 == 1){
         transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 0, 2, 1>
-                <<<std::min(nmid * nslow, max_blocks), max_threads>>>
+                <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>
                 (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
                  reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
     }else if (map0 == 1 and map1 == 0 and map2 == 2){
         transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 1, 0, 2>
-                <<<std::min(nmid * nslow, max_blocks), max_threads>>>
+                <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>
                 (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
                  reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
     }else if (map0 == 1 and map1 == 2 and map2 == 0){
         transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 1, 2, 0>
-                <<<std::min(nmid * nslow, max_blocks), max_threads>>>
+                <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>
                 (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
                  reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
     }else if (map0 == 2 and map1 == 0 and map2 == 1){
         transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 2, 0, 1>
-                <<<std::min(nmid * nslow, max_blocks), max_threads>>>
+                <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>
                 (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
                  reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
     }else if (map0 == 2 and map1 == 1 and map2 == 0){
         transpose_unpacker<prec, max_threads, precision<scalar_type>::tuple_size, 2, 1, 0>
-                <<<std::min(nmid * nslow, max_blocks), max_threads>>>
+                <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>
                 (nfast, nmid, nslow, line_stride, plane_stride, buff_line_stride, buff_plane_stride,
                  reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
     }
 }
 
 #define heffte_instantiate_packers(index) \
-template void direct_pack<float, index>(index, index, index, index, index, float const source[], float destination[]); \
-template void direct_pack<double, index>(index, index, index, index, index, double const source[], double destination[]); \
-template void direct_pack<std::complex<float>, index>(index, index, index, index, index, \
+template void direct_pack<float, index>(cudaStream_t, index, index, index, index, index, float const source[], float destination[]); \
+template void direct_pack<double, index>(cudaStream_t, index, index, index, index, index, double const source[], double destination[]); \
+template void direct_pack<std::complex<float>, index>(cudaStream_t, index, index, index, index, index, \
                                                       std::complex<float> const source[], std::complex<float> destination[]); \
-template void direct_pack<std::complex<double>, index>(index, index, index, index, index, \
+template void direct_pack<std::complex<double>, index>(cudaStream_t, index, index, index, index, index, \
                                                        std::complex<double> const source[], std::complex<double> destination[]); \
 \
-template void direct_unpack<float, index>(index, index, index, index, index, float const source[], float destination[]); \
-template void direct_unpack<double, index>(index, index, index, index, index, double const source[], double destination[]); \
-template void direct_unpack<std::complex<float>, index>(index, index, index, index, index, \
+template void direct_unpack<float, index>(cudaStream_t, index, index, index, index, index, float const source[], float destination[]); \
+template void direct_unpack<double, index>(cudaStream_t, index, index, index, index, index, double const source[], double destination[]); \
+template void direct_unpack<std::complex<float>, index>(cudaStream_t, index, index, index, index, index, \
                                                         std::complex<float> const source[], std::complex<float> destination[]); \
-template void direct_unpack<std::complex<double>, index>(index, index, index, index, index, \
+template void direct_unpack<std::complex<double>, index>(cudaStream_t, index, index, index, index, index, \
                                                          std::complex<double> const source[], std::complex<double> destination[]); \
 \
-template void transpose_unpack<float, index>(index, index, index, index, index, index, index, int, int, int, \
+template void transpose_unpack<float, index>(cudaStream_t, index, index, index, index, index, index, index, int, int, int, \
                                              float const source[], float destination[]); \
-template void transpose_unpack<double, index>(index, index, index, index, index, index, index, int, int, int, \
+template void transpose_unpack<double, index>(cudaStream_t, index, index, index, index, index, index, index, int, int, int, \
                                               double const source[], double destination[]); \
-template void transpose_unpack<std::complex<float>, index>(index, index, index, index, index, index, index, int, int, int, \
+template void transpose_unpack<std::complex<float>, index>(cudaStream_t, index, index, index, index, index, index, index, int, int, int, \
                                                            std::complex<float> const source[], std::complex<float> destination[]); \
-template void transpose_unpack<std::complex<double>, index>(index, index, index, index, index, index, index, int, int, int, \
+template void transpose_unpack<std::complex<double>, index>(cudaStream_t, index, index, index, index, index, index, index, int, int, int, \
                                                             std::complex<double> const source[], std::complex<double> destination[]); \
 
 heffte_instantiate_packers(int)
@@ -317,27 +287,17 @@ heffte_instantiate_packers(long long)
 
 
 template<typename scalar_type, typename index>
-void scale_data(index num_entries, scalar_type *data, double scale_factor){
+void scale_data(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor){
     thread_grid_1d grid(num_entries, max_threads);
-    simple_scal<scalar_type, max_threads><<<grid.blocks, grid.threads>>>(num_entries, data, static_cast<scalar_type>(scale_factor));
+    simple_scal<scalar_type, max_threads><<<grid.blocks, grid.threads, 0, stream>>>(num_entries, data, static_cast<scalar_type>(scale_factor));
 }
 
-template void scale_data<float, int>(int num_entries, float *data, double scale_factor);
-template void scale_data<double, int>(int num_entries, double *data, double scale_factor);
-template void scale_data<float, long long>(long long num_entries, float *data, double scale_factor);
-template void scale_data<double, long long>(long long num_entries, double *data, double scale_factor);
+template void scale_data<float, int>(cudaStream_t, int num_entries, float *data, double scale_factor);
+template void scale_data<double, int>(cudaStream_t, int num_entries, double *data, double scale_factor);
+template void scale_data<float, long long>(cudaStream_t, long long num_entries, float *data, double scale_factor);
+template void scale_data<double, long long>(cudaStream_t, long long num_entries, double *data, double scale_factor);
 
 } // namespace cuda
-
-template<typename scalar_type>
-void data_manipulator<tag::gpu>::copy_n(scalar_type const source[], size_t num_entries, scalar_type destination[]){
-    cuda::check_error(cudaMemcpy(destination, source, num_entries * sizeof(scalar_type), cudaMemcpyDeviceToDevice), "data_manipulator::copy_n()");
-}
-
-template void data_manipulator<tag::gpu>::copy_n<float>(float const[], size_t, float[]);
-template void data_manipulator<tag::gpu>::copy_n<double>(double const[], size_t, double[]);
-template void data_manipulator<tag::gpu>::copy_n<std::complex<float>>(std::complex<float> const[], size_t, std::complex<float>[]);
-template void data_manipulator<tag::gpu>::copy_n<std::complex<double>>(std::complex<double> const[], size_t, std::complex<double>[]);
 
 
 } // namespace heffte

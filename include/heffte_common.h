@@ -48,49 +48,83 @@ struct gpu{};
 
 /*!
  * \ingroup fft3dbackend
- * \brief Contains methods for data manipulation either on the CPU or GPU.
- */
-template<typename location_tag> struct data_manipulator{};
-
-/*!
- * \ingroup fft3dbackend
- * \brief Specialization for manipulations on the CPU end.
- */
-template<> struct data_manipulator<tag::cpu>{
-    /*!
-     * \brief Wrapper around std::copy_n().
-     */
-    template<typename source_type, typename destination_type>
-    static void copy_n(source_type const source[], size_t num_entries, destination_type destination[]){
-        std::copy_n(source, num_entries, destination);
-    }
-    /*!
-     * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
-     */
-    template<typename scalar_type>
-    static void scale(int num_entries, scalar_type *data, double scale_factor){
-        scalar_type alpha = static_cast<scalar_type>(scale_factor);
-        for(int i=0; i<num_entries; i++) data[i] *= alpha;
-    }
-    /*!
-     * \brief Complex by real scaling.
-     *
-     * Depending on the compiler and type of operation, C++ complex numbers can have bad
-     * performance compared to float and double operations.
-     * Since the scaling factor is always real, scaling can be performed
-     * with real arithmetic which is easier to vectorize.
-     */
-    template<typename precision_type>
-    static void scale(int num_entries, std::complex<precision_type> *data, double scale_factor){
-        scale<precision_type>(2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
-    }
-};
-
-/*!
- * \ingroup fft3dbackend
  * \brief Contains type tags and templates metadata for the various backends.
  */
 namespace backend {
+
+    /*!
+    * \ingroup fft3dbackend
+    * \brief Common data-transfer operations, must be specializes for each location (cpu/gpu).
+    */
+    template<typename location_tag> struct data_manipulator{};
+
+    /*!
+    * \ingroup fft3dbackend
+    * \brief Common data-transfer operations on the cpu.
+    */
+    template<> struct data_manipulator<tag::cpu> {
+        //! \brief Wrapper around std::copy_n().
+        template<typename source_type, typename destination_type>
+        static void copy_n(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+            std::copy_n(source, num_entries, destination);
+        }
+        //! \brief Wrapper around std::copy_n().
+        template<typename source_type, typename destination_type>
+        static void copy_n(source_type const source[], size_t num_entries, destination_type destination[]){
+            std::copy_n(source, num_entries, destination);
+        }
+        //! \brief Wrapper around std::copy_n().
+        template<typename source_type, typename destination_type>
+        static void copy_device_to_host(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+            std::copy_n(source, num_entries, destination);
+        }
+        //! \brief Wrapper around std::copy_n().
+        template<typename source_type, typename destination_type>
+        static void copy_device_to_device(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+            std::copy_n(source, num_entries, destination);
+        }
+        //! \brief Wrapper around std::copy_n().
+        template<typename source_type, typename destination_type>
+        static void copy_host_to_device(void*, source_type const source[], size_t num_entries, destination_type destination[]){
+            std::copy_n(source, num_entries, destination);
+        }
+    };
+
+    /*!
+     * \ingroup hefftefftw
+     * \brief Type-tag for the FFTW backend
+     */
+    struct fftw{};
+
+    /*!
+     * \ingroup 
+     * \brief Type-tag for the stock FFT backend
+     */
+    struct stock{};
+
+    /*!
+     * \ingroup hefftemkl
+     * \brief Type-tag for the MKL backend
+     */
+    struct mkl{};
+
+    /*!
+     * \ingroup hefftecuda
+     * \brief Type-tag for the cuFFT backend
+     */
+    struct cufft{};
+
+    /*!
+     * \ingroup heffterocm
+     * \brief Type-tag for the rocFFT backend
+     */
+    struct rocfft{};
+
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Type-tag for the oneMKL backend
+     */
+    struct onemkl{};
 
     /*!
      * \ingroup fft3dbackend
@@ -103,7 +137,6 @@ namespace backend {
     template<typename tag>
     struct is_enabled : std::false_type{};
 
-
     /*!
      * \ingroup fft3dbackend
      * \brief Defines the container for the temporary buffers.
@@ -112,7 +145,7 @@ namespace backend {
      * with the CPU or GPU devices and the type of the container that will hold temporary
      * buffers.
      */
-    template<typename backend_tag>
+    template<typename backend_tag, typename std::enable_if<is_enabled<backend_tag>::value, void*>::type = nullptr>
     struct buffer_traits{
         //! \brief Tags the raw-array location tag::cpu or tag::gpu, used by the packers.
         using location = tag::cpu;
@@ -144,6 +177,41 @@ namespace backend {
     inline std::string name(){ return "unknown"; }
 
     /*!
+     * \ingroup hefftefftw
+     * \brief Returns the human readable name of the FFTW backend.
+     */
+    template<> inline std::string name<fftw>(){ return "fftw"; }
+
+    /*!
+     * \ingroup 
+     * \brief Returns the human readable name of the stock backend.
+     */
+    template<> inline std::string name<stock>(){ return "stock"; }
+
+    /*!
+     * \ingroup hefftemkl
+     * \brief Returns the human readable name of the MKL backend.
+     */
+    template<> inline std::string name<mkl>(){ return "mkl"; }
+    /*!
+     * \ingroup hefftecuda
+     * \brief Returns the human readable name of the cuFFT backend.
+     */
+    template<> inline std::string name<cufft>(){ return "cufft"; }
+
+    /*!
+     * \ingroup heffterocm
+     * \brief Returns the human readable name of the rocFFT backend.
+     */
+    template<> inline std::string name<rocfft>(){ return "rocfft"; }
+
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Returns the human readable name of the oneMKL backend.
+     */
+    template<> inline std::string name<onemkl>(){ return "onemkl"; }
+
+    /*!
      * \ingroup fft3dbackend
      * \brief Holds the auxiliary variables needed by each backend.
      *
@@ -153,14 +221,40 @@ namespace backend {
      * Specifically, this is used to store the sycl::queue used by the DPC++ backend.
      */
     template<typename backend_tag>
-    struct auxiliary_variables{
+    struct device_instance{
         //! \brief Empty constructor.
-        auxiliary_variables(){}
+        device_instance(void* = nullptr){}
         //! \brief Default destructor.
-        virtual ~auxiliary_variables() = default;
+        virtual ~device_instance() = default;
         //! \brief Returns the nullptr.
-        void* gpu_queue(){ return nullptr; }
+        void* stream(){ return nullptr; }
+        //! \brief Returns the nullptr (const case).
+        void* stream() const{ return nullptr; }
+        //! \brief Syncs the execution with the queue, no-op in the CPU case.
+        void synchronize_device() const{}
+        //! \brief The type for the internal stream, the cpu uses just a void pointer.
+        using stream_type = void*;
     };
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Defines inverse mapping from the location tag to a default backend tag.
+     *
+     * Defines a default backend for a given location tag.
+     */
+    template<typename location_tag> struct default_backend{
+        //! \brief Defaults to the same label.
+        using type = location_tag;
+    };
+}
+
+/*!
+ * \ingroup fft3dbackend
+ * \brief Factory method to create new buffer container for the CPU backends.
+ */
+template<typename scalar_type>
+std::vector<scalar_type> make_buffer_container(void*, size_t size){
+    return std::vector<scalar_type>(size);
 }
 
 /*!

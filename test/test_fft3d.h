@@ -51,7 +51,7 @@ std::vector<scalar_type> rescale(box3d<> const world, std::vector<scalar_type> c
     double scaling_factor = (scaling == scale::none) ? 1.0 : 1.0 / static_cast<double>(world.count());
     if (scaling == scale::symmetric) scaling_factor = std::sqrt(scaling_factor);
     if (scaling != scale::none)
-        data_scaling<tag::cpu>::apply(result.size(), result.data(), scaling_factor);
+        data_scaling::apply(result.size(), result.data(), scaling_factor);
     return result;
 }
 
@@ -79,7 +79,7 @@ template<typename backend_tag, typename scalar_type>
 struct input_maker<backend_tag, scalar_type, typename std::enable_if<backend::uses_gpu<backend_tag>::value, void>::type>{
     template<typename index>
     static gpu::vector<scalar_type> select(box3d<index> const world, box3d<index> const box, std::vector<scalar_type> const &input){
-        return gpu::transfer::load(get_subbox(world, box, input));
+        return gpu::transfer().load(get_subbox(world, box, input));
     }
 };
 template<typename scalar_type, typename index>
@@ -91,17 +91,19 @@ std::vector<scalar_type> rescale(box3d<index> const world, gpu::vector<scalar_ty
 template<typename backend_tag, typename precision_type, typename index>
 std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<precision_type> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
+    backend::device_instance<backend_tag> device;
     typename test_traits<backend_tag>::template container<std::complex<precision_type>> loaded_result(input.size());
-    one_dim_backend<backend_tag>::make(nullptr, world, 0)->forward(loaded_input.data(), loaded_result.data());
+    one_dim_backend<backend_tag>::make(device.stream(), world, 0)->forward(loaded_input.data(), loaded_result.data());
     for(int i=1; i<3; i++)
-        one_dim_backend<backend_tag>::make(nullptr, world, i)->forward(loaded_result.data());
+        one_dim_backend<backend_tag>::make(device.stream(), world, i)->forward(loaded_result.data());
     return test_traits<backend_tag>::unload(loaded_result);
 }
 template<typename backend_tag, typename precision_type, typename index>
 std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<std::complex<precision_type>> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
+    backend::device_instance<backend_tag> device;
     for(int i=0; i<3; i++)
-        one_dim_backend<backend_tag>::make(nullptr, world, i)->forward(loaded_input.data());
+        one_dim_backend<backend_tag>::make(device.stream(), world, i)->forward(loaded_input.data());
     return test_traits<backend_tag>::unload(loaded_input);
 }
 
@@ -183,6 +185,62 @@ void test_fft3d_vectors(MPI_Comm comm){
         tassert(approx(backward_scaled_rresult, local_real_input));
     }
     } // different option variants
+}
+
+template<typename backend_tag, typename scalar_type, int h0, int h1, int h2>
+void test_fft3d_queues(MPI_Comm comm){
+    // works with ranks 6, same logic as vectors but uses an external device stream/queue
+    // used complex numbers only
+    int const num_ranks = mpi::comm_size(comm);
+    assert(num_ranks == 6);
+    box3d<> const world = {{0, 0, 0}, {h0, h1, h2}};
+    current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test heffte::fft3d (stream)", comm);
+    int const me = mpi::comm_rank(comm);
+    auto world_input = make_data<scalar_type>(world);
+    auto world_fft = forward_fft<backend_tag>(world, world_input);
+
+    std::array<heffte::scale, 3> fscale = {heffte::scale::none, heffte::scale::symmetric, heffte::scale::full};
+    std::array<heffte::scale, 3> bscale = {heffte::scale::full, heffte::scale::symmetric, heffte::scale::none};
+
+    auto stream = make_stream(backend_tag());
+
+    for(auto const &options : make_all_options<backend_tag>()){
+    //if (mpi::world_rank(0)) std::cout << options << std::endl;
+
+    for(int i=0; i<3; i++){
+        std::array<int, 3> split = {1, 1, 1};
+        if (num_ranks == 6){
+            split[i] = 2;
+            split[(i+2) % 3] = 3;
+        }
+        std::vector<box3d<>> boxes = heffte::split_world(world, split);
+        // get a semi-random inbox and outbox
+        // makes sure that the boxes do not have to match
+        int iindex = me, oindex = me; // indexes of the input and outboxes
+        if (num_ranks == 6){ // shuffle the boxes
+            iindex = (me+1) % num_ranks;
+            oindex = (me+3) % num_ranks;
+        }
+
+        box3d<> const inbox  = boxes[iindex];
+        box3d<> const outbox = boxes[oindex];
+
+        auto local_input         = input_maker<backend_tag, scalar_type>::select(world, inbox, world_input);
+        auto reference_fft       = rescale(world, get_subbox(world, outbox, world_fft), fscale[i]);
+
+        sync_stream(stream);
+        heffte::fft3d<backend_tag> fft(stream, inbox, outbox, comm, options);
+        sync_stream(stream);
+
+        auto result = fft.forward(local_input, fscale[i]);
+        tassert(approx(result, reference_fft));
+
+        auto backward_cresult = fft.backward(result, bscale[i]);
+        auto backward_scaled_cresult = rescale(world, backward_cresult, scale::none);
+        tassert(approx(local_input, backward_scaled_cresult));
+    }
+    } // different option variants
+    free_stream(stream);
 }
 
 template<typename backend_tag, typename scalar_type, int h0, int h1>
@@ -296,7 +354,8 @@ void test_fft3d_arrays(MPI_Comm comm){
                        cbackward_result));
 
         output_container inplace_buffer(std::max(fft.size_inbox(), fft.size_outbox()));
-        data_manipulator<typename fft3d<backend_tag>::location_tag>::copy_n(local_input.data(), fft.size_inbox(), inplace_buffer.data());
+        backend::data_manipulator<typename heffte::fft3d<backend_tag>::location_tag>::copy_n(
+            fft.stream(), local_input.data(), fft.size_inbox(), inplace_buffer.data());
         fft.forward(inplace_buffer.data(), inplace_buffer.data());
         output_container inplace_forward(inplace_buffer.data(), inplace_buffer.data() + fft.size_outbox());
         tassert(approx(inplace_forward, reference_fft)); // compare to the reference

@@ -8,6 +8,7 @@
 #include <random>
 
 #include "test_common.h"
+#include "test_units_stock_complex.h"
 
 void test_factorize(){
     current_test<int, using_nompi> name("prime factorize");
@@ -74,13 +75,13 @@ void test_cpu_scale(){
     std::vector<float> x = {1.0, 33.0, 88.0, -11.0, 2.0};
     std::vector<float> y = x;
     for(auto &v : y) v *= 3.0;
-    data_scaling<tag::cpu>::apply(x.size(), x.data(), 3.0);
+    data_scaling::apply(x.size(), x.data(), 3.0);
     sassert(approx(x, y));
 
     std::vector<std::complex<double>> cx = {{1.0, -11.0}, {33.0, 8.0}, {88.0, -11.0}, {2.0, -9.0}};
     std::vector<std::complex<double>> cy = cx;
     for(auto &v : cy) v /= 1.33;
-    data_scaling<tag::cpu>::apply(cx.size(), cx.data(), 1.0 / 1.33);
+    data_scaling::apply(cx.size(), cx.data(), 1.0 / 1.33);
     sassert(approx(cx, cy));
 }
 
@@ -215,9 +216,10 @@ void test_1d_complex(){
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+    backend::device_instance<backend_tag> device;
 
     for(size_t i=0; i<reference.size(); i++){
-        auto fft = heffte::one_dim_backend<backend_tag>::make(nullptr, box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make(device.stream(), box, i);
 
         auto forward_result = test_traits<backend_tag>::load(input);
         fft->forward(forward_result.data());
@@ -240,9 +242,10 @@ void test_1d_real(){
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
+    backend::device_instance<backend_tag> device;
 
     for(size_t i=0; i<reference.size(); i++){
-        auto fft = heffte::one_dim_backend<backend_tag>::make(nullptr, box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make(device.stream(), box, i);
 
         auto load_input = test_traits<backend_tag>::load(input);
         typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(input.size());
@@ -266,6 +269,7 @@ void test_1d_r2c(){
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
+    backend::device_instance<backend_tag> device;
 
     #ifdef Heffte_ENABLE_ROCM
     if (std::is_same<backend_tag, backend::rocfft>::value)
@@ -273,7 +277,7 @@ void test_1d_r2c(){
     #endif
 
     for(size_t i=0; i<reference.size(); i++){
-        auto fft = heffte::one_dim_backend<backend_tag>::make_r2c(nullptr, box, i);
+        auto fft = heffte::one_dim_backend<backend_tag>::make_r2c(device.stream(), box, i);
 
         auto load_input = test_traits<backend_tag>::load(input);
         typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(fft->complex_size());
@@ -360,7 +364,8 @@ void test_gpu_scale(){
     std::vector<float> y = x;
     for(auto &v : y) v *= 3.0;
     auto gx = gpu::transfer::load(x);
-    data_scaling<tag::gpu>::apply(gx.size(), gx.data(), 3.0);
+    backend::device_instance<backend::default_backend<tag::gpu>::type> device;
+    data_scaling::apply(device.stream(), gx.size(), gx.data(), 3.0);
     x = gpu::transfer::unload(gx);
     sassert(approx(x, y));
 
@@ -368,7 +373,7 @@ void test_gpu_scale(){
     std::vector<std::complex<double>> cy = cx;
     for(auto &v : cy) v /= 1.33;
     auto gcx = gpu::transfer::load(cx);
-    data_scaling<tag::gpu>::apply(gcx.size(), gcx.data(), 1.0 / 1.33);
+    data_scaling::apply(device.stream(), gcx.size(), gcx.data(), 1.0 / 1.33);
     cx = gpu::transfer::unload(gcx);
     sassert(approx(cx, cy));
 }
@@ -403,6 +408,29 @@ void test_1d_reorder(){
         creference[i] = reorder_box(box.size, box.order, creference[i]);
     }
 
+    for(size_t i=0; i<3; i++){
+        heffte::stock_fft_executor fft(box, box.order[i]);
+
+        std::vector<ctype> cresult = cinput;
+        fft.forward(cresult.data());
+        sassert(approx(cresult, creference[i]));
+
+        fft.backward(cresult.data());
+        for(auto &r : cresult) r /= (2.0 + box.order[i]);
+        sassert(approx(cresult, cinput));
+
+        heffte::stock_fft_executor_r2c fft_r2c(box, box.order[i]);
+
+        std::vector<ctype> rresult(rreference[i].size());
+        fft_r2c.forward(rinput.data(), rresult.data());
+        sassert(approx(rresult, rreference[i]));
+
+        std::vector<rtype> brresult(rinput.size());
+        fft_r2c.backward(rresult.data(), brresult.data());
+        for(auto &r : brresult) r /= (2.0 + box.order[i]);
+        sassert(approx(brresult, rinput));
+    }
+
     #ifdef Heffte_ENABLE_FFTW
     for(size_t i=0; i<3; i++){
         heffte::fftw_executor fft(box, box.order[i]);
@@ -430,7 +458,7 @@ void test_1d_reorder(){
 
     #ifdef Heffte_ENABLE_CUDA
     for(size_t i=0; i<3; i++){
-        heffte::cufft_executor fft(box, box.order[i]);
+        heffte::cufft_executor fft(nullptr, box, box.order[i]);
 
         auto cresult = gpu::transfer::load(cinput);
         fft.forward(cresult.data());
@@ -441,7 +469,7 @@ void test_1d_reorder(){
         for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
         sassert(approx(cpu_cresult, cinput));
 
-        heffte::cufft_executor_r2c fft_r2c(box, box.order[i]);
+        heffte::cufft_executor_r2c fft_r2c(nullptr, box, box.order[i]);
 
         gpu::vector<ctype> rresult(rreference[i].size());
         fft_r2c.forward(gpu::transfer::load(rinput).data(), rresult.data());
@@ -457,7 +485,7 @@ void test_1d_reorder(){
 
     #ifdef Heffte_ENABLE_ROCM
     for(size_t i=0; i<3; i++){
-        heffte::rocfft_executor fft(box, box.order[i]);
+        heffte::rocfft_executor fft(nullptr, box, box.order[i]);
 
         auto cresult = gpu::transfer::load(cinput);
         fft.forward(cresult.data());
@@ -469,7 +497,7 @@ void test_1d_reorder(){
         sassert(approx(cpu_cresult, cinput));
 
         if (i == 0){
-            heffte::rocfft_executor_r2c fft_r2c(box, box.order[i]);
+            heffte::rocfft_executor_r2c fft_r2c(nullptr, box, box.order[i]);
 
             gpu::vector<ctype> rresult(rreference[i].size());
             fft_r2c.forward(gpu::transfer::load(rinput).data(), rresult.data());
@@ -520,6 +548,7 @@ void test_in_node_transpose(){
     using ltag = typename backend::buffer_traits<backend_tag>::location;
     current_test<scalar_type, using_nompi> name("reshape transpose");
 
+    backend::device_instance<backend_tag> device;
     std::vector<int> proc, offset, sizes; // dummy variables, only needed to call the overlap map method
     std::vector<heffte::pack_plan_3d<int>> plans;
 
@@ -535,7 +564,7 @@ void test_in_node_transpose(){
 
     auto active_intput = test_traits<backend_tag>::load(input);
     vcontainer result(24);
-    heffte::reshape3d_transpose<ltag, int>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(device.stream(), plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     sassert(match(result, reference));
 
@@ -543,7 +572,7 @@ void test_in_node_transpose(){
     box3d<> destination2(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{1, 2, 3}, std::array<int, 3>{2, 1, 0});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination2, {inbox}, proc, offset, sizes, plans);
-    heffte::reshape3d_transpose<ltag, int>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(device.stream(), plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     reference = {1.0,  7.0, 13.0, 19.0,  3.0,  9.0, 15.0, 21.0,  5.0, 11.0, 17.0, 23.0,
                  2.0,  8.0, 14.0, 20.0,  4.0, 10.0, 16.0, 22.0,  6.0, 12.0, 18.0, 24.0};
@@ -553,14 +582,14 @@ void test_in_node_transpose(){
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, inbox, {destination2}, proc, offset, sizes, plans);
     auto active_reference = test_traits<backend_tag>::load(reference);
-    heffte::reshape3d_transpose<ltag, int>(plans[0]).apply(active_reference.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(device.stream(), plans[0]).apply(active_reference.data(), result.data(), nullptr);
     sassert(match(result, input));
 
     // test 3, transpose the data to order (0, 2, 1)
     box3d<> destination3(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{1, 2, 3}, std::array<int, 3>{0, 2, 1});
     plans.clear();
     heffte::compute_overlap_map_transpose_pack(0, 1, destination3, {inbox}, proc, offset, sizes, plans);
-    heffte::reshape3d_transpose<ltag, int>(plans[0]).apply(active_intput.data(), result.data(), nullptr);
+    heffte::reshape3d_transpose<ltag, int>(device.stream(), plans[0]).apply(active_intput.data(), result.data(), nullptr);
 
     reference = {1.0, 2.0,  7.0,  8.0, 13.0, 14.0, 19.0, 20.0,
                  3.0, 4.0,  9.0, 10.0, 15.0, 16.0, 21.0, 22.0,
@@ -569,6 +598,7 @@ void test_in_node_transpose(){
 }
 // Instantiates the in-node transpose test for all available backends.
 void test_transpose(){
+    test_in_node_transpose<backend::stock>();
     #ifdef Heffte_ENABLE_FFTW
     test_in_node_transpose<backend::fftw>();
     #endif
@@ -609,15 +639,15 @@ void test_cross_reference_type(){
     box3d<> box = {{0, 0, 0}, {42, 75, 23}};
     auto rinput = make_data<precision_type>(box);
     auto cinput = make_data<std::complex<precision_type>>(box);
-    auto rrocinput = gpu::transfer::load(rinput);
-    auto crocinput = gpu::transfer::load(cinput);
+    auto rrocinput = gpu::transfer().load(rinput);
+    auto crocinput = gpu::transfer().load(cinput);
 
     for(int i=0; i<3; i++){
         heffte::fftw_executor  fft_cpu(box, i);
-        heffte::cufft_executor fft_gpu(box, i);
+        heffte::cufft_executor fft_gpu(nullptr, box, i);
 
         std::vector<std::complex<precision_type>> coutput(rinput.size());
-        auto crocoutput = gpu::transfer::load(coutput);
+        auto crocoutput = gpu::transfer().load(coutput);
 
         fft_cpu.forward(cinput.data());
         fft_gpu.forward(crocinput.data());
@@ -632,7 +662,7 @@ void test_cross_reference_type(){
         fft_gpu.backward(crocinput.data());
 
         coutput = std::vector<std::complex<precision_type>>(rinput.size());
-        crocoutput = gpu::transfer::load(coutput);
+        crocoutput = gpu::transfer().load(coutput);
         fft_cpu.backward(coutput.data(), rinput.data());
         fft_gpu.backward(crocoutput.data(), rrocinput.data());
 
@@ -643,6 +673,7 @@ void test_cross_reference_type(){
 template<typename scalar_type>
 void test_cross_reference_r2c(){
     current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
+    backend::device_instance<backend::cufft> device;
 
     for(int case_counter = 0; case_counter < 2; case_counter++){
         // due to alignment issues on the cufft side
@@ -653,11 +684,11 @@ void test_cross_reference_r2c(){
                        box3d<>({0, 0, 0}, {41, 50, 21});
 
         auto input = make_data<scalar_type>(box);
-        gpu::vector<scalar_type> cuinput = gpu::transfer::load(input);
+        gpu::vector<scalar_type> cuinput = gpu::transfer().load(input);
 
         for(int i=0; i<3; i++){
             heffte::fftw_executor_r2c  fft_cpu(box, i);
-            heffte::cufft_executor_r2c fft_gpu(box, i);
+            heffte::cufft_executor_r2c fft_gpu(nullptr, box, i);
 
             std::vector<typename fft_output<scalar_type>::type> result(fft_cpu.complex_size());
             gpu::vector<typename fft_output<scalar_type>::type> curesult(fft_gpu.complex_size());
@@ -677,8 +708,8 @@ void test_cross_reference_r2c(){
             fft_cpu.backward(result.data(), inverse.data());
             fft_gpu.backward(curesult.data(), cuinverse.data());
 
-            data_scaling<tag::cpu>::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
-            data_scaling<tag::gpu>::apply(cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling::apply(device.stream(), cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
 
             if (std::is_same<scalar_type, float>::value){
                 sassert(approx(inverse, input));
@@ -714,7 +745,7 @@ void test_cross_reference_type(){
 
     for(int i=0; i<3; i++){
         heffte::fftw_executor  fft_cpu(box, i);
-        heffte::rocfft_executor fft_gpu(box, i);
+        heffte::rocfft_executor fft_gpu(nullptr, box, i);
 
         std::vector<std::complex<precision_type>> coutput(rinput.size());
         auto crocoutput = gpu::transfer::load(coutput);
@@ -742,10 +773,11 @@ void test_cross_reference_type(){
 }
 template<typename scalar_type>
 void test_cross_reference_r2c(){
-    current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
+    current_test<scalar_type, using_nompi> name("rocfft - fftw reference r2c");
+    backend::device_instance<backend::rocfft> device;
 
     for(int case_counter = 0; case_counter < 2; case_counter++){
-        // due to alignment issues on the cufft side
+        // due to alignment issues on the rocfft side
         // need to check the case when both size[0] and size[1] are odd
         //                        when at least one is even
         box3d<> box = (case_counter == 0) ?
@@ -758,7 +790,7 @@ void test_cross_reference_r2c(){
         //for(int i=0; i<3; i++){
         for(int i=0; i<1; i++){
             heffte::fftw_executor_r2c  fft_cpu(box, i);
-            heffte::rocfft_executor_r2c fft_gpu(box, i);
+            heffte::rocfft_executor_r2c fft_gpu(nullptr, box, i);
 
             std::vector<typename fft_output<scalar_type>::type> result(fft_cpu.complex_size());
             gpu::vector<typename fft_output<scalar_type>::type> curesult(fft_gpu.complex_size());
@@ -779,8 +811,8 @@ void test_cross_reference_r2c(){
             fft_cpu.backward(result.data(), inverse.data());
             fft_gpu.backward(curesult.data(), cuinverse.data());
 
-            data_scaling<tag::cpu>::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
-            data_scaling<tag::gpu>::apply(cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling::apply(inverse.size(), inverse.data(), 1.0 / static_cast<double>(box.size[i]));
+            data_scaling::apply(device.stream(), cuinverse.size(), cuinverse.data(), 1.0 / static_cast<double>(box.size[i]));
 
             sassert(approx(inverse, input));
             sassert(approx(cuinverse, input));
@@ -797,6 +829,21 @@ void test_cross_reference_fftw_rocm(){
 void test_cross_reference_fftw_rocm(){}
 #endif
 
+
+void test_stock_complex(){
+#ifdef __AVX__
+    test_stock_complex_type<float,1>();
+    test_stock_complex_type<float,4>();
+    test_stock_complex_type<float,8>();
+    test_stock_complex_type<double,1>();
+    test_stock_complex_type<double,2>();
+    test_stock_complex_type<double,4>();
+#else
+    test_stock_complex_type<float,1>();
+    test_stock_complex_type<double,1>();
+#endif
+}
+
 int main(int, char**){
 
     all_tests<using_nompi> name("Non-MPI Tests");
@@ -805,10 +852,12 @@ int main(int, char**){
     test_process_grid();
     test_split_pencils();
     test_cpu_scale();
+    test_stock_complex();
 
     test_gpu_vector();
     test_gpu_scale();
 
+    test_1d<backend::stock>();
     #ifdef Heffte_ENABLE_FFTW
     test_1d<backend::fftw>();
     #endif

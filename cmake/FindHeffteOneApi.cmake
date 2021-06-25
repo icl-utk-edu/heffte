@@ -12,15 +12,22 @@ endif()
 get_filename_component(heffte_oneapi_root ${CMAKE_CXX_COMPILER} DIRECTORY)  # convert <path>/bin/dpcpp to <path>/bin
 get_filename_component(heffte_oneapi_root ${heffte_oneapi_root} DIRECTORY)  # convert <path>/bin to <path>
 
-set(Heffte_ONEMKL_ROOT "$ENV{ONEAPI_ROOT}/mkl/latest/" CACHE PATH "The root folder for the Intel OneMKL framework installation")
+set(Heffte_ONEMKL_ROOT "$ENV{MKLROOT}" CACHE PATH "The root folder for the Intel OneMKL framework installation")
 
 heffte_find_libraries(REQUIRED libmkl_sycl.a
                       OPTIONAL libmkl_intel_lp64.a libmkl_intel_thread.a libmkl_core.a
                       PREFIX ${Heffte_ONEMKL_ROOT}
                       LIST onemkl)
-heffte_find_libraries(REQUIRED OpenCL
+heffte_find_libraries(OPTIONAL OpenCL
                       PREFIX ${heffte_oneapi_root}/lib/
-                      LIST onemkl)
+                      LIST opencl)
+
+if (heffte_opencl)
+    list(APPEND heffte_onemkl ${heffte_opencl})
+else()
+    # if we fail to find libOpenCL.so, then hope the compiler knows where it is
+    list(APPEND heffte_onemkl "-lOpenCL")
+endif()
 
 find_package_handle_standard_args(HeffteOneApi DEFAULT_MSG heffte_onemkl)
 

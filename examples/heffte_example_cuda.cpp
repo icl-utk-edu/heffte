@@ -44,7 +44,7 @@ void compute_dft(MPI_Comm comm){
     // load the input into the GPU memory
     // this is equivalent to cudaMalloc() followed by cudaMemcpy()
     // the destructor of heffte::gpu::vector will call cudaFree()
-    heffte::gpu::vector<std::complex<double>> gpu_input = heffte::gpu::transfer::load(input);
+    heffte::gpu::vector<std::complex<double>> gpu_input = heffte::gpu::transfer().load(input);
 
     // allocate memory on the device for the output
     heffte::gpu::vector<std::complex<double>> gpu_output(fft.size_outbox());

@@ -78,6 +78,7 @@ void test_fft3d_cases(MPI_Comm const comm){
 void perform_tests(MPI_Comm const comm){
     all_tests<> name("heffte::fft class");
 
+    test_fft3d_cases<backend::stock>(comm);
     #ifdef Heffte_ENABLE_FFTW
     test_fft3d_cases<backend::fftw>(comm);
     #endif

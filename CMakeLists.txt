@@ -9,13 +9,17 @@ option(Heffte_ENABLE_ONEAPI   "Enable the oneAPI/DPC++ and oneMKL backend"  OFF)
 option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
-option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGAM for GPU backends"   OFF)
+option(Heffte_ENABLE_INTRINSICS  "Enable the use of AVX registers in the stock backend, adds flags: -mfma -mavx"    OFF)
+
+option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGMA for GPU backends"   OFF)
 
 option(Heffte_ENABLE_PYTHON   "Configure the Python scripts"     OFF)
 option(Heffte_ENABLE_FORTRAN  "Build the Fortran modules for the selected backends." OFF)
 option(Heffte_ENABLE_SWIG     "Rebuild the SWIG bindings." OFF)
 
 option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
+
+option(BUILD_SHARED_LIBS      "Builds shared libraries using CMake conventions"  ON)
 
 # add the file with common CMake helper macros
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/heffte_macros.cmake")
@@ -25,16 +29,6 @@ if (CMAKE_C_COMPILER)
 endif()
 if (Heffte_ENABLE_FORTRAN)
     enable_language(Fortran)
-endif()
-
-# check if at least one backend has been enabled
-if (NOT Heffte_ENABLE_FFTW AND
-    NOT Heffte_ENABLE_CUDA AND
-    NOT Heffte_ENABLE_ROCM AND
-    NOT Heffte_ENABLE_ONEAPI AND
-    NOT Heffte_ENABLE_MKL
-    )
-    message(FATAL_ERROR "HeFFTe requires at least one enabled backend!")
 endif()
 
 # oneAPI requires regular MKL as a CPU backend
@@ -118,6 +112,10 @@ endif()
 # handle other dependencies
 target_link_libraries(Heffte MPI::MPI_CXX)
 
+list(APPEND Heffte_common_sources
+     include/stock_fft/*
+    )
+
 if (Heffte_ENABLE_FFTW)
     find_package(HeffteFFTW REQUIRED)
     target_link_libraries(Heffte Heffte::FFTW)
@@ -148,6 +146,10 @@ if (Heffte_ENABLE_MAGMA)
 endif()
 
 # other target properties
+if (Heffte_ENABLE_INTRINSICS)
+    target_compile_options(Heffte PUBLIC -mfma -mavx)
+endif()
+
 target_compile_features(Heffte PUBLIC cxx_std_11)
 set_target_properties(Heffte PROPERTIES OUTPUT_NAME "heffte"
                                         CXX_EXTENSIONS OFF
