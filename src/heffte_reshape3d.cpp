@@ -221,10 +221,10 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
     #ifdef Heffte_ENABLE_GPU
     // the device_synchronize() is needed to flush the kernels of the asynchronous packing
     if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
-        scalar_type *temp = cpu_send_buffer<scalar_type>(this->input_size);
+        scalar_type *temp = this->template cpu_send_buffer<scalar_type>(this->input_size);
         gpu::transfer::unload(this->stream(), send_buffer, this->input_size, temp);
         send_buffer = temp;
-        recv_buffer = cpu_recv_buffer<scalar_type>(this->output_size);
+        recv_buffer = this->template cpu_recv_buffer<scalar_type>(this->output_size);
     }
     #endif
 
@@ -341,8 +341,8 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::no_gpuaware_send_recv(s
     scalar_type *send_buffer = workspace;
     scalar_type *recv_buffer = workspace + this->input_size;
 
-    scalar_type *cpu_send = cpu_send_buffer<scalar_type>(max_send_size);
-    scalar_type *cpu_recv = cpu_recv_buffer<scalar_type>(this->output_size);
+    scalar_type *cpu_send = this->template cpu_send_buffer<scalar_type>(max_send_size);
+    scalar_type *cpu_recv = this->template cpu_recv_buffer<scalar_type>(this->output_size);
 
     using location_tag = typename backend::buffer_traits<backend_tag>::location;
 

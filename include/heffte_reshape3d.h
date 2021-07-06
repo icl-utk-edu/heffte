@@ -84,6 +84,25 @@ protected:
     index const input_size;
     //! \brief Stores the size of the output.
     index const output_size;
+
+    // buffers to be used in the no-gpu-aware algorithm for the temporary cpu storage
+    // the no-gpu-aware version alleviate the latency when working with small FFTs
+    // hence the cpu buffers will be small and will not cause issues
+    // note that the main API accepts a GPU buffer for scratch work and cannot be used here
+    template<typename scalar_type> scalar_type* cpu_send_buffer(size_t num_entries) const{
+        size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
+        send_unaware.resize(float_entries);
+        return reinterpret_cast<scalar_type*>(send_unaware.data());
+    }
+    template<typename scalar_type> scalar_type* cpu_recv_buffer(size_t num_entries) const{
+        size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
+        recv_unaware.resize(float_entries);
+        return reinterpret_cast<scalar_type*>(recv_unaware.data());
+    }
+    //! \brief Temp buffers for the gpu-unaware algorithms.
+    mutable std::vector<float> send_unaware;
+    //! \brief Temp buffers for the gpu-unaware algorithms.
+    mutable std::vector<float> recv_unaware;
 };
 
 /*!
@@ -184,22 +203,6 @@ private:
     };
 
     iotripple const send, recv;
-
-    // buffers to be used in the no-gpu-aware algorithm for the temporary cpu storage
-    // the no-gpu-aware version alleviate the latency when working with small FFTs
-    // hence the cpu buffers will be small and will not cause issues
-    // note that the main API accepts a GPU buffer for scratch work and cannot be used here
-    template<typename scalar_type> scalar_type* cpu_send_buffer(size_t num_entries) const{
-        size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
-        send_unaware.resize(float_entries);
-        return reinterpret_cast<scalar_type*>(send_unaware.data());
-    }
-    template<typename scalar_type> scalar_type* cpu_recv_buffer(size_t num_entries) const{
-        size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
-        recv_unaware.resize(float_entries);
-        return reinterpret_cast<scalar_type*>(recv_unaware.data());
-    }
-    mutable std::vector<float> send_unaware, recv_unaware;
 };
 
 /*!
@@ -304,20 +307,7 @@ private:
     int const send_total, recv_total;
 
     std::vector<pack_plan_3d<index>> const packplan, unpackplan;
-
-    // see the alltoallv variant for documentation
-    template<typename scalar_type> scalar_type* cpu_send_buffer(size_t num_entries) const{
-        size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
-        send_unaware.resize(float_entries);
-        return reinterpret_cast<scalar_type*>(send_unaware.data());
-    }
-    template<typename scalar_type> scalar_type* cpu_recv_buffer(size_t num_entries) const{
-        size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
-        recv_unaware.resize(float_entries);
-        return reinterpret_cast<scalar_type*>(recv_unaware.data());
-    }
     int max_send_size;
-    mutable std::vector<float> send_unaware, recv_unaware;
 };
 
 /*!
