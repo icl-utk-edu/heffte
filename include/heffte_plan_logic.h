@@ -47,6 +47,8 @@ namespace heffte {
 enum class reshape_algorithm{
     //! \brief Using the MPI_Alltoallv options, no padding on the data.
     alltoallv = 0,
+    //! \brief Using the MPI_Alltoall options, with padding on the data.
+    alltoall = 3,
     //! \brief Using MPI_Isend and MPI_Irecv, all sending receiving packing and unpacking are pipelined.
     p2p_plined = 1,
     //! \brief Using MPI_Send and MPI_Irecv, receive is pipelined with packing and sending.
@@ -94,6 +96,7 @@ inline std::ostream & operator << (std::ostream &os, plan_options const options)
     std::string algorithm = "";
     switch (options.algorithm){
         case reshape_algorithm::alltoallv  : algorithm = "mpi:alltoallv"; break;
+        case reshape_algorithm::alltoall   : algorithm = "mpi:alltoall"; break;
         case reshape_algorithm::p2p_plined : algorithm = "mpi:point-to-point-pipelined"; break;
         case reshape_algorithm::p2p        : algorithm = "mpi:point-to-point"; break;
     };
