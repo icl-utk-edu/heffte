@@ -10,6 +10,7 @@ option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
 option(Heffte_ENABLE_INTRINSICS  "Enable the use of AVX registers in the stock backend, adds flags: -mfma -mavx"    OFF)
+option(Heffte_ENABLE_AVX512      "Enable the use of AVX512 registers in the stock backend, adds flag: -mavx512f"    OFF)
 
 option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGMA for GPU backends"   OFF)
 
@@ -148,6 +149,10 @@ endif()
 # other target properties
 if (Heffte_ENABLE_INTRINSICS)
     target_compile_options(Heffte PUBLIC -mfma -mavx)
+endif()
+
+if (Heffte_ENABLE_AVX512)
+    target_compile_options(Heffte PUBLIC -mavx512f)
 endif()
 
 target_compile_features(Heffte PUBLIC cxx_std_11)

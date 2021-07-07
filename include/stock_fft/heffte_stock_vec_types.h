@@ -578,7 +578,7 @@ inline void mm_store<double, 8>(double *dest, pack<double, 8>::type const &src) 
 
 //! \brief Stores eight doubles into vectorized type
 template<>
-inline typename pack<double, 8>::type mm_pair_set<double, 8>(double x, double y) { return _mm512_setr_pd(x, y, x, y); }
+inline typename pack<double, 8>::type mm_pair_set<double, 8>(double x, double y) { return _mm512_setr_pd(x, y, x, y, x, y, x, y); }
 
 //! \brief Sets a vectorized type as a repeated double
 template<>
@@ -679,17 +679,17 @@ inline pack<double, 8>::type mm_complex_mul(pack<double, 8>::type const &x, pack
 
 //! \brief Squared modulus of two single precision complex numbers in a pack
 inline pack<float, 16>::type mm_complex_sq_mod(pack<float, 16>::type const &x) {
-    typename pack<float, 16> sq = mm_mul(x, x);
-    typename pack<float, 16> sq_perm = _mm512_permute_ps(sq, 0b10110001);
-    typename pack<float, 16> mod = mm_add(sq, sq_perm)
+    typename pack<float, 16>::type sq = mm_mul(x, x);
+    typename pack<float, 16>::type sq_perm = _mm512_permute_ps(sq, 0b10110001);
+    typename pack<float, 16>::type mod = mm_add(sq, sq_perm);
     return mod;
 }
 
 //! \brief Squared modulus of two double precision complex numbers in a pack
 inline pack<double, 8>::type mm_complex_sq_mod(pack<double, 8>::type const &x) {
-    typename pack<double, 8> sq = mm_mul(x, x);
-    typename pack<double, 8> sq_perm = _mm512_permute_pd(sq, 0b01010101);
-    typename pack<double, 8> mod = mm_add(sq, sq_perm)
+    typename pack<double, 8>::type sq = mm_mul(x, x);
+    typename pack<double, 8>::type sq_perm = _mm512_permute_pd(sq, 0b01010101);
+    typename pack<double, 8>::type mod = mm_add(sq, sq_perm);
     return mod;
 }
 
@@ -709,7 +709,7 @@ inline pack<double, 8>::type mm_complex_mod(pack<double, 8>::type const &x) {
 
 //! \brief Conjugate eight single precision complex numbers
 inline pack<float, 16>::type mm_complex_conj(pack<float, 16>::type const &x) {
-    return _mm512_mask_blend_ps(0b10101010, x, -x, );
+    return _mm512_mask_blend_ps(0b1010101010101010, x, -x);
 }
 
 //! \brief Conjugate four double precision complex numbers
@@ -721,7 +721,7 @@ inline pack<double, 8>::type mm_complex_conj(pack<double, 8>::type const &x) {
 
 //! \brief Divide x by y, where x and y are each eight single precision complex numbers
 inline pack<float, 16>::type mm_complex_div(pack<float, 16>::type const &x, pack<float, 16>::type const &y) {
-    return _mm512_div_pd(mm_complex_mul(x, mm_complex_conj(y)), mm_complex_sq_mod(y));
+    return _mm512_div_ps(mm_complex_mul(x, mm_complex_conj(y)), mm_complex_sq_mod(y));
 }
 
 //! \brief Divide x by y, where x and y are each 2 double precision complex numbers
