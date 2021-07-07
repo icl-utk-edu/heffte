@@ -227,7 +227,8 @@ reshape3d_alltoall<backend_tag, packer, index>::reshape3d_alltoall(
                                                                   ) :
                    reshape3d_base<index>(cinput_size, coutput_size),
                    backend::device_instance<backend_tag>(q),
-                   comm(ccomm), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)), use_gpu_aware(gpu_aware),
+                   comm(ccomm), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
+                   use_gpu_aware( (disable_gpu_aware::value) ? false : gpu_aware ),
                    packplan(std::move(cpackplan)), unpackplan(std::move(cunpackplan)),
                    send_offset(std::move(csend_offset)), recv_offset(std::move(crecv_offset)),
                    num_entries(cnum_entries)

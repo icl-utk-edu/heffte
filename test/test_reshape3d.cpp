@@ -68,18 +68,22 @@ std::vector<scalar_type> get_subdata(box3d<> const world, box3d<> const subbox){
     return result;
 }
 
-template<typename backend_tag, typename variant_tag, typename index = int>
+template<typename backend_tag, reshape_algorithm variant, typename index = int>
 std::unique_ptr<reshape3d_base<index>>
 make_test_reshape3d(typename backend::device_instance<backend_tag>::stream_type q, std::vector<box3d<>> const &input_boxes, std::vector<box3d<>> const &output_boxes, MPI_Comm const comm){
-    if (std::is_same<variant_tag, using_alltoall>::value){
+    if (variant == reshape_algorithm::alltoallv){
         return make_reshape3d_alltoallv<backend_tag>(q, input_boxes, output_boxes, true, comm);
-    }else{
+    }else if (variant == reshape_algorithm::alltoall){
+        return make_reshape3d_alltoall<backend_tag>(q, input_boxes, output_boxes, true, comm);
+    }else if (variant == reshape_algorithm::p2p){
         return make_reshape3d_pointtopoint<backend_tag>(q, input_boxes, output_boxes, reshape_algorithm::p2p, true, comm);
+    }else if (variant == reshape_algorithm::p2p_plined){
+        return make_reshape3d_pointtopoint<backend_tag>(q, input_boxes, output_boxes, reshape_algorithm::p2p_plined, true, comm);
     }
 }
 
 // splits the world box into a set of boxes with gird given by proc_grid
-template<int hfast, int hmid, int hslow, int pfast, int pmid, int pslow, typename scalar_type, typename backend_tag, typename variant>
+template<int hfast, int hmid, int hslow, int pfast, int pmid, int pslow, typename scalar_type, typename backend_tag, reshape_algorithm variant>
 void test_cpu(MPI_Comm const comm){
     /*
      * simple test, create a world of indexes going all the way to hfast, hmid and hslow
@@ -135,7 +139,7 @@ void test_cpu(MPI_Comm const comm){
 
 #ifdef Heffte_ENABLE_GPU
 // splits the world box into a set of boxes with gird given by proc_grid
-template<int hfast, int hmid, int hslow, int pfast, int pmid, int pslow, typename scalar_type, typename backend_tag, typename variant>
+template<int hfast, int hmid, int hslow, int pfast, int pmid, int pslow, typename scalar_type, typename backend_tag, reshape_algorithm variant>
 void test_gpu(MPI_Comm const comm){
     /*
      * similar to the CPU case, but the data is located on the GPU
@@ -271,7 +275,7 @@ void test_direct_reordered(MPI_Comm const comm){
     #endif
 }
 
-template<typename scalar_type, typename variant>
+template<typename scalar_type, reshape_algorithm variant>
 void test_reshape_transposed(MPI_Comm comm){
     assert(mpi::comm_size(comm) == 4); // the rest is designed for 4 ranks
     current_test<scalar_type> test("-np " + std::to_string(mpi::comm_size(comm)) + "  " + get_description<variant>() + " transposed", comm);
@@ -299,7 +303,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 for(auto b : ordered_outboxes) outboxes.push_back(box3d<>(b.low, b.high, order));
 
                 heffte::plan_options options = default_options<default_cpu_backend>();
-                options.algorithm = (std::is_same<variant, using_alltoall>::value) ? reshape_algorithm::alltoallv : reshape_algorithm::p2p_plined;
+                options.algorithm = variant;
 
                 auto mpi_tanspose_shaper  = make_reshape3d<default_cpu_backend>(nullptr, inboxes, outboxes, comm, options);
                 auto mpi_direct_shaper    = make_reshape3d<default_cpu_backend>(nullptr, inboxes, ordered_outboxes, comm, options);
@@ -322,7 +326,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 #ifdef Heffte_ENABLE_GPU
                 backend::device_instance<gpu_backend> device;
                 heffte::plan_options cuoptions = default_options<gpu_backend>();
-                cuoptions.algorithm = (std::is_same<variant, using_alltoall>::value) ? reshape_algorithm::alltoallv : reshape_algorithm::p2p_plined;
+                cuoptions.algorithm = variant;
 
                 auto cumpi_tanspose_shaper = make_reshape3d<gpu_backend>(device.stream(), inboxes, outboxes, comm, cuoptions);
                 auto cumpi_direct_shaper   = make_reshape3d<gpu_backend>(device.stream(), inboxes, ordered_outboxes, comm, cuoptions);
@@ -358,24 +362,30 @@ void perform_tests_cpu(){
         // note that the number of boxes must match the comm size
         // that is the product of the last three of the box dimensions
         case 4:
-            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::stock, using_alltoall>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::stock, using_alltoall>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::stock, using_alltoall>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::stock, using_alltoall>(comm);
-            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::stock, using_pointtopoint>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::stock, using_pointtopoint>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::stock, using_pointtopoint>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::stock, reshape_algorithm::alltoall>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::stock, reshape_algorithm::alltoall>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::stock, reshape_algorithm::alltoall>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::stock, reshape_algorithm::alltoall>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::stock, reshape_algorithm::alltoallv>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::stock, reshape_algorithm::alltoallv>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::stock, reshape_algorithm::alltoallv>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::stock, reshape_algorithm::alltoallv>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::stock, reshape_algorithm::p2p>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::stock, reshape_algorithm::p2p>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::stock, reshape_algorithm::p2p>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::stock, reshape_algorithm::p2p>(comm);
             break;
         case 12:
-            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::stock, using_alltoall>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::stock, using_alltoall>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::stock, using_alltoall>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::stock, using_alltoall>(comm);
-            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::stock, using_pointtopoint>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::stock, using_pointtopoint>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::stock, using_pointtopoint>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::stock, using_pointtopoint>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::stock, reshape_algorithm::alltoall>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::stock, reshape_algorithm::alltoall>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::stock, reshape_algorithm::alltoallv>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::stock, reshape_algorithm::alltoallv>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::stock, reshape_algorithm::alltoallv>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::stock, reshape_algorithm::alltoallv>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::stock, reshape_algorithm::p2p>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::stock, reshape_algorithm::p2p>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::stock, reshape_algorithm::p2p>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::stock, reshape_algorithm::p2p>(comm);
             break;
         default:
             // unknown test
@@ -386,24 +396,24 @@ void perform_tests_cpu(){
         // note that the number of boxes must match the comm size
         // that is the product of the last three of the box dimensions
         case 4:
-            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::fftw, using_alltoall>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::fftw, using_alltoall>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::fftw, using_alltoall>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::fftw, using_alltoall>(comm);
-            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::fftw, using_pointtopoint>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::fftw, using_pointtopoint>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::fftw, using_pointtopoint>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::fftw, reshape_algorithm::alltoallv>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::fftw, reshape_algorithm::alltoallv>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::fftw, reshape_algorithm::alltoallv>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::fftw, reshape_algorithm::alltoallv>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::fftw, reshape_algorithm::p2p>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::fftw, reshape_algorithm::p2p>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::fftw, reshape_algorithm::p2p>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::fftw, reshape_algorithm::p2p>(comm);
             break;
         case 12:
-            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::fftw, using_alltoall>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::fftw, using_alltoall>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::fftw, using_alltoall>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::fftw, using_alltoall>(comm);
-            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::fftw, using_pointtopoint>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::fftw, using_pointtopoint>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::fftw, using_pointtopoint>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::fftw, using_pointtopoint>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::fftw, reshape_algorithm::alltoallv>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::fftw, reshape_algorithm::alltoallv>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::fftw, reshape_algorithm::alltoallv>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::fftw, reshape_algorithm::alltoallv>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::fftw, reshape_algorithm::p2p>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::fftw, reshape_algorithm::p2p>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::fftw, reshape_algorithm::p2p>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::fftw, reshape_algorithm::p2p>(comm);
             break;
         default:
             // unknown test
@@ -417,24 +427,24 @@ void perform_tests_cpu(){
         // note that the number of boxes must match the comm size
         // that is the product of the last three of the box dimensions
         case 4:
-            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::mkl, using_alltoall>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::mkl, using_alltoall>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::mkl, using_alltoall>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::mkl, using_alltoall>(comm);
-            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::mkl, using_pointtopoint>(comm);
-            test_cpu<10, 20, 17, 2, 2, 1, double, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, default_cpu_backend, using_pointtopoint>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::mkl, reshape_algorithm::alltoallv>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, heffte::backend::mkl, reshape_algorithm::alltoallv>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, heffte::backend::mkl, reshape_algorithm::alltoallv>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, heffte::backend::mkl, reshape_algorithm::alltoallv>(comm);
+            test_cpu<10, 13, 10, 2, 2, 1, float, heffte::backend::mkl, reshape_algorithm::p2p>(comm);
+            test_cpu<10, 20, 17, 2, 2, 1, double, default_cpu_backend, reshape_algorithm::p2p>(comm);
+            test_cpu<30, 10, 10, 2, 2, 1, std::complex<float>, default_cpu_backend, reshape_algorithm::p2p>(comm);
+            test_cpu<11, 10, 13, 2, 2, 1, std::complex<double>, default_cpu_backend, reshape_algorithm::p2p>(comm);
             break;
         case 12:
-            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::mkl, using_alltoall>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::mkl, using_alltoall>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::mkl, using_alltoall>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::mkl, using_alltoall>(comm);
-            test_cpu<13, 13, 10, 3, 4, 1, float, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<16, 21, 17, 2, 3, 2, double, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, default_cpu_backend, using_pointtopoint>(comm);
-            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, default_cpu_backend, using_pointtopoint>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, heffte::backend::mkl, reshape_algorithm::alltoallv>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, heffte::backend::mkl, reshape_algorithm::alltoallv>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, heffte::backend::mkl, reshape_algorithm::alltoallv>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, heffte::backend::mkl, reshape_algorithm::alltoallv>(comm);
+            test_cpu<13, 13, 10, 3, 4, 1, float, default_cpu_backend, reshape_algorithm::p2p>(comm);
+            test_cpu<16, 21, 17, 2, 3, 2, double, default_cpu_backend, reshape_algorithm::p2p>(comm);
+            test_cpu<38, 13, 20, 1, 4, 3, std::complex<float>, default_cpu_backend, reshape_algorithm::p2p>(comm);
+            test_cpu<41, 17, 15, 3, 2, 2, std::complex<double>, default_cpu_backend, reshape_algorithm::p2p>(comm);
             break;
         default:
             // unknown test
@@ -451,24 +461,30 @@ void perform_tests_gpu(){
         // note that the number of boxes must match the comm size
         // that is the product of the last three of the box dimensions
         case 4:
-            test_gpu<10, 13, 10, 2, 2, 1, float, gpu_backend, using_alltoall>(comm);
-            test_gpu<10, 20, 17, 2, 2, 1, double, gpu_backend, using_alltoall>(comm);
-            test_gpu<30, 10, 10, 2, 2, 1, std::complex<float>, gpu_backend, using_alltoall>(comm);
-            test_gpu<11, 10, 13, 2, 2, 1, std::complex<double>, gpu_backend, using_alltoall>(comm);
-            test_gpu<10, 13, 10, 2, 2, 1, float, gpu_backend, using_pointtopoint>(comm);
-            test_gpu<10, 20, 17, 2, 2, 1, double, gpu_backend, using_pointtopoint>(comm);
-            test_gpu<30, 10, 10, 2, 2, 1, std::complex<float>, gpu_backend, using_pointtopoint>(comm);
-            test_gpu<11, 10, 13, 2, 2, 1, std::complex<double>, gpu_backend, using_pointtopoint>(comm);
+            test_gpu<10, 13, 10, 2, 2, 1, float, gpu_backend, reshape_algorithm::alltoall>(comm);
+            test_gpu<10, 20, 17, 2, 2, 1, double, gpu_backend, reshape_algorithm::alltoall>(comm);
+            test_gpu<30, 10, 10, 2, 2, 1, std::complex<float>, gpu_backend, reshape_algorithm::alltoall>(comm);
+            test_gpu<11, 10, 13, 2, 2, 1, std::complex<double>, gpu_backend, reshape_algorithm::alltoall>(comm);
+            test_gpu<10, 13, 10, 2, 2, 1, float, gpu_backend, reshape_algorithm::alltoallv>(comm);
+            test_gpu<10, 20, 17, 2, 2, 1, double, gpu_backend, reshape_algorithm::alltoallv>(comm);
+            test_gpu<30, 10, 10, 2, 2, 1, std::complex<float>, gpu_backend, reshape_algorithm::alltoallv>(comm);
+            test_gpu<11, 10, 13, 2, 2, 1, std::complex<double>, gpu_backend, reshape_algorithm::alltoallv>(comm);
+            test_gpu<10, 13, 10, 2, 2, 1, float, gpu_backend, reshape_algorithm::p2p>(comm);
+            test_gpu<10, 20, 17, 2, 2, 1, double, gpu_backend, reshape_algorithm::p2p>(comm);
+            test_gpu<30, 10, 10, 2, 2, 1, std::complex<float>, gpu_backend, reshape_algorithm::p2p>(comm);
+            test_gpu<11, 10, 13, 2, 2, 1, std::complex<double>, gpu_backend, reshape_algorithm::p2p>(comm);
             break;
         case 12:
-            test_gpu<13, 13, 10, 3, 4, 1, float, gpu_backend, using_alltoall>(comm);
-            test_gpu<16, 21, 17, 2, 3, 2, double, gpu_backend, using_alltoall>(comm);
-            test_gpu<38, 13, 20, 1, 4, 3, std::complex<float>, gpu_backend, using_alltoall>(comm);
-            test_gpu<41, 17, 15, 3, 2, 2, std::complex<double>, gpu_backend, using_alltoall>(comm);
-            test_gpu<13, 13, 10, 3, 4, 1, float, gpu_backend, using_pointtopoint>(comm);
-            test_gpu<16, 21, 17, 2, 3, 2, double, gpu_backend, using_pointtopoint>(comm);
-            test_gpu<38, 13, 20, 1, 4, 3, std::complex<float>, gpu_backend, using_pointtopoint>(comm);
-            test_gpu<41, 17, 15, 3, 2, 2, std::complex<double>, gpu_backend, using_pointtopoint>(comm);
+            test_gpu<13, 13, 10, 3, 4, 1, float, gpu_backend, reshape_algorithm::alltoall>(comm);
+            test_gpu<41, 17, 15, 3, 2, 2, std::complex<double>, gpu_backend, reshape_algorithm::alltoall>(comm);
+            test_gpu<13, 13, 10, 3, 4, 1, float, gpu_backend, reshape_algorithm::alltoallv>(comm);
+            test_gpu<16, 21, 17, 2, 3, 2, double, gpu_backend, reshape_algorithm::alltoallv>(comm);
+            test_gpu<38, 13, 20, 1, 4, 3, std::complex<float>, gpu_backend, reshape_algorithm::alltoallv>(comm);
+            test_gpu<41, 17, 15, 3, 2, 2, std::complex<double>, gpu_backend, reshape_algorithm::alltoallv>(comm);
+            test_gpu<13, 13, 10, 3, 4, 1, float, gpu_backend, reshape_algorithm::p2p>(comm);
+            test_gpu<16, 21, 17, 2, 3, 2, double, gpu_backend, reshape_algorithm::p2p>(comm);
+            test_gpu<38, 13, 20, 1, 4, 3, std::complex<float>, gpu_backend, reshape_algorithm::p2p>(comm);
+            test_gpu<41, 17, 15, 3, 2, 2, std::complex<double>, gpu_backend, reshape_algorithm::p2p>(comm);
             break;
         default:
             // unknown test
@@ -483,10 +499,14 @@ void perform_tests_reorder(){
     if (mpi::comm_size(comm) == 4){
         test_direct_reordered<double>(comm);
         test_direct_reordered<std::complex<float>>(comm);
-        test_reshape_transposed<float, using_alltoall>(comm);
-        test_reshape_transposed<std::complex<double>, using_alltoall>(comm);
-        test_reshape_transposed<double, using_pointtopoint>(comm);
-        test_reshape_transposed<std::complex<float>, using_pointtopoint>(comm);
+        test_reshape_transposed<float, reshape_algorithm::alltoallv>(comm);
+        test_reshape_transposed<std::complex<double>, reshape_algorithm::alltoallv>(comm);
+        test_reshape_transposed<float, reshape_algorithm::alltoall>(comm);
+        test_reshape_transposed<std::complex<double>, reshape_algorithm::alltoall>(comm);
+        test_reshape_transposed<double, reshape_algorithm::p2p>(comm);
+        test_reshape_transposed<std::complex<float>, reshape_algorithm::p2p>(comm);
+        test_reshape_transposed<double, reshape_algorithm::p2p_plined>(comm);
+        test_reshape_transposed<std::complex<float>, reshape_algorithm::p2p_plined>(comm);
     }
 }
 

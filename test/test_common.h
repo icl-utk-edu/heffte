@@ -80,9 +80,11 @@ template<> std::string get_variant<std::complex<double>>(){ return "zcomplex"; }
 
 struct using_alltoall{};
 struct using_pointtopoint{};
-template<typename reshape_variant> std::string get_description(){ return ""; }
-template<> std::string get_description<using_alltoall>(){ return "heffte::reshape3d_alltoallv"; }
-template<> std::string get_description<using_pointtopoint>(){ return "heffte::reshape3d_pointtopoint"; }
+template<reshape_algorithm variant> std::string get_description(){ return ""; }
+template<> std::string get_description<reshape_algorithm::alltoallv>(){ return "heffte::reshape3d_alltoallv"; }
+template<> std::string get_description<reshape_algorithm::alltoall>(){ return "heffte::reshape3d_alltoall"; }
+template<> std::string get_description<reshape_algorithm::p2p>(){ return "heffte::reshape3d_pointtopoint"; }
+template<> std::string get_description<reshape_algorithm::p2p_plined>(){ return "heffte::reshape3d_p2p (plined)"; }
 
 template<typename scalar_variant = int, typename mpi_tag = using_mpi, typename backend_tag = void>
 struct current_test{
