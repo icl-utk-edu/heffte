@@ -9,7 +9,9 @@ option(Heffte_ENABLE_ONEAPI   "Enable the oneAPI/DPC++ and oneMKL backend"  OFF)
 option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
-option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGAM for GPU backends"   OFF)
+option(Heffte_ENABLE_INTRINSICS  "Enable the use of AVX registers in the stock backend, adds flags: -mfma -mavx"    OFF)
+
+option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGMA for GPU backends"   OFF)
 
 option(Heffte_ENABLE_PYTHON   "Configure the Python scripts"     OFF)
 option(Heffte_ENABLE_FORTRAN  "Build the Fortran modules for the selected backends." OFF)
@@ -110,9 +112,6 @@ endif()
 # handle other dependencies
 target_link_libraries(Heffte MPI::MPI_CXX)
 
-# Handle stock flags for compilation
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mtune=native")
-
 list(APPEND Heffte_common_sources
      include/stock_fft/*
     )
@@ -147,6 +146,10 @@ if (Heffte_ENABLE_MAGMA)
 endif()
 
 # other target properties
+if (Heffte_ENABLE_INTRINSICS)
+    target_compile_options(Heffte PUBLIC -mfma -mavx)
+endif()
+
 target_compile_features(Heffte PUBLIC cxx_std_11)
 set_target_properties(Heffte PROPERTIES OUTPUT_NAME "heffte"
                                         CXX_EXTENSIONS OFF

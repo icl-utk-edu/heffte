@@ -190,7 +190,7 @@ sycl::queue make_stream(backend::onemkl){
     return heffte::oapi::make_sycl_queue();
 }
 void sync_stream(sycl::queue &stream){ stream.wait(); }
-void free_stream(sycl::queue &stream){}
+void free_stream(sycl::queue&){}
 #endif
 #ifdef Heffte_ENABLE_GPU
 template<typename T>
@@ -234,9 +234,11 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
         }else if (s == "-no-reorder"){
             options.use_reorder = false;
         }else if (s == "-a2a"){
-            options.use_alltoall = true;
+            options.algorithm = reshape_algorithm::alltoallv;
         }else if (s == "-p2p"){
-            options.use_alltoall = false;
+            options.algorithm = reshape_algorithm::p2p;
+        }else if (s == "-p2p_pl"){
+            options.algorithm = reshape_algorithm::p2p_plined;
         }else if (s == "-pencils"){
             options.use_pencils = true;
         }else if (s == "-slabs"){
@@ -253,11 +255,11 @@ std::vector<heffte::plan_options> make_all_options(){
     std::vector<heffte::plan_options> result;
     for(int shape = 0; shape < 2; shape++){
         for(int reorder = 0; reorder < 2; reorder++){
-            for(int alltoall = 0; alltoall < 2; alltoall++){
+            for(reshape_algorithm alg : std::array<reshape_algorithm, 2>{reshape_algorithm::alltoallv, reshape_algorithm::p2p}){
                 heffte::plan_options options = default_options<backend_tag>();
                 options.use_pencils = (shape == 0);
                 options.use_reorder = (reorder == 0);
-                options.use_alltoall = (alltoall == 0);
+                options.algorithm = alg;
                 result.push_back(options);
             }
         }
@@ -278,6 +280,15 @@ bool has_mps(std::deque<std::string> const &args){
         if (s == "-mps")
             return true;
     return false;
+}
+
+int nruns(std::deque<std::string> const &args){
+    for(auto &s : args)
+        if (s == "-n10")
+            return 10;
+        else if (s == "-n50")
+            return 50;
+    return 5;
 }
 
 #endif

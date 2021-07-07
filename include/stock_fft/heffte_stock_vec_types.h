@@ -89,7 +89,7 @@ inline typename pack<F,L>::type mm_complex_load(std::complex<F> const *src) { re
  *  \brief Load a pack from a pointer to std::complex values
  */
 template<typename F, int L>
-inline typename pack<F,L>::type mm_complex_load(std::complex<F> const *src, int stride) { return *src; }
+inline typename pack<F,L>::type mm_complex_load(std::complex<F> const *src, int) { return *src; }
 
 // Real basic arithmetic for the "none" case
 

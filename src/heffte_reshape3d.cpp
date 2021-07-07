@@ -19,6 +19,19 @@ namespace heffte {
 
 #endif
 
+    /*!
+     * \internal
+     * \ingroup hefftereshape
+     * \brief Struct type to convert pre-processor define Heffte_DISABLE_GPU_AWARE_MPI to boolean.
+     *
+     * \endinternal
+     */
+#ifdef Heffte_DISABLE_GPU_AWARE_MPI
+    struct disable_gpu_aware : std::true_type {};
+#else
+    struct disable_gpu_aware : std::false_type {};
+#endif
+
 
 /*!
  * \brief Counts how many boxes from the list have a non-empty intersection with the reference box.
@@ -173,11 +186,7 @@ reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
     reshape3d_base<index>(cinput_size, coutput_size),
     backend::device_instance<backend_tag>(q),
     comm(mpi::new_comm_from_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
-    #ifdef Heffte_DISABLE_GPU_AWARE_MPI
-    use_gpu_aware(false),
-    #else
-    use_gpu_aware(gpu_aware),
-    #endif
+    use_gpu_aware( (disable_gpu_aware::value) ? false : gpu_aware ),
     send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
     send_total(std::accumulate(send_size.begin(), send_size.end(), 0)),
@@ -296,7 +305,7 @@ make_reshape3d_alltoallv(typename backend::device_instance<backend_tag>::stream_
 template<typename backend_tag, template<typename device> class packer, typename index>
 reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
                         typename backend::device_instance<backend_tag>::stream_type q,
-                        int cinput_size, int coutput_size, bool gpu_aware, MPI_Comm ccomm,
+                        int cinput_size, int coutput_size, reshape_algorithm alg, bool gpu_aware, MPI_Comm ccomm,
                         std::vector<int> &&csend_offset, std::vector<int> &&csend_size, std::vector<int> &&csend_proc,
                         std::vector<int> &&crecv_offset, std::vector<int> &&crecv_size, std::vector<int> &&crecv_proc,
                         std::vector<int> &&crecv_loc,
@@ -306,19 +315,24 @@ reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
     backend::device_instance<backend_tag>(q),
     comm(ccomm), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     self_to_self(not crecv_proc.empty() and (crecv_proc.back() == me)), // check whether we should include "me" in the communication scheme
-    #ifdef Heffte_DISABLE_GPU_AWARE_MPI
-    use_gpu_aware(false),
-    #else
-    use_gpu_aware(gpu_aware),
-    #endif
+    algorithm(alg),
+    use_gpu_aware( (disable_gpu_aware::value) ? false : gpu_aware ),
     requests(crecv_proc.size() + ((self_to_self) ? -1 : 0)), // remove 1 if using self-to-self
+    isends(csend_proc.size() + ((self_to_self) ? -1 : 0)), // remove 1 if using self-to-self
     send_proc(std::move(csend_proc)), send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_proc(std::move(crecv_proc)), recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
     recv_loc(std::move(crecv_loc)),
     send_total(std::accumulate(send_size.begin(), send_size.end(), 0)),
     recv_total(std::accumulate(recv_size.begin(), recv_size.end(), 0)),
     packplan(std::move(cpackplan)), unpackplan(std::move(cunpackplan))
-{}
+{
+    if (algorithm == reshape_algorithm::p2p_plined){
+        max_send_size = this->input_size;
+    }else{
+        max_send_size = 0;
+        for(auto s : send_size) if (max_send_size < s) max_send_size = s;
+    }
+}
 
 #ifdef Heffte_ENABLE_GPU
 template<typename backend_tag, template<typename device> class packer, typename index>
@@ -327,7 +341,8 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::no_gpuaware_send_recv(s
     scalar_type *send_buffer = workspace;
     scalar_type *recv_buffer = workspace + this->input_size;
 
-    std::vector<scalar_type> cpu_send, cpu_recv(this->output_size);
+    scalar_type *cpu_send = cpu_send_buffer<scalar_type>(max_send_size);
+    scalar_type *cpu_recv = cpu_recv_buffer<scalar_type>(this->output_size);
 
     using location_tag = typename backend::buffer_traits<backend_tag>::location;
 
@@ -336,19 +351,35 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::no_gpuaware_send_recv(s
     // queue the receive messages, using asynchronous receive
     for(size_t i=0; i<requests.size(); i++){
         heffte::add_trace name("irecv " + std::to_string(recv_size[i]) + " from " + std::to_string(recv_proc[i]));
-        MPI_Irecv(cpu_recv.data() + recv_loc[i], recv_size[i], mpi::type_from<scalar_type>(), recv_proc[i], 0, comm, &requests[i]);
+        MPI_Irecv(cpu_recv + recv_loc[i], recv_size[i], mpi::type_from<scalar_type>(), recv_proc[i], 0, comm, &requests[i]);
     }
 
     // perform the send commands, using blocking send
-    for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
-        { heffte::add_trace name("packing");
-        packit.pack(this->stream(), packplan[i], source + send_offset[i], send_buffer);
+    if (algorithm == reshape_algorithm::p2p_plined){
+        size_t offset = 0;
+        for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
+            { heffte::add_trace name("packing");
+            packit.pack(this->stream(), packplan[i], source + send_offset[i], send_buffer + offset);
+            }
+
+            gpu::transfer::unload(this->stream(), send_buffer + offset, send_size[i], cpu_send + offset);
+
+            { heffte::add_trace name("isend " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
+            MPI_Isend(cpu_send + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm, &isends[i]);
+            }
+            offset += send_size[i];
         }
+    }else{
+        for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
+            { heffte::add_trace name("packing");
+            packit.pack(this->stream(), packplan[i], source + send_offset[i], send_buffer);
+            }
 
-        cpu_send = gpu::transfer::unload(this->stream(), send_buffer, send_size[i]);
+            gpu::transfer::unload(this->stream(), send_buffer, send_size[i], cpu_send);
 
-        { heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
-        MPI_Send(cpu_send.data(), send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
+            { heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
+            MPI_Send(cpu_send, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
+            }
         }
     }
 
@@ -367,11 +398,14 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::no_gpuaware_send_recv(s
         { heffte::add_trace name("waitany");
         MPI_Waitany(requests.size(), requests.data(), &irecv, MPI_STATUS_IGNORE);
         }
-        auto rocvec = gpu::transfer::load(this->stream(), cpu_recv.data() + recv_loc[irecv], recv_size[irecv]);
+        gpu::transfer::load(this->stream(), cpu_recv + recv_loc[irecv], recv_size[irecv], recv_buffer + recv_loc[irecv]);
         { heffte::add_trace name("unpacking from " + std::to_string(recv_proc[irecv]));
-        packit.unpack(this->stream(), unpackplan[irecv], rocvec.data(), destination + recv_offset[irecv]);
+        packit.unpack(this->stream(), unpackplan[irecv], recv_buffer + recv_loc[irecv], destination + recv_offset[irecv]);
         }
     }
+
+    if (algorithm == reshape_algorithm::p2p_plined)
+        MPI_Waitall(isends.size(), isends.data(), MPI_STATUS_IGNORE);
 
     this->synchronize_device();
 }
@@ -400,20 +434,22 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
     }
 
     // perform the send commands, using blocking send
+    size_t offset = 0;
     for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
         { heffte::add_trace name("packing");
-        packit.pack(this->stream(), packplan[i], &source[send_offset[i]], send_buffer);
+        packit.pack(this->stream(), packplan[i], &source[send_offset[i]], send_buffer + offset);
         }
 
-//         #ifdef Heffte_ENABLE_GPU
-//         if (backend::uses_gpu<backend_tag>::value)
-//             gpu::synchronize_default_stream();
-//         #endif
         this->synchronize_device();
 
-        { heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
-        MPI_Send(send_buffer, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
+        if (algorithm == reshape_algorithm::p2p_plined){
+            heffte::add_trace name("isend " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
+            MPI_Isend(send_buffer + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm, &isends[i]);
+        }else{
+            heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
+            MPI_Send(send_buffer + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
         }
+        offset += send_size[i];
     }
 
     if (self_to_self){ // if using self-to-self, do not invoke an MPI command
@@ -442,10 +478,9 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
         }
     }
 
-//     #ifdef Heffte_ENABLE_GPU
-//     if (backend::uses_gpu<backend_tag>::value)
-//         gpu::synchronize_default_stream();
-//     #endif
+    if (algorithm == reshape_algorithm::p2p_plined)
+        MPI_Waitall(isends.size(), isends.data(), MPI_STATUS_IGNORE);
+
     this->synchronize_device();
 }
 
@@ -454,7 +489,7 @@ std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer, index>>
 make_reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stream_type stream,
                          std::vector<box3d<index>> const &input_boxes,
                          std::vector<box3d<index>> const &output_boxes,
-                         bool uses_gpu_aware,
+                         reshape_algorithm algorithm, bool uses_gpu_aware,
                          MPI_Comm const comm){
 
     int const me = mpi::comm_rank(comm);
@@ -495,7 +530,7 @@ make_reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stre
         recv_loc.push_back(recv_loc.back() + recv_size[i]);
 
     return std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer, index>>(new reshape3d_pointtopoint<backend_tag, packer, index>(
-        stream, inbox.count(), outbox.count(), uses_gpu_aware, comm,
+        stream, inbox.count(), outbox.count(), algorithm, uses_gpu_aware, comm,
         std::move(send_offset), std::move(send_size), std::move(send_proc),
         std::move(recv_offset), std::move(recv_size), std::move(recv_proc),
         std::move(recv_loc),
@@ -532,11 +567,11 @@ template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::app
 template std::unique_ptr<reshape3d_pointtopoint<some_backend, direct_packer, index>> \
 make_reshape3d_pointtopoint<some_backend, direct_packer, index>(typename backend::device_instance<some_backend>::stream_type, \
                                                               std::vector<box3d<index>> const&, \
-                                                              std::vector<box3d<index>> const&, bool, MPI_Comm const); \
+                                                              std::vector<box3d<index>> const&, reshape_algorithm, bool, MPI_Comm const); \
 template std::unique_ptr<reshape3d_pointtopoint<some_backend, transpose_packer, index>> \
 make_reshape3d_pointtopoint<some_backend, transpose_packer, index>(typename backend::device_instance<some_backend>::stream_type, \
                                                                  std::vector<box3d<index>> const&, \
-                                                                 std::vector<box3d<index>> const&, bool, MPI_Comm const); \
+                                                                 std::vector<box3d<index>> const&, reshape_algorithm, bool, MPI_Comm const); \
 
 heffte_instantiate_reshape3d(backend::stock, int)
 heffte_instantiate_reshape3d(backend::stock, long long)
