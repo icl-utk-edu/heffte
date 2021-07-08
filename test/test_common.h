@@ -80,9 +80,11 @@ template<> std::string get_variant<std::complex<double>>(){ return "zcomplex"; }
 
 struct using_alltoall{};
 struct using_pointtopoint{};
-template<typename reshape_variant> std::string get_description(){ return ""; }
-template<> std::string get_description<using_alltoall>(){ return "heffte::reshape3d_alltoallv"; }
-template<> std::string get_description<using_pointtopoint>(){ return "heffte::reshape3d_pointtopoint"; }
+template<reshape_algorithm variant> std::string get_description(){ return ""; }
+template<> std::string get_description<reshape_algorithm::alltoallv>(){ return "heffte::reshape3d_alltoallv"; }
+template<> std::string get_description<reshape_algorithm::alltoall>(){ return "heffte::reshape3d_alltoall"; }
+template<> std::string get_description<reshape_algorithm::p2p>(){ return "heffte::reshape3d_pointtopoint"; }
+template<> std::string get_description<reshape_algorithm::p2p_plined>(){ return "heffte::reshape3d_p2p (plined)"; }
 
 template<typename scalar_variant = int, typename mpi_tag = using_mpi, typename backend_tag = void>
 struct current_test{
@@ -234,6 +236,8 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
         }else if (s == "-no-reorder"){
             options.use_reorder = false;
         }else if (s == "-a2a"){
+            options.algorithm = reshape_algorithm::alltoall;
+        }else if (s == "-a2av"){
             options.algorithm = reshape_algorithm::alltoallv;
         }else if (s == "-p2p"){
             options.algorithm = reshape_algorithm::p2p;
@@ -256,6 +260,23 @@ std::vector<heffte::plan_options> make_all_options(){
     for(int shape = 0; shape < 2; shape++){
         for(int reorder = 0; reorder < 2; reorder++){
             for(reshape_algorithm alg : std::array<reshape_algorithm, 2>{reshape_algorithm::alltoallv, reshape_algorithm::p2p}){
+                heffte::plan_options options = default_options<backend_tag>();
+                options.use_pencils = (shape == 0);
+                options.use_reorder = (reorder == 0);
+                options.algorithm = alg;
+                result.push_back(options);
+            }
+        }
+    }
+    return result;
+}
+
+template<typename backend_tag>
+std::vector<heffte::plan_options> make_all_options2(){
+    std::vector<heffte::plan_options> result;
+    for(int shape = 0; shape < 2; shape++){
+        for(int reorder = 0; reorder < 2; reorder++){
+            for(reshape_algorithm alg : std::array<reshape_algorithm, 3>{reshape_algorithm::alltoall, reshape_algorithm::alltoallv, reshape_algorithm::p2p}){
                 heffte::plan_options options = default_options<backend_tag>();
                 options.use_pencils = (shape == 0);
                 options.use_reorder = (reorder == 0);
