@@ -236,6 +236,8 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
         }else if (s == "-no-reorder"){
             options.use_reorder = false;
         }else if (s == "-a2a"){
+            options.algorithm = reshape_algorithm::alltoall;
+        }else if (s == "-a2av"){
             options.algorithm = reshape_algorithm::alltoallv;
         }else if (s == "-p2p"){
             options.algorithm = reshape_algorithm::p2p;
