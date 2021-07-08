@@ -521,6 +521,14 @@ std::unique_ptr<reshape3d_base<index>> make_reshape3d(typename backend::device_i
                 return make_reshape3d_alltoallv<backend_tag, transpose_packer, index>(stream, input_boxes, output_boxes,
                                                                                       options.use_gpu_aware, comm);
             }
+        }else if (options.algorithm == reshape_algorithm::alltoall){
+            if (input_boxes[0].ordered_same_as(output_boxes[0])){
+                return make_reshape3d_alltoall<backend_tag, direct_packer, index>(stream, input_boxes, output_boxes,
+                                                                                  options.use_gpu_aware, comm);
+            }else{
+                return make_reshape3d_alltoall<backend_tag, transpose_packer, index>(stream, input_boxes, output_boxes,
+                                                                                     options.use_gpu_aware, comm);
+            }
         }else{
             if (input_boxes[0].ordered_same_as(output_boxes[0])){
                 return make_reshape3d_pointtopoint<backend_tag, direct_packer, index>(stream, input_boxes, output_boxes,

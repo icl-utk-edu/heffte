@@ -269,6 +269,23 @@ std::vector<heffte::plan_options> make_all_options(){
     return result;
 }
 
+template<typename backend_tag>
+std::vector<heffte::plan_options> make_all_options2(){
+    std::vector<heffte::plan_options> result;
+    for(int shape = 0; shape < 2; shape++){
+        for(int reorder = 0; reorder < 2; reorder++){
+            for(reshape_algorithm alg : std::array<reshape_algorithm, 3>{reshape_algorithm::alltoall, reshape_algorithm::alltoallv, reshape_algorithm::p2p}){
+                heffte::plan_options options = default_options<backend_tag>();
+                options.use_pencils = (shape == 0);
+                options.use_reorder = (reorder == 0);
+                options.algorithm = alg;
+                result.push_back(options);
+            }
+        }
+    }
+    return result;
+}
+
 //! \brief If input and output grid of processors are pencils, useful for comparison with other libraries
 bool io_pencils(std::deque<std::string> const &args){
     for(auto &s : args)

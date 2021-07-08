@@ -136,7 +136,7 @@ void test_fft3d_vectors(MPI_Comm comm){
     std::array<heffte::scale, 3> fscale = {heffte::scale::none, heffte::scale::symmetric, heffte::scale::full};
     std::array<heffte::scale, 3> bscale = {heffte::scale::full, heffte::scale::symmetric, heffte::scale::none};
 
-    for(auto const &options : make_all_options<backend_tag>()){
+    for(auto const &options : make_all_options2<backend_tag>()){
     for(int i=0; i<3; i++){
         std::array<int, 3> split = {1, 1, 1};
         if (num_ranks == 6){
