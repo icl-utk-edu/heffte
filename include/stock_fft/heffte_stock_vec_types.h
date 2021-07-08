@@ -513,6 +513,223 @@ inline pack<double, 4>::type mm_complex_div(pack<double, 4>::type const &x, pack
     return _mm256_div_pd(mm_complex_mul(x, mm_complex_conj(y)), mm_complex_sq_mod(y));
 }
 
+// Now all the implementations for types in AVX512 headers
+#ifdef __AVX512F__
+
+//! \brief Alias for vector pack of 8 elements, double precision
+template<> struct pack<double, 8> { using type = __m512d; };
+//! \brief Alias for vector pack of 16 elements, single precision
+template<> struct pack<float, 16> { using type = __m512; };
+
+//////////////////////////////////////////
+/* Below are structs for pack<float, 16> */
+//////////////////////////////////////////
+
+//! \brief Sets the zero if there are sixteen single precision complex numbers
+template<>
+inline typename pack<float, 16>::type  mm_zero<float, 16>(){ return _mm512_setzero_ps(); }
+
+//! \brief Loads from a pointer to at least sixteen floats into a vectorized type
+template<>
+inline typename pack<float, 16>::type mm_load<float, 16>(float const *src) { return _mm512_loadu_ps(src); }
+
+//! \brief Stores sixteen floats from a vectorized type in a pointer of floats
+template<>
+inline void mm_store<float, 16>(float *dest, pack<float, 16>::type const &src) { _mm512_storeu_ps(dest, src); }
+
+//! \brief Stores pair of floats into vectorized type
+template<>
+inline typename pack<float, 16>::type mm_pair_set<float, 16>(float x, float y) { return _mm512_setr_ps(x, y, x, y, x, y, x, y, x, y, x, y, x, y, x, y); }
+
+//! \brief Sets a vectorized type as a repeated float
+template<>
+inline typename pack<float, 16>::type mm_set1<float, 16> (float x) { return _mm512_set1_ps(x); }
+
+//! \brief Creates a vectorized type from strided pointer to eight 32-bit floating point complex numbers
+template<>
+inline typename pack<float, 16>::type mm_complex_load<float, 16>(std::complex<float> const *src, int stride) {
+    return _mm512_setr_ps(src[0*stride].real(), src[0*stride].imag(), src[1*stride].real(), src[1*stride].imag(),
+                          src[2*stride].real(), src[2*stride].imag(), src[3*stride].real(), src[3*stride].imag(),
+                          src[4*stride].real(), src[4*stride].imag(), src[5*stride].real(), src[5*stride].imag(),
+                          src[6*stride].real(), src[6*stride].imag(), src[7*stride].real(), src[7*stride].imag());
+}
+
+//! \brief Creates a vectorized type from pointer to eight 32-bit floating point complex numbers
+template<>
+inline typename pack<float, 16>::type mm_complex_load<float, 16>(std::complex<float> const *src) {
+    return mm_complex_load<float, 16>(src, 1);
+}
+
+///////////////////////////////////////////
+/* Below are structs for pack<double, 8> */
+///////////////////////////////////////////
+
+//! \brief Sets the zero if there is eight double precision complex numbers
+template<>
+inline typename pack<double, 8>::type mm_zero<double, 8>(){ return _mm512_setzero_pd(); }
+
+//! \brief Loads from a pointer to at least eight doubles into a vectorized type
+template<>
+inline typename pack<double, 8>::type mm_load<double, 8>(double const *src) { return _mm512_loadu_pd(src); }
+
+//! \brief Stores two doubles from a vectorized type in a pointer of doubles
+template<>
+inline void mm_store<double, 8>(double *dest, pack<double, 8>::type const &src) { _mm512_storeu_pd(dest, src); }
+
+//! \brief Stores eight doubles into vectorized type
+template<>
+inline typename pack<double, 8>::type mm_pair_set<double, 8>(double x, double y) { return _mm512_setr_pd(x, y, x, y, x, y, x, y); }
+
+//! \brief Sets a vectorized type as a repeated double
+template<>
+inline typename pack<double, 8>::type mm_set1<double, 8>(double x) { return _mm512_set1_pd(x); }
+
+//! \brief Creates a vectorized type from strided pointer to at least four double-precision complex numbers
+template<>
+inline typename pack<double, 8>::type mm_complex_load<double, 8>(std::complex<double> const *src, int stride) {
+    return _mm512_setr_pd(src[0*stride].real(), src[0*stride].imag(), src[1*stride].real(), src[1*stride].imag(),
+                          src[2*stride].real(), src[2*stride].imag(), src[3*stride].real(), src[3*stride].imag());
+}
+//! \brief Creates a vectorized type from pointer to at least four double-precision complex numbers
+template<>
+inline typename pack<double, 8>::type mm_complex_load<double, 8>(std::complex<double> const *src) {
+    return mm_complex_load<double, 8>(src, 1);
+}
+
+///////////////////////////////////////////////////
+/* Elementary binary operations for vector packs */
+///////////////////////////////////////////////////
+
+/* Addition */
+
+//! \brief Perform addition on vectorized packs of sixteen floats
+inline pack<float, 16>::type mm_add(pack<float, 16>::type const &x, pack<float, 16>::type const &y) {
+    return _mm512_add_ps(x, y);
+}
+
+//! \brief Perform addition on vectorized packs of eight doubles
+inline pack<double, 8>::type mm_add(pack<double, 8>::type const &x, pack<double, 8>::type const &y) {
+    return _mm512_add_pd(x, y);
+}
+
+/* Subtraction */
+
+//! \brief Perform subtraction on vectorized packs of sixteen floats
+inline pack<float, 16>::type mm_sub(pack<float, 16>::type const &x,pack<float, 16>::type const &y) {
+    return _mm512_sub_ps(x, y);
+}
+
+//! \brief Perform subtraction on vectorized packs of eight doubles
+inline pack<double, 8>::type mm_sub(pack<double, 8>::type const &x, pack<double, 8>::type const &y) {
+    return _mm512_sub_pd(x, y);
+}
+
+/* Multiplication */
+
+//! \brief Perform multiplication on vectorized packs of sixteen floats
+inline pack<float, 16>::type mm_mul(pack<float, 16>::type const &x, pack<float, 16>::type const &y) {
+    return _mm512_mul_ps(x, y);
+}
+
+//! \brief Perform multiplication on vectorized packs of eight doubles
+inline pack<double, 8>::type mm_mul(pack<double, 8>::type const &x, pack<double, 8>::type const &y) {
+    return _mm512_mul_pd(x, y);
+}
+
+/* Division */
+
+//! \brief Perform division on vectorized packs of sixteen floats
+inline pack<float, 16>::type mm_div(pack<float, 16>::type const &x,pack<float, 16>::type const &y) {
+    return _mm512_div_ps(x, y);
+}
+
+//! \brief Perform division on vectorized packs of eight doubles
+inline pack<double, 8>::type mm_div(pack<double, 8>::type const &x, pack<double, 8>::type const &y) {
+    return _mm512_div_pd(x, y);
+}
+
+
+///////////////////////////////////////////
+/* Complex operations using AVX512 vector packs */
+///////////////////////////////////////////
+
+// Complex Multiplication
+
+//! \brief Complex multiply eight pairs of floats
+inline pack<float,16>::type mm_complex_mul(pack<float, 16>::type const &x, pack<float, 16>::type const &y) {
+    typename pack<float, 16>::type cc = _mm512_permute_ps(y, 0b10100000);
+    typename pack<float, 16>::type ba = _mm512_permute_ps(x, 0b10110001);
+    typename pack<float, 16>::type dd = _mm512_permute_ps(y, 0b11110101);
+    typename pack<float, 16>::type dba = _mm512_mul_ps(ba, dd);
+    typename pack<float, 16>::type mult = _mm512_fmaddsub_ps(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex multiply four pairs of doubles
+inline pack<double, 8>::type mm_complex_mul(pack<double, 8>::type const &x, pack<double, 8>::type const &y) {
+    typename pack<double, 8>::type cc = _mm512_permute_pd(y, 0b00000000);
+    typename pack<double, 8>::type ba = _mm512_permute_pd(x, 0b01010101);
+    typename pack<double, 8>::type dd = _mm512_permute_pd(y, 0b11111111);
+    typename pack<double, 8>::type dba = _mm512_mul_pd(ba, dd);
+    typename pack<double, 8>::type mult = _mm512_fmaddsub_pd(x, cc, dba);
+    return mult;
+}
+
+// Squared modulus of the complex numbers in a pack
+
+//! \brief Squared modulus of two single precision complex numbers in a pack
+inline pack<float, 16>::type mm_complex_sq_mod(pack<float, 16>::type const &x) {
+    typename pack<float, 16>::type sq = mm_mul(x, x);
+    typename pack<float, 16>::type sq_perm = _mm512_permute_ps(sq, 0b10110001);
+    typename pack<float, 16>::type mod = mm_add(sq, sq_perm);
+    return mod;
+}
+
+//! \brief Squared modulus of two double precision complex numbers in a pack
+inline pack<double, 8>::type mm_complex_sq_mod(pack<double, 8>::type const &x) {
+    typename pack<double, 8>::type sq = mm_mul(x, x);
+    typename pack<double, 8>::type sq_perm = _mm512_permute_pd(sq, 0b01010101);
+    typename pack<double, 8>::type mod = mm_add(sq, sq_perm);
+    return mod;
+}
+
+// Moduli (with square root) of complex numbers
+
+//! \brief Moduli of eight single precision complex numbers in a pack
+inline pack<float, 16>::type mm_complex_mod(pack<float, 16>::type const &x) {
+    return _mm512_sqrt_ps(mm_complex_sq_mod(x));
+}
+
+//! \brief Moduli of four double precision complex numbers in a pack
+inline pack<double, 8>::type mm_complex_mod(pack<double, 8>::type const &x) {
+    return _mm512_sqrt_pd(mm_complex_sq_mod(x));
+}
+
+// Conjugate complex numbers
+
+//! \brief Conjugate eight single precision complex numbers
+inline pack<float, 16>::type mm_complex_conj(pack<float, 16>::type const &x) {
+    return _mm512_mask_blend_ps(0b1010101010101010, x, -x);
+}
+
+//! \brief Conjugate four double precision complex numbers
+inline pack<double, 8>::type mm_complex_conj(pack<double, 8>::type const &x) {
+    return _mm512_mask_blend_pd(0b10101010, x, -x);
+}
+
+// Complex division
+
+//! \brief Divide x by y, where x and y are each eight single precision complex numbers
+inline pack<float, 16>::type mm_complex_div(pack<float, 16>::type const &x, pack<float, 16>::type const &y) {
+    return _mm512_div_ps(mm_complex_mul(x, mm_complex_conj(y)), mm_complex_sq_mod(y));
+}
+
+//! \brief Divide x by y, where x and y are each 2 double precision complex numbers
+inline pack<double, 8>::type mm_complex_div(pack<double, 8>::type const &x, pack<double, 8>::type const &y) {
+    return _mm512_div_pd(mm_complex_mul(x, mm_complex_conj(y)), mm_complex_sq_mod(y));
+}
+
+#endif // __AVX512F__
 #endif // __AVX__
 
 }
