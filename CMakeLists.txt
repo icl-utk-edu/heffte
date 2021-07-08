@@ -147,7 +147,7 @@ if (Heffte_ENABLE_MAGMA)
 endif()
 
 # other target properties
-if (Heffte_ENABLE_INTRINSICS)
+if (Heffte_ENABLE_INTRINSICS OR Heffte_ENABLE_AVX512)
     target_compile_options(Heffte PUBLIC -mfma -mavx)
 endif()
 
