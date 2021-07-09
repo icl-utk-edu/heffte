@@ -21,6 +21,42 @@ namespace heffte {
 
 /*!
  * \ingroup fft3d
+ * \brief Defines list of potential communication algorithms.
+ *
+ * Depending on the size of the data and the number of MPI ranks used in the FFT transform,
+ * the problems can be classified as either bandwidth-bound or latency-bound.
+ * The bandwidth-bound case hits pretty close to the maximum throughput of the MPI interconnect
+ * while the latency-bound case is more affected by the latency of the large number of small communications.
+ * As a short-hand we can call these small-problems (latency-bound) or large-problems (bandwidth-bound),
+ * although the specific cut-off point is dependent on the backend (and the version of the backend),
+ * the version of MPI, the machine interconnect, and the specific optimizations that have been implemented in MPI.
+ *
+ * There is a plan of adding an auto-tuning framework in heFFTe to help users select the best
+ * possible set of options; however, currently the users have to manually find the best option for their hardware.
+ * The expected "best" algorithm is:
+ * \code
+ *      reshape_algorithm::alltoallv          : for largest problems
+ *      reshape_algorithm::p2p_plined
+ *      reshape_algorithm::p2p                : for smallest problems
+ * \endcode
+ *
+ * Note that in the GPU case, the above algorithms are also affected by the GPU latency
+ * if MPI calls are made directly from the GPU. This can be controlled with the use_gpu_aware
+ * variable of the heffte::plan_options.
+ */
+enum class reshape_algorithm{
+    //! \brief Using the MPI_Alltoallv options, no padding on the data.
+    alltoallv = 0,
+    //! \brief Using the MPI_Alltoall options, with padding on the data.
+    alltoall = 3,
+    //! \brief Using MPI_Isend and MPI_Irecv, all sending receiving packing and unpacking are pipelined.
+    p2p_plined = 1,
+    //! \brief Using MPI_Send and MPI_Irecv, receive is pipelined with packing and sending.
+    p2p = 2
+};
+
+/*!
+ * \ingroup fft3d
  * \brief Defines a set of tweaks and options to use in the plan generation.
  *
  * Example usage:
@@ -34,18 +70,18 @@ struct plan_options{
     //! \brief Constructor, initializes all options with the default values for the given backend tag.
     template<typename backend_tag> plan_options(backend_tag const)
         : use_reorder(default_plan_options<backend_tag>::use_reorder),
-          use_alltoall(true),
+          algorithm(reshape_algorithm::alltoallv),
           use_pencils(true),
           use_gpu_aware(true)
     {}
     //! \brief Constructor, initializes each variable, primarily for internal use.
-    plan_options(bool reorder, bool alltoall, bool pencils)
-        : use_reorder(reorder), use_alltoall(alltoall), use_pencils(pencils)
+    plan_options(bool reorder, reshape_algorithm alg, bool pencils)
+        : use_reorder(reorder), algorithm(alg), use_pencils(pencils)
     {}
     //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
     bool use_reorder;
-    //! \brief Defines whether to use point to point or all to all communications.
-    bool use_alltoall;
+    //! \brief Defines the communication algorithm.
+    reshape_algorithm algorithm;
     //! \brief Defines whether to use pencil or slab data distribution in the reshape steps.
     bool use_pencils;
     //! \brief Defines whether to use MPI calls directly from the GPU or to move to the CPU first.
@@ -57,9 +93,16 @@ struct plan_options{
  * \brief Simple I/O for the plan options struct.
  */
 inline std::ostream & operator << (std::ostream &os, plan_options const options){
+    std::string algorithm = "";
+    switch (options.algorithm){
+        case reshape_algorithm::alltoallv  : algorithm = "mpi:alltoallv"; break;
+        case reshape_algorithm::alltoall   : algorithm = "mpi:alltoall"; break;
+        case reshape_algorithm::p2p_plined : algorithm = "mpi:point-to-point-pipelined"; break;
+        case reshape_algorithm::p2p        : algorithm = "mpi:point-to-point"; break;
+    };
     os << "options = ("
        << ((options.use_reorder) ? "fft1d:contiguous" : "fft1d:strided") << ", "
-       << ((options.use_alltoall) ? "mpi:alltoallv" : "mpi:point-to-point") << ", "
+       << algorithm << ", "
        << ((options.use_pencils) ? "decomposition:pencil" : "decomposition:slab") << ", "
        << ((options.use_gpu_aware) ? "mpi:from-gpu" : "mpi:from-cpu") << ")";
     return os;

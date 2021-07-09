@@ -96,7 +96,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     fft.backward(output_array, output_array);
 
     // Execution
-    int const ntest = 5;
+    int const ntest = nruns(args);
     MPI_Barrier(fft_comm);
     double t = -MPI_Wtime();
     for(int i = 0; i < ntest; ++i) {
@@ -228,13 +228,16 @@ int main(int argc, char *argv[]){
                  << "        args is a set of optional arguments that define algorithmic tweaks and variations\n"
                  << "         -reorder: reorder the elements of the arrays so that each 1-D FFT will use contiguous data\n"
                  << "         -no-reorder: some of the 1-D will be strided (non contiguous)\n"
-                 << "         -a2a: use MPI_Alltoallv() communication method\n"
+                 << "         -a2a: use MPI_Alltoall() communication method\n"
+                 << "         -a2av: use MPI_Alltoallv() communication method (default)\n"
                  << "         -p2p: use MPI_Send() and MPI_Irecv() communication methods\n"
+                 << "         -p2p_pl: use MPI_Isend() and MPI_Irecv() communication methods\n"
                  << "         -no-gpu-aware: move the data to the cpu before doing gpu operations (gpu backends only)\n"
                  << "         -pencils: use pencil reshape logic\n"
                  << "         -slabs: use slab reshape logic\n"
                  << "         -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries \n"
                  << "         -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices\n"
+                 << "         -nX: number of times to repeat the run, accepted variants are -n5 (default), -n10, -n50\n"
                  << "Examples:\n"
                  << "    mpirun -np  4 " << bench_executable << " fftw  double 128 128 128 -no-reorder\n"
                  << "    mpirun -np  8 " << bench_executable << " cufft float  256 256 256\n"

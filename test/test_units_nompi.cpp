@@ -835,9 +835,15 @@ void test_stock_complex(){
     test_stock_complex_type<float,1>();
     test_stock_complex_type<float,4>();
     test_stock_complex_type<float,8>();
+#ifdef __AVX512F__
+    test_stock_complex_type<float,16>();
+#endif    
     test_stock_complex_type<double,1>();
     test_stock_complex_type<double,2>();
     test_stock_complex_type<double,4>();
+#ifdef __AVX512F__
+    test_stock_complex_type<double,8>();
+#endif
 #else
     test_stock_complex_type<float,1>();
     test_stock_complex_type<double,1>();
