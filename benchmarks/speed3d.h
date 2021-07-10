@@ -109,8 +109,8 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     if (backend::uses_gpu<backend_tag>::value)
         gpu::synchronize_default_stream();
     #endif
-    t += MPI_Wtime();
     MPI_Barrier(fft_comm);
+    t += MPI_Wtime();
 
     // Get execution time
     double t_max = 0.0;
