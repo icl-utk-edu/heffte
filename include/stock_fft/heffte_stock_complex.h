@@ -171,6 +171,16 @@ class alignas(L*sizeof(F)) Complex {
             return Complex(mm_complex_conj(var));
         }
 
+        //! \brief Multiply the complex number by i
+        Complex<F,L> __mul_by_i() {
+            return Complex(mm_complex_mul_i(var));
+        }
+        
+        //! \brief Multiply the complex number by i
+        Complex<F,L> __mul_by_neg_i() {
+            return Complex(mm_complex_mul_neg_i(var));
+        }
+
         //! \brief Store the Complex number in an array of length L
         void get(F* dest) {
             mm_store<F,L>(dest, var);
