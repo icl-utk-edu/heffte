@@ -153,6 +153,11 @@ class alignas(L*sizeof(F)) Complex {
         /* Other methods */
         ///////////////////
 
+        //! \brief Negate the complex number
+        Complex<F,L> operator-() {
+            return Complex<F,L>(mm_neg(var));
+        }
+
         //! \brief Store the modulus of the complex number in an array of size L/2
         void modulus(F* dest) {
             typename pack<F, L>::type res = mm_complex_mod(var);
