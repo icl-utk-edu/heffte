@@ -153,6 +153,11 @@ class alignas(L*sizeof(F)) Complex {
         /* Other methods */
         ///////////////////
 
+        //! \brief Negate the complex number
+        Complex<F,L> operator-() {
+            return Complex<F,L>(mm_neg(var));
+        }
+
         //! \brief Store the modulus of the complex number in an array of size L/2
         void modulus(F* dest) {
             typename pack<F, L>::type res = mm_complex_mod(var);
@@ -169,6 +174,16 @@ class alignas(L*sizeof(F)) Complex {
         //! \brief Conjugate the current complex number
         Complex<F,L> conjugate() {
             return Complex(mm_complex_conj(var));
+        }
+
+        //! \brief Multiply the complex number by i
+        Complex<F,L> __mul_by_i() {
+            return Complex(mm_complex_mul_i(var));
+        }
+        
+        //! \brief Multiply the complex number by i
+        Complex<F,L> __mul_by_neg_i() {
+            return Complex(mm_complex_mul_neg_i(var));
         }
 
         //! \brief Store the Complex number in an array of length L

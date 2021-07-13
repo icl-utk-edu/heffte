@@ -288,7 +288,7 @@ inline typename pack<double,4>::type mm_complex_load<double,4>(std::complex<doub
 }
 
 ///////////////////////////////////////////////////
-/* Elementary binary operations for vector packs */
+/* Elementary operations for vector packs */
 ///////////////////////////////////////////////////
 
 /* Addition */
@@ -379,6 +379,27 @@ inline pack<double, 4>::type mm_div(pack<double, 4>::type const &x, pack<double,
     return _mm256_div_pd(x, y);
 }
 
+
+/* Negation */
+//! \brief Perform division on vectorized packs of four floats
+inline pack<float, 4>::type mm_neg(pack<float, 4>::type const &x) {
+    return _mm_xor_ps(x, (mm_set1<float, 4>(-0.f)));
+}
+
+//! \brief Perform division on vectorized packs of eight floats
+inline pack<float, 8>::type mm_neg(pack<float, 8>::type const &x) {
+    return _mm256_xor_ps(x, (mm_set1<float, 8>(-0.f)));
+}
+
+//! \brief Perform division on vectorized packs of two doubles
+inline pack<double, 2>::type mm_neg(pack<double, 2>::type const &x) {
+    return _mm_xor_pd(x, (mm_set1<double, 2>(-0.)));
+}
+
+//! \brief Perform division on vectorized packs of four doubles
+inline pack<double, 4>::type mm_neg(pack<double, 4>::type const &x) {
+    return _mm256_xor_pd(x, (mm_set1<double, 4>(-0.)));
+}
 
 ///////////////////////////////////////////
 /* Complex operations using vector packs */
@@ -473,22 +494,63 @@ inline pack<double, 4>::type mm_complex_mod(pack<double, 4>::type const &x) {
 
 //! \brief Conjugate two single precision complex numbers
 inline pack<float, 4>::type mm_complex_conj(pack<float, 4>::type const &x) {
-    return _mm_blend_ps(x, -x, 0b1010);
+    return _mm_blend_ps(x, (mm_neg(x)), 0b1010);
 }
 
 //! \brief Conjugate four single precision complex numbers
 inline pack<float, 8>::type mm_complex_conj(pack<float, 8>::type const &x) {
-    return _mm256_blend_ps(x, -x, 0b10101010);
+    return _mm256_blend_ps(x, (mm_neg(x)), 0b10101010);
 }
 
 //! \brief Conjugate two double precision complex numbers
 inline pack<double, 2>::type mm_complex_conj(pack<double, 2>::type const &x) {
-    return _mm_blend_pd(x, -x, 0b10);
+    return _mm_blend_pd(x, (mm_neg(x)), 0b10);
 }
 
 //! \brief Conjugate four double precision complex numbers
 inline pack<double, 4>::type mm_complex_conj(pack<double, 4>::type const &x) {
-    return _mm256_blend_pd(x, -x, 0b1010);
+    return _mm256_blend_pd(x, (mm_neg(x)), 0b1010);
+}
+
+// Special operation when multiplying by i and -i
+//! \brief Multiply two complex numbers by i, single precision
+inline pack<float, 4>::type mm_complex_mul_i(pack<float, 4>::type const &x) {
+    return _mm_permute_ps( (mm_complex_conj(x)), 0b10110001);
+}
+
+//! \brief Multiply four complex numbers by i, single precision
+inline pack<float, 8>::type mm_complex_mul_i(pack<float, 8>::type const &x) {
+    return _mm256_permute_ps( (mm_complex_conj(x)), 0b10110001);
+}
+
+//! \brief Multiply one complex number by i, double precision
+inline pack<double, 2>::type mm_complex_mul_i(pack<double, 2>::type const &x) {
+    return _mm_permute_pd( (mm_complex_conj(x)), 0b01010101);
+}
+
+//! \brief Multiply two complex numbers by i, double precision
+inline pack<double, 4>::type mm_complex_mul_i(pack<double, 4>::type const &x) {
+    return _mm256_permute_pd( (mm_complex_conj(x)), 0b01010101);
+}
+
+//! \brief Multiply two complex numbers by -i, single precision
+inline pack<float, 4>::type mm_complex_mul_neg_i(pack<float, 4>::type const &x) {
+    return mm_complex_conj(_mm_permute_ps(x, 0b10110001));
+}
+
+//! \brief Multiply four complex numbers by -i, single precision
+inline pack<float, 8>::type mm_complex_mul_neg_i(pack<float, 8>::type const &x) {
+    return mm_complex_conj(_mm256_permute_ps(x, 0b10110001));
+}
+
+//! \brief Multiply one complex number by -i, double precision
+inline pack<double, 2>::type mm_complex_mul_neg_i(pack<double, 2>::type const &x) {
+    return mm_complex_conj(_mm_permute_pd(x, 0b01010101));
+}
+
+//! \brief Multiply two complex numbers by -i, double precision
+inline pack<double, 4>::type mm_complex_mul_neg_i(pack<double, 4>::type const &x) {
+    return mm_complex_conj(_mm256_permute_pd(x, 0b01010101));
 }
 
 // Complex division
@@ -648,6 +710,16 @@ inline pack<double, 8>::type mm_div(pack<double, 8>::type const &x, pack<double,
     return _mm512_div_pd(x, y);
 }
 
+/* Negation */
+//! \brief Perform division on vectorized packs of sixteen floats
+inline pack<float, 16>::type mm_neg(pack<float, 16>::type const &x) {
+    return _mm512_xor_ps(x, (mm_set1<float, 16>(-0.f)));
+}
+
+//! \brief Perform division on vectorized packs of eight doubles
+inline pack<double, 8>::type mm_neg(pack<double, 8>::type const &x) {
+    return _mm512_xor_pd(x, (mm_set1<double, 8>(-0.f)));
+}
 
 ///////////////////////////////////////////
 /* Complex operations using AVX512 vector packs */
@@ -709,12 +781,35 @@ inline pack<double, 8>::type mm_complex_mod(pack<double, 8>::type const &x) {
 
 //! \brief Conjugate eight single precision complex numbers
 inline pack<float, 16>::type mm_complex_conj(pack<float, 16>::type const &x) {
-    return _mm512_mask_blend_ps(0b1010101010101010, x, -x);
+    typename pack<float, 16>::type neg_x = _mm512_xor_ps(x, mm_set1<float, 16>(-0.f));
+    return _mm512_mask_blend_ps(0b1010101010101010, x, neg_x);
 }
 
 //! \brief Conjugate four double precision complex numbers
 inline pack<double, 8>::type mm_complex_conj(pack<double, 8>::type const &x) {
-    return _mm512_mask_blend_pd(0b10101010, x, -x);
+    typename pack<double, 8>::type neg_x = _mm512_xor_pd(x, mm_set1<double, 8>(-0.));
+    return _mm512_mask_blend_pd(0b10101010, x, neg_x);
+}
+
+// Special operation when multiplying by i and -i
+//! \brief Multiply eight complex numbers by i, single precision
+inline pack<float, 16>::type mm_complex_mul_i(pack<float, 16>::type const &x) {
+    return _mm512_permute_ps( (mm_complex_conj(x)), 0b10110001);
+}
+
+//! \brief Multiply four complex numbers by i, double precision
+inline pack<double, 8>::type mm_complex_mul_i(pack<double, 8>::type const &x) {
+    return _mm512_permute_pd( (mm_complex_conj(x)), 0b01010101);
+}
+
+//! \brief Multiply eight complex numbers by -i, single precision
+inline pack<float, 16>::type mm_complex_mul_neg_i(pack<float, 16>::type const &x) {
+    return mm_complex_conj(_mm512_permute_ps(x, 0b10110001));
+}
+
+//! \brief Multiply four complex numbers by -i, double precision
+inline pack<double, 8>::type mm_complex_mul_neg_i(pack<double, 8>::type const &x) {
+    return mm_complex_conj(_mm512_permute_pd(x, 0b01010101));
 }
 
 // Complex division
