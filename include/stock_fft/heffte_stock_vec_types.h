@@ -675,6 +675,27 @@ inline pack<double, 8>::type mm_complex_mul(pack<double, 8>::type const &x, pack
     return mult;
 }
 
+// Special operation when multiplying by i and -i
+//! \brief Multiply eight complex numbers by i, single precision
+inline pack<float, 16>::type mm_complex_mul_i(pack<float, 16>::type const &x) {
+    return _mm512_permute_ps(mm_complex_conj(x), 0b10110001);
+}
+
+//! \brief Multiply four complex numbers by i, double precision
+inline pack<double, 8>::type mm_complex_mul_i(pack<double, 8>::type const &x) {
+    return _mm512_permute_pd(mm_complex_conj(x), 0b01010101);
+}
+
+//! \brief Multiply eight complex numbers by -i, single precision
+inline pack<float, 16>::type mm_complex_mul_neg_i(pack<float, 16>::type const &x) {
+    return mm_complex_conj(_mm512_permute_ps(x, 0b10110001));
+}
+
+//! \brief Multiply four complex numbers by -i, double precision
+inline pack<double, 8>::type mm_complex_mul_neg_i(pack<double, 8>::type const &x) {
+    return mm_complex_conj(_mm512_permute_pd(x, 0b01010101));
+}
+
 // Squared modulus of the complex numbers in a pack
 
 //! \brief Squared modulus of two single precision complex numbers in a pack
@@ -709,12 +730,14 @@ inline pack<double, 8>::type mm_complex_mod(pack<double, 8>::type const &x) {
 
 //! \brief Conjugate eight single precision complex numbers
 inline pack<float, 16>::type mm_complex_conj(pack<float, 16>::type const &x) {
-    return _mm512_mask_blend_ps(0b1010101010101010, x, -x);
+    typename pack<float, 16>::type neg_x = _mm512_xor_ps(x, mm_set1<float, 16>(-0.f));
+    return _mm512_mask_blend_ps(0b1010101010101010, x, neg_x);
 }
 
 //! \brief Conjugate four double precision complex numbers
 inline pack<double, 8>::type mm_complex_conj(pack<double, 8>::type const &x) {
-    return _mm512_mask_blend_pd(0b10101010, x, -x);
+    typename pack<double, 8>::type neg_x = _mm512_xor_pd(x, mm_set1<double, 8>(-0.));
+    return _mm512_mask_blend_pd(0b10101010, x, neg_x);
 }
 
 // Complex division
