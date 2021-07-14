@@ -147,27 +147,45 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     Complex<F,L> w2 (cos(2*inc), direction_sign(dir)*sin(2*inc));
     Complex<F,L> w3 (cos(3*inc), direction_sign(dir)*sin(3*inc));
     Complex<F,L> wk1 (1., 0.); Complex<F,L> wk2 (1., 0.); Complex<F,L> wk3 (1., 0.);
-    Complex<F,L> tw1 (0, direction_sign(dir)); Complex<F,L> tw3 = i_twiddle1.conj();
-    
+        
     // Conquer larger problem accordingly
-    for(int k = 0; k < m; k++) {
-        int k0 = (k      )*s_out;
-        int k1 = (k +   m)*s_out;
-        int k2 = (k + 2*m)*s_out;
-        int k3 = (k + 3*m)*s_out;
-        Complex<F,L> y_k0 = y[k0];
-        Complex<F,L> y_k1 = y[k1];
-        Complex<F,L> y_k2 = y[k2];
-        Complex<F,L> y_k3 = y[k3];
-        y[k0] = y_k0 +     w1*y_k1 + w2*y_k2 +     w3*y_k3;
-        y[k1] = y_k0 + tw1*w1*y_k1 - w2*y_k2 + tw3*w3*y_k3;
-        y[k2] = y_k0 -     w1*y_k1 + w2*y_k2 - w3*y_k3;
-        y[k3] = y_k0 
-        wj *= w1;
+    if(dir == direction::forward) {
+        for(int k = 0; k < m; k++) {
+            int k0 = (k      )*s_out;
+            int k1 = (k +   m)*s_out;
+            int k2 = (k + 2*m)*s_out;
+            int k3 = (k + 3*m)*s_out;
+            Complex<F,L> y_k0 = y[k0];
+            Complex<F,L> y_k1 = y[k1];
+            Complex<F,L> y_k2 = y[k2];
+            Complex<F,L> y_k3 = y[k3];
+            y[k0] = y_k0 + wk1*y_k1 + wk2*y_k2 + wk3*y_k3;
+            y[k1] = y_k0 + (wk1*y_k1).__mul_neg_i() - wk2*y_k2 + (wk3*y_k3).__mul_i();
+            y[k2] = y_k0 - wk1*y_k1 + wk2*y_k2 - wk3*y_k3;
+            y[k3] = y_k0 + (wk1*y_k1).__mul_i() - wk2*y_k2 + (wk3*y_k3).__mul_neg_i();
+            wk1 *= w1; wk2 *= w2; wk3 *= w3;
+        }
+    }
+    else {
+        for(int k = 0; k < m; k++) {
+            int k0 = (k      )*s_out;
+            int k1 = (k +   m)*s_out;
+            int k2 = (k + 2*m)*s_out;
+            int k3 = (k + 3*m)*s_out;
+            Complex<F,L> y_k0 = y[k0];
+            Complex<F,L> y_k1 = y[k1];
+            Complex<F,L> y_k2 = y[k2];
+            Complex<F,L> y_k3 = y[k3];
+            y[k0] = y_k0 + wk1*y_k1 + wk2*y_k2 + wk3*y_k3;
+            y[k1] = y_k0 + (wk1*y_k1).__mul_i() - wk2*y_k2 + (wk3*y_k3).__mul_neg_i();
+            y[k2] = y_k0 - wk1*y_k1 + wk2*y_k2 - wk3*y_k3;
+            y[k3] = y_k0 + (wk1*y_k1).__mul_neg_i() - wk2*y_k2 + (wk3*y_k3).__mul_i();
+            wk1 *= w1; wk2 *= w2; wk3 *= w3;
+        }
     }
 }
 
-// External function to call the C-T radix-2 FFT
+// External function to call the C-T radix-4 FFT
 template<typename F, int L>
 inline void pow4_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, biFuncNode<F,L>* sRoot, direction dir) {
     const size_t N = sRoot->sz; // Size of problem
