@@ -153,6 +153,11 @@ class alignas(L*sizeof(F)) Complex {
         /* Other methods */
         ///////////////////
 
+        //! \brief Fused multiply add
+        Complex<F,L> fmadd(Complex<F,L> const & y, Complex<F,L> const & z) {
+            return Complex(mm_complex_fmadd(var, y.var, z.var));
+        }
+
         //! \brief Negate the complex number
         Complex<F,L> operator-() {
             return Complex<F,L>(mm_neg(var));
