@@ -9,8 +9,8 @@ option(Heffte_ENABLE_ONEAPI   "Enable the oneAPI/DPC++ and oneMKL backend"  OFF)
 option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
-option(Heffte_ENABLE_INTRINSICS  "Enable the use of AVX registers in the stock backend"       OFF)
-option(Heffte_ENABLE_AVX512      "Enable the use of AVX512 registers in the stock backend"    OFF)
+option(Heffte_ENABLE_INTRINSICS  "Enable the use of AVX registers in the stock backend, adds flags: -mfma -mavx"       OFF)
+option(Heffte_ENABLE_AVX512      "Enable the use of AVX512 registers in the stock backend, adds AVX flags plus: -mavx512f -mavx512dq"    OFF)
 
 option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGMA for GPU backends"   OFF)
 
