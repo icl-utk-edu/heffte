@@ -850,14 +850,12 @@ inline pack<double, 8>::type mm_complex_mod(pack<double, 8>::type const &x) {
 
 //! \brief Conjugate eight single precision complex numbers
 inline pack<float, 16>::type mm_complex_conj(pack<float, 16>::type const &x) {
-    typename pack<float, 16>::type neg_x = _mm512_xor_ps(x, mm_set1<float, 16>(-0.f));
-    return _mm512_mask_blend_ps(0b1010101010101010, x, neg_x);
+    return _mm512_mask_blend_ps(0b1010101010101010, x, mm_neg(x));
 }
 
 //! \brief Conjugate four double precision complex numbers
 inline pack<double, 8>::type mm_complex_conj(pack<double, 8>::type const &x) {
-    typename pack<double, 8>::type neg_x = _mm512_xor_pd(x, mm_set1<double, 8>(-0.));
-    return _mm512_mask_blend_pd(0b10101010, x, neg_x);
+    return _mm512_mask_blend_pd(0b10101010, x, mm_neg(x));
 }
 
 // Special operation when multiplying by i and -i
