@@ -56,7 +56,7 @@ class Fourier_Transform {
             switch(type) {
                 case fft_type::pow2: pow2_FFT(x, y, s_in, s_out, sRoot, dir); break;
                 case fft_type::pow3: pow3_FFT(x, y, s_in, s_out, sRoot, dir); break;
-                case fft_type::pow4: pow2_FFT(x, y, s_in, s_out, sRoot, dir); break;
+                case fft_type::pow4: pow4_FFT(x, y, s_in, s_out, sRoot, dir); break;
                 case fft_type::composite: composite_FFT(x, y, s_in, s_out, sRoot, dir); break;
                 case fft_type::discrete: DFT(x, y, s_in, s_out, sRoot, dir); break;
                 case fft_type::rader: rader_FFT(x, y, s_in, s_out, sRoot, dir, root, root_inv); break;
@@ -218,7 +218,7 @@ inline void DFT_helper(size_t size, Complex<F,L>* sig_in, Complex<F,L>* sig_out,
 
         // Calculate kth output
         for(size_t n = 1; n < size; n++) {
-            tmp += wkn*sig_in[n*s_in];
+            tmp = wkn.fmadd(sig_in[n*s_in], tmp);
             wkn *= wk;
         }
         sig_out[k*s_out] = tmp;

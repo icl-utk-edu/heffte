@@ -182,12 +182,12 @@ class alignas(L*sizeof(F)) Complex {
         }
 
         //! \brief Multiply the complex number by i
-        Complex<F,L> __mul_by_i() {
+        Complex<F,L> __mul_i() {
             return Complex(mm_complex_mul_i(var));
         }
         
         //! \brief Multiply the complex number by i
-        Complex<F,L> __mul_by_neg_i() {
+        Complex<F,L> __mul_neg_i() {
             return Complex(mm_complex_mul_neg_i(var));
         }
 
