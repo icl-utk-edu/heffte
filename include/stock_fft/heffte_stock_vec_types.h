@@ -494,47 +494,6 @@ inline pack<double, 4>::type mm_complex_fmadd(pack<double, 4>::type const &x, pa
 }
 
 
-//! \brief Complex multiply two pairs of floats
-inline pack<float,4>::type mm_complex_fmsub(pack<float, 4>::type const &x, pack<float, 4>::type const &y, pack<float, 4>::type const &z) {
-    typename pack<float,4>::type cc = _mm_permute_ps(y, 0b10100000);
-    typename pack<float,4>::type ba = _mm_permute_ps(x, 0b10110001);
-    typename pack<float,4>::type dd = _mm_permute_ps(y, 0b11110101);
-    typename pack<float,4>::type dba = _mm_fmsubadd_ps(ba, dd, z);
-    typename pack<float,4>::type mult = _mm_fmaddsub_ps(x, cc, dba);
-    return mult;
-}
-
-//! \brief Complex multiply four pairs of floats
-inline pack<float, 8>::type mm_complex_fmsub(pack<float, 8>::type const &x, pack<float, 8>::type const &y, pack<float, 8>::type const &z) {
-    typename pack<float,8>::type cc = _mm256_permute_ps(y, 0b10100000);
-    typename pack<float,8>::type ba = _mm256_permute_ps(x, 0b10110001);
-    typename pack<float,8>::type dd = _mm256_permute_ps(y, 0b11110101);
-    typename pack<float,8>::type dba = _mm256_fmsubadd_ps(ba, dd, z);
-    typename pack<float,8>::type mult = _mm256_fmaddsub_ps(x, cc, dba);
-    return mult;
-}
-
-//! \brief Complex multiply one pair of doubles
-inline pack<double, 2>::type mm_complex_fmsub(pack<double, 2>::type const &x, pack<double, 2>::type const &y, pack<double, 2>::type const &z) {
-    typename pack<double,2>::type cc = _mm_permute_pd(y, 0);
-    typename pack<double,2>::type ba = _mm_permute_pd(x, 0b01);
-    typename pack<double,2>::type dd = _mm_permute_pd(y, 0b11);
-    typename pack<double,2>::type dba = _mm_fmsubadd_pd(ba, dd, z);
-    typename pack<double,2>::type mult = _mm_fmaddsub_pd(x, cc, dba);
-    return mult;
-}
-
-//! \brief Complex multiply two pairs of doubles
-inline pack<double, 4>::type mm_complex_fmsub(pack<double, 4>::type const &x, pack<double, 4>::type const &y, pack<double, 4>::type const &z) {
-    typename pack<double,4>::type cc = _mm256_permute_pd(y, 0b0000);
-    typename pack<double,4>::type ba = _mm256_permute_pd(x, 0b0101);
-    typename pack<double,4>::type dd = _mm256_permute_pd(y, 0b1111);
-    typename pack<double,4>::type dba = _mm256_fmsubadd_pd(ba, dd, z);
-    typename pack<double,4>::type mult = _mm256_fmaddsub_pd(x, cc, dba);
-    return mult;
-}
-
-
 // Squared modulus of the complex numbers in a pack
 
 //! \brief Squared modulus of two single precision complex numbers in a pack
@@ -853,26 +812,6 @@ inline pack<double, 8>::type mm_complex_fmadd(pack<double, 8>::type const &x, pa
     typename pack<double, 8>::type ba = _mm512_permute_pd(x, 0b01010101);
     typename pack<double, 8>::type dd = _mm512_permute_pd(y, 0b11111111);
     typename pack<double, 8>::type dba = _mm512_fmaddsub_pd(ba, dd, alpha);
-    typename pack<double, 8>::type mult = _mm512_fmaddsub_pd(x, cc, dba);
-    return mult;
-}
-
-//! \brief Complex fma eight pairs of floats
-inline pack<float,16>::type mm_complex_fmsub(pack<float, 16>::type const &x, pack<float, 16>::type const &y, pack<float, 16>::type const &alpha) {
-    typename pack<float, 16>::type cc = _mm512_permute_ps(y, 0b10100000);
-    typename pack<float, 16>::type ba = _mm512_permute_ps(x, 0b10110001);
-    typename pack<float, 16>::type dd = _mm512_permute_ps(y, 0b11110101);
-    typename pack<float, 16>::type dba = _mm512_fmsubadd_ps(ba, dd, alpha);
-    typename pack<float, 16>::type mult = _mm512_fmaddsub_ps(x, cc, dba);
-    return mult;
-}
-
-//! \brief Complex fma four pairs of doubles
-inline pack<double, 8>::type mm_complex_fmsub(pack<double, 8>::type const &x, pack<double, 8>::type const &y, pack<double, 8>::type const &alpha) {
-    typename pack<double, 8>::type cc = _mm512_permute_pd(y, 0b00000000);
-    typename pack<double, 8>::type ba = _mm512_permute_pd(x, 0b01010101);
-    typename pack<double, 8>::type dd = _mm512_permute_pd(y, 0b11111111);
-    typename pack<double, 8>::type dba = _mm512_fmsubadd_pd(ba, dd, alpha);
     typename pack<double, 8>::type mult = _mm512_fmaddsub_pd(x, cc, dba);
     return mult;
 }
