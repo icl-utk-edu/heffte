@@ -71,9 +71,24 @@ void fft3d<backend_tag, index>::setup(logic_plan3d<index> const &plan, MPI_Comm 
         backward_shaper[3-i] = make_reshape3d<backend_tag>(this->stream(), plan.out_shape[i], plan.in_shape[i], comm, plan.options);
     }
 
-    fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][mpi::comm_rank(comm)], plan.fft_direction[0]);
-    fft1 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[1][mpi::comm_rank(comm)], plan.fft_direction[1]);
-    fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][mpi::comm_rank(comm)], plan.fft_direction[2]);
+    int const my_rank = mpi::comm_rank(comm);
+    fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
+    fft1 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[1][my_rank], plan.fft_direction[1]);
+    fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
+
+    if (not forward_shaper[1]){
+        if (one_dim_backend<backend_tag>::can_merge(plan.out_shape[0][my_rank], plan.fft_direction[0], plan.fft_direction[1])){
+            fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank],
+                                                      plan.fft_direction[0], plan.fft_direction[1]);
+            fft1 = std::unique_ptr<backend_executor>();
+        }
+    }else if (not forward_shaper[2]){
+        if (one_dim_backend<backend_tag>::can_merge(plan.out_shape[2][my_rank], plan.fft_direction[1], plan.fft_direction[2])){
+            fft1 = std::unique_ptr<backend_executor>();
+            fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank],
+                                                      plan.fft_direction[1], plan.fft_direction[2]);
+        }
+    }
 }
 
 template<typename backend_tag, typename index>
