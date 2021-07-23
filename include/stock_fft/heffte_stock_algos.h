@@ -249,25 +249,18 @@ inline void composite_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t 
     size_t N1 = left->sz;
     size_t N2 = right->sz;
 
-    /* Theoretically, this shouldn't ever be called-- the call graph should've
-     * told us to perform a DFT here instead. However, I'm calling this just in case.
-     */
-    if(N1 == N) {
-        DFT(x, y, s_in, s_out, sRoot, dir);
-        return;
-    }
-
     // I'm currently using a temporary storage space malloc'd in recursive calls.
     // This isn't optimal and will change as the engine develops
     complex_vector<F,L> z (N);
     // Find the FFT of the "rows" of the input signal and twiddle them accordingly
     Complex<F,L> w1 = omega<F,L>::get(1, N, dir);
     Complex<F,L> wj1 = Complex<F,L>(1., 0.);
-    for(size_t j1 = 0; j1 < N1; j1++) {
+    right->fptr(x, z, N1*s_in, 1, right, dir);
+    for(size_t j1 = 1; j1 < N1; j1++) {
         Complex<F,L> wk2 = wj1;
-        right->fptr(x+j1*s_in, &z[N2*j1], N1*s_in, 1, right, dir);
+        right->fptr(&x[j1*s_in], &z[N2*j1], N1*s_in, 1, right, dir);
         for(size_t k2 = 1; (k2 < N2) && (j1 > 0); k2++) {
-            z[j1*N2 + k2] = z[j1*N2 + k2]*wk2;
+            z[j1*N2 + k2] *= wk2;
             wk2 *= wj1;
         }
         wj1 *= w1;
@@ -278,7 +271,7 @@ inline void composite_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t 
      * Take strides of N2 since z is allocated on the fly in this function for N.
      */
     for(size_t k2 = 0; k2 < N2; k2++) {
-        left->fptr(&z[k2], y+k2*s_out, N2, N2*s_out, left, dir);
+        left->fptr(&z[k2], &y[k2*s_out], N2, N2*s_out, left, dir);
     }
 }
 
@@ -385,9 +378,9 @@ inline void pow3_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
         Complex<F,L> tmpk_p_2 = y[k3];
 
         // Reassigning the output
-        y[k1] = tmpk +             wk1 * tmpk_p_1 +            wk2 * tmpk_p_2;
-        y[k2] = tmpk + plus120  *  wk1 * tmpk_p_1 + minus120 * wk2 * tmpk_p_2;
-        y[k3] = tmpk + minus120 *  wk1 * tmpk_p_1 + plus120  * wk2 * tmpk_p_2;
+        y[k1] = wk2.fmadd(           tmpk_p_2, wk1.fmadd(           tmpk_p_1, tmpk));
+        y[k2] = wk2.fmadd(minus120 * tmpk_p_2, wk1.fmadd(plus120  * tmpk_p_1, tmpk));
+        y[k3] = wk2.fmadd(plus120  * tmpk_p_2, wk1.fmadd(minus120 * tmpk_p_1, tmpk));
 
         // Twiddle factors
         wk1 *= w1; wk2 *= w2;
@@ -401,7 +394,7 @@ inline void pow3_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out
     Complex<F,L> plus120 (-0.5, -sqrt(3)/2.);
     Complex<F,L> minus120 (-0.5, sqrt(3)/2.);
     switch(dir) {
-        case direction::forward: pow3_FFT_helper(N, x, y, s_in, s_out, dir, plus120, minus120); break;
+        case direction::forward:  pow3_FFT_helper(N, x, y, s_in, s_out, dir, plus120, minus120); break;
         case direction::backward: pow3_FFT_helper(N, x, y, s_in, s_out, dir, minus120, plus120); break;
     }
 }
