@@ -159,10 +159,10 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
             Complex<F,L> y_k1 = y[k1];
             Complex<F,L> y_k2 = y[k2];
             Complex<F,L> y_k3 = y[k3];
-            y[k0] = wk2.fmadd(y_k2, y_k0) + wk1.fmadd(y_k1, wk3*y_k3);
-            y[k1] = (-wk2).fmadd(y_k2, y_k0) + (-wk1).fmadd(y_k1, wk3*y_k3).__mul_i();
-            y[k2] = wk2.fmadd(y_k2, y_k0) - wk1.fmadd(y_k1, wk3*y_k3);
-            y[k3] = (-wk2).fmadd(y_k2, y_k0) + wk1.fmadd(y_k1, -wk3*y_k3).__mul_i(); //y_k0 + (wk1*y_k1).__mul_i() - wk2*y_k2 + (wk3*y_k3).__mul_neg_i();
+            y[k0] = wk2.fmadd( y_k2, y_k0) + wk1.fmadd(y_k1, wk3*y_k3);
+            y[k1] = wk2.fmadd(-y_k2, y_k0) + wk3.fmsub(y_k3, wk1*y_k1).__mul_i();
+            y[k2] = wk2.fmadd( y_k2, y_k0) - wk1.fmadd(y_k1, wk3*y_k3);
+            y[k3] = wk2.fmadd(-y_k2, y_k0) + wk1.fmsub(y_k1, wk3*y_k3).__mul_i();
             wk1 *= w1; wk2 *= w2; wk3 *= w3;
         }
     }
@@ -176,10 +176,10 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
             Complex<F,L> y_k1 = y[k1];
             Complex<F,L> y_k2 = y[k2];
             Complex<F,L> y_k3 = y[k3];
-            y[k0] = wk2.fmadd(y_k2, y_k0) + wk1.fmadd(y_k1, wk3*y_k3);
-            y[k1] = y_k0 + (wk1*y_k1).__mul_i() - wk2*y_k2 + (wk3*y_k3).__mul_neg_i();
-            y[k2] = wk2.fmadd(y_k2, y_k0) - wk1.fmadd(y_k1, wk3*y_k3);
-            y[k3] = y_k0 + (wk1*y_k1).__mul_neg_i() - wk2*y_k2 + (wk3*y_k3).__mul_i();
+            y[k0] = wk2.fmadd( y_k2, y_k0) + wk1.fmadd(y_k1, wk3*y_k3);
+            y[k1] = wk2.fmadd(-y_k2, y_k0) + wk1.fmsub(y_k1, wk3*y_k3).__mul_i();
+            y[k2] = wk2.fmadd( y_k2, y_k0) - wk1.fmadd(y_k1, wk3*y_k3);
+            y[k3] = wk2.fmadd(-y_k2, y_k0) + wk3.fmsub(y_k3, wk1*y_k1).__mul_i();
             wk1 *= w1; wk2 *= w2; wk3 *= w3;
         }
     }
