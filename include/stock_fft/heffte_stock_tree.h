@@ -201,16 +201,16 @@ inline std::pair<fft_type, size_t> fptrFactorHelper(const size_t N) {
 
 //! \brief Recursively initialize a call-graph given an array (could be done at compile-time)
 template<typename F, int L>
-inline size_t init_fft_tree(biFuncNode<F,L>* sRoot, const size_t N) {
+inline size_t init_fft_tree(biFuncNode<F,L>* sRoot, const size_t N, ComplexStorage<F,L>& store) {
     std::pair<fft_type, size_t> pr = fptrFactorHelper(N);
     fft_type type = pr.first; size_t k = pr.second;
     if(type == fft_type::rader) {
         size_t a = primeRoot(N);
         size_t ainv = modPow(a, N-2, N);
-        *sRoot = biFuncNode<F,L>(a, ainv);
+        *sRoot = biFuncNode<F,L>(a, ainv, store);
     }
     else {
-        *sRoot = biFuncNode<F,L>(type);
+        *sRoot = biFuncNode<F,L>(type, store);
     }
     sRoot->sz = N;
     if(type == fft_type::discrete ||

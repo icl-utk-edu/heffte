@@ -1,3 +1,12 @@
+/*
+    -- heFFTe --
+       Univ. of Tennessee, Knoxville
+       @date
+*/
+
+#ifndef HEFFTE_STOCK_STORAGE_H
+#define HEFFTE_STOCK_STORAGE_H
+
 #include <queue>
 
 #include "heffte_stock_allocator.h"
@@ -9,14 +18,16 @@ namespace stock{
 template<typename F, int L>
 class ComplexStorage {
     private:
-    using queue = std::priority_queue<complex_vector<F,L>,
-                                    std::vector<complex_vector<F,L>>,
-                                    vecComp>;
     struct vecComp {
         constexpr bool operator()(const complex_vector<F,L> &lhs, const complex_vector<F,L> &rhs) {
             return lhs.size() < rhs.size();
         }
     };
+
+    using queue = std::priority_queue<complex_vector<F,L>,
+                                    std::vector<complex_vector<F,L>>,
+                                    vecComp>;
+    
     queue arena;
 
     public:
@@ -29,6 +40,13 @@ class ComplexStorage {
 
     }
 
+    ComplexStorage(ComplexStorage<F,L>&& store): arena(std::move(store.arena)) {}
+
+    ComplexStorage<F,L>& operator=(ComplexStorage<F,L>&& store) {
+        arena = std::move(store.arena);
+        return *this;
+    }
+
     complex_vector<F,L> get(int N) {
         if(arena.empty()) return complex_vector<F,L>(N);
         complex_vector<F,L> ret = arena.pop();
@@ -38,8 +56,9 @@ class ComplexStorage {
 
     void restore(complex_vector<F,L> v) {arena.push(v);}
     
-}
+};
 
-}
+} // stock
 
-}
+} // heffte
+#endif // HEFFTE_STOCK_STORAGE_H
