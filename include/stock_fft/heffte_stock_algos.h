@@ -9,6 +9,7 @@
 
 #include <cmath>
 
+#include "heffte_stock_storage.h"
 #include "heffte_stock_complex.h"
 #include "heffte_stock_allocator.h"
 #include "heffte_common.h"
@@ -50,8 +51,8 @@ class Fourier_Transform {
         size_t root = 0;
         size_t root_inv = 0;
     public:
-        explicit Fourier_Transform(fft_type fft): type(fft) {}
-        explicit Fourier_Transform(size_t a, size_t ainv): type(fft_type::rader), root(a), root_inv(ainv) { }
+        explicit Fourier_Transform(fft_type fft, ComplexStorage<F,L>& storage): type(fft) { }
+        explicit Fourier_Transform(size_t a, size_t ainv, ComplexStorage<F,L>& storage): type(fft_type::rader), root(a), root_inv(ainv) { }
         void operator()(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, biFuncNode<F,L>* sRoot, direction dir) {
             switch(type) {
                 case fft_type::pow2: pow2_FFT(x, y, s_in, s_out, sRoot, dir); break;
@@ -77,9 +78,10 @@ struct biFuncNode {
         size_t sz = 0;               // Size of FFT
         size_t left = 0;             // Offset in array until left child
         size_t right = 0;            // Offset in array until right child
-        biFuncNode(): fptr(fft_type::discrete) {};
-        biFuncNode(fft_type type): fptr(type) {}; // Create default constructor
-        biFuncNode(size_t a, size_t ainv): fptr(a,ainv) {};
+        ComplexStorage<F,L>& store;
+        biFuncNode(): fptr(fft_type::discrete), store(*(new ComplexStorage<F,L>(1))) {};
+        biFuncNode(fft_type type, ComplexStorage<F,L>&& storage): fptr(type), store(storage) {}; // Create default constructor
+        biFuncNode(size_t a, size_t ainv, ComplexStorage<F,L>&& storage): fptr(a,ainv), store(storage) {};
 };
 
 // Recursive helper function implementing a classic C-T FFT
