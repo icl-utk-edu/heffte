@@ -105,9 +105,9 @@ inline typename pack<double, 1>::type mm_sub(typename pack<double, 1>::type cons
 inline typename pack<float, 1>::type mm_div(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b){ return a / b.real(); }
 //! \brief Calculate double-precision a division
 inline typename pack<double, 1>::type mm_div(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b){ return a / b.real(); }
-//! \brief Calculate single-precision a division
+//! \brief Calculate single-precision negation of a
 inline typename pack<float, 1>::type mm_neg(typename pack<float, 1>::type const &a){ return -a; }
-//! \brief Calculate double-precision a division
+//! \brief Calculate double-precision negation of a
 inline typename pack<double, 1>::type mm_neg(typename pack<double, 1>::type const &a){ return -a; }
 //! \brief Calculate single-precision a multiplication
 inline typename pack<float, 1>::type mm_mul(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b){ return a * b.real(); }
