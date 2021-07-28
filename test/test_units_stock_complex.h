@@ -23,7 +23,7 @@ void test_stock_complex_type() {
         inp_right.push_back(std::complex<F> {L-(i2+1.f), L-(i2+2.f)});
         inp_last.push_back(std::complex<F> {2*i2, 2*i2 + 2.f});
     }
-    
+
     Complex comp_left {inp_left.data()};
     Complex comp_right {inp_right.data()};
     Complex comp_last {inp_last.data()};

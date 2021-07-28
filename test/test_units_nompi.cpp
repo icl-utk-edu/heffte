@@ -330,7 +330,7 @@ void test_gpu_vector(size_t num_entries){
 
     sassert(v2.empty()); // test empty and reset to null after move
     v2 = std::move(v1);  // test move assignment
-    sassert(v1.empty()); // test if moved out of v1
+    sassert(v1.empty()); // test if moved output_forward of v1
 
     dest = std::vector<scalar_type>(); // reset the destination
     dest = gpu::transfer::unload(v2);
@@ -837,7 +837,7 @@ void test_stock_complex(){
     test_stock_complex_type<float,8>();
 #ifdef __AVX512F__
     test_stock_complex_type<float,16>();
-#endif    
+#endif
     test_stock_complex_type<double,1>();
     test_stock_complex_type<double,2>();
     test_stock_complex_type<double,4>();
@@ -850,6 +850,52 @@ void test_stock_complex(){
 #endif
 }
 
+template<typename F, int L>
+void test_stock_dft() {
+    constexpr int L2 = L == 1 ? 1 : L/2;
+    constexpr int INPUT_SZ = 11;
+    std::vector<std::complex<F>>   stl_input {};
+    heffte::stock::complex_vector<F,L> input {};
+
+    for(int i = 0; i < INPUT_SZ; i++) {
+        std::complex<F> tmp {(F) i+1};
+        for(int j = 0; j < L2; j++) stl_input.push_back(tmp);
+        input.push_back(heffte::stock::Complex<F,L>{tmp});
+    }
+
+    heffte::stock::complex_vector<F,L> output_forward    (input.size());
+    heffte::stock::complex_vector<F,L> output_backward   (input.size());
+    std::vector<std::complex<F>> stl_output_forward  (stl_input.size());
+    std::vector<std::complex<F>> stl_output_backward (stl_input.size());
+    std::vector<std::complex<F>> reference (stl_input.size());
+
+    for(int j = 0; j < L2; j++) reference[j] = std::complex<F>{66, 0};
+    std::vector<F> imag;
+    if(std::is_same<F, float>::value) {
+        imag = std::vector<F> {18.73128, 8.5581665, 4.765777, 2.5117664, 0.7907804};
+    }
+    else {
+        imag = std::vector<F> {18.731279813890875, 8.55816705136493, 4.765777128986846, 2.5117658384695547, 0.790780616972353};
+    }
+
+    for(int i = 1; i < (input.size()+1)/2; i++) {
+        for(int j = 0; j < L2; j++) reference[i*L2 + j] = std::complex<F>{-5.5, imag[i-1]};
+        for(int j = 0; j < L2; j++) reference[input.size() - (i*L2 + j)] = std::complex<F>{-5.5, -imag[i-1]};
+    }
+
+    heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output_forward.data(), 1, 1, heffte::direction::forward);
+    for(int i = 0; i < output_forward.size(); i++) {
+        for(int j = 0; j < L2; j++) stl_output_forward[L2*i+j] = output_forward[i][j];
+    }
+    sassert(approx(stl_output_forward, stl_output_forward));
+    heffte::stock::DFT_helper<F,L>(input.size(), output_forward.data(), output_backward.data(), 1, 1, heffte::direction::backward);
+    for(auto &r : output_backward) r /= input.size();
+    for(int i = 0; i < output_backward.size(); i++) {
+        for(int j = 0; j < L2; j++) stl_output_backward[L2*i+j] = output_backward[i][j];
+    }
+    sassert(approx(stl_output_backward, stl_input));
+}
+
 int main(int, char**){
 
     all_tests<using_nompi> name("Non-MPI Tests");
@@ -859,6 +905,7 @@ int main(int, char**){
     test_split_pencils();
     test_cpu_scale();
     test_stock_complex();
+    test_stock_fft<float,1>();
 
     test_gpu_vector();
     test_gpu_scale();
