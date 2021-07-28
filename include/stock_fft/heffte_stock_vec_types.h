@@ -121,6 +121,10 @@ inline typename pack<double, 1>::type mm_complex_mul(typename pack<double, 1>::t
 inline typename pack<float, 1>::type mm_complex_fmadd(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b, typename pack<float, 1>::type const &c){ return a * b + c; }
 //! \brief Perform double-precision complex fused-multiply add
 inline typename pack<double, 1>::type mm_complex_fmadd(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b, typename pack<double, 1>::type const &c){ return a * b + c; }
+//! \brief Perform single-precision complex fused-multiply subtract
+inline typename pack<float, 1>::type mm_complex_fmsub(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b, typename pack<float, 1>::type const &c){ return a * b - c; }
+//! \brief Perform double-precision complex fused-multiply subtract
+inline typename pack<double, 1>::type mm_complex_fmsub(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b, typename pack<double, 1>::type const &c){ return a * b - c; }
 //! \brief Perform single-precision multiplication by i
 inline typename pack<float, 1>::type mm_complex_mul_i(typename pack<float, 1>::type const &a){return a * std::complex<float>{0.f,1.f}; }
 //! \brief Perform double-precision multiplication by i
