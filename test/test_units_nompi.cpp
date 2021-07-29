@@ -851,7 +851,29 @@ void test_stock_complex(){
 }
 
 template<typename F, int L>
-void test_stock_dft() {
+void vec_to_std_complex(std::vector<std::complex<F>>& out, heffte::stock::complex_vector<F,L>& in) {
+    constexpr int L2 = L == 1 ? 1 : L/2;
+    for(int i = 0; i < in.size(); i++) {
+        for(int j = 0; j < L2; j++) out[i*L2 + j] = in[i][j];
+    }
+}
+
+template<typename F, int L>
+std::vector<std::complex<F>> vec_to_std_complex(heffte::stock::complex_vector<F,L>& in) {
+    constexpr int L2 = L == 1 ? 1 : L/2;
+    std::vector<std::complex<F>> out (L2*in.size());
+    vec_to_std_complex(out, in);
+    return out;
+}
+
+template<typename T>
+void print_vec(std::vector<T> v) {
+    for(auto& i : v) std::cout << i << " ";
+    std::cout << "\n\n";
+}
+
+template<typename F, int L>
+void test_stock_dft_template() {
     constexpr int L2 = L == 1 ? 1 : L/2;
     constexpr int INPUT_SZ = 11;
     std::vector<std::complex<F>>   stl_input {};
@@ -865,10 +887,8 @@ void test_stock_dft() {
 
     heffte::stock::complex_vector<F,L> output_forward    (input.size());
     heffte::stock::complex_vector<F,L> output_backward   (input.size());
-    std::vector<std::complex<F>> stl_output_forward  (stl_input.size());
-    std::vector<std::complex<F>> stl_output_backward (stl_input.size());
-    std::vector<std::complex<F>> reference (stl_input.size());
 
+    std::vector<std::complex<F>> reference (stl_input.size());
     for(int j = 0; j < L2; j++) reference[j] = std::complex<F>{66, 0};
     std::vector<F> imag;
     if(std::is_same<F, float>::value) {
@@ -880,20 +900,70 @@ void test_stock_dft() {
 
     for(int i = 1; i < (input.size()+1)/2; i++) {
         for(int j = 0; j < L2; j++) reference[i*L2 + j] = std::complex<F>{-5.5, imag[i-1]};
-        for(int j = 0; j < L2; j++) reference[input.size() - (i*L2 + j)] = std::complex<F>{-5.5, -imag[i-1]};
+        for(int j = 0; j < L2; j++) reference[L2*(input.size() - i) + j] = std::complex<F>{-5.5, -imag[i-1]};
     }
-
     heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output_forward.data(), 1, 1, heffte::direction::forward);
-    for(int i = 0; i < output_forward.size(); i++) {
-        for(int j = 0; j < L2; j++) stl_output_forward[L2*i+j] = output_forward[i][j];
-    }
-    sassert(approx(stl_output_forward, stl_output_forward));
+    std::vector<std::complex<F>> stl_output_forward = vec_to_std_complex(output_forward);
+    sassert(approx(stl_output_forward, reference));
     heffte::stock::DFT_helper<F,L>(input.size(), output_forward.data(), output_backward.data(), 1, 1, heffte::direction::backward);
     for(auto &r : output_backward) r /= input.size();
-    for(int i = 0; i < output_backward.size(); i++) {
-        for(int j = 0; j < L2; j++) stl_output_backward[L2*i+j] = output_backward[i][j];
-    }
+    std::vector<std::complex<F>> stl_output_backward = vec_to_std_complex(output_backward);
     sassert(approx(stl_output_backward, stl_input));
+
+    std::complex<F> one {1, 0};
+    for(int j = 0; j < L2; j++) {
+        stl_input[j] = one;
+        reference[j] = one;
+    }
+    input[0] = heffte::stock::Complex<F,L>{one};
+    for(int i = 1; i < input.size(); i++) {
+        for(int j = 0; j < L2; j++) {
+            stl_input[i*L2 + j] = 0;
+            reference[i*L2 + j] = one;
+        }
+        input[i] = heffte::stock::Complex<F,L>{};
+    }
+    heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output_forward.data(), 1, 1, heffte::direction::forward);
+    vec_to_std_complex(stl_output_forward, output_forward);
+    sassert(approx(stl_output_forward, reference));
+    heffte::stock::DFT_helper<F,L>(input.size(), output_forward.data(), output_backward.data(), 1, 1, heffte::direction::backward);
+    for(auto &r : output_backward) r /= input.size();
+    vec_to_std_complex(stl_output_backward, output_backward);
+    sassert(approx(stl_output_backward, stl_input));
+}
+
+template<typename F>
+void test_stock_dft_typed() {
+    current_test<F, using_nompi> name("stock DFT test");
+    test_stock_dft_template<F,1>();
+#ifdef __AVX__
+    test_stock_dft_template<F, 4>();
+#endif
+#ifdef __AVX512F__
+    constexpr bool is_float = std::is_same<F, float>::value;
+    test_stock_dft_template<F, is_float? 16 : 8>();
+#endif
+}
+
+void test_stock_dft() {
+    test_stock_dft_typed<float>();
+    test_stock_dft_typed<double>();
+}
+
+void test_stock_pow2() {
+
+}
+
+void test_stock_pow3() {
+
+}
+
+void test_stock_composite() {
+
+}
+
+void test_stock_rader() {
+
 }
 
 int main(int, char**){
@@ -905,7 +975,7 @@ int main(int, char**){
     test_split_pencils();
     test_cpu_scale();
     test_stock_complex();
-    test_stock_fft<float,1>();
+    test_stock_dft();
 
     test_gpu_vector();
     test_gpu_scale();
