@@ -950,16 +950,144 @@ void test_stock_dft() {
     test_stock_dft_typed<double>();
 }
 
-void test_stock_pow2() {
+template<typename F, int L>
+void test_stock_pow2_template() {
+    constexpr int L2 = L == 1 ? 1 : L/2;
+    constexpr int INPUT_SZ = 1<<4;
+    std::vector<std::complex<F>>   stl_input {};
+    heffte::stock::complex_vector<F,L> input {};
 
+    for(int i = 0; i < INPUT_SZ; i++) {
+        std::complex<F> tmp {(F) i+1};
+        for(int j = 0; j < L2; j++) stl_input.push_back(tmp);
+        input.push_back(heffte::stock::Complex<F,L>{tmp});
+    }
+
+    heffte::stock::complex_vector<F,L> output_forward_fft    (input.size());
+    heffte::stock::complex_vector<F,L> output_forward_dft    (input.size());
+    heffte::stock::complex_vector<F,L> output_backward_fft   (input.size());
+    heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output_forward_dft.data(), 1, 1, heffte::direction::forward);
+    heffte::stock::pow2_FFT_helper<F,L>(input.size(), input.data(), output_forward_fft.data(), 1, 1, heffte::direction::forward);
+    std::vector<std::complex<F>> stl_output_forward_dft = vec_to_std_complex(output_forward_dft);
+    std::vector<std::complex<F>> stl_output_forward_fft = vec_to_std_complex(output_forward_fft);
+    sassert(approx(stl_output_forward_dft, stl_output_forward_fft));
+    heffte::stock::pow2_FFT_helper<F,L>(input.size(), output_forward_fft.data(), output_backward_fft.data(), 1, 1, heffte::direction::backward);
+    for(auto &r : output_backward_fft) r /= input.size();
+    std::vector<std::complex<F>> stl_output_backward_fft = vec_to_std_complex(output_backward_fft);
+    sassert(approx(stl_output_backward_fft, stl_input));
 }
 
-void test_stock_pow3() {
-
+template<typename F>
+void test_stock_pow2_typed() {
+    current_test<F, using_nompi> name("stock FFT radix-2 test");
+    test_stock_pow2_template<F,1>();
+#ifdef __AVX__
+    test_stock_pow2_template<F, 4>();
+#endif
+#ifdef __AVX512F__
+    constexpr bool is_float = std::is_same<F, float>::value;
+    test_stock_pow2_template<F, is_float? 16 : 8>();
+#endif
 }
 
-void test_stock_composite() {
+void test_stock_fft_pow2() {
+    test_stock_pow2_typed<float>();
+    test_stock_pow2_typed<double>();
+}
 
+template<typename F, int L>
+void test_stock_pow3_template() {
+    constexpr int L2 = L == 1 ? 1 : L/2;
+    constexpr int INPUT_SZ = 9;
+    std::vector<std::complex<F>>   stl_input {};
+    heffte::stock::complex_vector<F,L> input {};
+
+    for(int i = 0; i < INPUT_SZ; i++) {
+        std::complex<F> tmp {(F) i+1};
+        for(int j = 0; j < L2; j++) stl_input.push_back(tmp);
+        input.push_back(heffte::stock::Complex<F,L>{tmp});
+    }
+
+    heffte::stock::complex_vector<F,L> output_forward_fft    (input.size());
+    heffte::stock::complex_vector<F,L> output_forward_dft    (input.size());
+    heffte::stock::complex_vector<F,L> output_backward_fft   (input.size());
+    heffte::stock::Complex<F,L> plus120 (-0.5, -sqrt(3)/2.);
+    heffte::stock::Complex<F,L> minus120 (-0.5, sqrt(3)/2.);
+    heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output_forward_dft.data(), 1, 1, heffte::direction::forward);
+    heffte::stock::pow3_FFT_helper<F,L>(input.size(), input.data(), output_forward_fft.data(), 1, 1, heffte::direction::forward, plus120, minus120);
+    std::vector<std::complex<F>> stl_output_forward_dft = vec_to_std_complex(output_forward_dft);
+    std::vector<std::complex<F>> stl_output_forward_fft = vec_to_std_complex(output_forward_fft);
+    sassert(approx(stl_output_forward_dft, stl_output_forward_fft));
+    heffte::stock::pow3_FFT_helper<F,L>(input.size(), output_forward_fft.data(), output_backward_fft.data(), 1, 1, heffte::direction::backward, minus120, plus120);
+    for(auto &r : output_backward_fft) r /= input.size();
+    std::vector<std::complex<F>> stl_output_backward_fft = vec_to_std_complex(output_backward_fft);
+    sassert(approx(stl_output_backward_fft, stl_input));
+}
+
+template<typename F>
+void test_stock_pow3_typed() {
+    current_test<F, using_nompi> name("stock FFT radix-3 test");
+    test_stock_pow3_template<F,1>();
+#ifdef __AVX__
+    test_stock_pow3_template<F, 4>();
+#endif
+#ifdef __AVX512F__
+    constexpr bool is_float = std::is_same<F, float>::value;
+    test_stock_pow3_template<F, is_float? 16 : 8>();
+#endif
+}
+
+void test_stock_fft_pow3() {
+    test_stock_pow3_typed<float>();
+    test_stock_pow3_typed<double>();
+}
+
+template<typename F, int L>
+void test_stock_composite_template() {
+    using node_ptr = std::unique_ptr<stock::biFuncNode<F,L>[]>;
+    constexpr int L2 = L == 1 ? 1 : L/2;
+    constexpr int INPUT_SZ = 12;
+    std::vector<std::complex<F>>   stl_input {};
+    heffte::stock::complex_vector<F,L> input {};
+
+    for(int i = 0; i < INPUT_SZ; i++) {
+        std::complex<F> tmp {(F) i+1};
+        for(int j = 0; j < L2; j++) stl_input.push_back(tmp);
+        input.push_back(heffte::stock::Complex<F,L>{tmp});
+    }
+    int numNodes = stock::getNumNodes(input.size());
+    node_ptr root (new stock::biFuncNode<F,L>[numNodes]);
+    init_fft_tree(root.get(), input.size());
+    heffte::stock::complex_vector<F,L> output_forward_fft    (input.size());
+    heffte::stock::complex_vector<F,L> output_forward_dft    (input.size());
+    heffte::stock::complex_vector<F,L> output_backward_fft   (input.size());
+    heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output_forward_dft.data(), 1, 1, heffte::direction::forward);
+    heffte::stock::composite_FFT<F,L>(input.data(), output_forward_fft.data(), 1, 1, &root[0], heffte::direction::forward);
+    std::vector<std::complex<F>> stl_output_forward_dft = vec_to_std_complex(output_forward_dft);
+    std::vector<std::complex<F>> stl_output_forward_fft = vec_to_std_complex(output_forward_fft);
+    sassert(approx(stl_output_forward_dft, stl_output_forward_fft));
+    heffte::stock::composite_FFT<F,L>(output_forward_fft.data(), output_backward_fft.data(), 1, 1, &root[0], heffte::direction::backward);
+    for(auto &r : output_backward_fft) r /= input.size();
+    std::vector<std::complex<F>> stl_output_backward_fft = vec_to_std_complex(output_backward_fft);
+    sassert(approx(stl_output_backward_fft, stl_input));
+}
+
+template<typename F>
+void test_stock_composite_typed() {
+    current_test<F, using_nompi> name("stock FFT composite size test");
+    test_stock_composite_template<F,1>();
+#ifdef __AVX__
+    test_stock_composite_template<F, 4>();
+#endif
+#ifdef __AVX512F__
+    constexpr bool is_float = std::is_same<F, float>::value;
+    test_stock_composite_template<F, is_float? 16 : 8>();
+#endif
+}
+
+void test_stock_fft_composite() {
+    test_stock_composite_typed<float>();
+    test_stock_composite_typed<double>();
 }
 
 void test_stock_rader() {
@@ -976,6 +1104,9 @@ int main(int, char**){
     test_cpu_scale();
     test_stock_complex();
     test_stock_dft();
+    test_stock_fft_pow2();
+    test_stock_fft_pow3();
+    test_stock_fft_composite();
 
     test_gpu_vector();
     test_gpu_scale();
