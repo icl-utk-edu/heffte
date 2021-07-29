@@ -1090,10 +1090,6 @@ void test_stock_fft_composite() {
     test_stock_composite_typed<double>();
 }
 
-void test_stock_rader() {
-
-}
-
 int main(int, char**){
 
     all_tests<using_nompi> name("Non-MPI Tests");
