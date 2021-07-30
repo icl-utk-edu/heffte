@@ -253,7 +253,7 @@ inline void composite_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t 
 
     // I'm currently using a temporary storage space malloc'd in recursive calls.
     // This isn't optimal and will change as the engine develops
-    complex_vector<F,L> z (N);
+    Complex<F,L>* z  = sRoot->workspace->data();
     // Find the FFT of the "rows" of the input signal and twiddle them accordingly
     Complex<F,L> w1 = omega<F,L>::get(1, N, dir);
     Complex<F,L> wj1 = Complex<F,L>(1., 0.);
@@ -300,7 +300,7 @@ inline void rader_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_ou
     biFuncNode<F,L>* subFFT = sRoot + sRoot->left;
 
     // Temporary workspace
-    complex_vector<F,L> z (p-1);
+    Complex<F,L>* z = sRoot->workspace->data();
     // Loop variables
     int ak = 1;
     int akinv = 1;
