@@ -51,8 +51,8 @@ class Fourier_Transform {
         size_t root = 0;
         size_t root_inv = 0;
     public:
-        explicit Fourier_Transform(fft_type fft, ComplexStorage<F,L>& storage): type(fft) { }
-        explicit Fourier_Transform(size_t a, size_t ainv, ComplexStorage<F,L>& storage): type(fft_type::rader), root(a), root_inv(ainv) { }
+        explicit Fourier_Transform(fft_type fft): type(fft) { }
+        explicit Fourier_Transform(size_t a, size_t ainv): type(fft_type::rader), root(a), root_inv(ainv) { }
         void operator()(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, biFuncNode<F,L>* sRoot, direction dir) {
             switch(type) {
                 case fft_type::pow2: pow2_FFT(x, y, s_in, s_out, sRoot, dir); break;
@@ -74,14 +74,14 @@ class Fourier_Transform {
  */
 template<typename F, int L>
 struct biFuncNode {
-        Fourier_Transform<F,L> fptr; // FFT for this call
-        size_t sz = 0;               // Size of FFT
-        size_t left = 0;             // Offset in array until left child
-        size_t right = 0;            // Offset in array until right child
-        ComplexStorage<F,L>& store;
-        biFuncNode(): fptr(fft_type::discrete), store(*(new ComplexStorage<F,L>(1))) {};
-        biFuncNode(fft_type type, ComplexStorage<F,L>&& storage): fptr(type), store(storage) {}; // Create default constructor
-        biFuncNode(size_t a, size_t ainv, ComplexStorage<F,L>&& storage): fptr(a,ainv), store(storage) {};
+    Fourier_Transform<F,L> fptr; // FFT for this call
+    size_t sz = 0;               // Size of FFT
+    size_t left = 0;             // Offset in array until left child
+    size_t right = 0;            // Offset in array until right child
+    complex_vector<F,L>* workspace; // Workspace
+    biFuncNode(): fptr(fft_type::discrete) {};
+    biFuncNode(fft_type type, complex_vector<F,L>* store): fptr(type), workspace(store) {}; // Create default constructor
+    biFuncNode(size_t a, size_t ainv, complex_vector<F,L>* store): fptr(a,ainv), workspace(store) {};
 };
 
 // Recursive helper function implementing a classic C-T FFT
@@ -149,7 +149,7 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     Complex<F,L> w2 (cos(2*inc), direction_sign(dir)*sin(2*inc));
     Complex<F,L> w3 (cos(3*inc), direction_sign(dir)*sin(3*inc));
     Complex<F,L> wk1 (1., 0.); Complex<F,L> wk2 (1., 0.); Complex<F,L> wk3 (1., 0.);
-        
+
     // Conquer larger problem accordingly
     if(dir == direction::forward) {
         for(int k = 0; k < m; k++) {
