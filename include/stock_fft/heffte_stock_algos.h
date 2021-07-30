@@ -257,8 +257,7 @@ inline void composite_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t 
     // Find the FFT of the "rows" of the input signal and twiddle them accordingly
     Complex<F,L> w1 = omega<F,L>::get(1, N, dir);
     Complex<F,L> wj1 = Complex<F,L>(1., 0.);
-    right->fptr(&x[0], &z[0], N1*s_in, 1, right, dir);
-    for(size_t j1 = 1; j1 < N1; j1++) {
+    for(size_t j1 = 0; j1 < N1; j1++) {
         Complex<F,L> wk2 = wj1;
         right->fptr(&x[j1*s_in], &z[N2*j1], N1*s_in, 1, right, dir);
         for(size_t k2 = 1; (k2 < N2) && (j1 > 0); k2++) {
