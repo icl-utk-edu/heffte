@@ -101,13 +101,17 @@ inline typename pack<double, 1>::type mm_add(typename pack<double, 1>::type cons
 inline typename pack<float, 1>::type mm_sub(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b){ return a - b; }
 //! \brief Calculate double-precision complex subtraction
 inline typename pack<double, 1>::type mm_sub(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b){ return a - b; }
-//! \brief Calculate single-precision a division
+//! \brief Calculate single-precision division
 inline typename pack<float, 1>::type mm_div(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b){ return a / b.real(); }
-//! \brief Calculate double-precision a division
+//! \brief Calculate double-precision division
 inline typename pack<double, 1>::type mm_div(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b){ return a / b.real(); }
-//! \brief Calculate single-precision a multiplication
+//! \brief Calculate single-precision negation of a
+inline typename pack<float, 1>::type mm_neg(typename pack<float, 1>::type const &a){ return -a; }
+//! \brief Calculate double-precision negation of a
+inline typename pack<double, 1>::type mm_neg(typename pack<double, 1>::type const &a){ return -a; }
+//! \brief Calculate single-precision multiplication
 inline typename pack<float, 1>::type mm_mul(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b){ return a * b.real(); }
-//! \brief Calculate double-precision a multiplication
+//! \brief Calculate double-precision multiplication
 inline typename pack<double, 1>::type mm_mul(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b){ return a * b.real(); }
 //! \brief Perform single-precision complex multiplication
 inline typename pack<float, 1>::type mm_complex_mul(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b){ return a * b; }
@@ -117,14 +121,26 @@ inline typename pack<double, 1>::type mm_complex_mul(typename pack<double, 1>::t
 inline typename pack<float, 1>::type mm_complex_fmadd(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b, typename pack<float, 1>::type const &c){ return a * b + c; }
 //! \brief Perform double-precision complex fused-multiply add
 inline typename pack<double, 1>::type mm_complex_fmadd(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b, typename pack<double, 1>::type const &c){ return a * b + c; }
+//! \brief Perform single-precision complex fused-multiply subtract
+inline typename pack<float, 1>::type mm_complex_fmsub(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b, typename pack<float, 1>::type const &c){ return a * b - c; }
+//! \brief Perform double-precision complex fused-multiply subtract
+inline typename pack<double, 1>::type mm_complex_fmsub(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b, typename pack<double, 1>::type const &c){ return a * b - c; }
+//! \brief Perform single-precision multiplication by i
+inline typename pack<float, 1>::type mm_complex_mul_i(typename pack<float, 1>::type const &a){return a * std::complex<float>{0.f,1.f}; }
+//! \brief Perform double-precision multiplication by i
+inline typename pack<double, 1>::type mm_complex_mul_i(typename pack<double, 1>::type const &a){ return a * std::complex<double>{0.,1.}; }
+//! \brief Perform single-precision multiplication by -i
+inline typename pack<float, 1>::type mm_complex_mul_neg_i(typename pack<float, 1>::type const &a){return a * std::complex<float>{0.f,-1.f}; }
+//! \brief Perform double-precision multiplication by -i
+inline typename pack<double, 1>::type mm_complex_mul_neg_i(typename pack<double, 1>::type const &a){ return a * std::complex<double>{0.,-1.}; }
 //! \brief Calculate single-precision complex squared modulus
-inline typename pack<float, 1>::type mm_complex_sq_mod(typename pack<float,1>::type const &a){ return norm(a); }
+inline typename pack<float, 1>::type mm_complex_sq_mod(typename pack<float,1>::type const &a){ return std::complex<float>{norm(a), norm(a)}; }
 //! \brief Calculate double-precision complex squared modulus
-inline typename pack<double, 1>::type mm_complex_sq_mod(typename pack<double,1>::type const &a){ return norm(a); }
+inline typename pack<double, 1>::type mm_complex_sq_mod(typename pack<double,1>::type const &a){ return std::complex<double>{norm(a), norm(a)}; }
 //! \brief Calculate single-precision complex modulus
-inline float mm_complex_mod(typename pack<float,1>::type const &a){ return std::abs(a); }
+inline typename pack<float, 1>::type mm_complex_mod(typename pack<float,1>::type const &a){ return std::complex<float>{std::abs(a), std::abs(a)}; }
 //! \brief Calculate double-precision complex modulus
-inline double mm_complex_mod(typename pack<double,1>::type const &a){ return std::abs(a); }
+inline typename pack<double, 1>::type mm_complex_mod(typename pack<double,1>::type const &a){ return std::complex<double>{std::abs(a), std::abs(a)}; }
 //! \brief Calculate single-precision complex conjugation
 inline typename pack<float, 1>::type mm_complex_conj(typename pack<float,1>::type const &a){ return conj(a); }
 //! \brief Calculate double-precision complex conjugation
