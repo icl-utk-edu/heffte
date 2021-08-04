@@ -1,9 +1,6 @@
 #include "test_common.h"
 #include "test_common.h"
 
-#ifndef TEST_UNITS_STOCK_COMPLEX_H
-#define TEST_UNITS_STOCK_COMPLEX_H
-
 template<typename F, size_t L>
 void test_stock_complex_type() {
     std::string test_name = "stock complex<";
