@@ -1,7 +1,19 @@
+/** @class */
+/*
+    -- heFFTe --
+       Univ. of Tennessee, Knoxville
+       @date
+*/
+
 #include "test_common.h"
 
+// This makes it easier to refer to vectors, which are used frequently
 template<typename F, int L>
 using cvec = heffte::stock::complex_vector<F,L>;
+
+/******************************
+ ***** Test Complex Types *****
+ *****************************/
 
 template<typename F, size_t L>
 void test_stock_complex_type() {
@@ -142,6 +154,11 @@ void test_stock_complex(){
 #endif
 }
 
+/***********************************
+ ***** Test Fourier Transforms *****
+ **********************************/
+
+// Helper functions for testing 1D Fourier Transforms
 template<typename F, int L>
 void vec_to_std_complex(std::vector<std::complex<F>>& out, cvec<F,L>& in) {
     constexpr int L2 = L == 1 ? 1 : L/2;
@@ -158,6 +175,7 @@ std::vector<std::complex<F>> vec_to_std_complex(cvec<F,L>& in) {
     return out;
 }
 
+// Template to test a Fourier Transform
 template<typename F, int L>
 void test_fft_template(int N,
                        std::function<void(cvec<F,L>&,cvec<F,L>&)> fftForward,
@@ -207,20 +225,29 @@ void test_fft_template(int N,
     sassert(approx(stl_output_backward_fft, stl_input));
 }
 
+// Testing the DFT
 template<typename F, int L>
 void test_stock_dft_template() {
     constexpr int L2 = L == 1 ? 1 : L/2;
     constexpr int INPUT_SZ = 11;
 
-
+    // Represents the calculated DFT of the input [1,2,3,...,11]
     cvec<F,L> reference (INPUT_SZ);
     reference[0] = heffte::stock::Complex<F,L>(66, 0);
+
+    // Represents the imaginary parts of reference
     std::vector<F> imag;
     if(std::is_same<F, float>::value) {
-        imag = std::vector<F> {18.73128, 8.5581665, 4.765777, 2.5117664, 0.7907804};
+        imag = std::vector<F> {18.73128,  8.5581665,
+                                4.765777, 2.5117664,
+                                0.7907804};
     }
     else {
-        imag = std::vector<F> {18.731279813890875, 8.55816705136493, 4.765777128986846, 2.5117658384695547, 0.790780616972353};
+        imag = std::vector<F> {18.731279813890875,
+                                8.55816705136493,
+                                4.765777128986846,
+                                2.5117658384695547,
+                                0.790780616972353};
     }
 
     for(int i = 1; i < (INPUT_SZ+1)/2; i++) {
@@ -261,6 +288,7 @@ void test_stock_dft() {
     test_stock_dft_typed<double>();
 }
 
+// Test the radix-2 Fourier Transform
 template<typename F, int L>
 void test_stock_pow2_template() {
     constexpr int INPUT_SZ = 1<<4;
@@ -294,6 +322,7 @@ void test_stock_fft_pow2() {
     test_stock_pow2_typed<double>();
 }
 
+// Represents the radix-3 Fourier Transform
 template<typename F, int L>
 void test_stock_pow3_template() {
     constexpr int INPUT_SZ = 9;
@@ -330,6 +359,7 @@ void test_stock_fft_pow3() {
     test_stock_pow3_typed<double>();
 }
 
+// Represents the radix-p Fourier Transform
 template<typename F, int L>
 void test_stock_composite_template() {
     using node_ptr = std::unique_ptr<stock::biFuncNode<F,L>[]>;
@@ -373,6 +403,7 @@ void test_stock_fft_composite() {
     test_stock_composite_typed<double>();
 }
 
+// Test all stock components
 int main(int argc, char** argv) {
     all_tests<using_nompi> name("Non-MPI Tests for Stock Backend");
 
