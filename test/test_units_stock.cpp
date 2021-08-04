@@ -1,5 +1,4 @@
 #include "test_common.h"
-#include "test_common.h"
 
 template<typename F, size_t L>
 void test_stock_complex_type() {
@@ -279,33 +278,75 @@ void test_stock_fft_pow2() {
     test_stock_pow2_typed<double>();
 }
 
-template<typename F, int L>
-void test_stock_pow3_template() {
+template<typename F, int L, typename TF, typename TB>
+void test_fft_template(int N, heffte::stock::complex_vector<F,L> input, TF fftForward, TB fftBackward) {
+    if(!input.empty()) input.clear();
     constexpr int L2 = L == 1 ? 1 : L/2;
-    constexpr int INPUT_SZ = 9;
     std::vector<std::complex<F>>   stl_input {};
-    heffte::stock::complex_vector<F,L> input {};
 
-    for(int i = 0; i < INPUT_SZ; i++) {
-        std::complex<F> tmp {(F) i+1};
+    // Test on an impulse signal
+    std::complex<F> tmp {1};
+    stl_input.push_back(tmp);
+    input.push_back(heffte::stock::Complex<F,L>{tmp});
+    for(int i = 1; i < N; i++) {
+        tmp = std::complex<F> {0};
         for(int j = 0; j < L2; j++) stl_input.push_back(tmp);
         input.push_back(heffte::stock::Complex<F,L>{tmp});
     }
-
     heffte::stock::complex_vector<F,L> output_forward_fft    (input.size());
     heffte::stock::complex_vector<F,L> output_forward_dft    (input.size());
     heffte::stock::complex_vector<F,L> output_backward_fft   (input.size());
+
+    fftForward(input, output_forward_fft);
+    std::vector<std::complex<F>> stl_output_forward_fft = vec_to_std_complex(output_forward_fft);
+    std::vector<std::complex<F>> stl_output_forward_dft = vec_to_std_complex(output_forward_dft);
+    for(int i = 0; i < N; i++) for(int j = 0; j < L2; j++) stl_output_forward_dft[i*L2+j] = std::complex<F> {1.};
+    sassert(approx(stl_output_forward_fft, stl_output_forward_dft));
+    fftBackward(output_forward_fft, output_backward_fft);
+    output_backward_fft[0] /= input.size();
+    std::vector<std::complex<F>> stl_output_backward_fft = vec_to_std_complex(output_backward_fft);
+
+    // Test on an actual signal comparing to DFT
+    for(int i = 0; i < N; i++) {
+        tmp = std::complex<F> {(F) (i + 1.)};
+        for(int j = 0; j < L2; j++) stl_input[i*L2 + j] = tmp;
+        input[i] = heffte::stock::Complex<F,L> {tmp};
+    }
+    heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output_forward_dft.data(), 1, 1, heffte::direction::forward);
+    fftForward(input, output_forward_fft);
+    heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output_forward_dft.data(), 1, 1, heffte::direction::forward);
+    vec_to_std_complex(stl_output_forward_fft, output_forward_fft);
+    vec_to_std_complex(stl_output_forward_dft, output_forward_dft);
+    sassert(approx(stl_output_forward_fft, stl_output_forward_dft));
+    fftBackward(output_forward_fft, output_backward_fft);
+    for(auto &r : output_backward_fft) r /= input.size();
+    vec_to_std_complex(stl_output_backward_fft, output_backward_fft);
+    try {
+        sassert(approx(stl_output_backward_fft, stl_input, 0));
+    } catch(const std::exception& e) {
+        std::cout << "input_sz = " << stl_input.size() << ", output_sz = " << stl_output_backward_fft << "\n";
+        for(auto& a : stl_input) std::cout << a <<  " ";
+        std::cout << "\n";
+        for(auto& a : stl_output_backward_fft) std::cout << a <<  " ";
+        std::cout << "\n";
+        throw e;
+    }
+}
+
+template<typename F, int L>
+void test_stock_pow3_template() {
+    constexpr int INPUT_SZ = 9;
+    heffte::stock::complex_vector<F,L> input {};
+
     heffte::stock::Complex<F,L> plus120 (-0.5, -sqrt(3)/2.);
     heffte::stock::Complex<F,L> minus120 (-0.5, sqrt(3)/2.);
-    heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output_forward_dft.data(), 1, 1, heffte::direction::forward);
-    heffte::stock::pow3_FFT_helper<F,L>(input.size(), input.data(), output_forward_fft.data(), 1, 1, heffte::direction::forward, plus120, minus120);
-    std::vector<std::complex<F>> stl_output_forward_dft = vec_to_std_complex(output_forward_dft);
-    std::vector<std::complex<F>> stl_output_forward_fft = vec_to_std_complex(output_forward_fft);
-    sassert(approx(stl_output_forward_dft, stl_output_forward_fft));
-    heffte::stock::pow3_FFT_helper<F,L>(input.size(), output_forward_fft.data(), output_backward_fft.data(), 1, 1, heffte::direction::backward, minus120, plus120);
-    for(auto &r : output_backward_fft) r /= input.size();
-    std::vector<std::complex<F>> stl_output_backward_fft = vec_to_std_complex(output_backward_fft);
-    sassert(approx(stl_output_backward_fft, stl_input));
+    auto fftForward = [&plus120, &minus120](heffte::stock::complex_vector<F,L>& input, heffte::stock::complex_vector<F,L>& output) {
+        heffte::stock::pow3_FFT_helper<F,L>(input.size(), input.data(), output.data(), 1, 1, heffte::direction::forward, plus120, minus120);
+    };
+    auto fftBackward = [&plus120, &minus120](heffte::stock::complex_vector<F,L>& input, heffte::stock::complex_vector<F,L>& output) {
+        heffte::stock::pow3_FFT_helper<F,L>(input.size(), input.data(), output.data(), 1, 1, heffte::direction::backward, minus120, plus120);
+    };
+    test_fft_template(INPUT_SZ, input, fftForward, fftBackward);
 }
 
 template<typename F>
