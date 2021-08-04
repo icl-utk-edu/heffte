@@ -375,6 +375,8 @@ void test_stock_fft_composite() {
 }
 
 int main(int argc, char** argv) {
+    all_tests<using_nompi> name("Non-MPI Tests for Stock Backend");
+
     test_stock_complex();
     test_stock_dft();
     test_stock_fft_pow2();
