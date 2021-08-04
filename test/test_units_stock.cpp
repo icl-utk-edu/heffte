@@ -41,52 +41,49 @@ void test_stock_complex_type() {
     Complex comp_last {inp_last.data()};
 
     F scalar = 5.;
-    constexpr size_t UNARY_OP_COUNT = 5;
-    constexpr size_t BINARY_OP_COUNT = 4;
-    constexpr size_t TERNARY_OP_COUNT = 2;
-    std::array<std::function<stdcomp(stdcomp)>, UNARY_OP_COUNT> stl_vec_un {
+    std::vector<std::function<stdcomp(stdcomp)>> stl_vec_un {
         [](stdcomp x) { return -x;                                },
         [](stdcomp x) { return conj(x);                           },
         [](stdcomp x) { return stdcomp {std::abs(x),std::abs(x)}; },
         [](stdcomp x) { return x*std::complex<F>{0.,  1.};        },
         [](stdcomp x) { return x*std::complex<F>{0., -1.};        }
     };
-    std::array<std::function<Complex(Complex)>, UNARY_OP_COUNT> stock_vec_un {
+    std::vector<std::function<Complex(Complex)>> stock_vec_un {
         [](Complex x) { return -x;                   },
         [](Complex x) { return x.conjugate();        },
         [](Complex x) { return Complex(x.modulus()); },
         [](Complex x) { return x.__mul_i();          },
         [](Complex x) { return x.__mul_neg_i();      }
     };
-    std::array<std::function<stdcomp(stdcomp, stdcomp)>, BINARY_OP_COUNT> stl_vec_bin {
+    std::vector<std::function<stdcomp(stdcomp, stdcomp)>> stl_vec_bin {
         [](stdcomp x, stdcomp y) { return x + y; },
         [](stdcomp x, stdcomp y) { return x - y; },
         [](stdcomp x, stdcomp y) { return x * y; },
         [](stdcomp x, stdcomp y) { return x / y; }
     };
-    std::array<std::function<Complex(Complex, Complex)>, BINARY_OP_COUNT> stock_vec_bin {
+    std::vector<std::function<Complex(Complex, Complex)>> stock_vec_bin {
         [](Complex x, Complex y) { return x + y; },
         [](Complex x, Complex y) { return x - y; },
         [](Complex x, Complex y) { return x * y; },
         [](Complex x, Complex y) { return x / y; }
     };
-    std::array<std::function<stdcomp(stdcomp, F)>, BINARY_OP_COUNT> stl_scalar_bin {
+    std::vector<std::function<stdcomp(stdcomp, F)>> stl_scalar_bin {
         [](stdcomp x, F y) { return x + y; },
         [](stdcomp x, F y) { return x - y; },
         [](stdcomp x, F y) { return x * y; },
         [](stdcomp x, F y) { return x / y; }
     };
-    std::array<std::function<Complex(Complex, F)>, BINARY_OP_COUNT> stock_scalar_bin {
+    std::vector<std::function<Complex(Complex, F)>> stock_scalar_bin {
         [](Complex x, F y) { return x + y; },
         [](Complex x, F y) { return x - y; },
         [](Complex x, F y) { return x * y; },
         [](Complex x, F y) { return x / y; }
     };
-    std::array<std::function<stdcomp(stdcomp, stdcomp, stdcomp)>, TERNARY_OP_COUNT> stl_vec_tri {
+    std::vector<std::function<stdcomp(stdcomp, stdcomp, stdcomp)>> stl_vec_tri {
         [](stdcomp x, stdcomp y, stdcomp z){ return x*y+z;},
         [](stdcomp x, stdcomp y, stdcomp z){ return x*y-z;}
     };
-    std::array<std::function<Complex(Complex, Complex, Complex)>, TERNARY_OP_COUNT> stock_vec_tri {
+    std::vector<std::function<Complex(Complex, Complex, Complex)>> stock_vec_tri {
         [](Complex x, Complex y, Complex z){ return x.fmadd(y, z);},
         [](Complex x, Complex y, Complex z){ return x.fmsub(y, z);}
     };
@@ -96,7 +93,7 @@ void test_stock_complex_type() {
 
     Complex comp_out_i;
 
-    for(size_t i = 0; i < UNARY_OP_COUNT; i++) {
+    for(size_t i = 0; i < stl_vec_un.size(); i++) {
         comp_out_i = stock_vec_un[i](comp_left);
         for(size_t j = 0; j < vec_sz; j++) {
             ref_out[j] = stl_vec_un[i](inp_left[j]);
@@ -105,7 +102,7 @@ void test_stock_complex_type() {
         sassert(approx(ref_out, comp_out));
     }
 
-    for(size_t i = 0; i < BINARY_OP_COUNT; i++) {
+    for(size_t i = 0; i < stl_vec_bin.size(); i++) {
         comp_out_i = stock_vec_bin[i](comp_left, comp_right);
         for(size_t j = 0; j < vec_sz; j++) {
             ref_out[j] = stl_vec_bin[i](inp_left[j], inp_right[j]);
@@ -114,7 +111,7 @@ void test_stock_complex_type() {
         sassert(approx(ref_out, comp_out));
     }
 
-    for(size_t i = 0; i < BINARY_OP_COUNT; i++) {
+    for(size_t i = 0; i < stl_scalar_bin.size(); i++) {
         comp_out_i = stock_scalar_bin[i](comp_left, scalar);
         for(size_t j = 0; j < vec_sz; j++) {
             ref_out[j] = stl_scalar_bin[i](inp_left[j], scalar);
@@ -123,7 +120,7 @@ void test_stock_complex_type() {
         sassert(approx(ref_out, comp_out));
     }
 
-    for(size_t i = 0; i < TERNARY_OP_COUNT; i++) {
+    for(size_t i = 0; i < stl_vec_tri.size(); i++) {
         comp_out_i = stock_vec_tri[i](comp_left, comp_right, comp_last);
         for(size_t j = 0; j < vec_sz; j++) {
             ref_out[j] = stl_vec_tri[i](inp_left[j], inp_right[j], inp_last[j]);
