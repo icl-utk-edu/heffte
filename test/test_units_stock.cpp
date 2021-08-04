@@ -222,7 +222,8 @@ void test_stock_dft_template() {
     else {
         imag = std::vector<F> {18.731279813890875, 8.55816705136493, 4.765777128986846, 2.5117658384695547, 0.790780616972353};
     }
-    for(int i = 1; i < (INPUT_SZ)/2; i++) {
+
+    for(int i = 1; i < (INPUT_SZ+1)/2; i++) {
         reference[i] = heffte::stock::Complex<F,L>(-5.5, imag[i-1]);
         reference[INPUT_SZ - i] = heffte::stock::Complex<F,L>(-5.5, -imag[i-1]);
     }
@@ -238,6 +239,7 @@ void test_stock_dft_template() {
     std::function<void(cvec<F,L>&,cvec<F,L>&)> refForward = [&reference](cvec<F,L>& input, cvec<F,L>& output) {
         output = reference;
     };
+
     test_fft_template(INPUT_SZ, dftForward, dftBackward, refForward);
 }
 
@@ -341,12 +343,15 @@ void test_stock_composite_template() {
     std::function<void(cvec<F,L>&,cvec<F,L>&)> fftForward = [&rootPtr](cvec<F,L>& input, cvec<F,L>& output){
         heffte::stock::composite_FFT<F,L>(input.data(), output.data(), 1, 1, rootPtr, heffte::direction::forward);
     };
+
     std::function<void(cvec<F,L>&,cvec<F,L>&)> fftBackward = [&rootPtr](cvec<F,L>& input, cvec<F,L>& output){
         heffte::stock::composite_FFT<F,L>(input.data(), output.data(), 1, 1, rootPtr, heffte::direction::backward);
     };
+
     std::function<void(cvec<F,L>&,cvec<F,L>&)> refForward = [](cvec<F,L>& input, cvec<F,L>& output) {
         heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output.data(), 1, 1, heffte::direction::forward);
     };
+
     test_fft_template(INPUT_SZ, fftForward, fftBackward, refForward);
 }
 
