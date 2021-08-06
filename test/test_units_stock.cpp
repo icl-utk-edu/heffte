@@ -14,8 +14,7 @@ using complex_vector = heffte::stock::complex_vector<F,L>;
 template<typename F>
 using is_float = std::is_same<F, float>;
 
-template<int L>
-constexpr int vec_size() { return (L == 1) ? 1 : L/2; }
+constexpr inline int vec_size(int L) { return (L == 1) ? 1 : L/2; }
 
 /******************************
  ***** Test Complex Types *****
@@ -165,13 +164,13 @@ void test_stock_complex(){
 template<typename F, int L>
 void vec_to_std_complex(std::vector<std::complex<F>>& out, complex_vector<F,L>& in) {
     for(size_t i = 0; i < in.size(); i++) {
-        for(int j = 0; j < vec_size<L>(); j++) out[i*vec_size<L>() + j] = in[i][j];
+        for(int j = 0; j < vec_size(L); j++) out[i*vec_size(L) + j] = in[i][j];
     }
 }
 
 template<typename F, int L>
 std::vector<std::complex<F>> vec_to_std_complex(complex_vector<F,L>& in) {
-    std::vector<std::complex<F>> out (vec_size<L>()*in.size());
+    std::vector<std::complex<F>> out (vec_size(L)*in.size());
     vec_to_std_complex(out, in);
     return out;
 }
@@ -183,7 +182,7 @@ void test_fft_template(int N,
                        std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> fftBackward,
                        std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> refForward) {
     complex_vector<F,L> input {};
-    constexpr int vec_sz = vec_size<L>();
+    constexpr int vec_sz = vec_size(L);
     std::vector<std::complex<F>>   stl_input {};
 
     // Test on an impulse signal
