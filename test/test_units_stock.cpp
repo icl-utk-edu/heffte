@@ -36,7 +36,7 @@ void test_stock_complex_type() {
     std::vector<std::complex<F>> inp_right {};
     std::vector<std::complex<F>> inp_last {};
     for(size_t i = 0; i < vec_sz; i++) {
-        F i2 = (F) 2*i;
+        F i2 = static_cast<F>(2*i);
         inp_left.push_back(std::complex<F> {i2, i2 + 1.f});
         inp_right.push_back(std::complex<F> {L-(i2+1.f), L-(i2+2.f)});
         inp_last.push_back(std::complex<F> {2*i2, 2*i2 + 2.f});
@@ -195,9 +195,9 @@ void test_fft_template(int N,
         for(int j = 0; j < vec_sz; j++) stl_input.push_back(tmp);
         input.push_back(heffte::stock::Complex<F,L>{tmp});
     }
-    complex_vector<F,L> output_forward_fft    (input.size());
-    complex_vector<F,L> output_forward_ref    (input.size());
-    complex_vector<F,L> output_backward_fft   (input.size());
+    complex_vector<F,L> output_forward_fft (input.size());
+    complex_vector<F,L> output_forward_ref (input.size());
+    complex_vector<F,L> output_backward_fft (input.size());
 
     fftForward(input, output_forward_fft);
     std::vector<std::complex<F>> stl_output_forward_fft = vec_to_std_complex(output_forward_fft);
@@ -210,7 +210,7 @@ void test_fft_template(int N,
 
     // Test on an actual signal comparing to DFT
     for(int i = 0; i < N; i++) {
-        tmp = std::complex<F> {(F) (i + 1.)};
+        tmp = std::complex<F> {static_cast<F>(i + 1.)};
         for(int j = 0; j < vec_sz; j++) stl_input[i*vec_sz + j] = tmp;
         input[i] = heffte::stock::Complex<F,L> {tmp};
     }
