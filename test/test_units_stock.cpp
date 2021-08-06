@@ -352,6 +352,38 @@ void test_stock_fft_pow3() {
     test_stock_pow3_typed<double>();
 }
 
+// Test the radix-2 Fourier Transform
+template<typename F, int L>
+void test_stock_pow4_template() {
+    std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> fftForward = [](complex_vector<F,L>& input, complex_vector<F,L>& output) {
+        heffte::stock::pow4_FFT_helper<F,L>(input.size(), input.data(), output.data(), 1, 1, heffte::direction::forward);
+    };
+    std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> fftBackward = [](complex_vector<F,L>& input, complex_vector<F,L>& output) {
+        heffte::stock::pow4_FFT_helper<F,L>(input.size(), input.data(), output.data(), 1, 1, heffte::direction::backward);
+    };
+    std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> refForward = [](complex_vector<F,L>& input, complex_vector<F,L>& output) {
+        heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output.data(), 1, 1, heffte::direction::forward);
+    };
+    test_fft_template(16, fftForward, fftBackward, refForward);
+}
+
+template<typename F>
+void test_stock_pow4_typed() {
+    current_test<F, using_nompi> name("stock FFT radix-4 test");
+    test_stock_pow4_template<F,1>();
+#ifdef __AVX__
+    test_stock_pow4_template<F, 4>();
+#endif
+#ifdef __AVX512F__
+    test_stock_pow4_template<F, is_float<F>::value? 16 : 8>();
+#endif
+}
+
+void test_stock_fft_pow4() {
+    test_stock_pow4_typed<float>();
+    test_stock_pow4_typed<double>();
+}
+
 // Represents the radix-p Fourier Transform
 template<typename F, int L>
 void test_stock_composite_template() {
@@ -403,6 +435,7 @@ int main(int, char**) {
     test_stock_dft();
     test_stock_fft_pow2();
     test_stock_fft_pow3();
+    test_stock_fft_pow4();
     test_stock_fft_composite();
 
     return 0;

@@ -56,7 +56,7 @@ class Fourier_Transform {
             switch(type) {
                 case fft_type::pow2: pow2_FFT(x, y, s_in, s_out, sRoot, dir); break;
                 case fft_type::pow3: pow3_FFT(x, y, s_in, s_out, sRoot, dir); break;
-                case fft_type::pow4: pow2_FFT(x, y, s_in, s_out, sRoot, dir); break;
+                case fft_type::pow4: pow4_FFT(x, y, s_in, s_out, sRoot, dir); break;
                 case fft_type::composite: composite_FFT(x, y, s_in, s_out, sRoot, dir); break;
                 case fft_type::discrete: DFT(x, y, s_in, s_out, sRoot, dir); break;
                 case fft_type::rader: rader_FFT(x, y, s_in, s_out, sRoot, dir, root, root_inv); break;
@@ -122,6 +122,76 @@ inline void pow2_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out
     pow2_FFT_helper(N, x, y, s_in, s_out, dir); // Call the radix-2 FFT
 }
 
+// Recursive helper function implementing a classic C-T FFT
+template<typename F, int L>
+inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, direction dir) {
+
+    // Trivial case
+    if(N == 1) {
+        *y = *x;
+        return;
+    }
+
+    // Size of sub-problem
+    int m = N/4;
+
+    // Divide into two sub-problems
+    pow4_FFT_helper(m, x         , y            , s_in*4, s_out, dir);
+    pow4_FFT_helper(m, x +   s_in, y +   s_out*m, s_in*4, s_out, dir);
+    pow4_FFT_helper(m, x + 2*s_in, y + 2*s_out*m, s_in*4, s_out, dir);
+    pow4_FFT_helper(m, x + 3*s_in, y + 3*s_out*m, s_in*4, s_out, dir);
+
+    // Twiddle Factor
+    double inc = 2.*M_PI/N;
+    Complex<F,L> w1 (cos(  inc), direction_sign(dir)*sin(  inc));
+    Complex<F,L> w2 (cos(2*inc), direction_sign(dir)*sin(2*inc));
+    Complex<F,L> w3 (cos(3*inc), direction_sign(dir)*sin(3*inc));
+    Complex<F,L> wk1 (1., 0.); Complex<F,L> wk2 (1., 0.); Complex<F,L> wk3 (1., 0.);
+
+    // Conquer larger problem accordingly
+    if(dir == direction::forward) {
+        for(int k = 0; k < m; k++) {
+            int k0 = (k      )*s_out;
+            int k1 = (k +   m)*s_out;
+            int k2 = (k + 2*m)*s_out;
+            int k3 = (k + 3*m)*s_out;
+            Complex<F,L> y_k0 = y[k0];
+            Complex<F,L> y_k1 = y[k1];
+            Complex<F,L> y_k2 = y[k2];
+            Complex<F,L> y_k3 = y[k3];
+            y[k0] = wk2.fmadd( y_k2, y_k0) + wk1.fmadd(y_k1, wk3*y_k3);
+            y[k1] = wk2.fmadd(-y_k2, y_k0) + wk3.fmsub(y_k3, wk1*y_k1).__mul_i();
+            y[k2] = wk2.fmadd( y_k2, y_k0) - wk1.fmadd(y_k1, wk3*y_k3);
+            y[k3] = wk2.fmadd(-y_k2, y_k0) + wk1.fmsub(y_k1, wk3*y_k3).__mul_i();
+            wk1 *= w1; wk2 *= w2; wk3 *= w3;
+        }
+    }
+    else {
+        for(int k = 0; k < m; k++) {
+            int k0 = (k      )*s_out;
+            int k1 = (k +   m)*s_out;
+            int k2 = (k + 2*m)*s_out;
+            int k3 = (k + 3*m)*s_out;
+            Complex<F,L> y_k0 = y[k0];
+            Complex<F,L> y_k1 = y[k1];
+            Complex<F,L> y_k2 = y[k2];
+            Complex<F,L> y_k3 = y[k3];
+            y[k0] = wk2.fmadd( y_k2, y_k0) + wk1.fmadd(y_k1, wk3*y_k3);
+            y[k1] = wk2.fmadd(-y_k2, y_k0) + wk1.fmsub(y_k1, wk3*y_k3).__mul_i();
+            y[k2] = wk2.fmadd( y_k2, y_k0) - wk1.fmadd(y_k1, wk3*y_k3);
+            y[k3] = wk2.fmadd(-y_k2, y_k0) + wk3.fmsub(y_k3, wk1*y_k1).__mul_i();
+            wk1 *= w1; wk2 *= w2; wk3 *= w3;
+        }
+    }
+}
+
+// External function to call the C-T radix-4 FFT
+template<typename F, int L>
+inline void pow4_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, biFuncNode<F,L>* sRoot, direction dir) {
+    const size_t N = sRoot->sz; // Size of problem
+    pow4_FFT_helper(N, x, y, s_in, s_out, dir); // Call the radix-2 FFT
+}
+
 // Internal helper function to perform a DFT
 template<typename F, int L>
 inline void DFT_helper(size_t size, Complex<F,L>* sig_in, Complex<F,L>* sig_out, size_t s_in, size_t s_out, direction dir) {
@@ -148,7 +218,7 @@ inline void DFT_helper(size_t size, Complex<F,L>* sig_in, Complex<F,L>* sig_out,
 
         // Calculate kth output
         for(size_t n = 1; n < size; n++) {
-            tmp += wkn*sig_in[n*s_in];
+            tmp = wkn.fmadd(sig_in[n*s_in], tmp);
             wkn *= wk;
         }
         sig_out[k*s_out] = tmp;
@@ -179,14 +249,6 @@ inline void composite_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t 
     size_t N1 = left->sz;
     size_t N2 = right->sz;
 
-    /* Theoretically, this shouldn't ever be called-- the call graph should've
-     * told us to perform a DFT here instead. However, I'm calling this just in case.
-     */
-    if(N1 == N) {
-        DFT(x, y, s_in, s_out, sRoot, dir);
-        return;
-    }
-
     // I'm currently using a temporary storage space malloc'd in recursive calls.
     // This isn't optimal and will change as the engine develops
     complex_vector<F,L> z (N);
@@ -195,9 +257,9 @@ inline void composite_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t 
     Complex<F,L> wj1 = Complex<F,L>(1., 0.);
     for(size_t j1 = 0; j1 < N1; j1++) {
         Complex<F,L> wk2 = wj1;
-        right->fptr(x+j1*s_in, &z[N2*j1], N1*s_in, 1, right, dir);
+        right->fptr(&x[j1*s_in], &z[N2*j1], N1*s_in, 1, right, dir);
         for(size_t k2 = 1; (k2 < N2) && (j1 > 0); k2++) {
-            z[j1*N2 + k2] = z[j1*N2 + k2]*wk2;
+            z[j1*N2 + k2] *= wk2;
             wk2 *= wj1;
         }
         wj1 *= w1;
@@ -208,7 +270,7 @@ inline void composite_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t 
      * Take strides of N2 since z is allocated on the fly in this function for N.
      */
     for(size_t k2 = 0; k2 < N2; k2++) {
-        left->fptr(&z[k2], y+k2*s_out, N2, N2*s_out, left, dir);
+        left->fptr(&z[k2], &y[k2*s_out], N2, N2*s_out, left, dir);
     }
 }
 
@@ -315,9 +377,9 @@ inline void pow3_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
         Complex<F,L> tmpk_p_2 = y[k3];
 
         // Reassigning the output
-        y[k1] = tmpk +             wk1 * tmpk_p_1 +            wk2 * tmpk_p_2;
-        y[k2] = tmpk + plus120  *  wk1 * tmpk_p_1 + minus120 * wk2 * tmpk_p_2;
-        y[k3] = tmpk + minus120 *  wk1 * tmpk_p_1 + plus120  * wk2 * tmpk_p_2;
+        y[k1] = wk2.fmadd(           tmpk_p_2, wk1.fmadd(           tmpk_p_1, tmpk));
+        y[k2] = wk2.fmadd(minus120 * tmpk_p_2, wk1.fmadd(plus120  * tmpk_p_1, tmpk));
+        y[k3] = wk2.fmadd(plus120  * tmpk_p_2, wk1.fmadd(minus120 * tmpk_p_1, tmpk));
 
         // Twiddle factors
         wk1 *= w1; wk2 *= w2;
@@ -331,7 +393,7 @@ inline void pow3_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out
     Complex<F,L> plus120 (-0.5, -sqrt(3)/2.);
     Complex<F,L> minus120 (-0.5, sqrt(3)/2.);
     switch(dir) {
-        case direction::forward: pow3_FFT_helper(N, x, y, s_in, s_out, dir, plus120, minus120); break;
+        case direction::forward:  pow3_FFT_helper(N, x, y, s_in, s_out, dir, plus120, minus120); break;
         case direction::backward: pow3_FFT_helper(N, x, y, s_in, s_out, dir, minus120, plus120); break;
     }
 }
