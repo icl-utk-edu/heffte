@@ -8,7 +8,6 @@
 #include <random>
 
 #include "test_common.h"
-#include "test_units_stock_complex.h"
 
 void test_factorize(){
     current_test<int, using_nompi> name("prime factorize");
@@ -330,7 +329,7 @@ void test_gpu_vector(size_t num_entries){
 
     sassert(v2.empty()); // test empty and reset to null after move
     v2 = std::move(v1);  // test move assignment
-    sassert(v1.empty()); // test if moved out of v1
+    sassert(v1.empty()); // test if moved output_forward of v1
 
     dest = std::vector<scalar_type>(); // reset the destination
     dest = gpu::transfer::unload(v2);
@@ -829,27 +828,6 @@ void test_cross_reference_fftw_rocm(){
 void test_cross_reference_fftw_rocm(){}
 #endif
 
-
-void test_stock_complex(){
-#ifdef __AVX__
-    test_stock_complex_type<float,1>();
-    test_stock_complex_type<float,4>();
-    test_stock_complex_type<float,8>();
-#ifdef __AVX512F__
-    test_stock_complex_type<float,16>();
-#endif    
-    test_stock_complex_type<double,1>();
-    test_stock_complex_type<double,2>();
-    test_stock_complex_type<double,4>();
-#ifdef __AVX512F__
-    test_stock_complex_type<double,8>();
-#endif
-#else
-    test_stock_complex_type<float,1>();
-    test_stock_complex_type<double,1>();
-#endif
-}
-
 int main(int, char**){
 
     all_tests<using_nompi> name("Non-MPI Tests");
@@ -858,7 +836,6 @@ int main(int, char**){
     test_process_grid();
     test_split_pencils();
     test_cpu_scale();
-    test_stock_complex();
 
     test_gpu_vector();
     test_gpu_scale();

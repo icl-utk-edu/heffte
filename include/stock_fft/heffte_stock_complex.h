@@ -42,14 +42,12 @@ class alignas(L*sizeof(F)) Complex {
         explicit Complex(typename pack<F,L>::type v): var(v) {}
         //! \brief Load from real and imaginary parts (repeating for all numbers in pack)
         explicit Complex(F x, F y): var(mm_pair_set<F,L>(x, y)) {}
-        //! \brief Load from existing std::complex number (repeating for all numbers in pack)
-        explicit Complex(std::complex<F>& c): var(mm_pair_set<F,L>(c.real(), c.imag())) {}
         //! \brief Load from pointer to existing std::complex numbers
         explicit Complex(std::complex<F> const *c): var(mm_complex_load<F,L>(c)) {}
         //! \brief Load from strided pointer to existing std::complex numbers
         explicit Complex(std::complex<F> const *c, int stride): var(mm_complex_load<F,L>(c, stride)) {}
         //! \brief Load from initializer list of existing std::complex numbers
-        explicit Complex(std::initializer_list<std::complex<F>> il): var(mm_complex_load<F,L>(il.begin())) {};
+        explicit Complex(std::initializer_list<std::complex<F>> il): var(il.size() == 1 ? mm_pair_set<F,L>((*il.begin()).real(), (*il.begin()).imag()) : mm_complex_load<F,L>(il.begin())) {};
         //! \brief Default constructor of zeros
         explicit Complex(): var(mm_zero<F,L>()) {}
 
@@ -190,7 +188,7 @@ class alignas(L*sizeof(F)) Complex {
         Complex<F,L> __mul_i() {
             return Complex(mm_complex_mul_i(var));
         }
-        
+
         //! \brief Multiply the complex number by i
         Complex<F,L> __mul_neg_i() {
             return Complex(mm_complex_mul_neg_i(var));
