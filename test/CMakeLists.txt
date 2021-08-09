@@ -19,6 +19,11 @@ add_executable(test_unit_nompi test_units_nompi.cpp)
 target_link_libraries(test_unit_nompi  Heffte)
 add_test(unit_tests_nompi  test_unit_nompi)
 
+# no MPI test of different aspects of the stock implementations
+add_executable(test_unit_stock  test_units_stock.cpp)
+target_link_libraries(test_unit_stock  Heffte)
+add_test(unit_tests_stock  test_unit_stock)
+
 # test the reshape methods
 add_executable(test_reshape3d test_reshape3d.cpp)
 target_link_libraries(test_reshape3d  Heffte)
