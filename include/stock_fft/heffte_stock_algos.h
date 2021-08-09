@@ -9,7 +9,6 @@
 
 #include <cmath>
 
-// #include "heffte_stock_storage.h"
 #include "heffte_stock_complex.h"
 #include "heffte_stock_allocator.h"
 #include "heffte_common.h"
