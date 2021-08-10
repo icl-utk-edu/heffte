@@ -50,7 +50,7 @@ class Fourier_Transform {
         size_t root = 0;
         size_t root_inv = 0;
     public:
-        explicit Fourier_Transform(fft_type fft): type(fft) { }
+        explicit Fourier_Transform(fft_type fft): type(fft) {}
         explicit Fourier_Transform(size_t a, size_t ainv): type(fft_type::rader), root(a), root_inv(ainv) { }
         void operator()(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, biFuncNode<F,L>* sRoot, direction dir) {
             switch(type) {
