@@ -128,10 +128,10 @@ inline void DFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, biF
 // Recursive helper function implementing a classic C-T FFT
 template<typename F, int L>
 inline void pow2_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, direction dir) {
-
     // Trivial case
-    if(N == 1) {
-        *y = *x;
+    if(N == 2) {
+        y[    0] = x[0] + x[s_in];
+        y[s_out] = x[0] - x[s_in];
         return;
     }
 
@@ -170,8 +170,18 @@ template<typename F, int L>
 inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, direction dir) {
 
     // Trivial case
-    if(N == 1) {
-        *y = *x;
+    if(N == 4) {
+        if(dir == direction::forward) {
+            y[      0] = x[0] + x[s_in]               + x[2*s_in] + x[3*s_in];
+            y[  s_out] = x[0] + x[s_in].__mul_neg_i() - x[2*s_in] + x[3*s_in].__mul_i();
+            y[2*s_out] = x[0] - x[s_in]               + x[2*s_in] - x[3*s_in];
+            y[3*s_out] = x[0] + x[s_in].__mul_i()     - x[2*s_in] + x[3*s_in].__mul_neg_i();
+        } else {
+            y[      0] = x[0] + x[s_in]               + x[2*s_in] + x[3*s_in];
+            y[  s_out] = x[0] + x[s_in].__mul_i()     - x[2*s_in] + x[3*s_in].__mul_neg_i();
+            y[2*s_out] = x[0] - x[s_in]               + x[2*s_in] - x[3*s_in];
+            y[3*s_out] = x[0] + x[s_in].__mul_neg_i() - x[2*s_in] + x[3*s_in].__mul_i();
+        }
         return;
     }
 
