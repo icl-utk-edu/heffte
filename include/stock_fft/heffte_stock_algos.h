@@ -13,6 +13,9 @@
 #include "heffte_stock_allocator.h"
 #include "heffte_common.h"
 
+//! \brief If the signal is smaller than this, we use the DFT
+#define HEFFTE_STOCK_THRESHOLD 10
+
 namespace heffte {
 //! \brief Find the sign given a direction
 inline int direction_sign(direction dir) {
@@ -135,6 +138,11 @@ inline void pow2_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
         return;
     }
 
+    if(N < HEFFTE_STOCK_THRESHOLD) {
+        DFT_helper(N, x, y, s_in, s_out, dir);
+        return;
+    }
+
     // Size of sub-problem
     int m = N/2;
 
@@ -182,6 +190,11 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
             y[2*s_out] = x[0] - x[s_in]               + x[2*s_in] - x[3*s_in];
             y[3*s_out] = x[0] + x[s_in].__mul_neg_i() - x[2*s_in] + x[3*s_in].__mul_i();
         }
+        return;
+    }
+
+    if(N < HEFFTE_STOCK_THRESHOLD) {
+        DFT_helper(N, x, y, s_in, s_out, dir);
         return;
     }
 
@@ -359,6 +372,11 @@ inline void pow3_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
         y[0] = x[0] + x[s_in] + x[2*s_in];
         y[s_out] = x[0] + plus120*x[s_in] + minus120*x[2*s_in];
         y[2*s_out] = x[0] + minus120*x[s_in] + plus120*x[2*s_in];
+        return;
+    }
+
+    if(N < HEFFTE_STOCK_THRESHOLD) {
+        DFT_helper(N, x, y, s_in, s_out, dir);
         return;
     }
 

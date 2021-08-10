@@ -40,6 +40,7 @@ static const std::array<size_t,200> factors {   4,    2,    3,    5,    7,    11
 
 //! \brief Find the smallest usable factor of f (could be done at compile-time)
 inline size_t factor(const size_t f) {
+    if(f < HEFFTE_STOCK_THRESHOLD) return f;
     size_t k = 0;
     // Prioritize factors in the factors array
     for(; k < factors.size(); k++) {
