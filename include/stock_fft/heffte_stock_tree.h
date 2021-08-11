@@ -161,6 +161,9 @@ inline size_t getLeftover(const size_t N, const size_t k) {
 
 //! \brief Return type of FFT and initialize factor in composite case. See NumNodesHelper for info.
 inline std::pair<fft_type, size_t> fptrFactorHelper(const size_t N) {
+    if(N < HEFFTE_STOCK_THRESHOLD) {
+        return std::pair<fft_type,size_t> {fft_type::discrete, N};
+    }
     // Check if N is a power
     if(power_of(N, 4)) {
         return std::pair<fft_type,size_t> {fft_type::pow4, N};
