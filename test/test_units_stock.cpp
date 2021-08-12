@@ -386,9 +386,8 @@ void test_stock_fft_pow4() {
 
 // Represents the radix-p Fourier Transform
 template<typename F, int L>
-void test_stock_composite_template() {
+void test_stock_composite_template(int N) {
     using node_ptr = std::unique_ptr<stock::biFuncNode<F,L>[]>;
-    constexpr int N = 12;
 
     int numNodes = stock::getNumNodes(N);
     node_ptr root (new stock::biFuncNode<F,L>[numNodes]);
@@ -413,12 +412,15 @@ void test_stock_composite_template() {
 template<typename F>
 void test_stock_composite_typed() {
     current_test<F, using_nompi> name("stock FFT composite size test");
-    test_stock_composite_template<F,1>();
+    test_stock_composite_template<F,1>(1);
+    test_stock_composite_template<F,1>(12);
 #ifdef __AVX__
-    test_stock_composite_template<F, 4>();
+    test_stock_composite_template<F, 4>(1);
+    test_stock_composite_template<F, 4>(12);
 #endif
 #ifdef __AVX512F__
-    test_stock_composite_template<F, is_float<F>::value? 16 : 8>();
+    test_stock_composite_template<F, is_float<F>::value? 16 : 8>(1);
+    test_stock_composite_template<F, is_float<F>::value? 16 : 8>(12);
 #endif
 }
 
