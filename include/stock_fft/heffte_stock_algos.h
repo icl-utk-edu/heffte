@@ -82,13 +82,61 @@ struct biFuncNode {
         biFuncNode(size_t a, size_t ainv): fptr(a,ainv) {};
 };
 
+// Internal helper function to perform a DFT
+template<typename F, int L>
+inline void DFT_helper(size_t size, Complex<F,L>* sig_in, Complex<F,L>* sig_out, size_t s_in, size_t s_out, direction dir) {
+    if(size == 1) {
+        sig_out[0] = sig_in[0];
+        return;
+    }
+
+    // Twiddle with smallest numerator
+    Complex<F,L> w0 = omega<F,L>::get(1, size, dir);
+
+    // Base twiddle for each outer iteration
+    Complex<F,L> wk = w0;
+
+    // Twiddle for inner iterations
+    Complex<F,L> wkn = w0;
+
+    // Calculate first element of output
+    Complex<F,L> tmp = sig_in[0];
+    for(size_t n = 1; n < size; n++) {
+        tmp += sig_in[n*s_in];
+    }
+    sig_out[0] = tmp;
+
+    // Initialize rest of output
+    for(size_t k = 1; k < size; k++) {
+        // Initialize kth output
+        tmp = sig_in[0];
+
+        // Calculate kth output
+        for(size_t n = 1; n < size; n++) {
+            tmp = wkn.fmadd(sig_in[n*s_in], tmp);
+            wkn *= wk;
+        }
+        sig_out[k*s_out] = tmp;
+
+        // "Increment" wk and "reset" wkn
+        wk *= w0;
+        wkn = wk;
+    }
+}
+
+// External-facing function to properly call the internal DFT function
+template<typename F, int L>
+inline void DFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, biFuncNode<F,L>* sLeaf, direction dir) {
+    DFT_helper(sLeaf->sz, x, y, s_in, s_out, dir);
+}
+
 // Recursive helper function implementing a classic C-T FFT
 template<typename F, int L>
 inline void pow2_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, direction dir) {
-
     // Trivial case
-    if(N == 1) {
-        *y = *x;
+    if(N == 2) {
+        y[    0] = x[0] + x[s_in];
+        y[s_out] = x[0] - x[s_in];
         return;
     }
 
@@ -127,8 +175,18 @@ template<typename F, int L>
 inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, direction dir) {
 
     // Trivial case
-    if(N == 1) {
-        *y = *x;
+    if(N == 4) {
+        if(dir == direction::forward) {
+            y[      0] = x[0] + x[s_in]               + x[2*s_in] + x[3*s_in];
+            y[  s_out] = x[0] + x[s_in].__mul_neg_i() - x[2*s_in] + x[3*s_in].__mul_i();
+            y[2*s_out] = x[0] - x[s_in]               + x[2*s_in] - x[3*s_in];
+            y[3*s_out] = x[0] + x[s_in].__mul_i()     - x[2*s_in] + x[3*s_in].__mul_neg_i();
+        } else {
+            y[      0] = x[0] + x[s_in]               + x[2*s_in] + x[3*s_in];
+            y[  s_out] = x[0] + x[s_in].__mul_i()     - x[2*s_in] + x[3*s_in].__mul_neg_i();
+            y[2*s_out] = x[0] - x[s_in]               + x[2*s_in] - x[3*s_in];
+            y[3*s_out] = x[0] + x[s_in].__mul_neg_i() - x[2*s_in] + x[3*s_in].__mul_i();
+        }
         return;
     }
 
@@ -190,49 +248,6 @@ template<typename F, int L>
 inline void pow4_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, biFuncNode<F,L>* sRoot, direction dir) {
     const size_t N = sRoot->sz; // Size of problem
     pow4_FFT_helper(N, x, y, s_in, s_out, dir); // Call the radix-2 FFT
-}
-
-// Internal helper function to perform a DFT
-template<typename F, int L>
-inline void DFT_helper(size_t size, Complex<F,L>* sig_in, Complex<F,L>* sig_out, size_t s_in, size_t s_out, direction dir) {
-    // Twiddle with smallest numerator
-    Complex<F,L> w0 = omega<F,L>::get(1, size, dir);
-
-    // Base twiddle for each outer iteration
-    Complex<F,L> wk = w0;
-
-    // Twiddle for inner iterations
-    Complex<F,L> wkn = w0;
-
-    // Calculate first element of output
-    Complex<F,L> tmp = sig_in[0];
-    for(size_t n = 1; n < size; n++) {
-        tmp += sig_in[n*s_in];
-    }
-    sig_out[0] = tmp;
-
-    // Initialize rest of output
-    for(size_t k = 1; k < size; k++) {
-        // Initialize kth output
-        tmp = sig_in[0];
-
-        // Calculate kth output
-        for(size_t n = 1; n < size; n++) {
-            tmp = wkn.fmadd(sig_in[n*s_in], tmp);
-            wkn *= wk;
-        }
-        sig_out[k*s_out] = tmp;
-
-        // "Increment" wk and "reset" wkn
-        wk *= w0;
-        wkn = wk;
-    }
-}
-
-// External-facing function to properly call the internal DFT function
-template<typename F, int L>
-inline void DFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, biFuncNode<F,L>* sLeaf, direction dir) {
-    DFT_helper(sLeaf->sz, x, y, s_in, s_out, dir);
 }
 
 // External & Internal function for radix-N1 C-T FFTs
