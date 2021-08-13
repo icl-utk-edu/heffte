@@ -436,6 +436,14 @@ template<> struct one_dim_backend<backend::onemkl>{
     static std::unique_ptr<onemkl_executor> make(sycl::queue &q, box3d<index> const box, int dimension){
         return std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box, dimension));
     }
+    //! \brief Constructs a 2D executor from two 1D ones.
+    template<typename index>
+    static std::unique_ptr<onemkl_executor> make(sycl::queue&, box3d<index> const&, int, int){
+        throw std::runtime_error("2d onemkl executor not implemented");
+        return std::unique_ptr<onemkl_executor>();
+    }
+    //! \brief Returns true if the transforms in the two directions can be merged into one.
+    template<typename index> static bool can_merge(box3d<index> const&, int, int){ return false; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<onemkl_executor_r2c> make_r2c(sycl::queue &q, box3d<index> const box, int dimension){

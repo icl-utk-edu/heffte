@@ -578,6 +578,14 @@ template<> struct one_dim_backend<backend::rocfft>{
     static std::unique_ptr<rocfft_executor> make(hipStream_t stream, box3d<index> const box, int dimension){
         return std::unique_ptr<rocfft_executor>(new rocfft_executor(stream, box, dimension));
     }
+    //! \brief Constructs a 2D executor from two 1D ones.
+    template<typename index>
+    static std::unique_ptr<rocfft_executor> make(hipStream_t stream,  box3d<index> const&, int, int){
+        throw std::runtime_error("2d rocfft executor not implemented");
+        return std::unique_ptr<rocfft_executor>();
+    }
+    //! \brief Returns true if the transforms in the two directions can be merged into one.
+    template<typename index> static bool can_merge(box3d<index> const&, int, int){ return false; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<rocfft_executor_r2c> make_r2c(hipStream_t stream, box3d<index> const box, int dimension){
