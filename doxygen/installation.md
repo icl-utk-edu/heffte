@@ -25,6 +25,7 @@ Tested backend libraries:
 
 | Backend        | Tested versions |
 |----|----|
+| stock          | N/A             |
 | fftw3          | 3.3.7 - 3.3.8   |
 | mkl            | 2016            |
 | oneapi/onemkl  | 2021.2          |
@@ -52,6 +53,7 @@ cmake \
     -D CMAKE_BUILD_TYPE=Release \
     -D BUILD_SHARED_LIBS=ON     \
     -D CMAKE_INSTALL_PREFIX=<path-for-installation> \
+    -D Heffte_ENABLE_AVX512=ON \
     -D Heffte_ENABLE_FFTW=ON \
     -D FFTW_ROOT=<path-to-fftw3-installation> \
     -D Heffte_ENABLE_CUDA=ON \
@@ -71,6 +73,7 @@ Additional heFFTe options:
     Heffte_ENABLE_ROCM=<ON/OFF>      (enable the rocFFT backend)
     Heffte_ENABLE_ONEAPI=<ON/OFF>    (enable the oneMKL backend)
     Heffte_ENABLE_MKL=<ON/OFF>       (enable the MKL backend)
+    Heffte_ENABLE_AVX=<ON/OFF>       (enable AVX instructions in the stock backend)
     MKL_ROOT=<path>                  (path to the MKL folder)
     Heffte_ENABLE_DOXYGEN=<ON/OFF>   (build the documentation)
     Heffte_ENABLE_TRACING=<ON/OFF>   (enable the even logging engine)
@@ -86,6 +89,13 @@ Additional language interfaces and helper methods:
 See the Fortran and Python sections for details.
 
 ### List of Available Backend Libraries
+
+* **Stock:** the stock backend library is a CPU-based 1-D FFT library built *into* HeFFTe, and requires additional no external libraries or hardware. This is distributed in the `include/stock_fft` directory of HeFFTe. This is enabled by default, but can support vectorized complex arithmetic using AVX and AVX512 instruction sets (this accelerates the backend by up to an order of magnitude, but includes no vectorization by default). This vectorization is enabled with
+```
+    -D Heffte_ENABLE_AVX=<ON/OFF>
+    -D Heffte_ENABLE_AVX512=<ON/OFF>
+```
+Note that only one of these switches matter. If the target machine supports AVX512, then only the `Heffte_ENABLE_AVX512` is required. If it supports AVX but not AVX512, then only the `Heffte_ENABLE_AVX` option is required. If the target machine supports neither, then neither of these switches are needed.
 
 * **FFTW3:** the [fftw3](http://www.fftw.org/) library is the de-facto standard for open source FFT library and is distributed under the GNU General Public License, the fftw3 backend is enabled with:
 ```
