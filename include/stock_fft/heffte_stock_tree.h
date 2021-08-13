@@ -111,6 +111,7 @@ inline size_t primeRoot(size_t p) {
 
 //! \brief Check if n is a power of pow (could be done at compile-time)
 inline bool power_of(const size_t n, const size_t pow) {
+    if(n == 1) return false;
     size_t k = n;
     if(pow == 2) {
         unsigned char sum = 0x1 & n;

@@ -88,6 +88,11 @@ struct biFuncNode {
 // Internal helper function to perform a DFT
 template<typename F, int L>
 inline void DFT_helper(size_t size, Complex<F,L>* sig_in, Complex<F,L>* sig_out, size_t s_in, size_t s_out, direction dir) {
+    if(size == 1) {
+        sig_out[0] = sig_in[0];
+        return;
+    }
+
     // Twiddle with smallest numerator
     Complex<F,L> w0 = omega<F,L>::get(1, size, dir);
 
