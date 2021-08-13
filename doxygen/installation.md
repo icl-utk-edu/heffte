@@ -25,7 +25,7 @@ Tested backend libraries:
 
 | Backend        | Tested versions |
 |----|----|
-| stock          | N/A             |
+| stock          | all             |
 | fftw3          | 3.3.7 - 3.3.8   |
 | mkl            | 2016            |
 | oneapi/onemkl  | 2021.2          |
@@ -90,12 +90,12 @@ See the Fortran and Python sections for details.
 
 ### List of Available Backend Libraries
 
-* **Stock:** the stock backend library is a CPU-based 1-D FFT library built *into* HeFFTe, and requires additional no external libraries or hardware. This is distributed in the `include/stock_fft` directory of HeFFTe. This is enabled by default, but can support vectorized complex arithmetic using AVX and AVX512 instruction sets (this accelerates the backend by up to an order of magnitude, but includes no vectorization by default). This vectorization is enabled with
+* **Stock:** the stock backend library is a CPU-based 1-D FFT library built *into* HeFFTe, and requires no additional external libraries or hardware. This is enabled by default, and can optionally perform vectorized complex arithmetic using AVX and AVX512 instruction sets (this accelerates the backend by up to an order of magnitude, but includes no vectorization by default). This vectorization is enabled with
 ```
     -D Heffte_ENABLE_AVX=<ON/OFF>
     -D Heffte_ENABLE_AVX512=<ON/OFF>
 ```
-Note that only one of these switches matter. If the target machine supports AVX512, then only the `Heffte_ENABLE_AVX512` is required. If it supports AVX but not AVX512, then only the `Heffte_ENABLE_AVX` option is required. If the target machine supports neither, then neither of these switches are needed.
+Just using `Heffte_ENABLE_AVX512` enables all the vectorization flags. Using vectorization is optional and not required for using the stock backend.
 
 * **FFTW3:** the [fftw3](http://www.fftw.org/) library is the de-facto standard for open source FFT library and is distributed under the GNU General Public License, the fftw3 backend is enabled with:
 ```
