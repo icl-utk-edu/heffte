@@ -343,6 +343,14 @@ template<> struct one_dim_backend<backend::mkl>{
     static std::unique_ptr<mkl_executor> make(void*, box3d<index> const box, int dimension){
         return std::unique_ptr<mkl_executor>(new mkl_executor(box, dimension));
     }
+    //! \brief Constructs a 2D executor from two 1D ones.
+    template<typename index>
+    static std::unique_ptr<mkl_executor> make(void*, box3d<index> const&, int, int){
+        throw std::runtime_error("2d mkl executor not implemented");
+        return std::unique_ptr<mkl_executor>();
+    }
+    //! \brief Returns true if the transforms in the two directions can be merged into one.
+    template<typename index> static bool can_merge(box3d<index> const&, int, int){ return false; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<mkl_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
