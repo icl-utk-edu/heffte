@@ -361,6 +361,33 @@ struct plan_rocfft<std::complex<precision_type>, dir>{
 
         rocm::check_error( rocfft_plan_description_destroy(desc), "rocm plan destroy");
     }
+    //! \brief Constructor, takes inputs identical to cufftPlan3d()
+    plan_rocfft(size_t size1, size_t size2, size_t size3){
+        std::array<size_t, 3> size = {size1, size2, size3};
+        rocfft_plan_description desc = nullptr;
+        rocm::check_error( rocfft_plan_description_create(&desc), "rocm plan create");
+
+        rocm::check_error(
+            rocfft_plan_description_set_data_layout(
+                desc,
+                rocfft_array_type_complex_interleaved,
+                rocfft_array_type_complex_interleaved,
+                nullptr, nullptr, 3, nullptr, 1, 3, nullptr, 1
+            ),
+            "plan layout"
+        );
+
+        rocm::check_error(
+        rocfft_plan_create(&plan, rocfft_placement_inplace,
+                           (dir == direction::forward) ? rocfft_transform_type_complex_forward : rocfft_transform_type_complex_inverse,
+                           (std::is_same<precision_type, float>::value) ? rocfft_precision_single : rocfft_precision_double,
+                           3, size.data(), 1, desc),
+        "plan create 3d");
+
+        rocm::check_error( rocfft_plan_get_work_buffer_size(plan, &worksize), "get_worksize");
+
+        rocm::check_error( rocfft_plan_description_destroy(desc), "rocm plan destroy");
+    }
     //! \brief Destructor, deletes the plan.
     ~plan_rocfft(){ rocm::check_error( rocfft_plan_destroy(plan), "plan destory"); }
     //! \brief Custom conversion to the rocfft_plan.
@@ -428,6 +455,16 @@ public:
             howmanyffts = box.size[1];
         }
     }
+    //! \brief Merges three FFTs into one.
+    template<typename index>
+    rocfft_executor(hipStream_t active_stream, box3d<index> const box) :
+        stream(active_stream),
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        stride(0), dist(0),
+        blocks(1), block_stride(0),
+        total_size(box.count()),
+        embed({0, 0})
+    {}
 
     //! \brief Perform an in-place FFT on the data in the given direction.
     template<typename precision_type, direction dir>
@@ -500,7 +537,9 @@ private:
     template<typename scalar_type, direction dir>
     void make_plan(std::unique_ptr<plan_rocfft<scalar_type, dir>> &plan) const{
         if (not plan){
-            if (size2 == 0)
+            if (dist == 0)
+                plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, size2, howmanyffts));
+            else if (size2 == 0)
                 plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, howmanyffts, stride, dist));
             else
                 plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, size2, embed, howmanyffts, dist));
@@ -654,8 +693,15 @@ template<> struct one_dim_backend<backend::rocfft>{
     static std::unique_ptr<rocfft_executor> make(hipStream_t stream,  box3d<index> const box, int dir1, int dir2){
         return std::unique_ptr<rocfft_executor>(new rocfft_executor(stream, box, dir1, dir2));
     }
+    //! \brief Constructs a 3D executor.
+    template<typename index>
+    static std::unique_ptr<rocfft_executor> make(hipStream_t stream, box3d<index> const &box){
+        return std::unique_ptr<rocfft_executor>(new rocfft_executor(stream, box));
+    }
     //! \brief Returns true if the transforms in the two directions can be merged into one.
-    template<typename index> static bool can_merge(box3d<index> const&, int, int){ return true; }
+    static bool can_merge2d(){ return true; }
+    //! \brief Returns true if the transforms in the three directions can be merged into one.
+    static bool can_merge3d(){ return true; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<rocfft_executor_r2c> make_r2c(hipStream_t stream, box3d<index> const box, int dimension){
