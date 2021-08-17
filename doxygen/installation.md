@@ -53,7 +53,7 @@ cmake \
     -D CMAKE_BUILD_TYPE=Release \
     -D BUILD_SHARED_LIBS=ON     \
     -D CMAKE_INSTALL_PREFIX=<path-for-installation> \
-    -D Heffte_ENABLE_AVX512=ON \
+    -D Heffte_ENABLE_AVX=ON \
     -D Heffte_ENABLE_FFTW=ON \
     -D FFTW_ROOT=<path-to-fftw3-installation> \
     -D Heffte_ENABLE_CUDA=ON \
@@ -73,7 +73,7 @@ Additional heFFTe options:
     Heffte_ENABLE_ROCM=<ON/OFF>      (enable the rocFFT backend)
     Heffte_ENABLE_ONEAPI=<ON/OFF>    (enable the oneMKL backend)
     Heffte_ENABLE_MKL=<ON/OFF>       (enable the MKL backend)
-    Heffte_ENABLE_AVX=<ON/OFF>       (enable AVX instructions in the stock backend)
+    Heffte_ENABLE_AVX512=<ON/OFF>    (enable AVX512 instructions in the stock backend)
     MKL_ROOT=<path>                  (path to the MKL folder)
     Heffte_ENABLE_DOXYGEN=<ON/OFF>   (build the documentation)
     Heffte_ENABLE_TRACING=<ON/OFF>   (enable the even logging engine)
