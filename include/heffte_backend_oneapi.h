@@ -229,16 +229,46 @@ public:
     template<typename index>
     onemkl_executor(sycl::queue &inq, box3d<index> const box, int dimension) :
         q(inq),
-        size(box.size[dimension]),
+        size(box.size[dimension]), size2(0),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == box.order[0]) ? size : 1),
         blocks((dimension == box.order[1]) ? box.osize(2) : 1),
         block_stride(box.osize(0) * box.osize(1)),
         total_size(box.count()),
+        embed({0, static_cast<MKL_LONG>(stride), 0}),
         init_cplan(false), init_zplan(false),
         cplan(size), zplan(size)
     {}
+    //! \brief Merges two FFTs into one.
+    template<typename index>
+    onemkl_executor(sycl::queue &inq, box3d<index> const box, int dir1, int dir2) :
+        q(inq),
+        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        blocks(1), block_stride(0), total_size(box.count()),
+        init_cplan(false), init_zplan(false),
+        cplan({size, size2}), zplan({size, size2})
+    {
+        int odir1 = box.find_order(dir1);
+        int odir2 = box.find_order(dir2);
+
+        if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            stride = 1;
+            dist = size * size2;
+            embed = {0, static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(size)};
+            howmanyffts = box.size[2];
+        }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            stride = box.size[0];
+            dist = 1;
+            embed = {0, static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(size) * static_cast<MKL_LONG>(stride)};
+            howmanyffts = box.size[0];
+        }else{ // case of directions (0, 2)
+            stride = 1;
+            dist = size;
+            embed = {0, static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(box.size[1]) * static_cast<MKL_LONG>(box.size[0])};
+            howmanyffts = box.size[1];
+        }
+    }
 
     //! \brief Forward fft, float-complex case.
     void forward(std::complex<float> data[]) const{
@@ -297,13 +327,22 @@ private:
     //! \brief Helper template to create the plan.
     template<typename onemkl_plan_type>
     void make_plan(onemkl_plan_type &plan) const{
-        plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
-        plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
-        MKL_LONG slstride[] = {0, static_cast<MKL_LONG>(stride)};
-        plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, slstride);
-        plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, slstride);
-        plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
-        plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
+        if (size2 == 0){
+            plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
+            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
+            plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
+            plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
+        }else{
+            plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
+            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
+            plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
+            plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
+        }
+
         plan.commit(q);
         q.wait();
 
@@ -314,7 +353,8 @@ private:
     }
 
     sycl::queue &q;
-    int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    std::array<MKL_LONG, 3> embed;
 
     mutable bool init_cplan, init_zplan;
     mutable oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::SINGLE, oneapi::mkl::dft::domain::COMPLEX> cplan;
@@ -438,12 +478,11 @@ template<> struct one_dim_backend<backend::onemkl>{
     }
     //! \brief Constructs a 2D executor from two 1D ones.
     template<typename index>
-    static std::unique_ptr<onemkl_executor> make(sycl::queue&, box3d<index> const&, int, int){
-        throw std::runtime_error("2d onemkl executor not implemented");
-        return std::unique_ptr<onemkl_executor>();
+    static std::unique_ptr<onemkl_executor> make(sycl::queue &q, box3d<index> const &box, int dir1, int dir2){
+        return std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box, dir1, dir2));
     }
     //! \brief Returns true if the transforms in the two directions can be merged into one.
-    template<typename index> static bool can_merge(box3d<index> const&, int, int){ return false; }
+    template<typename index> static bool can_merge(box3d<index> const&, int, int){ return true; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<onemkl_executor_r2c> make_r2c(sycl::queue &q, box3d<index> const box, int dimension){
