@@ -295,6 +295,16 @@ template<typename scalar_type> struct plan_cufft{
         if (stream != nullptr)
             cuda::check_error( cufftSetStream(plan, stream), "cufftSetStream()");
     }
+    //! \brief Constructor, takes inputs identical to cufftPlan3d()
+    plan_cufft(cudaStream_t stream, int size1, int size2, int size3){
+        cuda::check_error(
+            cufftPlan3d(&plan, size3, size2, size1,
+                        (std::is_same<scalar_type, std::complex<float>>::value) ? CUFFT_C2C : CUFFT_Z2Z),
+            "plan_cufft::cufftPlan3d()"
+        );
+        if (stream != nullptr)
+            cuda::check_error( cufftSetStream(plan, stream), "cufftSetStream()");
+    }
     //! \brief Destructor, deletes the plan.
     ~plan_cufft(){ cufftDestroy(plan); }
     //! \brief Custom conversion to the cufftHandle.
@@ -357,6 +367,16 @@ public:
             howmanyffts = box.size[1];
         }
     }
+    //! \brief Merges three FFTs into one.
+    template<typename index>
+    cufft_executor(cudaStream_t active_stream, box3d<index> const box) :
+        stream(active_stream),
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        stride(0), dist(0),
+        blocks(1), block_stride(0),
+        total_size(box.count()),
+        embed({0, 0})
+    {}
 
     //! \brief Forward fft, float-complex case.
     void forward(std::complex<float> data[]) const{
@@ -420,7 +440,9 @@ private:
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_cufft<scalar_type>> &plan) const{
         if (not plan){
-            if (size2 == 0)
+            if (dist == 0)
+                plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, size2, howmanyffts));
+            else if (size2 == 0)
                 plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, howmanyffts, stride, dist));
             else
                 plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, size2, embed, howmanyffts, stride, dist));
@@ -630,9 +652,15 @@ template<> struct one_dim_backend<backend::cufft>{
     static std::unique_ptr<cufft_executor> make(cudaStream_t stream, box3d<index> const &box, int dir1, int dir2){
         return std::unique_ptr<cufft_executor>(new cufft_executor(stream, box, dir1, dir2));
     }
-    //! \brief Returns true if the transforms in the two directions can be merged into one.
+    //! \brief Constructs a 3D executor.
     template<typename index>
-    static bool can_merge(box3d<index> const&, int, int){ return true; }
+    static std::unique_ptr<cufft_executor> make(cudaStream_t stream, box3d<index> const &box){
+        return std::unique_ptr<cufft_executor>(new cufft_executor(stream, box));
+    }
+    //! \brief Returns true if the transforms in the two directions can be merged into one.
+    static bool can_merge2d(){ return true; }
+    //! \brief Returns true if the transforms in the three directions can be merged into one.
+    static bool can_merge3d(){ return true; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<cufft_executor_r2c> make_r2c(cudaStream_t stream, box3d<index> const box, int dimension){
