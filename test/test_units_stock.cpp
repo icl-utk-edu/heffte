@@ -386,9 +386,8 @@ void test_stock_fft_pow4() {
 
 // Represents the radix-p Fourier Transform
 template<typename F, int L>
-void test_stock_composite_template() {
+void test_stock_composite_template(int N) {
     using node_ptr = std::unique_ptr<stock::biFuncNode<F,L>[]>;
-    constexpr int N = 12;
 
     int numNodes = stock::getNumNodes(N);
     node_ptr root (new stock::biFuncNode<F,L>[numNodes]);
@@ -397,11 +396,11 @@ void test_stock_composite_template() {
     init_fft_tree(rootPtr, N, workspace.data());
 
     std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> fftForward = [&rootPtr](complex_vector<F,L>& input, complex_vector<F,L>& output){
-        heffte::stock::composite_FFT<F,L>(input.data(), output.data(), 1, 1, rootPtr, heffte::direction::forward);
+        rootPtr->fptr(input.data(), output.data(), 1, 1, rootPtr, heffte::direction::forward);
     };
 
     std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> fftBackward = [&rootPtr](complex_vector<F,L>& input, complex_vector<F,L>& output){
-        heffte::stock::composite_FFT<F,L>(input.data(), output.data(), 1, 1, rootPtr, heffte::direction::backward);
+        rootPtr->fptr(input.data(), output.data(), 1, 1, rootPtr, heffte::direction::backward);
     };
 
     std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> refForward = [](complex_vector<F,L>& input, complex_vector<F,L>& output) {
@@ -414,12 +413,15 @@ void test_stock_composite_template() {
 template<typename F>
 void test_stock_composite_typed() {
     current_test<F, using_nompi> name("stock FFT composite size test");
-    test_stock_composite_template<F,1>();
+    test_stock_composite_template<F,1>(1);
+    test_stock_composite_template<F,1>(12);
 #ifdef __AVX__
-    test_stock_composite_template<F, 4>();
+    test_stock_composite_template<F, 4>(1);
+    test_stock_composite_template<F, 4>(12);
 #endif
 #ifdef __AVX512F__
-    test_stock_composite_template<F, is_float<F>::value? 16 : 8>();
+    test_stock_composite_template<F, is_float<F>::value? 16 : 8>(1);
+    test_stock_composite_template<F, is_float<F>::value? 16 : 8>(12);
 #endif
 }
 
