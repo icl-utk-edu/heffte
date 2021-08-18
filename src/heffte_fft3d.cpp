@@ -72,22 +72,23 @@ void fft3d<backend_tag, index>::setup(logic_plan3d<index> const &plan, MPI_Comm 
     }
 
     int const my_rank = mpi::comm_rank(comm);
-    fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
-    fft1 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[1][my_rank], plan.fft_direction[1]);
-    fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
 
-    if (not forward_shaper[1]){
-        if (one_dim_backend<backend_tag>::can_merge(plan.out_shape[0][my_rank], plan.fft_direction[0], plan.fft_direction[1])){
+    if (one_dim_backend<backend_tag>::can_merge3d() and not forward_shaper[1] and not forward_shaper[2]){
+        fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank]);
+    }else if (one_dim_backend<backend_tag>::can_merge2d() and (not forward_shaper[1] or not forward_shaper[2])){
+        if (not forward_shaper[1]){
             fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank],
                                                       plan.fft_direction[0], plan.fft_direction[1]);
-            fft1 = std::unique_ptr<backend_executor>();
-        }
-    }else if (not forward_shaper[2]){
-        if (one_dim_backend<backend_tag>::can_merge(plan.out_shape[2][my_rank], plan.fft_direction[1], plan.fft_direction[2])){
-            fft1 = std::unique_ptr<backend_executor>();
+            fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
+        }else{
+            fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
             fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank],
                                                       plan.fft_direction[1], plan.fft_direction[2]);
         }
+    }else{
+        fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
+        fft1 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[1][my_rank], plan.fft_direction[1]);
+        fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
     }
 }
 
@@ -125,7 +126,8 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
         if (last == 0){
             shaper[0]->apply(input, output, workspace);
         }else if (input != output){
-            backend::data_manipulator<location_tag>::copy_n(this->stream(), input, executor[0]->box_size(), output);
+            int valid_executor = (!!executor[0]) ? 0 : ((!!executor[1]) ? 1 : 2);
+            backend::data_manipulator<location_tag>::copy_n(this->stream(), input, executor[valid_executor]->box_size(), output);
         }
         for(int i=0; i<3; i++)
             apply_fft(i, output);
@@ -269,7 +271,8 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
         shaper[0]->apply(input, temp_buffer, workspace);
     }else{
         add_trace name("copy");
-        backend::data_manipulator<location_tag>::copy_n(this->stream(), input, executor[0]->box_size(), temp_buffer);
+        int valid_executor = (!!executor[0]) ? 0 : ((!!executor[1]) ? 1 : 2);
+        backend::data_manipulator<location_tag>::copy_n(this->stream(), input, executor[valid_executor]->box_size(), temp_buffer);
     }
 
     for(int i=0; i<2; i++){ // apply the two complex-to-complex ffts

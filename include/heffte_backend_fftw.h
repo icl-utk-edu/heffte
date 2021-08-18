@@ -108,6 +108,12 @@ struct plan_fftw<std::complex<float>, dir>{
                                       );
         }
     }
+    //! \brief Identical to the float-complex specialization.
+    plan_fftw(int size1, int size2, int size3){
+        std::array<int, 3> size = {size3, size2, size1};
+        plan = fftwf_plan_many_dft(3, size.data(), 1, nullptr, nullptr, 1, 1, nullptr, nullptr, 1, 1,
+                                   (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE);
+    }
     //! \brief Destructor, deletes the plan.
     ~plan_fftw(){ fftwf_destroy_plan(plan); }
     //! \brief Custom conversion to the FFTW3 plan.
@@ -143,6 +149,12 @@ struct plan_fftw<std::complex<double>, dir>{
                                                       (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                      );
         }
+    }
+    //! \brief Identical to the float-complex specialization.
+    plan_fftw(int size1, int size2, int size3){
+        std::array<int, 3> size = {size3, size2, size1};
+        plan = fftw_plan_many_dft(3, size.data(), 1, nullptr, nullptr, 1, 1, nullptr, nullptr, 1, 1,
+                                  (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE);
     }
     //! \brief Identical to the float-complex specialization.
     ~plan_fftw(){ fftw_destroy_plan(plan); }
@@ -202,6 +214,15 @@ public:
             howmanyffts = box.size[1];
         }
     }
+    //! \brief Merges three FFTs into one.
+    template<typename index>
+    fftw_executor(box3d<index> const box) :
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        stride(0), dist(0),
+        blocks(1), block_stride(0),
+        total_size(box.count()),
+        embed({0, 0})
+    {}
 
     //! \brief Forward fft, float-complex case.
     void forward(std::complex<float> data[]) const{
@@ -265,7 +286,9 @@ private:
     template<typename scalar_type, direction dir>
     void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
         if (not plan){
-            if (size2 == 0)
+            if (dist == 0)
+                plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, size2, howmanyffts));
+            else if (size2 == 0)
                 plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, dist));
             else
                 plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, size2, embed, howmanyffts, stride, dist));
@@ -445,8 +468,15 @@ template<> struct one_dim_backend<backend::fftw>{
     static std::unique_ptr<fftw_executor> make(void*, box3d<index> const &box, int dir1, int dir2){
         return std::unique_ptr<fftw_executor>(new fftw_executor(box, dir1, dir2));
     }
+    //! \brief Constructs a 3D executor.
+    template<typename index>
+    static std::unique_ptr<fftw_executor> make(void*, box3d<index> const &box){
+        return std::unique_ptr<fftw_executor>(new fftw_executor(box));
+    }
     //! \brief Returns true if the transforms in the two directions can be merged into one.
-    template<typename index> static bool can_merge(box3d<index> const&, int, int){ return true; }
+    static bool can_merge2d(){ return true; }
+    //! \brief Returns true if the transforms in the three directions can be merged into one.
+    static bool can_merge3d(){ return true; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<fftw_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
