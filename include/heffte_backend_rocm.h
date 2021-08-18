@@ -324,6 +324,43 @@ struct plan_rocfft<std::complex<precision_type>, dir>{
 
         rocm::check_error( rocfft_plan_description_destroy(desc), "rocm plan destroy");
     }
+    /*!
+     * \brief Constructor, takes inputs identical to cufftMakePlanMany().
+     *
+     * \param size1 is the number of entries in a 2-D transform, direction 1
+     * \param size2 is the number of entries in a 2-D transform, direction 2
+     * \param embed is the stride between entries in each dimension
+     * \param batch is the number of transforms in the batch
+     * \param dist is the distance between the first entries of consecutive sequences
+     */
+    plan_rocfft(size_t size1, size_t size2, std::array<size_t, 2> const &embed, size_t batch, size_t dist) : plan(nullptr), worksize(0){
+        size_t size[2] = {size1, size2};
+
+        rocfft_plan_description desc = nullptr;
+        rocm::check_error( rocfft_plan_description_create(&desc), "rocm plan create");
+
+        rocm::check_error(
+            rocfft_plan_description_set_data_layout(
+                desc,
+                rocfft_array_type_complex_interleaved,
+                rocfft_array_type_complex_interleaved,
+                nullptr, nullptr,
+                2, embed.data(), dist, 2, embed.data(), dist
+            ),
+            "plan layout"
+        );
+
+        rocm::check_error(
+        rocfft_plan_create(&plan, rocfft_placement_inplace,
+                           (dir == direction::forward) ? rocfft_transform_type_complex_forward : rocfft_transform_type_complex_inverse,
+                           (std::is_same<precision_type, float>::value) ? rocfft_precision_single : rocfft_precision_double,
+                           2, size, batch, desc),
+        "plan create");
+
+        rocm::check_error( rocfft_plan_get_work_buffer_size(plan, &worksize), "get_worksize");
+
+        rocm::check_error( rocfft_plan_description_destroy(desc), "rocm plan destroy");
+    }
     //! \brief Destructor, deletes the plan.
     ~plan_rocfft(){ rocm::check_error( rocfft_plan_destroy(plan), "plan destory"); }
     //! \brief Custom conversion to the rocfft_plan.
@@ -355,14 +392,42 @@ public:
     template<typename index>
     rocfft_executor(hipStream_t active_stream, box3d<index> const box, int dimension) :
         stream(active_stream),
-        size(box.size[dimension]),
+        size(box.size[dimension]), size2(0),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == box.order[0]) ? size : 1),
         blocks((dimension == box.order[1]) ? box.osize(2) : 1),
         block_stride(box.osize(0) * box.osize(1)),
-        total_size(box.count())
+        total_size(box.count()),
+        embed({0, 0})
     {}
+    //! \brief Merges two FFTs into one.
+    template<typename index>
+    rocfft_executor(hipStream_t active_stream, box3d<index> const box, int dir1, int dir2) :
+        stream(active_stream),
+        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        blocks(1), block_stride(0), total_size(box.count())
+    {
+        int odir1 = box.find_order(dir1);
+        int odir2 = box.find_order(dir2);
+
+        if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            stride = 1;
+            dist = size * size2;
+            embed = {static_cast<size_t>(stride), static_cast<size_t>(size)};
+            howmanyffts = box.size[2];
+        }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            stride = box.size[0];
+            dist = 1;
+            embed = {static_cast<size_t>(stride), static_cast<size_t>(size) * static_cast<size_t>(stride)};
+            howmanyffts = box.size[0];
+        }else{ // case of directions (0, 2)
+            stride = 1;
+            dist = size;
+            embed = {static_cast<size_t>(stride), static_cast<size_t>(box.size[1]) * static_cast<size_t>(box.size[0])};
+            howmanyffts = box.size[1];
+        }
+    }
 
     //! \brief Perform an in-place FFT on the data in the given direction.
     template<typename precision_type, direction dir>
@@ -434,12 +499,18 @@ private:
     //! \brief Helper template to create the plan.
     template<typename scalar_type, direction dir>
     void make_plan(std::unique_ptr<plan_rocfft<scalar_type, dir>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, howmanyffts, stride, dist));
+        if (not plan){
+            if (size2 == 0)
+                plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, howmanyffts, stride, dist));
+            else
+                plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, size2, embed, howmanyffts, dist));
+        }
     }
 
     mutable hipStream_t stream;
 
-    int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    std::array<size_t, 2> embed;
     mutable std::unique_ptr<plan_rocfft<std::complex<float>, direction::forward>> ccomplex_forward;
     mutable std::unique_ptr<plan_rocfft<std::complex<float>, direction::backward>> ccomplex_backward;
     mutable std::unique_ptr<plan_rocfft<std::complex<double>, direction::forward>> zcomplex_forward;
@@ -578,6 +649,13 @@ template<> struct one_dim_backend<backend::rocfft>{
     static std::unique_ptr<rocfft_executor> make(hipStream_t stream, box3d<index> const box, int dimension){
         return std::unique_ptr<rocfft_executor>(new rocfft_executor(stream, box, dimension));
     }
+    //! \brief Constructs a 2D executor from two 1D ones.
+    template<typename index>
+    static std::unique_ptr<rocfft_executor> make(hipStream_t stream,  box3d<index> const box, int dir1, int dir2){
+        return std::unique_ptr<rocfft_executor>(new rocfft_executor(stream, box, dir1, dir2));
+    }
+    //! \brief Returns true if the transforms in the two directions can be merged into one.
+    template<typename index> static bool can_merge(box3d<index> const&, int, int){ return true; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<rocfft_executor_r2c> make_r2c(hipStream_t stream, box3d<index> const box, int dimension){

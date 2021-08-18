@@ -71,9 +71,24 @@ void fft3d<backend_tag, index>::setup(logic_plan3d<index> const &plan, MPI_Comm 
         backward_shaper[3-i] = make_reshape3d<backend_tag>(this->stream(), plan.out_shape[i], plan.in_shape[i], comm, plan.options);
     }
 
-    fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][mpi::comm_rank(comm)], plan.fft_direction[0]);
-    fft1 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[1][mpi::comm_rank(comm)], plan.fft_direction[1]);
-    fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][mpi::comm_rank(comm)], plan.fft_direction[2]);
+    int const my_rank = mpi::comm_rank(comm);
+    fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
+    fft1 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[1][my_rank], plan.fft_direction[1]);
+    fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
+
+    if (not forward_shaper[1]){
+        if (one_dim_backend<backend_tag>::can_merge(plan.out_shape[0][my_rank], plan.fft_direction[0], plan.fft_direction[1])){
+            fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank],
+                                                      plan.fft_direction[0], plan.fft_direction[1]);
+            fft1 = std::unique_ptr<backend_executor>();
+        }
+    }else if (not forward_shaper[2]){
+        if (one_dim_backend<backend_tag>::can_merge(plan.out_shape[2][my_rank], plan.fft_direction[1], plan.fft_direction[2])){
+            fft1 = std::unique_ptr<backend_executor>();
+            fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank],
+                                                      plan.fft_direction[1], plan.fft_direction[2]);
+        }
+    }
 }
 
 template<typename backend_tag, typename index>
@@ -94,9 +109,9 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
         ->void{
             add_trace name("fft-1d");
             if (dir == direction::forward){
-                executor[i]->forward(data);
+                if (executor[i]) executor[i]->forward(data);
             }else{
-                executor[i]->backward(data);
+                if (executor[i]) executor[i]->backward(data);
             }
         };
 
@@ -204,9 +219,9 @@ void fft3d<backend_tag, index>::standard_transform(scalar_type const input[], st
 
     if (last < 1){ // no reshapes after 0
         add_trace name("fft-1d x3");
-        executor[0]->forward(effective_input, output);
-        executor[1]->forward(output);
-        executor[2]->forward(output);
+        if (executor[0]) executor[0]->forward(effective_input, output);
+        if (executor[1]) executor[1]->forward(output);
+        if (executor[2]) executor[2]->forward(output);
         apply_scale(direction::forward, scaling, output);
         return;
     }
@@ -214,7 +229,7 @@ void fft3d<backend_tag, index>::standard_transform(scalar_type const input[], st
     // if there is messier combination of transforms, then we need internal buffers
     std::complex<scalar_type> *temp_buffer = workspace + size_comm_buffers();
     { add_trace name("fft-1d");
-    executor[0]->forward(effective_input, temp_buffer);
+    if (executor[0]) executor[0]->forward(effective_input, temp_buffer);
     }
 
     for(int i=1; i<last; i++){
@@ -223,7 +238,7 @@ void fft3d<backend_tag, index>::standard_transform(scalar_type const input[], st
             shaper[i]->apply(temp_buffer, temp_buffer, workspace);
         }
         add_trace name("fft-1d");
-        executor[i]->forward(temp_buffer);
+        if (executor[i]) executor[i]->forward(temp_buffer);
     }
     { add_trace name("reshape");
     shaper[last]->apply(temp_buffer, output, workspace);
@@ -231,7 +246,7 @@ void fft3d<backend_tag, index>::standard_transform(scalar_type const input[], st
 
     for(int i=last; i<3; i++){
         add_trace name("fft-1d");
-        executor[i]->forward(output);
+        if (executor[i]) executor[i]->forward(output);
     }
 
     apply_scale(direction::forward, scaling, output);
@@ -259,7 +274,7 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
 
     for(int i=0; i<2; i++){ // apply the two complex-to-complex ffts
         { add_trace name("fft-1d x3");
-        executor[i]->backward(temp_buffer);
+        if (executor[i]) executor[i]->backward(temp_buffer);
         }
         if (shaper[i+1]){
             add_trace name("reshape");
@@ -273,13 +288,13 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
         // there is one more reshape left, transform into a real temporary buffer
         scalar_type* real_buffer = reinterpret_cast<scalar_type*>(temp_buffer + executor[2]->box_size());
         { add_trace name("fft-1d");
-        executor[2]->backward(temp_buffer, real_buffer);
+        if (executor[2]) executor[2]->backward(temp_buffer, real_buffer);
         }
         add_trace name("reshape");
         shaper[3]->apply(real_buffer, output, reinterpret_cast<scalar_type*>(workspace));
     }else{
         add_trace name("fft-1d");
-        executor[2]->backward(temp_buffer, output);
+        if (executor[2]) executor[2]->backward(temp_buffer, output);
     }
 
     apply_scale(direction::backward, scaling, output);

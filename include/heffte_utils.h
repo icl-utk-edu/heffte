@@ -400,7 +400,9 @@ int count_active(std::array<std::unique_ptr<some_class>, 4> const &shaper){
  */
 template<typename some_class>
 size_t get_max_size(std::array<some_class*, 3> const executors){
-    return std::max(executors[0]->box_size(), std::max(executors[1]->box_size(), executors[2]->box_size()));
+    size_t max_size = (executors[0]) ? executors[0]->box_size() : 0;
+    max_size = std::max(max_size, (executors[1]) ? executors[1]->box_size() : static_cast<size_t>(0));
+    return std::max(max_size, (executors[2]) ? executors[2]->box_size() : static_cast<size_t>(0));
 }
 
 /*!

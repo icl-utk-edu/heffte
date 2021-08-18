@@ -254,8 +254,43 @@ template<typename scalar_type> struct plan_cufft{
             cufftMakePlanMany(plan, 1, &size, &size, stride, dist, &size, stride, dist,
                               (std::is_same<scalar_type, std::complex<float>>::value) ? CUFFT_C2C : CUFFT_Z2Z,
                               batch, &work_size),
-            "plan_cufft::cufftMakePlanMany()"
+            "plan_cufft::cufftMakePlanMany() 1D"
         );
+
+        if (stream != nullptr)
+            cuda::check_error( cufftSetStream(plan, stream), "cufftSetStream()");
+    }
+    /*!
+     * \brief Constructor, takes inputs identical to cufftMakePlanMany().
+     *
+     * \param stream is the CUDA stream to use for the transform
+     * \param size1 is the number of entries in a 2-D transform (dimension 1)
+     * \param size2 is the number of entries in a 2-D transform (dimension 2)
+     * \param embed defines the embedding of the 2-D transform into a 3-D box
+     * \param batch is the number of transforms in the batch
+     * \param stride is the distance between entries of the same transform
+     * \param dist is the distance between the first entries of consecutive sequences
+     */
+    plan_cufft(cudaStream_t stream, int size1, int size2, std::array<int, 2> const &embed, int batch, int stride, int dist){
+        size_t work_size = 0;
+        int size[2] = {size2, size1};
+
+        cuda::check_error(cufftCreate(&plan), "plan_cufft::cufftCreate()");
+        if (embed[0] == 0 and embed[1] == 0){
+            cuda::check_error(
+                cufftMakePlanMany(plan, 2, size, size, stride, dist, size, stride, dist,
+                                (std::is_same<scalar_type, std::complex<float>>::value) ? CUFFT_C2C : CUFFT_Z2Z,
+                                batch, &work_size),
+                "plan_cufft::cufftMakePlanMany() 2D"
+            );
+        }else{
+            cuda::check_error(
+                cufftMakePlanMany(plan, 2, size, const_cast<int*>(embed.data()), stride, dist, const_cast<int*>(embed.data()), stride, dist,
+                                (std::is_same<scalar_type, std::complex<float>>::value) ? CUFFT_C2C : CUFFT_Z2Z,
+                                batch, &work_size),
+                "plan_cufft::cufftMakePlanMany() 2D with embedding"
+            );
+        }
 
         if (stream != nullptr)
             cuda::check_error( cufftSetStream(plan, stream), "cufftSetStream()");
@@ -288,14 +323,40 @@ public:
     template<typename index>
     cufft_executor(cudaStream_t active_stream, box3d<index> const box, int dimension) :
         stream(active_stream),
-        size(box.size[dimension]),
+        size(box.size[dimension]), size2(0),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == box.order[0]) ? size : 1),
         blocks((dimension == box.order[1]) ? box.osize(2) : 1),
         block_stride(box.osize(0) * box.osize(1)),
-        total_size(box.count())
+        total_size(box.count()),
+        embed({0, 0})
     {}
+    //! \brief Merges two FFTs into one.
+    template<typename index>
+    cufft_executor(cudaStream_t active_stream, box3d<index> const box, int dir1, int dir2) :
+        stream(active_stream),
+        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        blocks(1), block_stride(0), total_size(box.count()), embed({0, 0})
+    {
+        int odir1 = box.find_order(dir1);
+        int odir2 = box.find_order(dir2);
+
+        if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            stride = 1;
+            dist = size * size2;
+            howmanyffts = box.size[2];
+        }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            stride = box.size[0];
+            dist = 1;
+            howmanyffts = box.size[0];
+        }else{ // case of directions (0, 2)
+            stride = 1;
+            dist = size;
+            embed = {static_cast<int>(box.size[2]), static_cast<int>(box.size[1] * box.size[0])};
+            howmanyffts = box.size[1];
+        }
+    }
 
     //! \brief Forward fft, float-complex case.
     void forward(std::complex<float> data[]) const{
@@ -358,12 +419,18 @@ private:
     //! \brief Helper template to create the plan.
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_cufft<scalar_type>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, howmanyffts, stride, dist));
+        if (not plan){
+            if (size2 == 0)
+                plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, howmanyffts, stride, dist));
+            else
+                plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, size2, embed, howmanyffts, stride, dist));
+        }
     }
 
     mutable cudaStream_t stream;
 
-    int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    std::array<int, 2> embed;
     mutable std::unique_ptr<plan_cufft<std::complex<float>>> ccomplex_plan;
     mutable std::unique_ptr<plan_cufft<std::complex<double>>> zcomplex_plan;
 };
@@ -558,6 +625,14 @@ template<> struct one_dim_backend<backend::cufft>{
     static std::unique_ptr<cufft_executor> make(cudaStream_t stream, box3d<index> const box, int dimension){
         return std::unique_ptr<cufft_executor>(new cufft_executor(stream, box, dimension));
     }
+    //! \brief Constructs a 2D executor from two 1D ones.
+    template<typename index>
+    static std::unique_ptr<cufft_executor> make(cudaStream_t stream, box3d<index> const &box, int dir1, int dir2){
+        return std::unique_ptr<cufft_executor>(new cufft_executor(stream, box, dir1, dir2));
+    }
+    //! \brief Returns true if the transforms in the two directions can be merged into one.
+    template<typename index>
+    static bool can_merge(box3d<index> const&, int, int){ return true; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<cufft_executor_r2c> make_r2c(cudaStream_t stream, box3d<index> const box, int dimension){
