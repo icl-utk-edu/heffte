@@ -289,18 +289,29 @@ std::vector<heffte::plan_options> make_all_options2(){
 }
 
 //! \brief If input and output grid of processors are pencils, useful for comparison with other libraries
-bool io_pencils(std::deque<std::string> const &args){
+bool has_option(std::deque<std::string> const &args, std::string const &opt){
     for(auto &s : args)
-        if (s == "-io_pencils")
+        if (s == opt)
             return true;
     return false;
 }
-
-bool has_mps(std::deque<std::string> const &args){
-    for(auto &s : args)
-        if (s == "-mps")
-            return true;
-    return false;
+//! \brief Takes the three arguments after \b opt and converts them to an array of ints, throws runtime_error if no arguments or cannot convert.
+std::array<int, 3> get_grid(std::deque<std::string> const &args, std::string const &opt){
+    auto iopt = args.begin();
+    while(iopt != args.end()){
+        if (*iopt == opt){ // found the argument, take the next three entries
+            std::array<int, 3> result = {0, 0, 0};
+            for(size_t i=0; i<3; i++){
+                if (++iopt != args.end())
+                    result[i] = std::stoi(*iopt);
+                else
+                    throw std::runtime_error(opt + " must be followed by three integers indicating the grid dimensions");
+            }
+            return result;
+        }
+        iopt++;
+    }
+    throw std::runtime_error(opt + " not found");
 }
 
 int nruns(std::deque<std::string> const &args){
