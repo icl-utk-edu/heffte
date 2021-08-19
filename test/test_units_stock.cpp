@@ -392,8 +392,7 @@ void test_stock_composite_template(int N) {
     int numNodes = stock::getNumNodes(N);
     node_ptr root (new stock::biFuncNode<F,L>[numNodes]);
     stock::biFuncNode<F,L>* rootPtr = root.get();
-    std::vector<complex_vector<F,L>> workspace (numNodes);
-    init_fft_tree(rootPtr, N, workspace.data());
+    init_fft_tree(rootPtr, N);
 
     std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> fftForward = [&rootPtr](complex_vector<F,L>& input, complex_vector<F,L>& output){
         rootPtr->fptr(input.data(), output.data(), 1, 1, rootPtr, heffte::direction::forward);

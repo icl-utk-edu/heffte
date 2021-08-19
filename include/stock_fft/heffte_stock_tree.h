@@ -202,19 +202,17 @@ inline std::pair<fft_type, size_t> fptrFactorHelper(const size_t N) {
 
 //! \brief Recursively initialize a call-graph given an array (could be done at compile-time)
 template<typename F, int L>
-inline size_t init_fft_tree(biFuncNode<F,L>* sRoot, const size_t N, complex_vector<F,L>* workspace) {
+inline size_t init_fft_tree(biFuncNode<F,L>* sRoot, const size_t N) {
     std::pair<fft_type, size_t> pr = fptrFactorHelper(N);
     fft_type type = pr.first; size_t k = pr.second;
-    workspace->resize(N);
     if(type == fft_type::rader) {
         size_t a = primeRoot(N);
         size_t ainv = modPow(a, N-2, N);
-        *sRoot = biFuncNode<F,L>(a, ainv, workspace);
+        *sRoot = biFuncNode<F,L>(N, a, ainv);
     }
     else {
-        *sRoot = biFuncNode<F,L>(type, workspace);
+        *sRoot = biFuncNode<F,L>(N, type);
     }
-    sRoot->sz = N;
     if(type == fft_type::discrete ||
         type == fft_type::pow2     ||
         type == fft_type::pow3     ||
@@ -222,8 +220,8 @@ inline size_t init_fft_tree(biFuncNode<F,L>* sRoot, const size_t N, complex_vect
         return 1;
     }
     size_t q = getLeftover(N, k);
-    size_t l = init_fft_tree(sRoot + 1, k, workspace+1);
-    size_t r = (type == fft_type::rader) ? 0 : init_fft_tree(sRoot + 1 + l, q, workspace + 1 + l);
+    size_t l = init_fft_tree(sRoot + 1, k);
+    size_t r = (type == fft_type::rader) ? 0 : init_fft_tree(sRoot + 1 + l, q);
     sRoot->left = 1;
     sRoot->right = 1 + l;
     return 1 + l + r;

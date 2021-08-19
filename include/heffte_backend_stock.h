@@ -116,14 +116,12 @@ struct plan_stock_fft{
                     N(size), num_ffts(howmanyffts), stride_sz(stride), real_d(rdist), comp_d(cdist) {
         numNodes = stock::getNumNodes(N);
         root = std::unique_ptr<stock::biFuncNode<F,L>[]>(new stock::biFuncNode<F,L>[numNodes]);
-        workspace = std::vector<heffte::stock::complex_vector<F,L>> (numNodes);
-        init_fft_tree(root.get(), N, workspace.data());
+        init_fft_tree(root.get(), N);
     }
     //! \brief Identical to the F-complex specialization.
     int N, num_ffts, stride_sz, real_d, comp_d, numNodes;
     constexpr static int L = pack_size<F>::size;
     std::unique_ptr<stock::biFuncNode<F,L>[]> root;
-    std::vector<heffte::stock::complex_vector<F,L>> workspace;
     //! \brief Execute C2R FFT
     void execute(std::complex<F> const idata[], F odata[]) {
         // Allocate input and output temporary arrays
@@ -237,14 +235,12 @@ struct plan_stock_fft<std::complex<F>, dir>{
                    N(size), num_ffts(howmanyffts), stride_sz(stride), idist(dist), odist(dist) {
         numNodes = stock::getNumNodes(N);
         root = std::unique_ptr<stock::biFuncNode<F,L>[]>(new stock::biFuncNode<F,L>[numNodes]);
-        workspace = std::vector<heffte::stock::complex_vector<F,L>> (numNodes);
-        init_fft_tree(root.get(), N, workspace.data());
+        init_fft_tree(root.get(), N);
     }
 
     int N, num_ffts, stride_sz, idist, odist, numNodes;
     constexpr static int L = pack_size<F>::size;
     std::unique_ptr<stock::biFuncNode<F, L>[]> root;
-    std::vector<heffte::stock::complex_vector<F,L>> workspace;
     //! \brief Execute an FFT inplace on std::complex<F> data
     void execute(std::complex<F> data[]) {
         // Allocate input and output temporary arrays
@@ -314,13 +310,11 @@ struct plan_stock_fft{
                     N(size), num_ffts(howmanyffts), stride_sz(stride), real_d(rdist), comp_d(cdist) {
         numNodes = stock::getNumNodes(N);
         root = std::unique_ptr<stock::biFuncNode<F,1>[]>(new stock::biFuncNode<F,1>[numNodes]);
-        workspace = std::vector<heffte::stock::complex_vector<F,1>> (numNodes);
-        init_fft_tree(root.get(), N, workspace.data());
+        init_fft_tree(root.get(), N);
     }
     //! \brief Identical to the F-complex specialization.
     int N, num_ffts, stride_sz, real_d, comp_d, numNodes;
     std::unique_ptr<stock::biFuncNode<F, 1>[]> root;
-    std::vector<heffte::stock::complex_vector<F,1>> workspace;
     //! \brief Execute C2R FFT
     void execute(std::complex<F> const idata[], F odata[]) {
         // Allocate input and output temporary arrays
@@ -391,13 +385,11 @@ struct plan_stock_fft<std::complex<F>, dir>{
                     N(size), num_ffts(howmanyffts), stride_sz(stride), idist(dist), odist(dist) {
         numNodes = stock::getNumNodes(N);
         root = std::unique_ptr<stock::biFuncNode<F,1>[]>(new stock::biFuncNode<F,1>[numNodes]);
-        workspace = std::vector<heffte::stock::complex_vector<F,1>> (numNodes);
-        init_fft_tree(root.get(), N, workspace.data());
+        init_fft_tree(root.get(), N);
     }
 
     int N, num_ffts, stride_sz, idist, odist, numNodes;
     std::unique_ptr<stock::biFuncNode<F,1>[]> root;
-    std::vector<heffte::stock::complex_vector<F,1>> workspace;
     //! \brief Execute an FFT inplace on std::complex<F> data
     void execute(std::complex<F> data[]) {
         // Allocate input and output temporary arrays
