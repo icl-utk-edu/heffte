@@ -208,12 +208,11 @@ inline size_t init_fft_tree(biFuncNode<F,L>* sRoot, const size_t N) {
     if(type == fft_type::rader) {
         size_t a = primeRoot(N);
         size_t ainv = modPow(a, N-2, N);
-        *sRoot = biFuncNode<F,L>(a, ainv);
+        *sRoot = biFuncNode<F,L>(N, a, ainv);
     }
     else {
-        *sRoot = biFuncNode<F,L>(type);
+        *sRoot = biFuncNode<F,L>(N, type);
     }
-    sRoot->sz = N;
     if(type == fft_type::discrete ||
         type == fft_type::pow2     ||
         type == fft_type::pow3     ||
