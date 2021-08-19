@@ -269,6 +269,16 @@ public:
             howmanyffts = box.size[1];
         }
     }
+    //! \brief Merges two FFTs into one.
+    template<typename index>
+    onemkl_executor(sycl::queue &inq, box3d<index> const box) :
+        q(inq),
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        stride(0), dist(0),
+        blocks(1), block_stride(0), total_size(box.count()),
+        init_cplan(false), init_zplan(false),
+        cplan({howmanyffts, size2, size}), zplan({howmanyffts, size2, size})
+    {}
 
     //! \brief Forward fft, float-complex case.
     void forward(std::complex<float> data[]) const{
@@ -327,7 +337,10 @@ private:
     //! \brief Helper template to create the plan.
     template<typename onemkl_plan_type>
     void make_plan(onemkl_plan_type &plan) const{
-        if (size2 == 0){
+        if (dist == 0){
+            plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, 1);
+            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
+        }else if (size2 == 0){
             plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
             plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
             plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, embed.data());
@@ -481,8 +494,14 @@ template<> struct one_dim_backend<backend::onemkl>{
     static std::unique_ptr<onemkl_executor> make(sycl::queue &q, box3d<index> const &box, int dir1, int dir2){
         return std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box, dir1, dir2));
     }
+    template<typename index>
+    static std::unique_ptr<onemkl_executor> make(sycl::queue &q, box3d<index> const &box){
+        return std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box));
+    }
     //! \brief Returns true if the transforms in the two directions can be merged into one.
-    template<typename index> static bool can_merge(box3d<index> const&, int, int){ return true; }
+    static bool can_merge2d(){ return true; }
+    //! \brief Returns true if the transforms in the three directions can be merged into one.
+    static bool can_merge3d(){ return true; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<onemkl_executor_r2c> make_r2c(sycl::queue &q, box3d<index> const box, int dimension){
