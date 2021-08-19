@@ -115,6 +115,8 @@ struct box3d{
     bool ordered_same_as(box3d const &other) const{
         return (order[0] == other.order[0]) and (order[1] == other.order[1]) and (order[2] == other.order[2]);
     }
+    //! \brief Returns the effective order of the direction (dir), 0 -> fast, 1 -> mid, 2 -> slow.
+    int find_order(int dir) const{ return ((dir == order[0]) ? 0 : ((dir == order[1]) ? 1 : 2)); }
     //! \brief Get the ordered size of the dimension, i.e., size[order[dimension]].
     index osize(int dimension) const{ return size[order[dimension]]; }
     //! \brief The three lowest indexes.
