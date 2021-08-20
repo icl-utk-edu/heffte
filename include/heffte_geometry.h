@@ -534,13 +534,6 @@ inline std::vector<box3d<index>> make_pencils(box3d<index> const world,
             split_world(world, make_procgrid2d(world, dimension, std::array<int, 2>{proc_grid[1], proc_grid[0]})), source, order);
 
     return (count_connections(pencilsB, source) < count_connections(pencilsA, source)) ? pencilsB : pencilsA;
-
-//    std::cout << dimension << "    " << proc_grid[0] << "    " << proc_grid[1] << std::endl;
-    //if (mpi::world_rank(0)) std::cout << "    " << count_connections(pencilsA, source) << "   " << count_connections(pencilsB, source) << std::endl;
-    //if (mpi::world_rank(0))
-    //    if (count_connections(pencilsB, source) < count_connections(pencilsA, source)) std::cout << "  invert grid " << std::endl;
-    //return (count_connections(pencilsB, source) < count_connections(pencilsA, source)) ? pencilsB : pencilsA;
-    //return pencilsA;
 }
 
 /*!
