@@ -178,11 +178,18 @@ logic_plan3d<index> plan_pencil_reshapes(box3d<index> world_in, box3d<index> wor
             }
         }
     }
+    // step 1 - b, check if the initial shape is slabs and select the second direction accordingly
+    if (fft_direction[0] != -1 and is_pencils(world_in, boxes.in, fft_direction[0])){ // direction is pencil
+        for(int i=0; i<3; i++){
+            if (i != fft_direction[0] and is_pencils(world_out, boxes.in, i))
+                fft_direction[1] = i;
+        }
+    }
 
     // step 2, check the last fft direction
     // must be different from fft_direction[0] and looking to pick direction with pencil format
     for(int i=0; i<3; i++){
-        if (i != fft_direction[0] and is_pencils(world_out, boxes.out, i)){
+        if (i != fft_direction[0] and i != fft_direction[1] and is_pencils(world_out, boxes.out, i)){
             fft_direction[2] = i;
             break;
         }
@@ -205,21 +212,22 @@ logic_plan3d<index> plan_pencil_reshapes(box3d<index> world_in, box3d<index> wor
     // shape fft0 comes right after fft 0
     std::vector<box3d<index>> shape_fft0 = apply_r2c(shape0, r2c_direction);
 
-    // step 5, pick direction for the middle fft
+    // step 5, make sure we have a valid middle direction
     // must be different from the others and try to pick a direction with existing pencils
-    for(int i=0; i<3; i++){
-        if (i != fft_direction[0] and i != fft_direction[2] and is_pencils(world_out, shape_fft0, i)){
-            fft_direction[1] = i;
-            break;
+    if (fft_direction[1] == -1){
+        for(int i=0; i<3; i++){
+            if (i != fft_direction[0] and i != fft_direction[2] and is_pencils(world_out, shape_fft0, i)){
+                fft_direction[1] = i;
+                break;
+            }
+            if (fft_direction[1] == -1) // did not find pencils
+                fft_direction[1] = get_any_valid(fft_direction);
         }
-        if (fft_direction[1] == -1) // did not find pencils
-            fft_direction[1] = get_any_valid(fft_direction);
     }
 
     // step 6, make sure we have a final direction
-    if (fft_direction[2] == -1){ // if the final configuration is not made of pencils
+    if (fft_direction[2] == -1) // if the final configuration has not been set
         fft_direction[2] = get_any_valid(fft_direction);
-    }
 
     std::vector<box3d<index>> shape1 = next_pencils_shape(world_out, proc_grid, fft_direction[1], shape_fft0, opts.use_reorder,
                                                           world_out, {fft_direction[1], fft_direction[2]}, boxes.out);
