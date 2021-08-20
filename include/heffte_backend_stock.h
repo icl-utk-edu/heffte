@@ -603,6 +603,22 @@ template<> struct one_dim_backend<backend::stock>{
     static std::unique_ptr<stock_fft_executor> make(void*, box3d<index> const box, int dimension){
         return std::unique_ptr<stock_fft_executor>(new stock_fft_executor(box, dimension));
     }
+    //! \brief Constructs a 2D executor for the two directions.
+    template<typename index>
+    static std::unique_ptr<stock_fft_executor> make(void*, box3d<index> const&, int, int){
+        throw std::runtime_error("2d stock executor not implemented");
+        return std::unique_ptr<stock_fft_executor>();
+    }
+    //! \brief Constructs a 2D executor for the two directions.
+    template<typename index>
+    static std::unique_ptr<stock_fft_executor> make(void*, box3d<index> const&){
+        throw std::runtime_error("3d stock executor not implemented");
+        return std::unique_ptr<stock_fft_executor>();
+    }
+    //! \brief Returns true if the transforms in the two directions can be merged into one.
+    static bool can_merge2d(){ return false; }
+    //! \brief Returns true if the transforms in the three directions can be merged into one.
+    static bool can_merge3d(){ return false; }
     //! \brief Constructs a real-to-complex executor.
     template<typename index>
     static std::unique_ptr<stock_fft_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
