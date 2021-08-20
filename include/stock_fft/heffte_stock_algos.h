@@ -76,13 +76,14 @@ class Fourier_Transform {
  */
 template<typename F, int L>
 struct biFuncNode {
-        Fourier_Transform<F,L> fptr; // FFT for this call
-        size_t sz = 0;               // Size of FFT
-        size_t left = 0;             // Offset in array until left child
-        size_t right = 0;            // Offset in array until right child
-        biFuncNode(): fptr(fft_type::discrete) {};
-        biFuncNode(fft_type type): fptr(type) {}; // Create default constructor
-        biFuncNode(size_t a, size_t ainv): fptr(a,ainv) {};
+    size_t sz = 0;               // Size of FFT
+    Fourier_Transform<F,L> fptr; // FFT for this call
+    size_t left = 0;             // Offset in array until left child
+    size_t right = 0;            // Offset in array until right child
+    complex_vector<F,L> workspace; // Workspace
+    biFuncNode(): fptr(fft_type::discrete) {};
+    biFuncNode(size_t sig_size, fft_type type): sz(sig_size), fptr(type), workspace(sig_size) {}; // Create default constructor
+    biFuncNode(size_t sig_size, size_t a, size_t ainv): fptr(a,ainv), workspace(sig_size) {};
 };
 
 // Internal helper function to perform a DFT
@@ -291,7 +292,7 @@ inline void composite_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t 
 
     // I'm currently using a temporary storage space malloc'd in recursive calls.
     // This isn't optimal and will change as the engine develops
-    complex_vector<F,L> z (N);
+    Complex<F,L>* z  = sRoot->workspace.data();
     // Find the FFT of the "rows" of the input signal and twiddle them accordingly
     Complex<F,L> w1 = omega<F,L>::get(1, N, dir);
     Complex<F,L> wj1 = Complex<F,L>(1., 0.);
@@ -338,7 +339,7 @@ inline void rader_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_ou
     biFuncNode<F,L>* subFFT = sRoot + sRoot->left;
 
     // Temporary workspace
-    complex_vector<F,L> z (p-1);
+    Complex<F,L>* z = sRoot->workspace.data();
     // Loop variables
     int ak = 1;
     int akinv = 1;
