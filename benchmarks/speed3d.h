@@ -168,9 +168,10 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
         cout << "Size:      " << world.size[0] << "x" << world.size[1] << "x" << world.size[2] << "\n";
         cout << "MPI ranks: " << setw(4) << nprocs << "\n";
         cout << "Grids: ";
-        print_proc_grid(-1);
-        for(int i=0; i<4; i++)
-            if (not match(plan.in_shape[i], plan.out_shape[i])) print_proc_grid((i<3) ? plan.fft_direction[i] : i);
+        print_proc_grid(-1); // prints the initial grid
+        for(int i=0; i<3; i++) // if reshape was applied, show the new intermediate grid assuming pencil reshape
+            if (not match(plan.in_shape[i], plan.out_shape[i]) and not match(plan.out_shape[i], plan.out_shape[3])) print_proc_grid(i);
+        print_proc_grid(3); // print the final grid
         cout << "\n";
         cout << "Time per run: " << t_max << " (s)\n";
         cout << "Performance:  " << floprate << " GFlops/s\n";
