@@ -144,11 +144,6 @@ inline void pow2_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
         return;
     }
 
-    // if(N < HEFFTE_STOCK_THRESHOLD) {
-    //     DFT_helper(N, x, y, s_in, s_out, dir);
-    //     return;
-    // }
-
     // Size of sub-problem
     int m = N/2;
 
@@ -157,7 +152,7 @@ inline void pow2_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     pow2_FFT_helper(m, x+s_in, y+s_out*m, s_in*2, s_out, dir);
 
     // Twiddle Factor
-    Complex<F,L> w1 = omega<F,L>::get(1, N, dir);//(cos(inc), direction_sign(dir)*sin(inc));
+    Complex<F,L> w1 = omega<F,L>::get(1, N, dir);
     Complex<F,L> wj = w1;
     Complex<F,L> y_j = y[0];
 
