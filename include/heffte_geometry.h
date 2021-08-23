@@ -472,6 +472,27 @@ inline std::vector<box3d<index>> maximize_overlap(std::vector<box3d<index>> cons
 
 /*!
  * \ingroup fft3dgeometry
+ * \brief Counts the number of point-to-point connections between the old and new box geometries.
+ *
+ * Given a grid factorization of (a, b) the split into pencils can be done as either (1, a, b) or (1, b, a),
+ * the heffte::make_pencils() method computes both factorizations and selects the one that will lead to fewer
+ * point-to-point communications. This allows the pencil rotations to be done within the rows/columns of the 2D grid
+ * as opposed to communicating between all available ranks.
+ */
+template<typename index>
+inline long long count_connections(std::vector<box3d<index>> const &new_boxes, std::vector<box3d<index>> const &old_boxes){
+    long long count = 0;
+
+    for(auto &nbox : new_boxes)
+        for(auto &obox : old_boxes)
+            if (not nbox.collide(obox).empty())
+                count++;
+
+    return count;
+}
+
+/*!
+ * \ingroup fft3dgeometry
  * \brief Breaks the wold into a grid of pencils and orders the pencils to the ranks that will minimize communication
  *
  * A pencil is a box with one dimension that matches the entire world,
@@ -503,9 +524,16 @@ inline std::vector<box3d<index>> make_pencils(box3d<index> const world,
         return reorder(source, order);
 
     // create a list of boxes ordered in column major format (following the proc_grid box)
-    std::vector<box3d<index>> pencils = split_world(world, make_procgrid2d(world, dimension, proc_grid));
+    // using two boxes corresponding to the two dimensions of proc-grid in both variants
+    std::vector<box3d<index>> pencilsA =
+        maximize_overlap(
+            split_world(world, make_procgrid2d(world, dimension, proc_grid)), source, order);
 
-    return maximize_overlap(pencils, source, order);
+    std::vector<box3d<index>> pencilsB =
+        maximize_overlap(
+            split_world(world, make_procgrid2d(world, dimension, std::array<int, 2>{proc_grid[1], proc_grid[0]})), source, order);
+
+    return (count_connections(pencilsB, source) < count_connections(pencilsA, source)) ? pencilsB : pencilsA;
 }
 
 /*!
