@@ -33,17 +33,27 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     std::array<int,3> proc_o = heffte::proc_setup_min_surface(world, nprocs);
 
     // Check if user in/out processor grids are pencil-shaped, useful for performance comparison with other libraries
-    if (io_pencils(args)){
+    if (has_option(args, "-io_pencils")){
         std::array<int, 2> proc_grid = make_procgrid(nprocs);
         proc_i = {1, proc_grid[0], proc_grid[1]};
         proc_o = {1, proc_grid[0], proc_grid[1]};
     }
 
+    if (has_option(args, "-ingrid"))
+        proc_i = get_grid(args, "-ingrid");
+    if (has_option(args, "-outgrid"))
+        proc_o = get_grid(args, "-outgrid");
+
+    if (proc_i[0] * proc_i[1] * proc_i[2] != nprocs)
+        throw std::runtime_error(std::string(" incorrect input processor grid, specified ") + std::to_string(proc_i[0] * proc_i[1] * proc_i[2]) + " processors but using " + std::to_string(nprocs));
+    if (proc_o[0] * proc_o[1] * proc_o[2] != nprocs)
+        throw std::runtime_error(std::string(" incorrect output processor grid, specified ") + std::to_string(proc_o[0] * proc_o[1] * proc_o[2]) + " processors but using " + std::to_string(nprocs));
+
     std::vector<box3d<index>> inboxes  = heffte::split_world(world, proc_i);
     std::vector<box3d<index>> outboxes = heffte::split_world(world, proc_o);
 
     #ifdef Heffte_ENABLE_GPU
-    if (std::is_same<backend_tag, gpu_backend>::value and has_mps(args)){
+    if (std::is_same<backend_tag, gpu_backend>::value and has_option(args, "-mps")){
         heffte::gpu::device_set(me % heffte::gpu::device_count());
     }
     #endif
@@ -236,6 +246,8 @@ int main(int argc, char *argv[]){
                  << "         -pencils: use pencil reshape logic\n"
                  << "         -slabs: use slab reshape logic\n"
                  << "         -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries \n"
+                 << "         -ingrid x y z: specifies the processor grid to use in the input, x y z must be integers \n"
+                 << "         -outgrid x y z: specifies the processor grid to use in the output, x y z must be integers \n"
                  << "         -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices\n"
                  << "         -nX: number of times to repeat the run, accepted variants are -n5 (default), -n10, -n50\n"
                  << "Examples:\n"
