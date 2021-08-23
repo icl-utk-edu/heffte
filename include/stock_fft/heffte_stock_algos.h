@@ -14,7 +14,7 @@
 #include "heffte_common.h"
 
 //! \brief If the signal is smaller than this, we use the DFT
-#define HEFFTE_STOCK_THRESHOLD 10
+#define HEFFTE_STOCK_THRESHOLD 1
 
 namespace heffte {
 //! \brief Find the sign given a direction
@@ -180,19 +180,18 @@ inline void pow2_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out
 // Recursive helper function implementing a classic C-T FFT
 template<typename F, int L>
 inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, direction dir) {
-
     // Trivial case
     if(N == 4) {
         if(dir == direction::forward) {
-            y[      0] = x[0] + x[s_in]               + x[2*s_in] + x[3*s_in];
-            y[  s_out] = x[0] + x[s_in].__mul_neg_i() - x[2*s_in] + x[3*s_in].__mul_i();
-            y[2*s_out] = x[0] - x[s_in]               + x[2*s_in] - x[3*s_in];
-            y[3*s_out] = x[0] + x[s_in].__mul_i()     - x[2*s_in] + x[3*s_in].__mul_neg_i();
+            y[0*s_out] = x[0] + x[2*s_in] + (x[s_in] + x[3*s_in]);
+            y[1*s_out] = x[0] - x[2*s_in] + (x[s_in] - x[3*s_in]).__mul_neg_i();
+            y[2*s_out] = x[0] + x[2*s_in] - (x[s_in] + x[3*s_in]);
+            y[3*s_out] = x[0] - x[2*s_in] + (x[s_in] - x[3*s_in]).__mul_i();
         } else {
-            y[      0] = x[0] + x[s_in]               + x[2*s_in] + x[3*s_in];
-            y[  s_out] = x[0] + x[s_in].__mul_i()     - x[2*s_in] + x[3*s_in].__mul_neg_i();
-            y[2*s_out] = x[0] - x[s_in]               + x[2*s_in] - x[3*s_in];
-            y[3*s_out] = x[0] + x[s_in].__mul_neg_i() - x[2*s_in] + x[3*s_in].__mul_i();
+            y[0*s_out] = x[0] + x[2*s_in] + (x[s_in] + x[3*s_in]);
+            y[1*s_out] = x[0] - x[2*s_in] + (x[s_in] - x[3*s_in]).__mul_i();
+            y[2*s_out] = x[0] + x[2*s_in] - (x[s_in] + x[3*s_in]);
+            y[3*s_out] = x[0] - x[2*s_in] + (x[s_in] - x[3*s_in]).__mul_neg_i();
         }
         return;
     }
@@ -387,11 +386,6 @@ inline void pow3_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
         y[0] = x[0] + x[s_in] + x[2*s_in];
         y[s_out] = x[0] + plus120*x[s_in] + minus120*x[2*s_in];
         y[2*s_out] = x[0] + minus120*x[s_in] + plus120*x[2*s_in];
-        return;
-    }
-
-    if(N < HEFFTE_STOCK_THRESHOLD) {
-        DFT_helper(N, x, y, s_in, s_out, dir);
         return;
     }
 
