@@ -298,9 +298,11 @@ inline void composite_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t 
     for(size_t j1 = 0; j1 < N1; j1++) {
         Complex<F,L> wk2 = wj1;
         right->fptr(&x[j1*s_in], &z[N2*j1], N1*s_in, 1, right, dir);
-        for(size_t k2 = 1; (k2 < N2) && (j1 > 0); k2++) {
-            z[j1*N2 + k2] *= wk2;
-            wk2 *= wj1;
+        if(j1 > 0) {
+            for(size_t k2 = 1; k2 < N2; k2++) {
+                z[j1*N2 + k2] *= wk2;
+                wk2 *= wj1;
+            }
         }
         wj1 *= w1;
     }
