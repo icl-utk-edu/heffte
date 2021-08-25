@@ -13,6 +13,9 @@
 #include "heffte_stock_allocator.h"
 #include "heffte_common.h"
 
+//! \brief If the signal is smaller than this, we use the DFT
+#define HEFFTE_STOCK_THRESHOLD 1
+
 namespace heffte {
 //! \brief Find the sign given a direction
 inline int direction_sign(direction dir) {
@@ -149,16 +152,19 @@ inline void pow2_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     pow2_FFT_helper(m, x+s_in, y+s_out*m, s_in*2, s_out, dir);
 
     // Twiddle Factor
-    double inc = 2.*M_PI/N;
-    Complex<F,L> w1 (cos(inc), direction_sign(dir)*sin(inc));
-    Complex<F,L> wj (1., 0.);
+    Complex<F,L> w1 = omega<F,L>::get(1, N, dir);
+    Complex<F,L> wj = w1;
+    Complex<F,L> y_j = y[0];
+
+    y[0] += y[m*s_out];
+    y[m*s_out] = y_j - y[m*s_out];
 
     // Conquer larger problem accordingly
-    for(int j = 0; j < m; j++) {
+    for(int j = 1; j < m; j++) {
         int j_stride = j*s_out;
         int jm_stride = (j+m)*s_out;
-        Complex<F,L> y_j = y[j_stride];
-        y[j_stride] = y_j + wj*y[jm_stride];
+        y_j = y[j_stride];
+        y[j_stride]  = y_j + wj*y[jm_stride];
         y[jm_stride] = y_j - wj*y[jm_stride];
         wj *= w1;
     }
@@ -174,19 +180,18 @@ inline void pow2_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out
 // Recursive helper function implementing a classic C-T FFT
 template<typename F, int L>
 inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, direction dir) {
-
     // Trivial case
     if(N == 4) {
         if(dir == direction::forward) {
-            y[      0] = x[0] + x[s_in]               + x[2*s_in] + x[3*s_in];
-            y[  s_out] = x[0] + x[s_in].__mul_neg_i() - x[2*s_in] + x[3*s_in].__mul_i();
-            y[2*s_out] = x[0] - x[s_in]               + x[2*s_in] - x[3*s_in];
-            y[3*s_out] = x[0] + x[s_in].__mul_i()     - x[2*s_in] + x[3*s_in].__mul_neg_i();
+            y[0*s_out] = x[0] + x[2*s_in] + (x[s_in] + x[3*s_in]);
+            y[1*s_out] = x[0] - x[2*s_in] + (x[s_in] - x[3*s_in]).__mul_neg_i();
+            y[2*s_out] = x[0] + x[2*s_in] - (x[s_in] + x[3*s_in]);
+            y[3*s_out] = x[0] - x[2*s_in] + (x[s_in] - x[3*s_in]).__mul_i();
         } else {
-            y[      0] = x[0] + x[s_in]               + x[2*s_in] + x[3*s_in];
-            y[  s_out] = x[0] + x[s_in].__mul_i()     - x[2*s_in] + x[3*s_in].__mul_neg_i();
-            y[2*s_out] = x[0] - x[s_in]               + x[2*s_in] - x[3*s_in];
-            y[3*s_out] = x[0] + x[s_in].__mul_neg_i() - x[2*s_in] + x[3*s_in].__mul_i();
+            y[0*s_out] = x[0] + x[2*s_in] + (x[s_in] + x[3*s_in]);
+            y[1*s_out] = x[0] - x[2*s_in] + (x[s_in] - x[3*s_in]).__mul_i();
+            y[2*s_out] = x[0] + x[2*s_in] - (x[s_in] + x[3*s_in]);
+            y[3*s_out] = x[0] - x[2*s_in] + (x[s_in] - x[3*s_in]).__mul_neg_i();
         }
         return;
     }
@@ -200,24 +205,34 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     pow4_FFT_helper(m, x + 2*s_in, y + 2*s_out*m, s_in*4, s_out, dir);
     pow4_FFT_helper(m, x + 3*s_in, y + 3*s_out*m, s_in*4, s_out, dir);
 
-    // Twiddle Factor
-    double inc = 2.*M_PI/N;
-    Complex<F,L> w1 (cos(  inc), direction_sign(dir)*sin(  inc));
-    Complex<F,L> w2 (cos(2*inc), direction_sign(dir)*sin(2*inc));
-    Complex<F,L> w3 (cos(3*inc), direction_sign(dir)*sin(3*inc));
-    Complex<F,L> wk1 (1., 0.); Complex<F,L> wk2 (1., 0.); Complex<F,L> wk3 (1., 0.);
-
+    // Twiddle Factors
+    Complex<F,L> w1 = omega<F,L>::get(1,N,dir);
+    Complex<F,L> w2 = w1*w1;
+    Complex<F,L> w3 = w2*w1;
+    Complex<F,L> wk1 = w1; Complex<F,L> wk2 = w2; Complex<F,L> wk3 = w3;
+    int k0 =         0;
+    int k1 =   m*s_out;
+    int k2 = 2*m*s_out;
+    int k3 = 3*m*s_out;
+    Complex<F,L> y_k0 = y[k0];
+    Complex<F,L> y_k1 = y[k1];
+    Complex<F,L> y_k2 = y[k2];
+    Complex<F,L> y_k3 = y[k3];
     // Conquer larger problem accordingly
     if(dir == direction::forward) {
-        for(int k = 0; k < m; k++) {
-            int k0 = (k      )*s_out;
-            int k1 = (k +   m)*s_out;
-            int k2 = (k + 2*m)*s_out;
-            int k3 = (k + 3*m)*s_out;
-            Complex<F,L> y_k0 = y[k0];
-            Complex<F,L> y_k1 = y[k1];
-            Complex<F,L> y_k2 = y[k2];
-            Complex<F,L> y_k3 = y[k3];
+        y[k0] = y_k0 + y_k2 + (y_k1 + y_k3);
+        y[k1] = y_k0 - y_k2 + (y_k1 - y_k3).__mul_neg_i();
+        y[k2] = y_k0 + y_k2 - (y_k1 + y_k3);
+        y[k3] = y_k0 - y_k2 + (y_k1 - y_k3).__mul_i();
+        for(int k = 1; k < m; k++) {
+            k0 = (k      )*s_out;
+            k1 = (k +   m)*s_out;
+            k2 = (k + 2*m)*s_out;
+            k3 = (k + 3*m)*s_out;
+            y_k0  = y[k0];
+            y_k1  = y[k1];
+            y_k2  = y[k2];
+            y_k3  = y[k3];
             y[k0] = wk2.fmadd( y_k2, y_k0) + wk1.fmadd(y_k1, wk3*y_k3);
             y[k1] = wk2.fmadd(-y_k2, y_k0) + wk3.fmsub(y_k3, wk1*y_k1).__mul_i();
             y[k2] = wk2.fmadd( y_k2, y_k0) - wk1.fmadd(y_k1, wk3*y_k3);
@@ -226,15 +241,19 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
         }
     }
     else {
-        for(int k = 0; k < m; k++) {
-            int k0 = (k      )*s_out;
-            int k1 = (k +   m)*s_out;
-            int k2 = (k + 2*m)*s_out;
-            int k3 = (k + 3*m)*s_out;
-            Complex<F,L> y_k0 = y[k0];
-            Complex<F,L> y_k1 = y[k1];
-            Complex<F,L> y_k2 = y[k2];
-            Complex<F,L> y_k3 = y[k3];
+        y[k0] = y_k0 + y_k2 +  y_k1 + y_k3;
+        y[k1] = y_k0 - y_k2 + (y_k1 - y_k3).__mul_i();
+        y[k2] = y_k0 + y_k2 -  y_k1 - y_k3;
+        y[k3] = y_k0 - y_k2 + (y_k1 - y_k3).__mul_neg_i();
+        for(int k = 1; k < m; k++) {
+            k0 = (k      )*s_out;
+            k1 = (k +   m)*s_out;
+            k2 = (k + 2*m)*s_out;
+            k3 = (k + 3*m)*s_out;
+            y_k0  = y[k0];
+            y_k1  = y[k1];
+            y_k2  = y[k2];
+            y_k3  = y[k3];
             y[k0] = wk2.fmadd( y_k2, y_k0) + wk1.fmadd(y_k1, wk3*y_k3);
             y[k1] = wk2.fmadd(-y_k2, y_k0) + wk1.fmsub(y_k1, wk3*y_k3).__mul_i();
             y[k2] = wk2.fmadd( y_k2, y_k0) - wk1.fmadd(y_k1, wk3*y_k3);
@@ -274,9 +293,11 @@ inline void composite_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t 
     for(size_t j1 = 0; j1 < N1; j1++) {
         Complex<F,L> wk2 = wj1;
         right->fptr(&x[j1*s_in], &z[N2*j1], N1*s_in, 1, right, dir);
-        for(size_t k2 = 1; (k2 < N2) && (j1 > 0); k2++) {
-            z[j1*N2 + k2] *= wk2;
-            wk2 *= wj1;
+        if(j1 > 0) {
+            for(size_t k2 = 1; k2 < N2; k2++) {
+                z[j1*N2 + k2] *= wk2;
+                wk2 *= wj1;
+            }
         }
         wj1 *= w1;
     }
@@ -377,20 +398,33 @@ inline void pow3_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     pow3_FFT_helper(Nprime, x+2*s_in, y+2*Nprime*s_out, s_in*3, s_out, dir, plus120, minus120);
 
     // Combine the sub-problem solutions
-    Complex<F,L> wk1 (1., 0.), wk2 (1., 0.);
-    double inc = 2.*M_PI/N;
-    Complex<F,L> w1 (cos(  inc), direction_sign(dir)*sin(  inc));
-    Complex<F,L> w2 (cos(2*inc), direction_sign(dir)*sin(2*inc));
-    for(size_t k = 0; k < Nprime; k++) {
+    Complex<F,L> w1 = omega<F,L>::get(1, N, dir);
+    Complex<F,L> w2 = w1*w1;
+    Complex<F,L> wk1 = w1;
+    Complex<F,L> wk2 = w2;
+
+    int k1 =                0;
+    int k2 =   Nprime * s_out;
+    int k3 = 2*Nprime * s_out;
+
+    Complex<F,L> tmpk     = y[k1];
+    Complex<F,L> tmpk_p_1 = y[k2];
+    Complex<F,L> tmpk_p_2 = y[k3];
+
+    y[k1] =                tmpk_p_2 +               tmpk_p_1+ tmpk;
+    y[k2] = minus120.fmadd(tmpk_p_2, plus120.fmadd( tmpk_p_1, tmpk));
+    y[k3] = plus120.fmadd( tmpk_p_2, minus120.fmadd(tmpk_p_1, tmpk));
+
+    for(size_t k = 1; k < Nprime; k++) {
         // Index calculation
-        int k1 = k * s_out;
-        int k2 = (  Nprime + k) * s_out;
-        int k3 = (2*Nprime + k) * s_out;
+        k1 = k * s_out;
+        k2 = (  Nprime + k) * s_out;
+        k3 = (2*Nprime + k) * s_out;
 
         // Storing temporary variables
-        Complex<F,L> tmpk     = y[k1];
-        Complex<F,L> tmpk_p_1 = y[k2];
-        Complex<F,L> tmpk_p_2 = y[k3];
+        tmpk     = y[k1];
+        tmpk_p_1 = y[k2];
+        tmpk_p_2 = y[k3];
 
         // Reassigning the output
         y[k1] = wk2.fmadd(           tmpk_p_2, wk1.fmadd(           tmpk_p_1, tmpk));
