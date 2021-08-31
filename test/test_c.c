@@ -275,7 +275,7 @@ void perform_tests(int backend, MPI_Comm const comm){
     free(zinput);
 }
 
-#ifdef Heffte_ENABLE_GPU
+#if defined(Heffte_ENABLE_CUDA) || defined(Heffte_ENABLE_ROCM)
 // perform CUDA/ROCM tests
 #ifdef Heffte_ENABLE_CUDA
     #define gpuMalloc cudaMalloc
