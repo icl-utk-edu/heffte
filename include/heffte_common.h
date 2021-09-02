@@ -139,18 +139,6 @@ namespace backend {
 
     /*!
      * \ingroup fft3dbackend
-     * \brief Indicates whether the backend has 2D capabilities.
-     *
-     * The standard approach for FFT is to do a series of reshapes and batched 1D transforms.
-     * However, in some node distributions, two operations can be performed one after the other
-     * in which case calling the batched 2D transform for the backend will yield a performance boost.
-     * Not all backends have that feature enabled (presently), hence this type-trait class.
-     */
-    template<typename tag>
-    struct is_2d_enabled : std::false_type{};
-
-    /*!
-     * \ingroup fft3dbackend
      * \brief Defines the container for the temporary buffers.
      *
      * Specialization for each backend will define whether the raw-arrays are associated
