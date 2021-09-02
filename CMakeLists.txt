@@ -70,6 +70,11 @@ set(Heffte_common_sources
     include/heffte_reshape3d.h
     include/heffte_fft3d.h
     include/heffte_fft3d_r2c.h
+    include/stock_fft/heffte_stock_algos.h
+    include/stock_fft/heffte_stock_allocator.h
+    include/stock_fft/heffte_stock_complex.h
+    include/stock_fft/heffte_stock_tree.h
+    include/stock_fft/heffte_stock_vec_types.h
     src/heffte_c.cpp
     src/heffte_plan_logic.cpp
     src/heffte_magma_helpers.cpp
@@ -112,10 +117,6 @@ endif()
 
 # handle other dependencies
 target_link_libraries(Heffte MPI::MPI_CXX)
-
-list(APPEND Heffte_common_sources
-     include/stock_fft/*
-    )
 
 if (Heffte_ENABLE_FFTW)
     find_package(HeffteFFTW REQUIRED)
