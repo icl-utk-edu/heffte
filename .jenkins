@@ -76,8 +76,8 @@ make test_install
                         dockerfile {
                             filename 'Dockerfile_rocm'
                             dir 'docker'
-                            additionalBuildArgs '--build-arg BASE=rocm/dev-ubuntu-20.04:4.0'
-                            args '--device=/dev/kfd --device=/dev/dri --security-opt seccomp=unconfined --group-add video --env HIP_VISIBLE_DEVICES=${HIP_VISIBLE_DEVICES:-0}'
+                            additionalBuildArgs '--build-arg BASE=rocm/dev-ubuntu-20.04:4.3'
+                            args '--device=/dev/kfd --device=/dev/dri --security-opt seccomp=unconfined --group-add video --env HIP_VISIBLE_DEVICES=${HIP_VISIBLE_DEVICES}'
                             label 'rocm-docker && vega'
                         }
                     }
@@ -91,7 +91,6 @@ cmake \
     -DHeffte_ENABLE_FFTW=ON \
     -DHeffte_ENABLE_ROCM=ON \
     -DHeffte_DISABLE_GPU_AWARE_MPI=ON \
-    -DCMAKE_PREFIX_PATH="/opt/rocm-4.2.0/" \
     -DMPIEXEC_PREFLAGS="--allow-run-as-root" \
     .. &&
 make -j4 &&
