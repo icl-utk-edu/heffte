@@ -42,15 +42,29 @@ void synchronize_default_stream(){
 
 namespace oapi{
 
+// internal kernel signatures used by SYCL.
+template<typename precision_type, typename index> struct heffte_convert_to_complex_kernel{};
+template<typename precision_type, typename index> struct heffte_convert_to_real_kernel{};
+template<typename scalar_type, typename index> struct heffte_direct_pack_kernel{};
+template<typename scalar_type, typename index> struct heffte_direct_unpack_kernel{};
+template<typename scalar_type, typename index> struct heffte_transpose_unpack_kernel012{};
+template<typename scalar_type, typename index> struct heffte_transpose_unpack_kernel021{};
+template<typename scalar_type, typename index> struct heffte_transpose_unpack_kernel102{};
+template<typename scalar_type, typename index> struct heffte_transpose_unpack_kernel120{};
+template<typename scalar_type, typename index> struct heffte_transpose_unpack_kernel201{};
+template<typename scalar_type, typename index> struct heffte_transpose_unpack_kernel210{};
+template<typename scalar_type, typename index> struct heffte_scale_data_kernel{};
+
 template<typename precision_type, typename index>
 void convert(sycl::queue &stream, index num_entries, precision_type const source[], std::complex<precision_type> destination[]){
     precision_type* real_dest = reinterpret_cast<precision_type*>(destination);
     stream.submit([&](sycl::handler& h){
-            h.parallel_for<class heffte_convert_to_complex_kernel>(sycl::range<1>{static_cast<size_t>(num_entries),},
-                                                                   [=](sycl::id<1> i){
-                real_dest[2*i[0]] = source[i[0]];
-                real_dest[2*i[0]+1] = 0.0;
-            });
+            h.parallel_for<heffte_convert_to_complex_kernel<precision_type, index>>(
+                sycl::range<1>{static_cast<size_t>(num_entries),},
+                [=](sycl::id<1> i){
+                    real_dest[2*i[0]] = source[i[0]];
+                    real_dest[2*i[0]+1] = 0.0;
+                });
         }).wait();
 }
 
@@ -58,10 +72,11 @@ template<typename precision_type, typename index>
 void convert(sycl::queue &stream, index num_entries, std::complex<precision_type> const source[], precision_type destination[]){
     precision_type const* real_src = reinterpret_cast<precision_type const*>(source);
     stream.submit([&](sycl::handler& h){
-            h.parallel_for<class heffte_convert_to_real_kernel>(sycl::range<1>{static_cast<size_t>(num_entries),},
-                                                                [=](sycl::id<1> i){
-                destination[i[0]] = real_src[2*i[0]];
-            });
+            h.parallel_for<heffte_convert_to_real_kernel<precision_type, index>>(
+                sycl::range<1>{static_cast<size_t>(num_entries),},
+                [=](sycl::id<1> i){
+                    destination[i[0]] = real_src[2*i[0]];
+                });
         }).wait();
 }
 
@@ -92,7 +107,7 @@ void direct_pack(sycl::queue &stream, index nfast, index nmid, index nslow, inde
                  scalar_type const source[], scalar_type destination[]){
 
     stream.submit([&](sycl::handler& h){
-            h.parallel_for<class heffte_direct_pack_kernel>(
+            h.parallel_for<heffte_direct_pack_kernel<scalar_type, index>>(
                 sycl::range<3>{static_cast<size_t>(nslow),static_cast<size_t>(nmid),static_cast<size_t>(nfast),},
                 [=](sycl::id<3> i){
                     destination[i[0] * nmid * nfast + i[1] * nfast + i[2]]
@@ -106,7 +121,7 @@ void direct_unpack(sycl::queue &stream, index nfast, index nmid, index nslow, in
                    scalar_type const source[], scalar_type destination[]){
 
     stream.submit([&](sycl::handler& h){
-            h.parallel_for<class heffte_direct_pack_kernel>(
+            h.parallel_for<heffte_direct_unpack_kernel<scalar_type, index>>(
                 sycl::range<3>{static_cast<size_t>(nslow),static_cast<size_t>(nmid),static_cast<size_t>(nfast),},
                 [=](sycl::id<3> i){
                     destination[ i[0] * plane_stride + i[1] * line_stride + i[2] ]
@@ -122,7 +137,7 @@ void transpose_unpack(sycl::queue &stream, index nfast, index nmid, index nslow,
 
     if (map0 == 0 and map1 == 1){
         stream.submit([&](sycl::handler& h){
-            h.parallel_for<class heffte_transpose_unpack_kernel012>(
+            h.parallel_for<heffte_transpose_unpack_kernel012<scalar_type, index>>(
                 sycl::range<3>{static_cast<size_t>(nslow),static_cast<size_t>(nmid),static_cast<size_t>(nfast),},
                 [=](sycl::id<3> i){
                     destination[ i[0] * plane_stride + i[1] * line_stride + i[2] ]
@@ -131,7 +146,7 @@ void transpose_unpack(sycl::queue &stream, index nfast, index nmid, index nslow,
         }).wait();
     }else if (map0 == 0 and map1 == 2){
         stream.submit([&](sycl::handler& h){
-            h.parallel_for<class heffte_transpose_unpack_kernel021>(
+            h.parallel_for<heffte_transpose_unpack_kernel021<scalar_type, index>>(
                 sycl::range<3>{static_cast<size_t>(nslow),static_cast<size_t>(nmid),static_cast<size_t>(nfast),},
                 [=](sycl::id<3> i){
                     destination[ i[0] * plane_stride + i[1] * line_stride + i[2] ]
@@ -140,7 +155,7 @@ void transpose_unpack(sycl::queue &stream, index nfast, index nmid, index nslow,
         }).wait();
     }else if (map0 == 1 and map1 == 0){
         stream.submit([&](sycl::handler& h){
-            h.parallel_for<class heffte_transpose_unpack_kernel102>(
+            h.parallel_for<heffte_transpose_unpack_kernel102<scalar_type, index>>(
                 sycl::range<3>{static_cast<size_t>(nslow),static_cast<size_t>(nmid),static_cast<size_t>(nfast),},
                 [=](sycl::id<3> i){
                     destination[ i[0] * plane_stride + i[1] * line_stride + i[2] ]
@@ -149,7 +164,7 @@ void transpose_unpack(sycl::queue &stream, index nfast, index nmid, index nslow,
         }).wait();
     }else if (map0 == 1 and map1 == 2){
         stream.submit([&](sycl::handler& h){
-            h.parallel_for<class heffte_transpose_unpack_kernel120>(
+            h.parallel_for<heffte_transpose_unpack_kernel120<scalar_type, index>>(
                 sycl::range<3>{static_cast<size_t>(nslow),static_cast<size_t>(nmid),static_cast<size_t>(nfast),},
                 [=](sycl::id<3> i){
                     destination[ i[0] * plane_stride + i[1] * line_stride + i[2] ]
@@ -158,7 +173,7 @@ void transpose_unpack(sycl::queue &stream, index nfast, index nmid, index nslow,
         }).wait();
     }else if (map0 == 2 and map1 == 0){
         stream.submit([&](sycl::handler& h){
-            h.parallel_for<class heffte_transpose_unpack_kernel201>(
+            h.parallel_for<heffte_transpose_unpack_kernel201<scalar_type, index>>(
                 sycl::range<3>{static_cast<size_t>(nslow),static_cast<size_t>(nmid),static_cast<size_t>(nfast),},
                 [=](sycl::id<3> i){
                     destination[ i[0] * plane_stride + i[1] * line_stride + i[2] ]
@@ -167,7 +182,7 @@ void transpose_unpack(sycl::queue &stream, index nfast, index nmid, index nslow,
         }).wait();
     }else if (map0 == 2 and map1 == 1){
         stream.submit([&](sycl::handler& h){
-            h.parallel_for<class heffte_transpose_unpack_kernel210>(
+            h.parallel_for<heffte_transpose_unpack_kernel210<scalar_type, index>>(
                 sycl::range<3>{static_cast<size_t>(nslow),static_cast<size_t>(nmid),static_cast<size_t>(nfast),},
                 [=](sycl::id<3> i){
                     destination[ i[0] * plane_stride + i[1] * line_stride + i[2] ]
@@ -209,7 +224,7 @@ heffte_instantiate_packers(long long)
 template<typename scalar_type, typename index>
 void scale_data(sycl::queue &stream, index num_entries, scalar_type *data, double scale_factor){
     stream.submit([&](sycl::handler& h){
-        h.parallel_for<class heffte_scale_data_kernel>(
+        h.parallel_for<heffte_scale_data_kernel<scalar_type, index>>(
             sycl::range<1>{static_cast<size_t>(num_entries),}, [=](sycl::id<1> i){
                 data[i[0]] *= scale_factor;
             });
