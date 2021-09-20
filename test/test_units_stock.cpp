@@ -137,17 +137,17 @@ void test_stock_complex_type() {
 }
 
 void test_stock_complex(){
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
     test_stock_complex_type<float,1>();
     test_stock_complex_type<float,4>();
     test_stock_complex_type<float,8>();
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
     test_stock_complex_type<float,16>();
 #endif
     test_stock_complex_type<double,1>();
     test_stock_complex_type<double,2>();
     test_stock_complex_type<double,4>();
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
     test_stock_complex_type<double,8>();
 #endif
 #else
@@ -273,10 +273,10 @@ template<typename F>
 void test_stock_dft_typed() {
     current_test<F, using_nompi> name("stock DFT test");
     test_stock_dft_template<F,1>();
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
     test_stock_dft_template<F, 4>();
 #endif
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
     test_stock_dft_template<F, is_float<F>::value? 16 : 8>();
 #endif
 }
@@ -305,10 +305,10 @@ template<typename F>
 void test_stock_pow2_typed() {
     current_test<F, using_nompi> name("stock FFT radix-2 test");
     test_stock_pow2_template<F,1>();
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
     test_stock_pow2_template<F, 4>();
 #endif
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
     test_stock_pow2_template<F, is_float<F>::value? 16 : 8>();
 #endif
 }
@@ -339,10 +339,10 @@ template<typename F>
 void test_stock_pow3_typed() {
     current_test<F, using_nompi> name("stock FFT radix-3 test");
     test_stock_pow3_template<F, 1>();
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
     test_stock_pow3_template<F, 4>();
 #endif
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
     test_stock_pow3_template<F, is_float<F>::value? 16 : 8>();
 #endif
 }
@@ -371,10 +371,10 @@ template<typename F>
 void test_stock_pow4_typed() {
     current_test<F, using_nompi> name("stock FFT radix-4 test");
     test_stock_pow4_template<F,1>();
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
     test_stock_pow4_template<F, 4>();
 #endif
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
     test_stock_pow4_template<F, is_float<F>::value? 16 : 8>();
 #endif
 }
@@ -414,11 +414,11 @@ void test_stock_composite_typed() {
     current_test<F, using_nompi> name("stock FFT composite size test");
     test_stock_composite_template<F,1>(1);
     test_stock_composite_template<F,1>(12);
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
     test_stock_composite_template<F, 4>(1);
     test_stock_composite_template<F, 4>(12);
 #endif
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
     test_stock_composite_template<F, is_float<F>::value? 16 : 8>(1);
     test_stock_composite_template<F, is_float<F>::value? 16 : 8>(12);
 #endif

@@ -37,6 +37,10 @@ if (Heffte_ENABLE_ONEAPI)
     set(Heffte_ENABLE_MKL ON CACHE BOOL "oneAPI requires Intel MKL backend to be enabled" FORCE)
 endif()
 
+if (Heffte_ENABLE_AVX512)
+    set(Heffte_ENABLE_AVX ON CACHE BOOL "AVX with 256-bits requires AVX512" FORCE)
+endif()
+
 # guard against in-source builds (may be tricked by sym-links, but it is as good as it gets)
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
     message(FATAL_ERROR "In-source builds are not allowed, please perform an out-of-source or out-of-place build, see https://cmake.org/runningcmake/ for details.")
@@ -148,10 +152,9 @@ if (Heffte_ENABLE_MAGMA)
 endif()
 
 # other target properties
-if (Heffte_ENABLE_INTRINSICS OR Heffte_ENABLE_AVX512)
+if (Heffte_ENABLE_AVX)
     target_compile_options(Heffte PUBLIC -mfma -mavx)
 endif()
-
 if (Heffte_ENABLE_AVX512)
     target_compile_options(Heffte PUBLIC -mavx512f -mavx512dq)
 endif()

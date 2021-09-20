@@ -38,16 +38,16 @@ namespace backend{
 //! \brief Recognize stock FFT single complex (which are std::complex) types
 template<> struct is_ccomplex<stock::Complex<float, 1>> : std::true_type{};
 template<> struct is_zcomplex<stock::Complex<double, 1>> : std::true_type{};
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
 /*!
  * \ingroup hefftestock
  * \brief Recognize the stock FFT single precision complex types.
  */
 template<> struct is_ccomplex<stock::Complex<float, 4>> : std::true_type{};
 template<> struct is_ccomplex<stock::Complex<float, 8>> : std::true_type{};
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
 template<> struct is_ccomplex<stock::Complex<float, 16>> : std::true_type{};
-#endif // __AVX512F__
+#endif // Heffte_ENABLE_AVX512
 
 /*!
  * \ingroup hefftestock
@@ -55,12 +55,12 @@ template<> struct is_ccomplex<stock::Complex<float, 16>> : std::true_type{};
  */
 template<> struct is_zcomplex<stock::Complex<double, 2>> : std::true_type{};
 template<> struct is_zcomplex<stock::Complex<double, 4>> : std::true_type{};
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
 template<> struct is_zcomplex<stock::Complex<double, 8>> : std::true_type{};
-#endif // __AVX512F__
-#endif // __AVX__
+#endif // Heffte_ENABLE_AVX512
+#endif // Heffte_ENABLE_AVX
 
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
 
 //! \brief Copy an array of numbers into a stock::Complex where only the first c_len spots are filled
 template<typename F, int L>
@@ -84,13 +84,13 @@ stock::Complex<F,L> copy_pad(F const *c, int c_len, int i_stride) {
 }
 
 template<typename F> struct pack_size { };
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
 template<>           struct pack_size<float> {constexpr static int size = 16;};
 template<>           struct pack_size<double>{constexpr static int size = 8;};
 #else
 template<>           struct pack_size<float> {constexpr static int size = 8;};
 template<>           struct pack_size<double>{constexpr static int size = 4;};
-#endif // __AVX512F__
+#endif // Heffte_ENABLE_AVX512
 
 /*!
  * \ingroup hefftestock
@@ -414,7 +414,7 @@ struct plan_stock_fft<std::complex<F>, dir>{
         }
     }
 };
-#endif // __AVX512F__
+#endif // Heffte_ENABLE_AVX512
 
 /*!
  * \ingroup hefftestock

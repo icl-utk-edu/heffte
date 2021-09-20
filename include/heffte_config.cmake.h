@@ -11,6 +11,9 @@
 #define Heffte_VERSION_MINOR @Heffte_VERSION_MINOR@
 #define Heffte_VERSION_PATCH @Heffte_VERSION_PATCH@
 
+#cmakedefine Heffte_ENABLE_AVX
+#cmakedefine Heffte_ENABLE_AVX512
+
 #cmakedefine Heffte_ENABLE_FFTW
 #cmakedefine Heffte_ENABLE_MKL
 #cmakedefine Heffte_ENABLE_CUDA
