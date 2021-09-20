@@ -7,6 +7,8 @@
 #ifndef HEFFTE_STOCK_VEC_TYPES_H
 #define HEFFTE_STOCK_VEC_TYPES_H
 
+#include "heffte_config.h"
+
 #ifdef __AVX__
 #include <immintrin.h>
 #endif
@@ -154,7 +156,7 @@ inline typename pack<double, 1>::type mm_complex_div(typename pack<double, 1>::t
 /* Below is functionality for vector packs */
 /////////////////////////////////////////////
 
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
 
 //! \brief Alias for vector pack of 2 elements, double precision
 template<> struct pack<double, 2> { using type = __m128d; };
@@ -678,7 +680,7 @@ inline pack<double, 4>::type mm_complex_div(pack<double, 4>::type const &x, pack
 }
 
 // Now all the implementations for types in AVX512 headers
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
 
 //! \brief Alias for vector pack of 8 elements, double precision
 template<> struct pack<double, 8> { using type = __m512d; };
@@ -966,8 +968,8 @@ inline pack<double, 8>::type mm_complex_div(pack<double, 8>::type const &x, pack
     return _mm512_div_pd(mm_complex_mul(x, mm_complex_conj(y)), mm_complex_sq_mod(y));
 }
 
-#endif // __AVX512F__
-#endif // __AVX__
+#endif // Heffte_ENABLE_AVX512
+#endif // Heffte_ENABLE_AVX
 
 }
 }
