@@ -301,12 +301,13 @@ void test_fft3d_arrays(MPI_Comm comm){
     auto world_fft     = forward_fft<backend_tag>(world, world_input); // compute reference fft
 
     for(auto const &options : make_all_options<backend_tag>()){
-    for(int i=0; i<3; i++){
+    for(int i=0; i<4; i++){ // 3-iterations for different splits, 4-th special one with different in-out boxes for 2 ranks
         // split the world into processors
         std::array<int, 3> split = {1, 1, 1};
         if (num_ranks == 2){
-            split[i] = 2;
+            split[(i < 3) ? i : 2] = 2;
         }else if (num_ranks == 12){
+            if (i > 2) continue;
             split = {2, 2, 2};
             split[i] = 3;
         }
@@ -315,14 +316,26 @@ void test_fft3d_arrays(MPI_Comm comm){
 
         // get the local input as a cuda::vector or std::vector
         auto local_input = input_maker<backend_tag, scalar_type>::select(world, boxes[me], world_input);
-        auto reference_fft = get_subbox(world, boxes[me], world_fft); // reference solution
-        output_container forward(local_input.size()); // computed solution
 
-        heffte::fft3d<backend_tag> fft(boxes[me], boxes[me], comm, options);
+        box3d<> outbox = [&]()->box3d<>{
+                if (num_ranks == 2 and i == 3){
+                    // in the special case, get a different outbox so that algorithm will use only 1 reshape and not shape 0
+                    return heffte::split_world(world, std::array<int, 3>{2, 1, 1})[me];
+                }else{
+                    return boxes[me];
+                }
+            }();
 
+        heffte::fft3d<backend_tag> fft(boxes[me], outbox, comm, (i < 3) ? options : plan_options(true, reshape_algorithm::alltoallv, false));
+
+        auto reference_fft = get_subbox(world, outbox, world_fft); // reference solution
+        output_container forward(fft.size_outbox()); // computed solution
         output_container workspace(fft.size_workspace());
 
-        fft.forward(local_input.data(), forward.data(), workspace.data()); // compute the forward fft
+        if (i < 3)
+            fft.forward(local_input.data(), forward.data(), workspace.data()); // compute the forward fft
+        else
+            fft.forward(local_input.data(), forward.data());
         tassert(approx(forward, reference_fft)); // compare to the reference
 
         #ifdef Heffte_ENABLE_CUDA
@@ -342,7 +355,10 @@ void test_fft3d_arrays(MPI_Comm comm){
         #endif
 
         input_container rbackward(local_input.size()); // compute backward fft using scalar_type
-        fft.backward(forward.data(), rbackward.data(), workspace.data());
+        if (i < 3)
+            fft.backward(forward.data(), rbackward.data(), workspace.data());
+        else
+            fft.backward(forward.data(), rbackward.data());
         auto backward_result = rescale(world, rbackward, scale::full); // always std::vector
         tassert(approx(local_input, backward_result)); // compare with the original input
 
