@@ -76,7 +76,7 @@ struct plan_options{
     {}
     //! \brief Constructor, initializes each variable, primarily for internal use.
     plan_options(bool reorder, reshape_algorithm alg, bool pencils)
-        : use_reorder(reorder), algorithm(alg), use_pencils(pencils)
+        : use_reorder(reorder), algorithm(alg), use_pencils(pencils), use_gpu_aware(true)
     {}
     //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
     bool use_reorder;

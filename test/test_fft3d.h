@@ -326,7 +326,7 @@ void test_fft3d_arrays(MPI_Comm comm){
                 }
             }();
 
-        heffte::fft3d<backend_tag> fft(boxes[me], outbox, comm, options);
+        heffte::fft3d<backend_tag> fft(boxes[me], outbox, comm, (i < 3) ? options : plan_options(true, reshape_algorithm::alltoallv, false));
 
         auto reference_fft = get_subbox(world, outbox, world_fft); // reference solution
         output_container forward(fft.size_outbox()); // computed solution
