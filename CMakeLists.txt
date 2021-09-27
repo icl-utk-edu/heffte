@@ -25,11 +25,14 @@ option(BUILD_SHARED_LIBS      "Builds shared libraries using CMake conventions" 
 # add the file with common CMake helper macros
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/heffte_macros.cmake")
 
+set(Heffte_langs "CXX")
 if (CMAKE_C_COMPILER)
     enable_language(C)
+    set(Heffte_langs "${Heffte_langs} C")
 endif()
 if (Heffte_ENABLE_FORTRAN)
     enable_language(Fortran)
+    set(Heffte_langs "${Heffte_langs} Fortran")
 endif()
 
 # oneAPI requires regular MKL as a CPU backend
@@ -220,10 +223,12 @@ endif()
 # Post Install Test
 ###########################
 # The REGEX helps accept both list and regular set of flags.
-string(REGEX REPLACE ";" " " Heffte_mpi_preflags  "${MPIEXEC_PREFLAGS}")
-string(REGEX REPLACE ";" " " Heffte_mpi_postflags "${MPIEXEC_POSTFLAGS}")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MakeTest.cmake" "${CMAKE_CURRENT_BINARY_DIR}/configured/CMakeLists.txt" @ONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/test/post_install_test.cmake.sh" "${CMAKE_CURRENT_BINARY_DIR}/post_install_test.sh" @ONLY)
 add_custom_target(test_install COMMAND bash "${CMAKE_CURRENT_BINARY_DIR}/post_install_test.sh")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/configured/CMakeLists.txt"
+        DESTINATION "share/heffte/testing/"
+        PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ)
 
 
 ##############################
@@ -231,7 +236,7 @@ add_custom_target(test_install COMMAND bash "${CMAKE_CURRENT_BINARY_DIR}/post_in
 ##############################
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExampleCMakeLists.cmake" "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" DESTINATION share/heffte/examples)
-install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.f90")
+install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.c" PATTERN "*.f90")
 
 # print summary of the CMake options, skip if using add_subdirectory(heffte)
 if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
