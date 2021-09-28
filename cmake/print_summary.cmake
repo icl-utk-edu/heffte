@@ -18,5 +18,8 @@ foreach(_opt ${HEFFTE_OPTIONS})
     message(STATUS " -D ${_opt}=${${_opt}}")
 endforeach()
 unset(_opt)
+if (Heffte_ENABLE_SWIG)
+    message(STATUS " -D Heffte_ENABLE_SWIG=ON")
+endif()
 
 message(STATUS "")
