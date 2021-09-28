@@ -8,14 +8,14 @@
 ! Copyright (c) 2020, University of Tennessee.
 ! Distributed under a BSD 3-Clause license: see LICENSE for details.
 
-module heffte_mkl
+module heffte_onemkl
  use, intrinsic :: ISO_C_BINDING
  implicit none
  private
 
  ! DECLARATION CONSTRUCTS
  integer(C_INT), public, &
-   bind(C, name="heffte_mkl_ierr") :: ierr
+   bind(C, name="heffte_onemkl_ierr") :: ierr
  type, bind(C) :: SwigArrayWrapper
   type(C_PTR), public :: data = C_NULL_PTR
   integer(C_SIZE_T), public :: size = 0
@@ -36,11 +36,11 @@ module heffte_mkl
  integer(C_INT), parameter, public :: SWIG_NullReferenceError = -13_C_INT
  ! enum class heffte::scale
  integer(C_INT), protected, public, &
-   bind(C, name="_wrap_scale_mkl_none") :: scale_mkl_none
+   bind(C, name="_wrap_scale_onemkl_none") :: scale_onemkl_none
  integer(C_INT), protected, public, &
-   bind(C, name="_wrap_scale_mkl_full") :: scale_mkl_full
+   bind(C, name="_wrap_scale_onemkl_full") :: scale_onemkl_full
  integer(C_INT), protected, public, &
-   bind(C, name="_wrap_scale_mkl_symmetric") :: scale_mkl_symmetric
+   bind(C, name="_wrap_scale_onemkl_symmetric") :: scale_onemkl_symmetric
  integer, parameter, public :: scale = C_INT
 
  integer, parameter :: swig_cmem_own_bit = 0
@@ -49,108 +49,111 @@ module heffte_mkl
   type(C_PTR), public :: cptr = C_NULL_PTR
   integer(C_INT), public :: cmemflags = 0
  end type
- ! class heffte::fft3d< heffte::backend::mkl >
- type, public :: heffte_fft3d_mkl
+ ! class heffte::fft3d< heffte::backend::onemkl >
+ type, public :: heffte_fft3d_onemkl
   type(SwigClassWrapper), public :: swigdata
  contains
-  procedure :: size_inbox => swigf_heffte_fft3d_mkl_size_inbox
-  procedure :: size_outbox => swigf_heffte_fft3d_mkl_size_outbox
-  procedure :: get_scale_factor => swigf_heffte_fft3d_mkl_get_scale_factor
-  procedure :: size_workspace => swigf_heffte_fft3d_mkl_size_workspace
-  procedure :: size_comm_buffers => swigf_heffte_fft3d_mkl_size_comm_buffers
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_6
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_7
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_8
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_9
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_10
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_11
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_12
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_13
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_14
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_15
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_16
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_17
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_18
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_19
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_20
-  procedure, private :: swigf_heffte_fft3d_mkl_forward__SWIG_21
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_6
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_7
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_8
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_9
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_10
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_11
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_12
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_13
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_14
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_15
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_16
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_17
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_18
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_19
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_20
-  procedure, private :: swigf_heffte_fft3d_mkl_backward__SWIG_21
-  procedure :: release => swigf_heffte_fft3d_mkl_release
-  procedure, private :: swigf_heffte_fft3d_mkl_op_assign__
-  generic :: assignment(=) => swigf_heffte_fft3d_mkl_op_assign__
-  generic :: backward => swigf_heffte_fft3d_mkl_backward__SWIG_6, swigf_heffte_fft3d_mkl_backward__SWIG_7, &
-    swigf_heffte_fft3d_mkl_backward__SWIG_8, swigf_heffte_fft3d_mkl_backward__SWIG_9, swigf_heffte_fft3d_mkl_backward__SWIG_10, &
-    swigf_heffte_fft3d_mkl_backward__SWIG_11, swigf_heffte_fft3d_mkl_backward__SWIG_12, &
-    swigf_heffte_fft3d_mkl_backward__SWIG_13, swigf_heffte_fft3d_mkl_backward__SWIG_14, &
-    swigf_heffte_fft3d_mkl_backward__SWIG_15, swigf_heffte_fft3d_mkl_backward__SWIG_16, &
-    swigf_heffte_fft3d_mkl_backward__SWIG_17, swigf_heffte_fft3d_mkl_backward__SWIG_18, &
-    swigf_heffte_fft3d_mkl_backward__SWIG_19, swigf_heffte_fft3d_mkl_backward__SWIG_20, &
-    swigf_heffte_fft3d_mkl_backward__SWIG_21
-  generic :: forward => swigf_heffte_fft3d_mkl_forward__SWIG_6, swigf_heffte_fft3d_mkl_forward__SWIG_7, &
-    swigf_heffte_fft3d_mkl_forward__SWIG_8, swigf_heffte_fft3d_mkl_forward__SWIG_9, swigf_heffte_fft3d_mkl_forward__SWIG_10, &
-    swigf_heffte_fft3d_mkl_forward__SWIG_11, swigf_heffte_fft3d_mkl_forward__SWIG_12, swigf_heffte_fft3d_mkl_forward__SWIG_13, &
-    swigf_heffte_fft3d_mkl_forward__SWIG_14, swigf_heffte_fft3d_mkl_forward__SWIG_15, swigf_heffte_fft3d_mkl_forward__SWIG_16, &
-    swigf_heffte_fft3d_mkl_forward__SWIG_17, swigf_heffte_fft3d_mkl_forward__SWIG_18, swigf_heffte_fft3d_mkl_forward__SWIG_19, &
-    swigf_heffte_fft3d_mkl_forward__SWIG_20, swigf_heffte_fft3d_mkl_forward__SWIG_21
- end type heffte_fft3d_mkl
- ! class heffte::fft3d_r2c< heffte::backend::mkl >
- type, public :: heffte_fft3d_r2c_mkl
+  procedure :: size_inbox => swigf_heffte_fft3d_onemkl_size_inbox
+  procedure :: size_outbox => swigf_heffte_fft3d_onemkl_size_outbox
+  procedure :: get_scale_factor => swigf_heffte_fft3d_onemkl_get_scale_factor
+  procedure :: size_workspace => swigf_heffte_fft3d_onemkl_size_workspace
+  procedure :: size_comm_buffers => swigf_heffte_fft3d_onemkl_size_comm_buffers
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_6
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_7
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_8
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_9
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_10
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_11
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_12
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_13
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_14
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_15
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_16
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_17
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_18
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_19
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_20
+  procedure, private :: swigf_heffte_fft3d_onemkl_forward__SWIG_21
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_6
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_7
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_8
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_9
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_10
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_11
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_12
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_13
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_14
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_15
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_16
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_17
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_18
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_19
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_20
+  procedure, private :: swigf_heffte_fft3d_onemkl_backward__SWIG_21
+  procedure :: release => swigf_heffte_fft3d_onemkl_release
+  procedure, private :: swigf_heffte_fft3d_onemkl_op_assign__
+  generic :: assignment(=) => swigf_heffte_fft3d_onemkl_op_assign__
+  generic :: backward => swigf_heffte_fft3d_onemkl_backward__SWIG_6, swigf_heffte_fft3d_onemkl_backward__SWIG_7, &
+    swigf_heffte_fft3d_onemkl_backward__SWIG_8, swigf_heffte_fft3d_onemkl_backward__SWIG_9, &
+    swigf_heffte_fft3d_onemkl_backward__SWIG_10, swigf_heffte_fft3d_onemkl_backward__SWIG_11, &
+    swigf_heffte_fft3d_onemkl_backward__SWIG_12, swigf_heffte_fft3d_onemkl_backward__SWIG_13, &
+    swigf_heffte_fft3d_onemkl_backward__SWIG_14, swigf_heffte_fft3d_onemkl_backward__SWIG_15, &
+    swigf_heffte_fft3d_onemkl_backward__SWIG_16, swigf_heffte_fft3d_onemkl_backward__SWIG_17, &
+    swigf_heffte_fft3d_onemkl_backward__SWIG_18, swigf_heffte_fft3d_onemkl_backward__SWIG_19, &
+    swigf_heffte_fft3d_onemkl_backward__SWIG_20, swigf_heffte_fft3d_onemkl_backward__SWIG_21
+  generic :: forward => swigf_heffte_fft3d_onemkl_forward__SWIG_6, swigf_heffte_fft3d_onemkl_forward__SWIG_7, &
+    swigf_heffte_fft3d_onemkl_forward__SWIG_8, swigf_heffte_fft3d_onemkl_forward__SWIG_9, &
+    swigf_heffte_fft3d_onemkl_forward__SWIG_10, swigf_heffte_fft3d_onemkl_forward__SWIG_11, &
+    swigf_heffte_fft3d_onemkl_forward__SWIG_12, swigf_heffte_fft3d_onemkl_forward__SWIG_13, &
+    swigf_heffte_fft3d_onemkl_forward__SWIG_14, swigf_heffte_fft3d_onemkl_forward__SWIG_15, &
+    swigf_heffte_fft3d_onemkl_forward__SWIG_16, swigf_heffte_fft3d_onemkl_forward__SWIG_17, &
+    swigf_heffte_fft3d_onemkl_forward__SWIG_18, swigf_heffte_fft3d_onemkl_forward__SWIG_19, &
+    swigf_heffte_fft3d_onemkl_forward__SWIG_20, swigf_heffte_fft3d_onemkl_forward__SWIG_21
+ end type heffte_fft3d_onemkl
+ ! class heffte::fft3d_r2c< heffte::backend::onemkl >
+ type, public :: heffte_fft3d_r2c_onemkl
   type(SwigClassWrapper), public :: swigdata
  contains
-  procedure :: size_inbox => swigf_heffte_fft3d_r2c_mkl_size_inbox
-  procedure :: size_outbox => swigf_heffte_fft3d_r2c_mkl_size_outbox
-  procedure :: size_workspace => swigf_heffte_fft3d_r2c_mkl_size_workspace
-  procedure :: size_comm_buffers => swigf_heffte_fft3d_r2c_mkl_size_comm_buffers
-  procedure :: get_scale_factor => swigf_heffte_fft3d_r2c_mkl_get_scale_factor
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_forward__SWIG_6
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_forward__SWIG_7
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_forward__SWIG_8
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_forward__SWIG_9
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_forward__SWIG_10
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_forward__SWIG_11
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_forward__SWIG_12
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_forward__SWIG_13
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_backward__SWIG_6
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_backward__SWIG_7
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_backward__SWIG_8
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_backward__SWIG_9
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_backward__SWIG_10
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_backward__SWIG_11
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_backward__SWIG_12
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_backward__SWIG_13
-  procedure :: release => swigf_heffte_fft3d_r2c_mkl_release
-  procedure, private :: swigf_heffte_fft3d_r2c_mkl_op_assign__
-  generic :: assignment(=) => swigf_heffte_fft3d_r2c_mkl_op_assign__
-  generic :: backward => swigf_heffte_fft3d_r2c_mkl_backward__SWIG_6, swigf_heffte_fft3d_r2c_mkl_backward__SWIG_7, &
-    swigf_heffte_fft3d_r2c_mkl_backward__SWIG_8, swigf_heffte_fft3d_r2c_mkl_backward__SWIG_9, &
-    swigf_heffte_fft3d_r2c_mkl_backward__SWIG_10, swigf_heffte_fft3d_r2c_mkl_backward__SWIG_11, &
-    swigf_heffte_fft3d_r2c_mkl_backward__SWIG_12, swigf_heffte_fft3d_r2c_mkl_backward__SWIG_13
-  generic :: forward => swigf_heffte_fft3d_r2c_mkl_forward__SWIG_6, swigf_heffte_fft3d_r2c_mkl_forward__SWIG_7, &
-    swigf_heffte_fft3d_r2c_mkl_forward__SWIG_8, swigf_heffte_fft3d_r2c_mkl_forward__SWIG_9, &
-    swigf_heffte_fft3d_r2c_mkl_forward__SWIG_10, swigf_heffte_fft3d_r2c_mkl_forward__SWIG_11, &
-    swigf_heffte_fft3d_r2c_mkl_forward__SWIG_12, swigf_heffte_fft3d_r2c_mkl_forward__SWIG_13
- end type heffte_fft3d_r2c_mkl
- interface heffte_fft3d_mkl
-  module procedure swigf_new_heffte_fft3d_mkl__SWIG_4, swigf_new_heffte_fft3d_mkl__SWIG_5, swigf_new_heffte_fft3d_mkl__SWIG_6
+  procedure :: size_inbox => swigf_heffte_fft3d_r2c_onemkl_size_inbox
+  procedure :: size_outbox => swigf_heffte_fft3d_r2c_onemkl_size_outbox
+  procedure :: size_workspace => swigf_heffte_fft3d_r2c_onemkl_size_workspace
+  procedure :: size_comm_buffers => swigf_heffte_fft3d_r2c_onemkl_size_comm_buffers
+  procedure :: get_scale_factor => swigf_heffte_fft3d_r2c_onemkl_get_scale_factor
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_6
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_7
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_8
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_9
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_10
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_11
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_12
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_13
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_6
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_7
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_8
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_9
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_10
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_11
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_12
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_13
+  procedure :: release => swigf_heffte_fft3d_r2c_onemkl_release
+  procedure, private :: swigf_heffte_fft3d_r2c_onemkl_op_assign__
+  generic :: assignment(=) => swigf_heffte_fft3d_r2c_onemkl_op_assign__
+  generic :: backward => swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_6, swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_7, &
+    swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_8, swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_9, &
+    swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_10, swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_11, &
+    swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_12, swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_13
+  generic :: forward => swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_6, swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_7, &
+    swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_8, swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_9, &
+    swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_10, swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_11, &
+    swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_12, swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_13
+ end type heffte_fft3d_r2c_onemkl
+ interface heffte_fft3d_onemkl
+  module procedure swigf_new_heffte_fft3d_onemkl__SWIG_4, swigf_new_heffte_fft3d_onemkl__SWIG_5, &
+    swigf_new_heffte_fft3d_onemkl__SWIG_6
  end interface
- interface heffte_fft3d_r2c_mkl
-  module procedure swigf_new_heffte_fft3d_r2c_mkl__SWIG_4, swigf_new_heffte_fft3d_r2c_mkl__SWIG_5, &
-    swigf_new_heffte_fft3d_r2c_mkl__SWIG_6
+ interface heffte_fft3d_r2c_onemkl
+  module procedure swigf_new_heffte_fft3d_r2c_onemkl__SWIG_4, swigf_new_heffte_fft3d_r2c_onemkl__SWIG_5, &
+    swigf_new_heffte_fft3d_r2c_onemkl__SWIG_6
  end interface
 
 ! WRAPPER DECLARATIONS
@@ -168,9 +171,9 @@ import :: swigarraywrapper
 type(SwigArrayWrapper) :: fresult
 end function
 
-function swigc_new_heffte_fft3d_mkl__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+function swigc_new_heffte_fft3d_onemkl__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20, farg21, farg22) &
-bind(C, name="_wrap_new_heffte_fft3d_mkl__SWIG_4") &
+bind(C, name="_wrap_new_heffte_fft3d_onemkl__SWIG_4") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -199,9 +202,9 @@ integer(C_INT), intent(in) :: farg22
 type(SwigClassWrapper) :: fresult
 end function
 
-function swigc_new_heffte_fft3d_mkl__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+function swigc_new_heffte_fft3d_onemkl__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19) &
-bind(C, name="_wrap_new_heffte_fft3d_mkl__SWIG_5") &
+bind(C, name="_wrap_new_heffte_fft3d_onemkl__SWIG_5") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -227,9 +230,9 @@ integer(C_INT), intent(in) :: farg19
 type(SwigClassWrapper) :: fresult
 end function
 
-function swigc_new_heffte_fft3d_mkl__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+function swigc_new_heffte_fft3d_onemkl__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13) &
-bind(C, name="_wrap_new_heffte_fft3d_mkl__SWIG_6") &
+bind(C, name="_wrap_new_heffte_fft3d_onemkl__SWIG_6") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -249,8 +252,8 @@ integer(C_INT), intent(in) :: farg13
 type(SwigClassWrapper) :: fresult
 end function
 
-function swigc_heffte_fft3d_mkl_size_inbox(farg1) &
-bind(C, name="_wrap_heffte_fft3d_mkl_size_inbox") &
+function swigc_heffte_fft3d_onemkl_size_inbox(farg1) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_size_inbox") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -258,8 +261,8 @@ type(SwigClassWrapper), intent(in) :: farg1
 integer(C_LONG_LONG) :: fresult
 end function
 
-function swigc_heffte_fft3d_mkl_size_outbox(farg1) &
-bind(C, name="_wrap_heffte_fft3d_mkl_size_outbox") &
+function swigc_heffte_fft3d_onemkl_size_outbox(farg1) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_size_outbox") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -267,8 +270,8 @@ type(SwigClassWrapper), intent(in) :: farg1
 integer(C_LONG_LONG) :: fresult
 end function
 
-function swigc_heffte_fft3d_mkl_get_scale_factor(farg1, farg2) &
-bind(C, name="_wrap_heffte_fft3d_mkl_get_scale_factor") &
+function swigc_heffte_fft3d_onemkl_get_scale_factor(farg1, farg2) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_get_scale_factor") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -277,8 +280,8 @@ integer(C_INT), intent(in) :: farg2
 real(C_DOUBLE) :: fresult
 end function
 
-function swigc_heffte_fft3d_mkl_size_workspace(farg1) &
-bind(C, name="_wrap_heffte_fft3d_mkl_size_workspace") &
+function swigc_heffte_fft3d_onemkl_size_workspace(farg1) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_size_workspace") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -286,8 +289,8 @@ type(SwigClassWrapper), intent(in) :: farg1
 integer(C_SIZE_T) :: fresult
 end function
 
-function swigc_heffte_fft3d_mkl_size_comm_buffers(farg1) &
-bind(C, name="_wrap_heffte_fft3d_mkl_size_comm_buffers") &
+function swigc_heffte_fft3d_onemkl_size_comm_buffers(farg1) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_size_comm_buffers") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -295,8 +298,8 @@ type(SwigClassWrapper), intent(in) :: farg1
 integer(C_SIZE_T) :: fresult
 end function
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_6(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_6")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_6(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_6")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -305,8 +308,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_7(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_7")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_7(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_7")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -314,8 +317,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_8(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_8")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_8(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_8")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -325,8 +328,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_9(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_9")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_9(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_9")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -335,8 +338,8 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_10(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_10")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_10(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_10")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -345,8 +348,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_11(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_11")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_11(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_11")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -354,8 +357,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_12(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_12")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_12(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_12")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -365,8 +368,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_13(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_13")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_13(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_13")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -375,8 +378,8 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_14(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_14")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_14(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_14")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -385,8 +388,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_15(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_15")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_15(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_15")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -394,8 +397,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_16(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_16")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_16(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_16")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -405,8 +408,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_17(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_17")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_17(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_17")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -415,8 +418,8 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_18(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_18")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_18(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_18")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -425,8 +428,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_19(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_19")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_19(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_19")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -434,8 +437,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_20(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_20")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_20(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_20")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -445,8 +448,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_forward__SWIG_21(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_forward__SWIG_21")
+subroutine swigc_heffte_fft3d_onemkl_forward__SWIG_21(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_forward__SWIG_21")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -455,8 +458,8 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_6(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_6")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_6(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_6")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -465,8 +468,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_7(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_7")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_7(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_7")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -474,8 +477,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_8(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_8")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_8(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_8")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -485,8 +488,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_9(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_9")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_9(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_9")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -495,8 +498,8 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_10(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_10")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_10(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_10")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -505,8 +508,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_11(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_11")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_11(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_11")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -514,8 +517,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_12(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_12")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_12(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_12")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -525,8 +528,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_13(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_13")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_13(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_13")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -535,8 +538,8 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_14(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_14")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_14(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_14")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -545,8 +548,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_15(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_15")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_15(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_15")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -554,8 +557,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_16(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_16")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_16(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_16")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -565,8 +568,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_17(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_17")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_17(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_17")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -575,8 +578,8 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_18(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_18")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_18(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_18")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -585,8 +588,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_19(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_19")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_19(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_19")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -594,8 +597,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_20(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_20")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_20(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_20")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -605,8 +608,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_backward__SWIG_21(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_mkl_backward__SWIG_21")
+subroutine swigc_heffte_fft3d_onemkl_backward__SWIG_21(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_backward__SWIG_21")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -615,24 +618,24 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_delete_heffte_fft3d_mkl(farg1) &
-bind(C, name="_wrap_delete_heffte_fft3d_mkl")
+subroutine swigc_delete_heffte_fft3d_onemkl(farg1) &
+bind(C, name="_wrap_delete_heffte_fft3d_onemkl")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(inout) :: farg1
 end subroutine
 
-subroutine swigc_heffte_fft3d_mkl_op_assign__(farg1, farg2) &
-bind(C, name="_wrap_heffte_fft3d_mkl_op_assign__")
+subroutine swigc_heffte_fft3d_onemkl_op_assign__(farg1, farg2) &
+bind(C, name="_wrap_heffte_fft3d_onemkl_op_assign__")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(inout) :: farg1
 type(SwigClassWrapper), intent(in) :: farg2
 end subroutine
 
-function swigc_new_heffte_fft3d_r2c_mkl__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
-  farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20, farg21, farg22, farg23) &
-bind(C, name="_wrap_new_heffte_fft3d_r2c_mkl__SWIG_4") &
+function swigc_new_heffte_fft3d_r2c_onemkl__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+  farg11, farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20, farg21, farg22, farg23) &
+bind(C, name="_wrap_new_heffte_fft3d_r2c_onemkl__SWIG_4") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -662,9 +665,9 @@ integer(C_INT), intent(in) :: farg23
 type(SwigClassWrapper) :: fresult
 end function
 
-function swigc_new_heffte_fft3d_r2c_mkl__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
-  farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20) &
-bind(C, name="_wrap_new_heffte_fft3d_r2c_mkl__SWIG_5") &
+function swigc_new_heffte_fft3d_r2c_onemkl__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+  farg11, farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20) &
+bind(C, name="_wrap_new_heffte_fft3d_r2c_onemkl__SWIG_5") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -691,9 +694,9 @@ integer(C_INT), intent(in) :: farg20
 type(SwigClassWrapper) :: fresult
 end function
 
-function swigc_new_heffte_fft3d_r2c_mkl__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
-  farg12, farg13, farg14) &
-bind(C, name="_wrap_new_heffte_fft3d_r2c_mkl__SWIG_6") &
+function swigc_new_heffte_fft3d_r2c_onemkl__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+  farg11, farg12, farg13, farg14) &
+bind(C, name="_wrap_new_heffte_fft3d_r2c_onemkl__SWIG_6") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -714,8 +717,8 @@ integer(C_INT), intent(in) :: farg14
 type(SwigClassWrapper) :: fresult
 end function
 
-function swigc_heffte_fft3d_r2c_mkl_size_inbox(farg1) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_size_inbox") &
+function swigc_heffte_fft3d_r2c_onemkl_size_inbox(farg1) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_size_inbox") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -723,8 +726,8 @@ type(SwigClassWrapper), intent(in) :: farg1
 integer(C_LONG_LONG) :: fresult
 end function
 
-function swigc_heffte_fft3d_r2c_mkl_size_outbox(farg1) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_size_outbox") &
+function swigc_heffte_fft3d_r2c_onemkl_size_outbox(farg1) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_size_outbox") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -732,8 +735,8 @@ type(SwigClassWrapper), intent(in) :: farg1
 integer(C_LONG_LONG) :: fresult
 end function
 
-function swigc_heffte_fft3d_r2c_mkl_size_workspace(farg1) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_size_workspace") &
+function swigc_heffte_fft3d_r2c_onemkl_size_workspace(farg1) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_size_workspace") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -741,8 +744,8 @@ type(SwigClassWrapper), intent(in) :: farg1
 integer(C_SIZE_T) :: fresult
 end function
 
-function swigc_heffte_fft3d_r2c_mkl_size_comm_buffers(farg1) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_size_comm_buffers") &
+function swigc_heffte_fft3d_r2c_onemkl_size_comm_buffers(farg1) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_size_comm_buffers") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -750,8 +753,8 @@ type(SwigClassWrapper), intent(in) :: farg1
 integer(C_SIZE_T) :: fresult
 end function
 
-function swigc_heffte_fft3d_r2c_mkl_get_scale_factor(farg1, farg2) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_get_scale_factor") &
+function swigc_heffte_fft3d_r2c_onemkl_get_scale_factor(farg1, farg2) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_get_scale_factor") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -760,8 +763,8 @@ integer(C_INT), intent(in) :: farg2
 real(C_DOUBLE) :: fresult
 end function
 
-subroutine swigc_heffte_fft3d_r2c_mkl_forward__SWIG_6(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_forward__SWIG_6")
+subroutine swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_6(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_forward__SWIG_6")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -770,8 +773,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_forward__SWIG_7(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_forward__SWIG_7")
+subroutine swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_7(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_forward__SWIG_7")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -779,8 +782,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_forward__SWIG_8(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_forward__SWIG_8")
+subroutine swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_8(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_forward__SWIG_8")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -790,8 +793,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_forward__SWIG_9(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_forward__SWIG_9")
+subroutine swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_9(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_forward__SWIG_9")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -800,8 +803,8 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_forward__SWIG_10(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_forward__SWIG_10")
+subroutine swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_10(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_forward__SWIG_10")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -810,8 +813,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_forward__SWIG_11(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_forward__SWIG_11")
+subroutine swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_11(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_forward__SWIG_11")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -819,8 +822,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_forward__SWIG_12(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_forward__SWIG_12")
+subroutine swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_12(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_forward__SWIG_12")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -830,8 +833,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_forward__SWIG_13(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_forward__SWIG_13")
+subroutine swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_13(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_forward__SWIG_13")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -840,8 +843,8 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_backward__SWIG_6(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_backward__SWIG_6")
+subroutine swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_6(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_backward__SWIG_6")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -850,8 +853,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_backward__SWIG_7(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_backward__SWIG_7")
+subroutine swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_7(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_backward__SWIG_7")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -859,8 +862,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_backward__SWIG_8(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_backward__SWIG_8")
+subroutine swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_8(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_backward__SWIG_8")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -870,8 +873,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_backward__SWIG_9(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_backward__SWIG_9")
+subroutine swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_9(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_backward__SWIG_9")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -880,8 +883,8 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_backward__SWIG_10(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_backward__SWIG_10")
+subroutine swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_10(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_backward__SWIG_10")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -890,8 +893,8 @@ type(C_PTR), value :: farg3
 integer(C_INT), intent(in) :: farg4
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_backward__SWIG_11(farg1, farg2, farg3) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_backward__SWIG_11")
+subroutine swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_11(farg1, farg2, farg3) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_backward__SWIG_11")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -899,8 +902,8 @@ type(C_PTR), value :: farg2
 type(C_PTR), value :: farg3
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_backward__SWIG_12(farg1, farg2, farg3, farg4, farg5) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_backward__SWIG_12")
+subroutine swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_12(farg1, farg2, farg3, farg4, farg5) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_backward__SWIG_12")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -910,8 +913,8 @@ type(C_PTR), value :: farg4
 integer(C_INT), intent(in) :: farg5
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_backward__SWIG_13(farg1, farg2, farg3, farg4) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_backward__SWIG_13")
+subroutine swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_13(farg1, farg2, farg3, farg4) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_backward__SWIG_13")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
@@ -920,15 +923,15 @@ type(C_PTR), value :: farg3
 type(C_PTR), value :: farg4
 end subroutine
 
-subroutine swigc_delete_heffte_fft3d_r2c_mkl(farg1) &
-bind(C, name="_wrap_delete_heffte_fft3d_r2c_mkl")
+subroutine swigc_delete_heffte_fft3d_r2c_onemkl(farg1) &
+bind(C, name="_wrap_delete_heffte_fft3d_r2c_onemkl")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(inout) :: farg1
 end subroutine
 
-subroutine swigc_heffte_fft3d_r2c_mkl_op_assign__(farg1, farg2) &
-bind(C, name="_wrap_heffte_fft3d_r2c_mkl_op_assign__")
+subroutine swigc_heffte_fft3d_r2c_onemkl_op_assign__(farg1, farg2) &
+bind(C, name="_wrap_heffte_fft3d_r2c_onemkl_op_assign__")
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(inout) :: farg1
@@ -977,11 +980,11 @@ subroutine SWIGTM_fin_bool(finp, iminp)
   end if
 end subroutine
 
-function swigf_new_heffte_fft3d_mkl__SWIG_4(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, oo0, &
+function swigf_new_heffte_fft3d_onemkl__SWIG_4(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, oo0, &
   oo1, oo2, comm, use_reorder, algorithm, use_pencils) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
-type(heffte_fft3d_mkl) :: self
+type(heffte_fft3d_onemkl) :: self
 integer(C_INT), intent(in) :: il0
 integer(C_INT), intent(in) :: il1
 integer(C_INT), intent(in) :: il2
@@ -1050,16 +1053,16 @@ farg19 = int(comm, C_INT)
 call SWIGTM_fin_bool(use_reorder, farg20)
 farg21 = algorithm
 call SWIGTM_fin_bool(use_pencils, farg22)
-fresult = swigc_new_heffte_fft3d_mkl__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+fresult = swigc_new_heffte_fft3d_onemkl__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20, farg21, farg22)
 self%swigdata = fresult
 end function
 
-function swigf_new_heffte_fft3d_mkl__SWIG_5(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, oo0, &
+function swigf_new_heffte_fft3d_onemkl__SWIG_5(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, oo0, &
   oo1, oo2, comm) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
-type(heffte_fft3d_mkl) :: self
+type(heffte_fft3d_onemkl) :: self
 integer(C_INT), intent(in) :: il0
 integer(C_INT), intent(in) :: il1
 integer(C_INT), intent(in) :: il2
@@ -1119,15 +1122,15 @@ farg16 = oo0
 farg17 = oo1
 farg18 = oo2
 farg19 = int(comm, C_INT)
-fresult = swigc_new_heffte_fft3d_mkl__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+fresult = swigc_new_heffte_fft3d_onemkl__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19)
 self%swigdata = fresult
 end function
 
-function swigf_new_heffte_fft3d_mkl__SWIG_6(il0, il1, il2, ih0, ih1, ih2, ol0, ol1, ol2, oh0, oh1, oh2, comm) &
+function swigf_new_heffte_fft3d_onemkl__SWIG_6(il0, il1, il2, ih0, ih1, ih2, ol0, ol1, ol2, oh0, oh1, oh2, comm) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
-type(heffte_fft3d_mkl) :: self
+type(heffte_fft3d_onemkl) :: self
 integer(C_INT), intent(in) :: il0
 integer(C_INT), intent(in) :: il1
 integer(C_INT), intent(in) :: il2
@@ -1169,42 +1172,42 @@ farg10 = oh0
 farg11 = oh1
 farg12 = oh2
 farg13 = int(comm, C_INT)
-fresult = swigc_new_heffte_fft3d_mkl__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+fresult = swigc_new_heffte_fft3d_onemkl__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13)
 self%swigdata = fresult
 end function
 
-function swigf_heffte_fft3d_mkl_size_inbox(self) &
+function swigf_heffte_fft3d_onemkl_size_inbox(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 integer(C_LONG_LONG) :: swig_result
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 integer(C_LONG_LONG) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
-fresult = swigc_heffte_fft3d_mkl_size_inbox(farg1)
+fresult = swigc_heffte_fft3d_onemkl_size_inbox(farg1)
 swig_result = fresult
 end function
 
-function swigf_heffte_fft3d_mkl_size_outbox(self) &
+function swigf_heffte_fft3d_onemkl_size_outbox(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 integer(C_LONG_LONG) :: swig_result
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 integer(C_LONG_LONG) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
-fresult = swigc_heffte_fft3d_mkl_size_outbox(farg1)
+fresult = swigc_heffte_fft3d_onemkl_size_outbox(farg1)
 swig_result = fresult
 end function
 
-function swigf_heffte_fft3d_mkl_get_scale_factor(self, scaling) &
+function swigf_heffte_fft3d_onemkl_get_scale_factor(self, scaling) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 real(C_DOUBLE) :: swig_result
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 integer(scale), intent(in) :: scaling
 real(C_DOUBLE) :: fresult 
 type(SwigClassWrapper) :: farg1 
@@ -1212,39 +1215,39 @@ integer(C_INT) :: farg2
 
 farg1 = self%swigdata
 farg2 = scaling
-fresult = swigc_heffte_fft3d_mkl_get_scale_factor(farg1, farg2)
+fresult = swigc_heffte_fft3d_onemkl_get_scale_factor(farg1, farg2)
 swig_result = fresult
 end function
 
-function swigf_heffte_fft3d_mkl_size_workspace(self) &
+function swigf_heffte_fft3d_onemkl_size_workspace(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 integer(C_SIZE_T) :: swig_result
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 integer(C_SIZE_T) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
-fresult = swigc_heffte_fft3d_mkl_size_workspace(farg1)
+fresult = swigc_heffte_fft3d_onemkl_size_workspace(farg1)
 swig_result = fresult
 end function
 
-function swigf_heffte_fft3d_mkl_size_comm_buffers(self) &
+function swigf_heffte_fft3d_onemkl_size_comm_buffers(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 integer(C_SIZE_T) :: swig_result
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 integer(C_SIZE_T) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
-fresult = swigc_heffte_fft3d_mkl_size_comm_buffers(farg1)
+fresult = swigc_heffte_fft3d_onemkl_size_comm_buffers(farg1)
 swig_result = fresult
 end function
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_6(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_6(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 real(C_FLOAT), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -1257,12 +1260,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_mkl_forward__SWIG_6(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_6(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_7(self, input, output)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_7(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 real(C_FLOAT), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -1272,12 +1275,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_mkl_forward__SWIG_7(farg1, farg2, farg3)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_7(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_8(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_8(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 real(C_FLOAT), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -1293,12 +1296,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_mkl_forward__SWIG_8(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_8(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_9(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_9(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 real(C_FLOAT), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -1311,12 +1314,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_mkl_forward__SWIG_9(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_9(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_10(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_10(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -1329,12 +1332,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_mkl_forward__SWIG_10(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_10(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_11(self, input, output)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_11(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -1344,12 +1347,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_mkl_forward__SWIG_11(farg1, farg2, farg3)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_11(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_12(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_12(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -1365,12 +1368,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_mkl_forward__SWIG_12(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_12(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_13(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_13(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -1383,12 +1386,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_mkl_forward__SWIG_13(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_13(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_14(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_14(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 real(C_DOUBLE), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -1401,12 +1404,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_mkl_forward__SWIG_14(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_14(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_15(self, input, output)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_15(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 real(C_DOUBLE), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -1416,12 +1419,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_mkl_forward__SWIG_15(farg1, farg2, farg3)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_15(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_16(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_16(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 real(C_DOUBLE), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -1437,12 +1440,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_mkl_forward__SWIG_16(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_16(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_17(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_17(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 real(C_DOUBLE), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -1455,12 +1458,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_mkl_forward__SWIG_17(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_17(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_18(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_18(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -1473,12 +1476,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_mkl_forward__SWIG_18(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_18(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_19(self, input, output)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_19(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -1488,12 +1491,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_mkl_forward__SWIG_19(farg1, farg2, farg3)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_19(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_20(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_20(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -1509,12 +1512,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_mkl_forward__SWIG_20(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_20(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_forward__SWIG_21(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_onemkl_forward__SWIG_21(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -1527,12 +1530,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_mkl_forward__SWIG_21(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_forward__SWIG_21(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_6(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_6(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 real(C_FLOAT), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -1545,12 +1548,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_mkl_backward__SWIG_6(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_6(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_7(self, input, output)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_7(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 real(C_FLOAT), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -1560,12 +1563,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_mkl_backward__SWIG_7(farg1, farg2, farg3)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_7(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_8(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_8(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 real(C_FLOAT), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -1581,12 +1584,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_mkl_backward__SWIG_8(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_8(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_9(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_9(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 real(C_FLOAT), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -1599,12 +1602,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_mkl_backward__SWIG_9(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_9(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_10(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_10(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -1617,12 +1620,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_mkl_backward__SWIG_10(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_10(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_11(self, input, output)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_11(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -1632,12 +1635,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_mkl_backward__SWIG_11(farg1, farg2, farg3)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_11(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_12(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_12(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -1653,12 +1656,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_mkl_backward__SWIG_12(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_12(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_13(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_13(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -1671,12 +1674,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_mkl_backward__SWIG_13(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_13(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_14(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_14(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 real(C_DOUBLE), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -1689,12 +1692,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_mkl_backward__SWIG_14(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_14(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_15(self, input, output)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_15(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 real(C_DOUBLE), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -1704,12 +1707,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_mkl_backward__SWIG_15(farg1, farg2, farg3)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_15(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_16(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_16(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 real(C_DOUBLE), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -1725,12 +1728,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_mkl_backward__SWIG_16(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_16(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_17(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_17(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 real(C_DOUBLE), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -1743,12 +1746,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_mkl_backward__SWIG_17(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_17(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_18(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_18(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -1761,12 +1764,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_mkl_backward__SWIG_18(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_18(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_19(self, input, output)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_19(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -1776,12 +1779,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_mkl_backward__SWIG_19(farg1, farg2, farg3)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_19(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_20(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_20(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -1797,12 +1800,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_mkl_backward__SWIG_20(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_20(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_backward__SWIG_21(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_onemkl_backward__SWIG_21(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(in) :: self
+class(heffte_fft3d_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -1815,41 +1818,41 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_mkl_backward__SWIG_21(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_onemkl_backward__SWIG_21(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_release(self)
+subroutine swigf_heffte_fft3d_onemkl_release(self)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(inout) :: self
+class(heffte_fft3d_onemkl), intent(inout) :: self
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
 if (btest(farg1%cmemflags, swig_cmem_own_bit)) then
-call swigc_delete_heffte_fft3d_mkl(farg1)
+call swigc_delete_heffte_fft3d_onemkl(farg1)
 endif
 farg1%cptr = C_NULL_PTR
 farg1%cmemflags = 0
 self%swigdata = farg1
 end subroutine
 
-subroutine swigf_heffte_fft3d_mkl_op_assign__(self, other)
+subroutine swigf_heffte_fft3d_onemkl_op_assign__(self, other)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_mkl), intent(inout) :: self
-type(heffte_fft3d_mkl), intent(in) :: other
+class(heffte_fft3d_onemkl), intent(inout) :: self
+type(heffte_fft3d_onemkl), intent(in) :: other
 type(SwigClassWrapper) :: farg1 
 type(SwigClassWrapper) :: farg2 
 
 farg1 = self%swigdata
 farg2 = other%swigdata
-call swigc_heffte_fft3d_mkl_op_assign__(farg1, farg2)
+call swigc_heffte_fft3d_onemkl_op_assign__(farg1, farg2)
 self%swigdata = farg1
 end subroutine
 
-function swigf_new_heffte_fft3d_r2c_mkl__SWIG_4(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, &
+function swigf_new_heffte_fft3d_r2c_onemkl__SWIG_4(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, &
   oo0, oo1, oo2, r2c_direction, comm, use_reorder, algorithm, use_pencils) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
-type(heffte_fft3d_r2c_mkl) :: self
+type(heffte_fft3d_r2c_onemkl) :: self
 integer(C_INT), intent(in) :: il0
 integer(C_INT), intent(in) :: il1
 integer(C_INT), intent(in) :: il2
@@ -1921,16 +1924,16 @@ farg20 = int(comm, C_INT)
 call SWIGTM_fin_bool(use_reorder, farg21)
 farg22 = algorithm
 call SWIGTM_fin_bool(use_pencils, farg23)
-fresult = swigc_new_heffte_fft3d_r2c_mkl__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+fresult = swigc_new_heffte_fft3d_r2c_onemkl__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
   farg11, farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20, farg21, farg22, farg23)
 self%swigdata = fresult
 end function
 
-function swigf_new_heffte_fft3d_r2c_mkl__SWIG_5(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, &
+function swigf_new_heffte_fft3d_r2c_onemkl__SWIG_5(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, &
   oo0, oo1, oo2, r2c_direction, comm) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
-type(heffte_fft3d_r2c_mkl) :: self
+type(heffte_fft3d_r2c_onemkl) :: self
 integer(C_INT), intent(in) :: il0
 integer(C_INT), intent(in) :: il1
 integer(C_INT), intent(in) :: il2
@@ -1993,16 +1996,16 @@ farg17 = oo1
 farg18 = oo2
 farg19 = r2c_direction
 farg20 = int(comm, C_INT)
-fresult = swigc_new_heffte_fft3d_r2c_mkl__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+fresult = swigc_new_heffte_fft3d_r2c_onemkl__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
   farg11, farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20)
 self%swigdata = fresult
 end function
 
-function swigf_new_heffte_fft3d_r2c_mkl__SWIG_6(il0, il1, il2, ih0, ih1, ih2, ol0, ol1, ol2, oh0, oh1, oh2, r2c_direction, &
+function swigf_new_heffte_fft3d_r2c_onemkl__SWIG_6(il0, il1, il2, ih0, ih1, ih2, ol0, ol1, ol2, oh0, oh1, oh2, r2c_direction, &
   comm) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
-type(heffte_fft3d_r2c_mkl) :: self
+type(heffte_fft3d_r2c_onemkl) :: self
 integer(C_INT), intent(in) :: il0
 integer(C_INT), intent(in) :: il1
 integer(C_INT), intent(in) :: il2
@@ -2047,68 +2050,68 @@ farg11 = oh1
 farg12 = oh2
 farg13 = r2c_direction
 farg14 = int(comm, C_INT)
-fresult = swigc_new_heffte_fft3d_r2c_mkl__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+fresult = swigc_new_heffte_fft3d_r2c_onemkl__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
   farg11, farg12, farg13, farg14)
 self%swigdata = fresult
 end function
 
-function swigf_heffte_fft3d_r2c_mkl_size_inbox(self) &
+function swigf_heffte_fft3d_r2c_onemkl_size_inbox(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 integer(C_LONG_LONG) :: swig_result
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 integer(C_LONG_LONG) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
-fresult = swigc_heffte_fft3d_r2c_mkl_size_inbox(farg1)
+fresult = swigc_heffte_fft3d_r2c_onemkl_size_inbox(farg1)
 swig_result = fresult
 end function
 
-function swigf_heffte_fft3d_r2c_mkl_size_outbox(self) &
+function swigf_heffte_fft3d_r2c_onemkl_size_outbox(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 integer(C_LONG_LONG) :: swig_result
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 integer(C_LONG_LONG) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
-fresult = swigc_heffte_fft3d_r2c_mkl_size_outbox(farg1)
+fresult = swigc_heffte_fft3d_r2c_onemkl_size_outbox(farg1)
 swig_result = fresult
 end function
 
-function swigf_heffte_fft3d_r2c_mkl_size_workspace(self) &
+function swigf_heffte_fft3d_r2c_onemkl_size_workspace(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 integer(C_SIZE_T) :: swig_result
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 integer(C_SIZE_T) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
-fresult = swigc_heffte_fft3d_r2c_mkl_size_workspace(farg1)
+fresult = swigc_heffte_fft3d_r2c_onemkl_size_workspace(farg1)
 swig_result = fresult
 end function
 
-function swigf_heffte_fft3d_r2c_mkl_size_comm_buffers(self) &
+function swigf_heffte_fft3d_r2c_onemkl_size_comm_buffers(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 integer(C_SIZE_T) :: swig_result
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 integer(C_SIZE_T) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
-fresult = swigc_heffte_fft3d_r2c_mkl_size_comm_buffers(farg1)
+fresult = swigc_heffte_fft3d_r2c_onemkl_size_comm_buffers(farg1)
 swig_result = fresult
 end function
 
-function swigf_heffte_fft3d_r2c_mkl_get_scale_factor(self, scaling) &
+function swigf_heffte_fft3d_r2c_onemkl_get_scale_factor(self, scaling) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 real(C_DOUBLE) :: swig_result
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 integer(scale), intent(in) :: scaling
 real(C_DOUBLE) :: fresult 
 type(SwigClassWrapper) :: farg1 
@@ -2116,13 +2119,13 @@ integer(C_INT) :: farg2
 
 farg1 = self%swigdata
 farg2 = scaling
-fresult = swigc_heffte_fft3d_r2c_mkl_get_scale_factor(farg1, farg2)
+fresult = swigc_heffte_fft3d_r2c_onemkl_get_scale_factor(farg1, farg2)
 swig_result = fresult
 end function
 
-subroutine swigf_heffte_fft3d_r2c_mkl_forward__SWIG_6(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_6(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 real(C_FLOAT), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -2135,12 +2138,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_r2c_mkl_forward__SWIG_6(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_6(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_forward__SWIG_7(self, input, output)
+subroutine swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_7(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 real(C_FLOAT), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -2150,12 +2153,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_r2c_mkl_forward__SWIG_7(farg1, farg2, farg3)
+call swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_7(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_forward__SWIG_8(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_8(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 real(C_FLOAT), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -2171,12 +2174,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_r2c_mkl_forward__SWIG_8(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_8(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_forward__SWIG_9(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_9(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 real(C_FLOAT), dimension(*), target :: input
 complex(C_FLOAT_COMPLEX), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -2189,12 +2192,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_r2c_mkl_forward__SWIG_9(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_9(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_forward__SWIG_10(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_10(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 real(C_DOUBLE), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -2207,12 +2210,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_r2c_mkl_forward__SWIG_10(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_10(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_forward__SWIG_11(self, input, output)
+subroutine swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_11(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 real(C_DOUBLE), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -2222,12 +2225,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_r2c_mkl_forward__SWIG_11(farg1, farg2, farg3)
+call swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_11(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_forward__SWIG_12(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_12(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 real(C_DOUBLE), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -2243,12 +2246,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_r2c_mkl_forward__SWIG_12(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_12(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_forward__SWIG_13(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_r2c_onemkl_forward__SWIG_13(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 real(C_DOUBLE), dimension(*), target :: input
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -2261,12 +2264,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_r2c_mkl_forward__SWIG_13(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_r2c_onemkl_forward__SWIG_13(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_backward__SWIG_6(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_6(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 real(C_FLOAT), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -2279,12 +2282,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_r2c_mkl_backward__SWIG_6(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_6(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_backward__SWIG_7(self, input, output)
+subroutine swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_7(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 real(C_FLOAT), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -2294,12 +2297,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_r2c_mkl_backward__SWIG_7(farg1, farg2, farg3)
+call swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_7(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_backward__SWIG_8(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_8(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 real(C_FLOAT), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -2315,12 +2318,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_r2c_mkl_backward__SWIG_8(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_8(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_backward__SWIG_9(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_9(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 complex(C_FLOAT_COMPLEX), dimension(*), target :: input
 real(C_FLOAT), dimension(*), target :: output
 complex(C_FLOAT_COMPLEX), dimension(*), target :: workspace
@@ -2333,12 +2336,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_r2c_mkl_backward__SWIG_9(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_9(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_backward__SWIG_10(self, input, output, scaling)
+subroutine swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_10(self, input, output, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 real(C_DOUBLE), dimension(*), target :: output
 integer(scale), intent(in) :: scaling
@@ -2351,12 +2354,12 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = scaling
-call swigc_heffte_fft3d_r2c_mkl_backward__SWIG_10(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_10(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_backward__SWIG_11(self, input, output)
+subroutine swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_11(self, input, output)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 real(C_DOUBLE), dimension(*), target :: output
 type(SwigClassWrapper) :: farg1 
@@ -2366,12 +2369,12 @@ type(C_PTR) :: farg3
 farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
-call swigc_heffte_fft3d_r2c_mkl_backward__SWIG_11(farg1, farg2, farg3)
+call swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_11(farg1, farg2, farg3)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_backward__SWIG_12(self, input, output, workspace, scaling)
+subroutine swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_12(self, input, output, workspace, scaling)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 real(C_DOUBLE), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -2387,12 +2390,12 @@ farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
 farg5 = scaling
-call swigc_heffte_fft3d_r2c_mkl_backward__SWIG_12(farg1, farg2, farg3, farg4, farg5)
+call swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_12(farg1, farg2, farg3, farg4, farg5)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_backward__SWIG_13(self, input, output, workspace)
+subroutine swigf_heffte_fft3d_r2c_onemkl_backward__SWIG_13(self, input, output, workspace)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(in) :: self
+class(heffte_fft3d_r2c_onemkl), intent(in) :: self
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: input
 real(C_DOUBLE), dimension(*), target :: output
 complex(C_DOUBLE_COMPLEX), dimension(*), target :: workspace
@@ -2405,33 +2408,33 @@ farg1 = self%swigdata
 farg2 = c_loc(input)
 farg3 = c_loc(output)
 farg4 = c_loc(workspace)
-call swigc_heffte_fft3d_r2c_mkl_backward__SWIG_13(farg1, farg2, farg3, farg4)
+call swigc_heffte_fft3d_r2c_onemkl_backward__SWIG_13(farg1, farg2, farg3, farg4)
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_release(self)
+subroutine swigf_heffte_fft3d_r2c_onemkl_release(self)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(inout) :: self
+class(heffte_fft3d_r2c_onemkl), intent(inout) :: self
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
 if (btest(farg1%cmemflags, swig_cmem_own_bit)) then
-call swigc_delete_heffte_fft3d_r2c_mkl(farg1)
+call swigc_delete_heffte_fft3d_r2c_onemkl(farg1)
 endif
 farg1%cptr = C_NULL_PTR
 farg1%cmemflags = 0
 self%swigdata = farg1
 end subroutine
 
-subroutine swigf_heffte_fft3d_r2c_mkl_op_assign__(self, other)
+subroutine swigf_heffte_fft3d_r2c_onemkl_op_assign__(self, other)
 use, intrinsic :: ISO_C_BINDING
-class(heffte_fft3d_r2c_mkl), intent(inout) :: self
-type(heffte_fft3d_r2c_mkl), intent(in) :: other
+class(heffte_fft3d_r2c_onemkl), intent(inout) :: self
+type(heffte_fft3d_r2c_onemkl), intent(in) :: other
 type(SwigClassWrapper) :: farg1 
 type(SwigClassWrapper) :: farg2 
 
 farg1 = self%swigdata
 farg2 = other%swigdata
-call swigc_heffte_fft3d_r2c_mkl_op_assign__(farg1, farg2)
+call swigc_heffte_fft3d_r2c_onemkl_op_assign__(farg1, farg2)
 self%swigdata = farg1
 end subroutine
 
