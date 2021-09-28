@@ -380,12 +380,16 @@ SWIGINTERN SwigClassWrapper SwigClassWrapper_uninitialized() {
 }
 
 
+
 extern "C" {
+
 typedef struct {
   float real;
   float imag;
 } SwigComplex_float;
+
 }
+
 
 SWIGINTERN SwigComplex_float SWIG_create_complex_float(float real, float imag) {
   SwigComplex_float result;
@@ -395,12 +399,16 @@ SWIGINTERN SwigComplex_float SWIG_create_complex_float(float real, float imag) {
 }
 
 
+
 extern "C" {
+
 typedef struct {
   double real;
   double imag;
 } SwigComplex_double;
+
 }
+
 
 SWIGINTERN SwigComplex_double SWIG_create_complex_double(double real, double imag) {
   SwigComplex_double result;
@@ -544,7 +552,7 @@ SWIGEXPORT SWIGEXTERN const int _wrap_scale_fftw_full = (int)(heffte::scale::ful
 
 SWIGEXPORT SWIGEXTERN const int _wrap_scale_fftw_symmetric = (int)(heffte::scale::symmetric);
 
-SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_2(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13, int const *farg14, int const *farg15, int const *farg16, int const *farg17, int const *farg18, int const *farg19, int const *farg20, int const *farg21, int const *farg22) {
+SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_4(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13, int const *farg14, int const *farg15, int const *farg16, int const *farg17, int const *farg18, int const *farg19, int const *farg20, int const *farg21, int const *farg22) {
   SwigClassWrapper fresult ;
   int arg1 ;
   int arg2 ;
@@ -566,7 +574,7 @@ SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_2(int const *farg1
   int arg18 ;
   MPI_Comm arg19 ;
   bool arg20 ;
-  bool arg21 ;
+  int arg21 ;
   bool arg22 ;
   heffte::fft3d< heffte::backend::fftw > *result = 0 ;
   
@@ -590,7 +598,7 @@ SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_2(int const *farg1
   arg18 = (int)(*farg18);
   arg19 = MPI_Comm_f2c((MPI_Fint)*farg19);
   arg20 = (*farg20 ? true : false);
-  arg21 = (*farg21 ? true : false);
+  arg21 = (int)(*farg21);
   arg22 = (*farg22 ? true : false);
   result = (heffte::fft3d< heffte::backend::fftw > *)new heffte::fft3d< heffte::backend::fftw >(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10,arg11,arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21,arg22);
   fresult.cptr = (void*)result;
@@ -599,7 +607,7 @@ SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_2(int const *farg1
 }
 
 
-SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_3(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13, int const *farg14, int const *farg15, int const *farg16, int const *farg17, int const *farg18, int const *farg19) {
+SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_5(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13, int const *farg14, int const *farg15, int const *farg16, int const *farg17, int const *farg18, int const *farg19) {
   SwigClassWrapper fresult ;
   int arg1 ;
   int arg2 ;
@@ -648,7 +656,7 @@ SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_3(int const *farg1
 }
 
 
-SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_4(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13) {
+SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_6(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13) {
   SwigClassWrapper fresult ;
   int arg1 ;
   int arg2 ;
@@ -685,28 +693,28 @@ SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_fftw__SWIG_4(int const *farg1
 }
 
 
-SWIGEXPORT int _wrap_heffte_fft3d_fftw_size_inbox(SwigClassWrapper *farg1) {
-  int fresult ;
+SWIGEXPORT long long _wrap_heffte_fft3d_fftw_size_inbox(SwigClassWrapper *farg1) {
+  long long fresult ;
   heffte::fft3d< heffte::backend::fftw > *arg1 = (heffte::fft3d< heffte::backend::fftw > *) 0 ;
-  int result;
+  long long result;
   
   SWIG_check_nonnull(farg1->cptr, "heffte::fft3d< heffte::backend::fftw > const *", "heffte_fft3d_fftw", "heffte::fft3d< heffte::backend::fftw >::size_inbox() const", return 0);
   arg1 = (heffte::fft3d< heffte::backend::fftw > *)farg1->cptr;
-  result = (int)((heffte::fft3d< heffte::backend::fftw > const *)arg1)->size_inbox();
-  fresult = (int)(result);
+  result = (long long)((heffte::fft3d< heffte::backend::fftw > const *)arg1)->size_inbox();
+  fresult = (long long)(result);
   return fresult;
 }
 
 
-SWIGEXPORT int _wrap_heffte_fft3d_fftw_size_outbox(SwigClassWrapper *farg1) {
-  int fresult ;
+SWIGEXPORT long long _wrap_heffte_fft3d_fftw_size_outbox(SwigClassWrapper *farg1) {
+  long long fresult ;
   heffte::fft3d< heffte::backend::fftw > *arg1 = (heffte::fft3d< heffte::backend::fftw > *) 0 ;
-  int result;
+  long long result;
   
   SWIG_check_nonnull(farg1->cptr, "heffte::fft3d< heffte::backend::fftw > const *", "heffte_fft3d_fftw", "heffte::fft3d< heffte::backend::fftw >::size_outbox() const", return 0);
   arg1 = (heffte::fft3d< heffte::backend::fftw > *)farg1->cptr;
-  result = (int)((heffte::fft3d< heffte::backend::fftw > const *)arg1)->size_outbox();
-  fresult = (int)(result);
+  result = (long long)((heffte::fft3d< heffte::backend::fftw > const *)arg1)->size_outbox();
+  fresult = (long long)(result);
   return fresult;
 }
 
@@ -1251,7 +1259,7 @@ SWIGEXPORT void _wrap_heffte_fft3d_fftw_op_assign__(SwigClassWrapper *farg1, Swi
 }
 
 
-SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_2(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13, int const *farg14, int const *farg15, int const *farg16, int const *farg17, int const *farg18, int const *farg19, int const *farg20, int const *farg21, int const *farg22, int const *farg23) {
+SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_4(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13, int const *farg14, int const *farg15, int const *farg16, int const *farg17, int const *farg18, int const *farg19, int const *farg20, int const *farg21, int const *farg22, int const *farg23) {
   SwigClassWrapper fresult ;
   int arg1 ;
   int arg2 ;
@@ -1274,7 +1282,7 @@ SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_2(int const *f
   int arg19 ;
   MPI_Comm arg20 ;
   bool arg21 ;
-  bool arg22 ;
+  int arg22 ;
   bool arg23 ;
   heffte::fft3d_r2c< heffte::backend::fftw > *result = 0 ;
   
@@ -1299,7 +1307,7 @@ SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_2(int const *f
   arg19 = (int)(*farg19);
   arg20 = MPI_Comm_f2c((MPI_Fint)*farg20);
   arg21 = (*farg21 ? true : false);
-  arg22 = (*farg22 ? true : false);
+  arg22 = (int)(*farg22);
   arg23 = (*farg23 ? true : false);
   result = (heffte::fft3d_r2c< heffte::backend::fftw > *)new heffte::fft3d_r2c< heffte::backend::fftw >(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10,arg11,arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21,arg22,arg23);
   fresult.cptr = (void*)result;
@@ -1308,7 +1316,7 @@ SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_2(int const *f
 }
 
 
-SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_3(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13, int const *farg14, int const *farg15, int const *farg16, int const *farg17, int const *farg18, int const *farg19, int const *farg20) {
+SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_5(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13, int const *farg14, int const *farg15, int const *farg16, int const *farg17, int const *farg18, int const *farg19, int const *farg20) {
   SwigClassWrapper fresult ;
   int arg1 ;
   int arg2 ;
@@ -1359,7 +1367,7 @@ SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_3(int const *f
 }
 
 
-SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_4(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13, int const *farg14) {
+SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_6(int const *farg1, int const *farg2, int const *farg3, int const *farg4, int const *farg5, int const *farg6, int const *farg7, int const *farg8, int const *farg9, int const *farg10, int const *farg11, int const *farg12, int const *farg13, int const *farg14) {
   SwigClassWrapper fresult ;
   int arg1 ;
   int arg2 ;
@@ -1398,28 +1406,28 @@ SWIGEXPORT SwigClassWrapper _wrap_new_heffte_fft3d_r2c_fftw__SWIG_4(int const *f
 }
 
 
-SWIGEXPORT int _wrap_heffte_fft3d_r2c_fftw_size_inbox(SwigClassWrapper *farg1) {
-  int fresult ;
+SWIGEXPORT long long _wrap_heffte_fft3d_r2c_fftw_size_inbox(SwigClassWrapper *farg1) {
+  long long fresult ;
   heffte::fft3d_r2c< heffte::backend::fftw > *arg1 = (heffte::fft3d_r2c< heffte::backend::fftw > *) 0 ;
-  int result;
+  long long result;
   
   SWIG_check_nonnull(farg1->cptr, "heffte::fft3d_r2c< heffte::backend::fftw > const *", "heffte_fft3d_r2c_fftw", "heffte::fft3d_r2c< heffte::backend::fftw >::size_inbox() const", return 0);
   arg1 = (heffte::fft3d_r2c< heffte::backend::fftw > *)farg1->cptr;
-  result = (int)((heffte::fft3d_r2c< heffte::backend::fftw > const *)arg1)->size_inbox();
-  fresult = (int)(result);
+  result = (long long)((heffte::fft3d_r2c< heffte::backend::fftw > const *)arg1)->size_inbox();
+  fresult = (long long)(result);
   return fresult;
 }
 
 
-SWIGEXPORT int _wrap_heffte_fft3d_r2c_fftw_size_outbox(SwigClassWrapper *farg1) {
-  int fresult ;
+SWIGEXPORT long long _wrap_heffte_fft3d_r2c_fftw_size_outbox(SwigClassWrapper *farg1) {
+  long long fresult ;
   heffte::fft3d_r2c< heffte::backend::fftw > *arg1 = (heffte::fft3d_r2c< heffte::backend::fftw > *) 0 ;
-  int result;
+  long long result;
   
   SWIG_check_nonnull(farg1->cptr, "heffte::fft3d_r2c< heffte::backend::fftw > const *", "heffte_fft3d_r2c_fftw", "heffte::fft3d_r2c< heffte::backend::fftw >::size_outbox() const", return 0);
   arg1 = (heffte::fft3d_r2c< heffte::backend::fftw > *)farg1->cptr;
-  result = (int)((heffte::fft3d_r2c< heffte::backend::fftw > const *)arg1)->size_outbox();
-  fresult = (int)(result);
+  result = (long long)((heffte::fft3d_r2c< heffte::backend::fftw > const *)arg1)->size_outbox();
+  fresult = (long long)(result);
   return fresult;
 }
 
