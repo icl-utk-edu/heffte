@@ -63,7 +63,7 @@ function(heffte_add_swig_module heffte_backend)
     unset(heffte_backend)
 endfunction()
 
-set(heffte_list_backeneds "FFTW_fftw;MKL_mkl;CUDA_cufft;ROCM_rocfft")
+set(heffte_list_backeneds "FFTW_fftw;MKL_mkl;CUDA_cufft;ROCM_rocfft;ONEAPI_onemkl")
 
 foreach(heffte_possible_backend ${heffte_list_backeneds})
     string(REPLACE "_" ";" heffte_combo_list ${heffte_possible_backend})
