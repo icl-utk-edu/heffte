@@ -468,16 +468,15 @@ private:
      * \param scaling is the type of scaling to apply to the output data
      */
     template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
-                            std::complex<scalar_type> workspace[],
+    void standard_transform(scalar_type const input[], scalar_type output[], scalar_type workspace[],
                             std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const; // complex to complex
     //! \brief Overload that allocates and deallocates the workspace.
     template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
+    void standard_transform(scalar_type const input[], scalar_type output[],
                             std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
+        auto workspace = make_buffer_container<typename fft_output<scalar_type>::type>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
     /*!
