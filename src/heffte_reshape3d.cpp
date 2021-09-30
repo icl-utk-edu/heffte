@@ -723,9 +723,13 @@ make_reshape3d_pointtopoint<some_backend, transpose_packer, index>(typename back
 
 heffte_instantiate_reshape3d(backend::stock, int)
 heffte_instantiate_reshape3d(backend::stock, long long)
+heffte_instantiate_reshape3d(backend::stock_cos, int)
+heffte_instantiate_reshape3d(backend::stock_cos, long long)
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_reshape3d(backend::fftw, int)
 heffte_instantiate_reshape3d(backend::fftw, long long)
+heffte_instantiate_reshape3d(backend::fftw_cos, int)
+heffte_instantiate_reshape3d(backend::fftw_cos, long long)
 #endif
 #ifdef Heffte_ENABLE_MKL
 heffte_instantiate_reshape3d(backend::mkl, int)

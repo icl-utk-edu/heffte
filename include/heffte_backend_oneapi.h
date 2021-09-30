@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_ONEAPI_H
 #define HEFFTE_BACKEND_ONEAPI_H
 
-#include "heffte_pack3d.h"
+#include "heffte_cos_executor.h"
 
 #ifdef Heffte_ENABLE_ONEAPI
 

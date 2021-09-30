@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_FFTW_H
 #define HEFFTE_BACKEND_FFTW_H
 
-#include "heffte_pack3d.h"
+#include "heffte_cos_executor.h"
 
 #ifdef Heffte_ENABLE_FFTW
 
@@ -32,6 +32,12 @@ namespace backend{
      * \brief Indicate that the FFTW backend has been enabled.
      */
     template<> struct is_enabled<fftw> : std::true_type{};
+
+    /*!
+     * \ingroup hefftefftw
+     * \brief Indicate that the cos() transform using the FFTW backend has been enabled.
+     */
+    template<> struct is_enabled<fftw_cos> : std::true_type{};
 
 // Specialization is not necessary since the default behavior assumes CPU parameters.
 //     template<>
@@ -486,9 +492,53 @@ template<> struct one_dim_backend<backend::fftw>{
 
 /*!
  * \ingroup hefftefftw
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::fftw_cos>{
+    //! \brief Defines the cosine pre-post-processor.
+    using pre_post = cpu_cos_pre_pos_processor;
+    //! \brief Defines the real-to-real executor.
+    using type = cos_executor<backend::fftw, pre_post>;
+    //! \brief There is no real-to-complex variant.
+    using type_r2c = void;
+
+    //! \brief Constructs a complex-to-complex executor.
+    template<typename index>
+    static std::unique_ptr<type> make(void*, box3d<index> const box, int dimension){
+        return std::unique_ptr<type>(new type(nullptr, box, dimension));
+    }
+    //! \brief Constructs a 2D executor from two 1D ones.
+    template<typename index>
+    static std::unique_ptr<type> make(void*, box3d<index> const &box, int dir1, int dir2){
+        return std::unique_ptr<type>(new type(nullptr, box, dir1, dir2));
+    }
+    //! \brief Constructs a 3D executor.
+    template<typename index>
+    static std::unique_ptr<type> make(void*, box3d<index> const &box){
+        return std::unique_ptr<type>(new type(nullptr, box));
+    }
+    //! \brief Returns true if the transforms in the two directions can be merged into one.
+    static bool can_merge2d(){ return false; }
+    //! \brief Returns true if the transforms in the three directions can be merged into one.
+    static bool can_merge3d(){ return false; }
+};
+
+/*!
+ * \ingroup hefftefftw
  * \brief Sets the default options for the fftw backend.
  */
 template<> struct default_plan_options<backend::fftw>{
+    //! \brief The reshape operations will also reorder the data.
+    static const bool use_reorder = true;
+};
+
+/*!
+ * \ingroup hefftefftw
+ * \brief Sets the default options for the fftw backend.
+ */
+template<> struct default_plan_options<backend::fftw_cos>{
     //! \brief The reshape operations will also reorder the data.
     static const bool use_reorder = true;
 };

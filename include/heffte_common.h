@@ -95,12 +95,22 @@ namespace backend {
      * \brief Type-tag for the FFTW backend
      */
     struct fftw{};
+    /*!
+     * \ingroup hefftefftw
+     * \brief Type-tag for the Cosine Transform using the FFTW backend
+     */
+    struct fftw_cos{};
 
     /*!
-     * \ingroup
+     * \ingroup hefftestock
      * \brief Type-tag for the stock FFT backend
      */
     struct stock{};
+    /*!
+     * \ingroup hefftestock
+     * \brief Type-tag for the Cosine Transform using the stock FFT backend
+     */
+    struct stock_cos{};
 
     /*!
      * \ingroup hefftemkl
@@ -181,12 +191,22 @@ namespace backend {
      * \brief Returns the human readable name of the FFTW backend.
      */
     template<> inline std::string name<fftw>(){ return "fftw"; }
+    /*!
+     * \ingroup hefftefftw
+     * \brief Returns the human readable name of the FFTW backend.
+     */
+    template<> inline std::string name<fftw_cos>(){ return "fftw-cos"; }
 
     /*!
-     * \ingroup
+     * \ingroup hefftestock
      * \brief Returns the human readable name of the stock backend.
      */
     template<> inline std::string name<stock>(){ return "stock"; }
+    /*!
+     * \ingroup hefftestock
+     * \brief Returns the human readable name of the stock backend.
+     */
+    template<> inline std::string name<stock_cos>(){ return "stock-cos"; }
 
     /*!
      * \ingroup hefftemkl
@@ -270,6 +290,28 @@ namespace backend {
                    or (is_ccomplex<input>::value and is_ccomplex<output>::value)
                    or (is_zcomplex<input>::value and is_zcomplex<output>::value)
                   )>::type> : std::true_type{};
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Sets the cos() transform types.
+     */
+    template<> struct uses_fft_types<fftw_cos> : std::false_type{};
+    /*!
+     * \ingroup hefftestock
+     * \brief Sets the cos() transform types.
+     */
+    template<> struct uses_fft_types<stock_cos> : std::false_type{};
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Defines the types compatible for a cos() transform.
+     */
+    template<typename backend_tag, typename input, typename output> struct check_types<backend_tag, input, output,
+        typename std::enable_if<not uses_fft_types<backend_tag>::value and (
+                      (std::is_same<input, float>::value and std::is_same<output, float>::value)
+                   or (std::is_same<input, double>::value and std::is_same<output, double>::value)
+                  )>::type> : std::true_type{};
+
 }
 
 /*!

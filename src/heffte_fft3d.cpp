@@ -37,6 +37,17 @@
                                                                   direction, scale \
                                                                  ) const;   \
 
+#define heffte_instantiate_fft3d_cos(some_backend, index) \
+    template class fft3d<some_backend, index>; \
+    template void fft3d<some_backend, index>::standard_transform<float>(float const[], float[], float[], \
+                                                                 std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                 direction, scale  \
+                                                                ) const;    \
+    template void fft3d<some_backend, index>::standard_transform<double>(double const[], double[], double[], \
+                                                                  std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                  direction, scale \
+                                                                 ) const;   \
+
 namespace heffte {
 
 template<typename backend_tag, typename index>
@@ -305,9 +316,13 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
 
 heffte_instantiate_fft3d(backend::stock, int)
 heffte_instantiate_fft3d(backend::stock, long long)
+heffte_instantiate_fft3d_cos(backend::stock_cos, int)
+heffte_instantiate_fft3d_cos(backend::stock_cos, long long)
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_fft3d(backend::fftw, int)
 heffte_instantiate_fft3d(backend::fftw, long long)
+heffte_instantiate_fft3d_cos(backend::fftw_cos, int)
+heffte_instantiate_fft3d_cos(backend::fftw_cos, long long)
 #endif
 #ifdef Heffte_ENABLE_MKL
 heffte_instantiate_fft3d(backend::mkl, int)
