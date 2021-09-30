@@ -196,7 +196,7 @@ template<typename backend_tag, typename index = int>
 class fft3d : public backend::device_instance<backend_tag>{
 public:
     //! \brief Alias to the wrapper class for the one dimensional backend library.
-    using backend_executor = typename one_dim_backend<backend_tag>::type;
+    using backend_executor = typename one_dim_backend<backend_tag>::executor;
     /*!
      * \brief Alias to the container template associated with the backend.
      *

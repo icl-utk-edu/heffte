@@ -345,36 +345,61 @@ template<typename> struct one_dim_backend{};
  * \brief Factory method to construct an executor for the FFT backend.
  */
 template<typename backend_tag, typename index>
-static std::unique_ptr<typename one_dim_backend<backend_tag>::type> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
                                                                                   box3d<index> const box, int dimension){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::type>(new typename one_dim_backend<backend_tag>::type(stream, box, dimension));
+    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dimension));
 }
 /*!
  * \ingroup fft3dbackend
  * \brief Factory method to construct an executor for the FFT backend, 2D variant.
  */
 template<typename backend_tag, typename index>
-static std::unique_ptr<typename one_dim_backend<backend_tag>::type> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
                                                                                   box3d<index> const box, int dir1, int dir2){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::type>(new typename one_dim_backend<backend_tag>::type(stream, box, dir1, dir2));
+    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dir1, dir2));
 }
 /*!
  * \ingroup fft3dbackend
  * \brief Factory method to construct an executor for the FFT backend, 3D variant.
  */
 template<typename backend_tag, typename index>
-static std::unique_ptr<typename one_dim_backend<backend_tag>::type> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
                                                                                   box3d<index> const box){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::type>(new typename one_dim_backend<backend_tag>::type(stream, box));
+    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box));
 }
 /*!
  * \ingroup fft3dbackend
  * \brief Factory method to construct an executor for the FFT backend, r2c variant.
  */
 template<typename backend_tag, typename index>
-static std::unique_ptr<typename one_dim_backend<backend_tag>::type_r2c> make_executor_r2c(typename backend::device_instance<backend_tag>::stream_type stream,
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c> make_executor_r2c(typename backend::device_instance<backend_tag>::stream_type stream,
                                                                                           box3d<index> const box, int dimension){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::type_r2c>(new typename one_dim_backend<backend_tag>::type_r2c(stream, box, dimension));
+    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c>(new typename one_dim_backend<backend_tag>::executor_r2c(stream, box, dimension));
+}
+
+/*!
+ * \ingroup fft3dbackend
+ * \brief Defines whether the executor has a 2D version (slabs).
+ */
+template<typename backend_tag>
+constexpr bool has_executor2d(){
+    // cosine transform variants don't have a 2D/3D version yet (due to the missing kernels)
+    // most backends are OK with the variants for 2D and 3D (stock isn't)
+    return not (std::is_same<backend_tag, backend::stock>::value
+            or std::is_same<backend_tag, backend::stock_cos>::value
+            or std::is_same<backend_tag, backend::fftw_cos>::value
+            );
+}
+/*!
+ * \ingroup fft3dbackend
+ * \brief Defines whether the executor has a 3D version (single rank).
+ */
+template<typename backend_tag>
+constexpr bool has_executor3d(){
+    return not (std::is_same<backend_tag, backend::stock>::value
+            or std::is_same<backend_tag, backend::stock_cos>::value
+            or std::is_same<backend_tag, backend::fftw_cos>::value
+            );
 }
 
 /*!

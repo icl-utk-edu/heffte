@@ -46,9 +46,9 @@ template<typename backend_tag, typename index = int>
 class fft3d_r2c : public backend::device_instance<backend_tag>{
 public:
     //! \brief FFT executor for the complex-to-complex dimensions.
-    using backend_executor_c2c = typename one_dim_backend<backend_tag>::type;
+    using backend_executor_c2c = typename one_dim_backend<backend_tag>::executor;
     //! \brief FFT executor for the real-to-complex dimension.
-    using backend_executor_r2c = typename one_dim_backend<backend_tag>::type_r2c;
+    using backend_executor_r2c = typename one_dim_backend<backend_tag>::executor_r2c;
     /*!
      * \brief Type-tag that is either tag::cpu or tag::gpu to indicate the location of the data.
      */

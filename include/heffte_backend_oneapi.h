@@ -480,14 +480,9 @@ private:
  */
 template<> struct one_dim_backend<backend::onemkl>{
     //! \brief Defines the complex-to-complex executor.
-    using type = onemkl_executor;
+    using executor = onemkl_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = onemkl_executor_r2c;
-
-    //! \brief Returns true if the transforms in the two directions can be merged into one.
-    static bool can_merge2d(){ return true; }
-    //! \brief Returns true if the transforms in the three directions can be merged into one.
-    static bool can_merge3d(){ return true; }
+    using executor_r2c = onemkl_executor_r2c;
 };
 
 /*!

@@ -460,14 +460,9 @@ private:
  */
 template<> struct one_dim_backend<backend::fftw>{
     //! \brief Defines the complex-to-complex executor.
-    using type = fftw_executor;
+    using executor = fftw_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = fftw_executor_r2c;
-
-    //! \brief Returns true if the transforms in the two directions can be merged into one.
-    static bool can_merge2d(){ return true; }
-    //! \brief Returns true if the transforms in the three directions can be merged into one.
-    static bool can_merge3d(){ return true; }
+    using executor_r2c = fftw_executor_r2c;
 };
 
 /*!
@@ -477,17 +472,10 @@ template<> struct one_dim_backend<backend::fftw>{
  * The struct is specialized for each backend.
  */
 template<> struct one_dim_backend<backend::fftw_cos>{
-    //! \brief Defines the cosine pre-post-processor.
-    using pre_post = cpu_cos_pre_pos_processor;
     //! \brief Defines the real-to-real executor.
-    using type = cos_executor<backend::fftw, pre_post>;
+    using executor = cos_executor<backend::fftw, cpu_cos_pre_pos_processor>;
     //! \brief There is no real-to-complex variant.
-    using type_r2c = void;
-
-    //! \brief Returns true if the transforms in the two directions can be merged into one.
-    static bool can_merge2d(){ return false; }
-    //! \brief Returns true if the transforms in the three directions can be merged into one.
-    static bool can_merge3d(){ return false; }
+    using executor_r2c = void;
 };
 
 /*!

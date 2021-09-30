@@ -103,7 +103,7 @@ private:
 
     int length, num_batch, total_size;
 
-    std::unique_ptr<typename one_dim_backend<fft_backend_tag>::type_r2c> fft;
+    std::unique_ptr<typename one_dim_backend<fft_backend_tag>::executor_r2c> fft;
 };
 
 

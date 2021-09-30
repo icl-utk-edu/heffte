@@ -607,14 +607,9 @@ private:
  */
 template<> struct one_dim_backend<backend::stock>{
     //! \brief Defines the complex-to-complex executor.
-    using type = stock_fft_executor;
+    using executor = stock_fft_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = stock_fft_executor_r2c;
-
-    //! \brief Returns true if the transforms in the two directions can be merged into one.
-    static bool can_merge2d(){ return false; }
-    //! \brief Returns true if the transforms in the three directions can be merged into one.
-    static bool can_merge3d(){ return false; }
+    using executor_r2c = stock_fft_executor_r2c;
 };
 /*!
  * \ingroup hefftestock
@@ -623,17 +618,10 @@ template<> struct one_dim_backend<backend::stock>{
  * The struct is specialized for each backend.
  */
 template<> struct one_dim_backend<backend::stock_cos>{
-    //! \brief Defines the cosine pre-post-processor.
-    using pre_post = cpu_cos_pre_pos_processor;
     //! \brief Defines the real-to-real executor.
-    using type = cos_executor<backend::stock, pre_post>;
+    using executor = cos_executor<backend::stock, cpu_cos_pre_pos_processor>;
     //! \brief There is no real-to-complex variant.
-    using type_r2c = void;
-
-    //! \brief Returns true if the transforms in the two directions can be merged into one.
-    static bool can_merge2d(){ return false; }
-    //! \brief Returns true if the transforms in the three directions can be merged into one.
-    static bool can_merge3d(){ return false; }
+    using executor_r2c = void;
 };
 
 /*!
