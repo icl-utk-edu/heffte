@@ -28,11 +28,11 @@
                                                                   std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                   direction, scale \
                                                                  ) const;   \
-    template void fft3d<some_backend, index>::standard_transform<float>(std::complex<float> const[], std::complex<float>[], std::complex<float>[], \
+    template void fft3d<some_backend, index>::standard_transform<std::complex<float>>(std::complex<float> const[], std::complex<float>[], std::complex<float>[], \
                                                                  std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                  direction, scale  \
                                                                 ) const;    \
-    template void fft3d<some_backend, index>::standard_transform<double>(std::complex<double> const[], std::complex<double>[], std::complex<double>[], \
+    template void fft3d<some_backend, index>::standard_transform<std::complex<double>>(std::complex<double> const[], std::complex<double>[], std::complex<double>[], \
                                                                   std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
                                                                   direction, scale \
                                                                  ) const;   \
@@ -94,8 +94,8 @@ void fft3d<backend_tag, index>::setup(logic_plan3d<index> const &plan, MPI_Comm 
 
 template<typename backend_tag, typename index>
 template<typename scalar_type> // complex to complex case
-void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
-                                            std::complex<scalar_type> workspace[],
+void fft3d<backend_tag, index>::standard_transform(scalar_type const input[], scalar_type output[],
+                                            scalar_type workspace[],
                                             std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                                             std::array<backend_executor*, 3> const executor,
                                             direction dir, scale scaling) const{
@@ -106,7 +106,7 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
      * - do not allocate buffers if not needed
      * - never have more than 2 allocated buffers (input and output)
      */
-    auto apply_fft = [&](int i, std::complex<scalar_type> data[])
+    auto apply_fft = [&](int i, scalar_type data[])
         ->void{
             add_trace name("fft-1d");
             if (dir == direction::forward){
@@ -137,9 +137,9 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
     }
 
     // with only one reshape, the temp buffer would be used only if not doing in-place
-    std::complex<scalar_type> *temp_buffer = workspace + size_comm_buffers();
+    scalar_type *temp_buffer = workspace + size_comm_buffers();
     if (num_active == 1){ // one active and not shaper 0
-        std::complex<scalar_type> *effective_input = output;
+        scalar_type *effective_input = output;
         if (input != output){
             add_trace name("copy");
             backend::data_manipulator<location_tag>::copy_n(this->stream(), input, executor[0]->box_size(), temp_buffer);

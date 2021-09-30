@@ -246,6 +246,30 @@ namespace backend {
         //! \brief Defaults to the same label.
         using type = location_tag;
     };
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Defines whether the backend accepts the standard FFT real-complex or complex-complex transform.
+     */
+    template<typename backend_tag> struct uses_fft_types : std::true_type{};
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Set to true/false type depending whether the types are compatible with the backend transform.
+     */
+    template<typename backend_tag, typename input, typename output, typename = void> struct check_types : std::false_type{};
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Defines the types compatible for a standard FFT transform.
+     */
+    template<typename backend_tag, typename input, typename output> struct check_types<backend_tag, input, output,
+        typename std::enable_if<uses_fft_types<backend_tag>::value and (
+                      (std::is_same<input, float>::value and is_ccomplex<output>::value)
+                   or (std::is_same<input, double>::value and is_zcomplex<output>::value)
+                   or (is_ccomplex<input>::value and is_ccomplex<output>::value)
+                   or (is_zcomplex<input>::value and is_zcomplex<output>::value)
+                  )>::type> : std::true_type{};
 }
 
 /*!

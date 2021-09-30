@@ -278,11 +278,8 @@ public:
      */
     template<typename input_type, typename output_type>
     void forward(input_type const input[], output_type output[], scale scaling = scale::none) const{
-        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
-                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value)
-                   or (is_ccomplex<input_type>::value and is_ccomplex<output_type>::value)
-                   or (is_zcomplex<input_type>::value and is_zcomplex<output_type>::value),
-                "Using either an unknown complex type or an incompatible pair of types!");
+        static_assert(backend::check_types<backend_tag, input_type, output_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
 
         standard_transform(convert_to_standard(input), convert_to_standard(output), forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
     }
@@ -301,11 +298,8 @@ public:
      */
     template<typename input_type, typename output_type>
     void forward(input_type const input[], output_type output[], output_type workspace[], scale scaling = scale::none) const{
-        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
-                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value)
-                   or (is_ccomplex<input_type>::value and is_ccomplex<output_type>::value)
-                   or (is_zcomplex<input_type>::value and is_zcomplex<output_type>::value),
-                "Using either an unknown complex type or an incompatible pair of types!");
+        static_assert(backend::check_types<backend_tag, input_type, output_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
 
         standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace),
                            forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
@@ -365,11 +359,8 @@ public:
      */
     template<typename input_type, typename output_type>
     void backward(input_type const input[], output_type output[], scale scaling = scale::none) const{
-        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
-                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value)
-                   or (is_ccomplex<output_type>::value and is_ccomplex<input_type>::value)
-                   or (is_zcomplex<output_type>::value and is_zcomplex<input_type>::value),
-                "Using either an unknown complex type or an incompatible pair of types!");
+        static_assert(backend::check_types<backend_tag, output_type, input_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
 
         standard_transform(convert_to_standard(input), convert_to_standard(output), backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
     }
@@ -379,11 +370,8 @@ public:
      */
     template<typename input_type, typename output_type>
     void backward(input_type const input[], output_type output[], input_type workspace[], scale scaling = scale::none) const{
-        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
-                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value)
-                   or (is_ccomplex<output_type>::value and is_ccomplex<input_type>::value)
-                   or (is_zcomplex<output_type>::value and is_zcomplex<input_type>::value),
-                "Using either an unknown complex type or an incompatible pair of types!");
+        static_assert(backend::check_types<backend_tag, output_type, input_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
 
         standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace),
                            backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
@@ -480,16 +468,15 @@ private:
      * \param scaling is the type of scaling to apply to the output data
      */
     template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
-                            std::complex<scalar_type> workspace[],
+    void standard_transform(scalar_type const input[], scalar_type output[], scalar_type workspace[],
                             std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const; // complex to complex
     //! \brief Overload that allocates and deallocates the workspace.
     template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
+    void standard_transform(scalar_type const input[], scalar_type output[],
                             std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
+        auto workspace = make_buffer_container<typename fft_output<scalar_type>::type>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
     /*!
