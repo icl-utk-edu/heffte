@@ -734,6 +734,8 @@ heffte_instantiate_reshape3d(backend::fftw_cos, long long)
 #ifdef Heffte_ENABLE_MKL
 heffte_instantiate_reshape3d(backend::mkl, int)
 heffte_instantiate_reshape3d(backend::mkl, long long)
+heffte_instantiate_reshape3d(backend::mkl_cos, int)
+heffte_instantiate_reshape3d(backend::mkl_cos, long long)
 #endif
 #ifdef Heffte_ENABLE_CUDA
 heffte_instantiate_reshape3d(backend::cufft, int)

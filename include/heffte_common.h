@@ -117,6 +117,11 @@ namespace backend {
      * \brief Type-tag for the MKL backend
      */
     struct mkl{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Type-tag for the Cosine Transform using the MKL FFT backend
+     */
+    struct mkl_cos{};
 
     /*!
      * \ingroup hefftecuda
@@ -214,6 +219,11 @@ namespace backend {
      */
     template<> inline std::string name<mkl>(){ return "mkl"; }
     /*!
+     * \ingroup hefftemkl
+     * \brief Returns the human readable name of the MKL backend.
+     */
+    template<> inline std::string name<mkl_cos>(){ return "mkl-cos"; }
+    /*!
      * \ingroup hefftecuda
      * \brief Returns the human readable name of the cuFFT backend.
      */
@@ -301,6 +311,11 @@ namespace backend {
      * \brief Sets the cos() transform types.
      */
     template<> struct uses_fft_types<stock_cos> : std::false_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Sets the cos() transform types.
+     */
+    template<> struct uses_fft_types<mkl_cos> : std::false_type{};
 
     /*!
      * \ingroup fft3dbackend
@@ -388,6 +403,7 @@ constexpr bool has_executor2d(){
     return not (std::is_same<backend_tag, backend::stock>::value
             or std::is_same<backend_tag, backend::stock_cos>::value
             or std::is_same<backend_tag, backend::fftw_cos>::value
+            or std::is_same<backend_tag, backend::mkl_cos>::value
             );
 }
 /*!
@@ -399,6 +415,7 @@ constexpr bool has_executor3d(){
     return not (std::is_same<backend_tag, backend::stock>::value
             or std::is_same<backend_tag, backend::stock_cos>::value
             or std::is_same<backend_tag, backend::fftw_cos>::value
+            or std::is_same<backend_tag, backend::mkl_cos>::value
             );
 }
 

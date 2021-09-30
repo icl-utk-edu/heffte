@@ -14,7 +14,7 @@ namespace heffte {
 template<typename index>
 box3d<index> make_cos_box(box3d<index> const &box){
     std::array<index, 3> high{box.size[0]-1, box.size[1]-1, box.size[2]-1};
-    high[box.order[0]] *= 4;
+    high[box.order[0]] = 4 * box.osize(0) - 1;
     return box3d<index>(std::array<index, 3>{0, 0, 0}, high, box.order);
 }
 
@@ -38,13 +38,21 @@ struct cpu_cos_pre_pos_processor{
     }
     template<typename precision>
     static void pre_backward(void*, int length, precision const input[], std::complex<precision> fft_signal[]){
-        // TODO
-        std::cout << "calling pre_backward " << length << "  " << input << "  " << fft_signal << std::endl;
+        for(int i = 0; i < length; i++){
+            fft_signal[i] = std::complex<precision>(input[i]);
+        }
+        fft_signal[length] = 0.0;
+
+        int index = length-1;
+        for(int i = length+1; i < 2*length+1; i++){
+            fft_signal[i] = std::complex<precision>(-1.0 * input[index]);
+            index --;
+        }
     }
     template<typename precision>
     static void post_backward(void*, int length, precision const fft_result[], precision result[]){
-        // TODO
-        std::cout << "calling post_backward " << length << "  " << fft_result << "  " << result << std::endl;
+        for(int i=0; i<length; i++)
+            result[i] = fft_result[2*i + 1];
     }
 };
 
@@ -71,19 +79,21 @@ struct cos_executor{
 
     template<typename scalar_type>
     void forward(scalar_type data[]) const{
-        auto temp = make_buffer_container<scalar_type>(stream, 4 * total_size);
+        auto temp = make_buffer_container<scalar_type>(stream, fft->real_size() + 1);
+        auto ctemp = make_buffer_container<std::complex<scalar_type>>(stream, fft->complex_size());
         for(int i=0; i<num_batch; i++)
-            cos_processor::pre_forward(stream, length, data + i * length, temp.data() + 4 * i * length);
-        fft->forward(temp.data(), reinterpret_cast<std::complex<scalar_type>*>(temp.data()));
+            cos_processor::pre_forward(stream, length, data + i * length, temp.data() + i * 4 * length);
+        fft->forward(temp.data(), ctemp.data());
         for(int i=0; i<num_batch; i++)
-            cos_processor::post_forward(stream, length, reinterpret_cast<std::complex<scalar_type>*>(temp.data()) + 4 * i * length, data + i * length);
+            cos_processor::post_forward(stream, length, ctemp.data() + i * (2 * length + 1), data + i * length);
     }
     template<typename scalar_type>
     void backward(scalar_type data[]) const{
-        auto temp = make_buffer_container<scalar_type>(stream, 4 * total_size);
+        auto temp = make_buffer_container<scalar_type>(stream, fft->real_size());
+        auto ctemp = make_buffer_container<std::complex<scalar_type>>(stream, fft->complex_size());
         for(int i=0; i<num_batch; i++)
-            cos_processor::pre_backward(stream, length, data + i * length, reinterpret_cast<std::complex<scalar_type>*>(temp.data()) + 4 * i * length);
-        fft->backward(reinterpret_cast<std::complex<scalar_type>*>(temp.data()), temp.data());
+            cos_processor::pre_backward(stream, length, data + i * length, ctemp.data() + i * (2 * length + 1));
+        fft->backward(ctemp.data(), temp.data());
         for(int i=0; i<num_batch; i++)
             cos_processor::post_backward(stream, length, temp.data() + 4 * i * length, data + i * length);
     }
