@@ -218,7 +218,7 @@ void test_1d_complex(){
     backend::device_instance<backend_tag> device;
 
     for(size_t i=0; i<reference.size(); i++){
-        auto fft = heffte::one_dim_backend<backend_tag>::make(device.stream(), box, i);
+        auto fft = heffte::make_executor<backend_tag>(device.stream(), box, i);
 
         auto forward_result = test_traits<backend_tag>::load(input);
         fft->forward(forward_result.data());
@@ -244,7 +244,7 @@ void test_1d_real(){
     backend::device_instance<backend_tag> device;
 
     for(size_t i=0; i<reference.size(); i++){
-        auto fft = heffte::one_dim_backend<backend_tag>::make(device.stream(), box, i);
+        auto fft = heffte::make_executor<backend_tag>(device.stream(), box, i);
 
         auto load_input = test_traits<backend_tag>::load(input);
         typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(input.size());
@@ -276,7 +276,7 @@ void test_1d_r2c(){
     #endif
 
     for(size_t i=0; i<reference.size(); i++){
-        auto fft = heffte::one_dim_backend<backend_tag>::make_r2c(device.stream(), box, i);
+        auto fft = heffte::make_executor_r2c<backend_tag>(device.stream(), box, i);
 
         auto load_input = test_traits<backend_tag>::load(input);
         typename test_traits<backend_tag>::template container<typename fft_output<scalar_type>::type> result(fft->complex_size());
@@ -408,7 +408,7 @@ void test_1d_reorder(){
     }
 
     for(size_t i=0; i<3; i++){
-        heffte::stock_fft_executor fft(box, box.order[i]);
+        heffte::stock_fft_executor fft(nullptr, box, box.order[i]);
 
         std::vector<ctype> cresult = cinput;
         fft.forward(cresult.data());
@@ -418,7 +418,7 @@ void test_1d_reorder(){
         for(auto &r : cresult) r /= (2.0 + box.order[i]);
         sassert(approx(cresult, cinput));
 
-        heffte::stock_fft_executor_r2c fft_r2c(box, box.order[i]);
+        heffte::stock_fft_executor_r2c fft_r2c(nullptr, box, box.order[i]);
 
         std::vector<ctype> rresult(rreference[i].size());
         fft_r2c.forward(rinput.data(), rresult.data());
@@ -432,7 +432,7 @@ void test_1d_reorder(){
 
     #ifdef Heffte_ENABLE_FFTW
     for(size_t i=0; i<3; i++){
-        heffte::fftw_executor fft(box, box.order[i]);
+        heffte::fftw_executor fft(nullptr, box, box.order[i]);
 
         std::vector<ctype> cresult = cinput;
         fft.forward(cresult.data());
@@ -442,7 +442,7 @@ void test_1d_reorder(){
         for(auto &r : cresult) r /= (2.0 + box.order[i]);
         sassert(approx(cresult, cinput));
 
-        heffte::fftw_executor_r2c fft_r2c(box, box.order[i]);
+        heffte::fftw_executor_r2c fft_r2c(nullptr, box, box.order[i]);
 
         std::vector<ctype> rresult(rreference[i].size());
         fft_r2c.forward(rinput.data(), rresult.data());
@@ -513,7 +513,7 @@ void test_1d_reorder(){
 
     #ifdef Heffte_ENABLE_ONEAPI
     for(size_t i=0; i<3; i++){
-        heffte::mkl_executor fft(box, box.order[i]);
+        heffte::mkl_executor fft(nullptr, box, box.order[i]);
 
         auto cresult = gpu::transfer::load(cinput);
         fft.forward(cresult.data());
@@ -524,7 +524,7 @@ void test_1d_reorder(){
         for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
         sassert(approx(cpu_cresult, cinput));
 
-        heffte::mkl_executor_r2c fft_r2c(box, box.order[i]);
+        heffte::mkl_executor_r2c fft_r2c(nullptr, box, box.order[i]);
 
         gpu::vector<ctype> rresult(rreference[i].size());
         fft_r2c.forward(gpu::transfer::load(rinput).data(), rresult.data());
@@ -642,7 +642,7 @@ void test_cross_reference_type(){
     auto crocinput = gpu::transfer().load(cinput);
 
     for(int i=0; i<3; i++){
-        heffte::fftw_executor  fft_cpu(box, i);
+        heffte::fftw_executor  fft_cpu(nullptr, box, i);
         heffte::cufft_executor fft_gpu(nullptr, box, i);
 
         std::vector<std::complex<precision_type>> coutput(rinput.size());
@@ -686,7 +686,7 @@ void test_cross_reference_r2c(){
         gpu::vector<scalar_type> cuinput = gpu::transfer().load(input);
 
         for(int i=0; i<3; i++){
-            heffte::fftw_executor_r2c  fft_cpu(box, i);
+            heffte::fftw_executor_r2c  fft_cpu(nullptr, box, i);
             heffte::cufft_executor_r2c fft_gpu(nullptr, box, i);
 
             std::vector<typename fft_output<scalar_type>::type> result(fft_cpu.complex_size());
@@ -743,7 +743,7 @@ void test_cross_reference_type(){
     auto crocinput = gpu::transfer::load(cinput);
 
     for(int i=0; i<3; i++){
-        heffte::fftw_executor  fft_cpu(box, i);
+        heffte::fftw_executor  fft_cpu(nullptr, box, i);
         heffte::rocfft_executor fft_gpu(nullptr, box, i);
 
         std::vector<std::complex<precision_type>> coutput(rinput.size());
@@ -788,7 +788,7 @@ void test_cross_reference_r2c(){
 
         //for(int i=0; i<3; i++){
         for(int i=0; i<1; i++){
-            heffte::fftw_executor_r2c  fft_cpu(box, i);
+            heffte::fftw_executor_r2c  fft_cpu(nullptr, box, i);
             heffte::rocfft_executor_r2c fft_gpu(nullptr, box, i);
 
             std::vector<typename fft_output<scalar_type>::type> result(fft_cpu.complex_size());

@@ -484,29 +484,10 @@ template<> struct one_dim_backend<backend::onemkl>{
     //! \brief Defines the real-to-complex executor.
     using type_r2c = onemkl_executor_r2c;
 
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<onemkl_executor> make(sycl::queue &q, box3d<index> const box, int dimension){
-        return std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box, dimension));
-    }
-    //! \brief Constructs a 2D executor from two 1D ones.
-    template<typename index>
-    static std::unique_ptr<onemkl_executor> make(sycl::queue &q, box3d<index> const &box, int dir1, int dir2){
-        return std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box, dir1, dir2));
-    }
-    template<typename index>
-    static std::unique_ptr<onemkl_executor> make(sycl::queue &q, box3d<index> const &box){
-        return std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box));
-    }
     //! \brief Returns true if the transforms in the two directions can be merged into one.
     static bool can_merge2d(){ return true; }
     //! \brief Returns true if the transforms in the three directions can be merged into one.
     static bool can_merge3d(){ return true; }
-    //! \brief Constructs a real-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<onemkl_executor_r2c> make_r2c(sycl::queue &q, box3d<index> const box, int dimension){
-        return std::unique_ptr<onemkl_executor_r2c>(new onemkl_executor_r2c(q, box, dimension));
-    }
 };
 
 /*!

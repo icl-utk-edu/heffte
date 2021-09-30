@@ -186,7 +186,7 @@ class fftw_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
-    fftw_executor(box3d<index> const box, int dimension) :
+    fftw_executor(void*, box3d<index> const box, int dimension) :
         size(box.size[dimension]), size2(0),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -198,7 +198,7 @@ public:
     {}
     //! \brief Merges two FFTs into one.
     template<typename index>
-    fftw_executor(box3d<index> const box, int dir1, int dir2) :
+    fftw_executor(void*, box3d<index> const box, int dir1, int dir2) :
         size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
         blocks(1), block_stride(0), total_size(box.count()), embed({0, 0})
     {
@@ -222,7 +222,7 @@ public:
     }
     //! \brief Merges three FFTs into one.
     template<typename index>
-    fftw_executor(box3d<index> const box) :
+    fftw_executor(void*, box3d<index> const box) :
         size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
         stride(0), dist(0),
         blocks(1), block_stride(0),
@@ -384,7 +384,7 @@ public:
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
     template<typename index>
-    fftw_executor_r2c(box3d<index> const box, int dimension) :
+    fftw_executor_r2c(void*, box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -464,30 +464,10 @@ template<> struct one_dim_backend<backend::fftw>{
     //! \brief Defines the real-to-complex executor.
     using type_r2c = fftw_executor_r2c;
 
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<fftw_executor> make(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<fftw_executor>(new fftw_executor(box, dimension));
-    }
-    //! \brief Constructs a 2D executor from two 1D ones.
-    template<typename index>
-    static std::unique_ptr<fftw_executor> make(void*, box3d<index> const &box, int dir1, int dir2){
-        return std::unique_ptr<fftw_executor>(new fftw_executor(box, dir1, dir2));
-    }
-    //! \brief Constructs a 3D executor.
-    template<typename index>
-    static std::unique_ptr<fftw_executor> make(void*, box3d<index> const &box){
-        return std::unique_ptr<fftw_executor>(new fftw_executor(box));
-    }
     //! \brief Returns true if the transforms in the two directions can be merged into one.
     static bool can_merge2d(){ return true; }
     //! \brief Returns true if the transforms in the three directions can be merged into one.
     static bool can_merge3d(){ return true; }
-    //! \brief Constructs a real-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<fftw_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<fftw_executor_r2c>(new fftw_executor_r2c(box, dimension));
-    }
 };
 
 /*!
@@ -504,21 +484,6 @@ template<> struct one_dim_backend<backend::fftw_cos>{
     //! \brief There is no real-to-complex variant.
     using type_r2c = void;
 
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<type> make(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<type>(new type(nullptr, box, dimension));
-    }
-    //! \brief Constructs a 2D executor from two 1D ones.
-    template<typename index>
-    static std::unique_ptr<type> make(void*, box3d<index> const &box, int dir1, int dir2){
-        return std::unique_ptr<type>(new type(nullptr, box, dir1, dir2));
-    }
-    //! \brief Constructs a 3D executor.
-    template<typename index>
-    static std::unique_ptr<type> make(void*, box3d<index> const &box){
-        return std::unique_ptr<type>(new type(nullptr, box));
-    }
     //! \brief Returns true if the transforms in the two directions can be merged into one.
     static bool can_merge2d(){ return false; }
     //! \brief Returns true if the transforms in the three directions can be merged into one.

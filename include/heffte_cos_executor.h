@@ -56,7 +56,7 @@ struct cos_executor{
         length(box.osize(0)),
         num_batch(box.osize(1) * box.osize(2)),
         total_size(box.count()),
-        fft(one_dim_backend<fft_backend_tag>::make_r2c(stream, make_cos_box(box), dimension))
+        fft(make_executor_r2c<fft_backend_tag>(stream, make_cos_box(box), dimension))
     {
         assert(dimension == box.order[0]); // supporting only ordered operations (for now)
     }
