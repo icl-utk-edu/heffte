@@ -109,6 +109,31 @@ inline std::ostream & operator << (std::ostream &os, plan_options const options)
 }
 
 /*!
+ * \ingroup fft3d
+ * \brief Adjusts the user provided options to what can be handled by the backend.
+ *
+ * Some backends do not support all available options, e.g., they require the use_reorder
+ * option to be set on. This template makes the necessary adjustments so that the correct
+ * answer is always computed even if the user provides unsupported options.
+ */
+template<typename backend_tag, bool use_r2c = false>
+plan_options set_options(plan_options opts){
+    if (std::is_same<backend_tag, backend::stock_cos>::value
+        or std::is_same<backend_tag, backend::fftw_cos>::value
+        or std::is_same<backend_tag, backend::mkl_cos>::value){
+        // currently the cosine options work only with reorder.
+        opts.use_reorder = true;
+        return opts;
+    }else if (use_r2c and std::is_same<backend_tag, backend::rocfft>::value){
+        // the rocfft backend with r2c requires the reorder (problem with the strides)
+        opts.use_reorder = true;
+        return opts;
+    }else{
+        return opts; // all options are supported for this backend
+    }
+}
+
+/*!
  * \ingroup heffterocm
  * \brief Forces the reorder logic for the ROCM r2c variant.
  */
