@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_ROCM_H
 #define HEFFTE_BACKEND_ROCM_H
 
-#include "heffte_pack3d.h"
+#include "heffte_cos_executor.h"
 
 #ifdef Heffte_ENABLE_ROCM
 
@@ -679,34 +679,9 @@ private:
  */
 template<> struct one_dim_backend<backend::rocfft>{
     //! \brief Defines the complex-to-complex executor.
-    using type = rocfft_executor;
+    using executor = rocfft_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = rocfft_executor_r2c;
-
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<rocfft_executor> make(hipStream_t stream, box3d<index> const box, int dimension){
-        return std::unique_ptr<rocfft_executor>(new rocfft_executor(stream, box, dimension));
-    }
-    //! \brief Constructs a 2D executor from two 1D ones.
-    template<typename index>
-    static std::unique_ptr<rocfft_executor> make(hipStream_t stream,  box3d<index> const box, int dir1, int dir2){
-        return std::unique_ptr<rocfft_executor>(new rocfft_executor(stream, box, dir1, dir2));
-    }
-    //! \brief Constructs a 3D executor.
-    template<typename index>
-    static std::unique_ptr<rocfft_executor> make(hipStream_t stream, box3d<index> const &box){
-        return std::unique_ptr<rocfft_executor>(new rocfft_executor(stream, box));
-    }
-    //! \brief Returns true if the transforms in the two directions can be merged into one.
-    static bool can_merge2d(){ return true; }
-    //! \brief Returns true if the transforms in the three directions can be merged into one.
-    static bool can_merge3d(){ return true; }
-    //! \brief Constructs a real-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<rocfft_executor_r2c> make_r2c(hipStream_t stream, box3d<index> const box, int dimension){
-        return std::unique_ptr<rocfft_executor_r2c>(new rocfft_executor_r2c(stream, box, dimension));
-    }
+    using executor_r2c = rocfft_executor_r2c;
 };
 
 /*!

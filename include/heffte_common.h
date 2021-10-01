@@ -95,18 +95,33 @@ namespace backend {
      * \brief Type-tag for the FFTW backend
      */
     struct fftw{};
+    /*!
+     * \ingroup hefftefftw
+     * \brief Type-tag for the Cosine Transform using the FFTW backend
+     */
+    struct fftw_cos{};
 
     /*!
-     * \ingroup
+     * \ingroup hefftestock
      * \brief Type-tag for the stock FFT backend
      */
     struct stock{};
+    /*!
+     * \ingroup hefftestock
+     * \brief Type-tag for the Cosine Transform using the stock FFT backend
+     */
+    struct stock_cos{};
 
     /*!
      * \ingroup hefftemkl
      * \brief Type-tag for the MKL backend
      */
     struct mkl{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Type-tag for the Cosine Transform using the MKL FFT backend
+     */
+    struct mkl_cos{};
 
     /*!
      * \ingroup hefftecuda
@@ -181,18 +196,33 @@ namespace backend {
      * \brief Returns the human readable name of the FFTW backend.
      */
     template<> inline std::string name<fftw>(){ return "fftw"; }
+    /*!
+     * \ingroup hefftefftw
+     * \brief Returns the human readable name of the FFTW backend.
+     */
+    template<> inline std::string name<fftw_cos>(){ return "fftw-cos"; }
 
     /*!
-     * \ingroup
+     * \ingroup hefftestock
      * \brief Returns the human readable name of the stock backend.
      */
     template<> inline std::string name<stock>(){ return "stock"; }
+    /*!
+     * \ingroup hefftestock
+     * \brief Returns the human readable name of the stock backend.
+     */
+    template<> inline std::string name<stock_cos>(){ return "stock-cos"; }
 
     /*!
      * \ingroup hefftemkl
      * \brief Returns the human readable name of the MKL backend.
      */
     template<> inline std::string name<mkl>(){ return "mkl"; }
+    /*!
+     * \ingroup hefftemkl
+     * \brief Returns the human readable name of the MKL backend.
+     */
+    template<> inline std::string name<mkl_cos>(){ return "mkl-cos"; }
     /*!
      * \ingroup hefftecuda
      * \brief Returns the human readable name of the cuFFT backend.
@@ -270,6 +300,33 @@ namespace backend {
                    or (is_ccomplex<input>::value and is_ccomplex<output>::value)
                    or (is_zcomplex<input>::value and is_zcomplex<output>::value)
                   )>::type> : std::true_type{};
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Sets the cos() transform types.
+     */
+    template<> struct uses_fft_types<fftw_cos> : std::false_type{};
+    /*!
+     * \ingroup hefftestock
+     * \brief Sets the cos() transform types.
+     */
+    template<> struct uses_fft_types<stock_cos> : std::false_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Sets the cos() transform types.
+     */
+    template<> struct uses_fft_types<mkl_cos> : std::false_type{};
+
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Defines the types compatible for a cos() transform.
+     */
+    template<typename backend_tag, typename input, typename output> struct check_types<backend_tag, input, output,
+        typename std::enable_if<not uses_fft_types<backend_tag>::value and (
+                      (std::is_same<input, float>::value and std::is_same<output, float>::value)
+                   or (std::is_same<input, double>::value and std::is_same<output, double>::value)
+                  )>::type> : std::true_type{};
+
 }
 
 /*!
@@ -297,6 +354,70 @@ enum class direction {
  * \brief Indicates the structure that will be used by the fft backend.
  */
 template<typename> struct one_dim_backend{};
+
+/*!
+ * \ingroup fft3dbackend
+ * \brief Factory method to construct an executor for the FFT backend.
+ */
+template<typename backend_tag, typename index>
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
+                                                                                  box3d<index> const box, int dimension){
+    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dimension));
+}
+/*!
+ * \ingroup fft3dbackend
+ * \brief Factory method to construct an executor for the FFT backend, 2D variant.
+ */
+template<typename backend_tag, typename index>
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
+                                                                                  box3d<index> const box, int dir1, int dir2){
+    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dir1, dir2));
+}
+/*!
+ * \ingroup fft3dbackend
+ * \brief Factory method to construct an executor for the FFT backend, 3D variant.
+ */
+template<typename backend_tag, typename index>
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
+                                                                                  box3d<index> const box){
+    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box));
+}
+/*!
+ * \ingroup fft3dbackend
+ * \brief Factory method to construct an executor for the FFT backend, r2c variant.
+ */
+template<typename backend_tag, typename index>
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c> make_executor_r2c(typename backend::device_instance<backend_tag>::stream_type stream,
+                                                                                          box3d<index> const box, int dimension){
+    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c>(new typename one_dim_backend<backend_tag>::executor_r2c(stream, box, dimension));
+}
+
+/*!
+ * \ingroup fft3dbackend
+ * \brief Defines whether the executor has a 2D version (slabs).
+ */
+template<typename backend_tag>
+constexpr bool has_executor2d(){
+    // cosine transform variants don't have a 2D/3D version yet (due to the missing kernels)
+    // most backends are OK with the variants for 2D and 3D (stock isn't)
+    return not (std::is_same<backend_tag, backend::stock>::value
+            or std::is_same<backend_tag, backend::stock_cos>::value
+            or std::is_same<backend_tag, backend::fftw_cos>::value
+            or std::is_same<backend_tag, backend::mkl_cos>::value
+            );
+}
+/*!
+ * \ingroup fft3dbackend
+ * \brief Defines whether the executor has a 3D version (single rank).
+ */
+template<typename backend_tag>
+constexpr bool has_executor3d(){
+    return not (std::is_same<backend_tag, backend::stock>::value
+            or std::is_same<backend_tag, backend::stock_cos>::value
+            or std::is_same<backend_tag, backend::fftw_cos>::value
+            or std::is_same<backend_tag, backend::mkl_cos>::value
+            );
+}
 
 /*!
  * \ingroup fft3dbackend

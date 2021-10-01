@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_MKL_H
 #define HEFFTE_BACKEND_MKL_H
 
-#include "heffte_pack3d.h"
+#include "heffte_cos_executor.h"
 
 #ifdef Heffte_ENABLE_MKL
 
@@ -32,6 +32,11 @@ namespace backend{
      * \brief Indicate that the MKL backend has been enabled.
      */
     template<> struct is_enabled<mkl> : std::true_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Indicate that the MKL Cosine Transform backend has been enabled.
+     */
+    template<> struct is_enabled<mkl_cos> : std::true_type{};
 }
 
 /*!
@@ -159,7 +164,7 @@ class mkl_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
-    mkl_executor(box3d<index> const box, int dimension) :
+    mkl_executor(void*, box3d<index> const box, int dimension) :
         size(box.size[dimension]), size2(0),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -171,7 +176,7 @@ public:
     {}
     //! \brief Merges two FFTs into one.
     template<typename index>
-    mkl_executor(box3d<index> const box, int dir1, int dir2) :
+    mkl_executor(void*, box3d<index> const box, int dir1, int dir2) :
         size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
         blocks(1), block_stride(0), total_size(box.count())
     {
@@ -197,7 +202,7 @@ public:
     }
     //! \brief Merges three FFTs into one.
     template<typename index>
-    mkl_executor(box3d<index> const box) :
+    mkl_executor(void*, box3d<index> const box) :
         size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
         stride(0), dist(0),
         blocks(1), block_stride(0),
@@ -346,7 +351,7 @@ public:
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
     template<typename index>
-    mkl_executor_r2c(box3d<index> const box, int dimension) :
+    mkl_executor_r2c(void*, box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -422,34 +427,21 @@ private:
  */
 template<> struct one_dim_backend<backend::mkl>{
     //! \brief Defines the complex-to-complex executor.
-    using type = mkl_executor;
+    using executor = mkl_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = mkl_executor_r2c;
-
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<mkl_executor> make(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<mkl_executor>(new mkl_executor(box, dimension));
-    }
-    //! \brief Constructs a 2D executor from two 1D ones.
-    template<typename index>
-    static std::unique_ptr<mkl_executor> make(void*, box3d<index> const &box, int dir1, int dir2){
-        return std::unique_ptr<mkl_executor>(new mkl_executor(box, dir1, dir2));
-    }
-    //! \brief Constructs a 3D executor.
-    template<typename index>
-    static std::unique_ptr<mkl_executor> make(void*, box3d<index> const &box){
-        return std::unique_ptr<mkl_executor>(new mkl_executor(box));
-    }
-    //! \brief Returns true if the transforms in the two directions can be merged into one.
-    static bool can_merge2d(){ return true; }
-    //! \brief Returns true if the transforms in the three directions can be merged into one.
-    static bool can_merge3d(){ return true; }
-    //! \brief Constructs a real-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<mkl_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<mkl_executor_r2c>(new mkl_executor_r2c(box, dimension));
-    }
+    using executor_r2c = mkl_executor_r2c;
+};
+/*!
+ * \ingroup hefftemkl
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::mkl_cos>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = cos_executor<backend::mkl, cpu_cos_pre_pos_processor>;;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
 };
 
 /*!
@@ -459,6 +451,14 @@ template<> struct one_dim_backend<backend::mkl>{
 template<> struct default_plan_options<backend::mkl>{
     //! \brief The reshape operations will not transpose the data.
     static const bool use_reorder = false;
+};
+/*!
+ * \ingroup hefftemkl
+ * \brief Sets the default options for the mkl backend.
+ */
+template<> struct default_plan_options<backend::mkl_cos>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
 };
 
 }

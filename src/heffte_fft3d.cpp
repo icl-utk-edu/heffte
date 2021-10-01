@@ -37,6 +37,17 @@
                                                                   direction, scale \
                                                                  ) const;   \
 
+#define heffte_instantiate_fft3d_cos(some_backend, index) \
+    template class fft3d<some_backend, index>; \
+    template void fft3d<some_backend, index>::standard_transform<float>(float const[], float[], float[], \
+                                                                 std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                 direction, scale  \
+                                                                ) const;    \
+    template void fft3d<some_backend, index>::standard_transform<double>(double const[], double[], double[], \
+                                                                  std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &, std::array<backend_executor*, 3> const, \
+                                                                  direction, scale \
+                                                                 ) const;   \
+
 namespace heffte {
 
 template<typename backend_tag, typename index>
@@ -73,22 +84,22 @@ void fft3d<backend_tag, index>::setup(logic_plan3d<index> const &plan, MPI_Comm 
 
     int const my_rank = mpi::comm_rank(comm);
 
-    if (one_dim_backend<backend_tag>::can_merge3d() and not forward_shaper[1] and not forward_shaper[2]){
-        fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank]);
-    }else if (one_dim_backend<backend_tag>::can_merge2d() and (not forward_shaper[1] or not forward_shaper[2])){
+    if (has_executor3d<backend_tag>() and not forward_shaper[1] and not forward_shaper[2]){
+        fft0 = make_executor<backend_tag>(this->stream(), plan.out_shape[0][my_rank]);
+    }else if (has_executor2d<backend_tag>() and (not forward_shaper[1] or not forward_shaper[2])){
         if (not forward_shaper[1]){
-            fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank],
-                                                      plan.fft_direction[0], plan.fft_direction[1]);
-            fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
+            fft0 = make_executor<backend_tag>(this->stream(), plan.out_shape[0][my_rank],
+                                              plan.fft_direction[0], plan.fft_direction[1]);
+            fft2 = make_executor<backend_tag>(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
         }else{
-            fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
-            fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank],
-                                                      plan.fft_direction[1], plan.fft_direction[2]);
+            fft0 = make_executor<backend_tag>(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
+            fft2 = make_executor<backend_tag>(this->stream(), plan.out_shape[2][my_rank],
+                                              plan.fft_direction[1], plan.fft_direction[2]);
         }
     }else{
-        fft0 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
-        fft1 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[1][my_rank], plan.fft_direction[1]);
-        fft2 = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
+        fft0 = make_executor<backend_tag>(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
+        fft1 = make_executor<backend_tag>(this->stream(), plan.out_shape[1][my_rank], plan.fft_direction[1]);
+        fft2 = make_executor<backend_tag>(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
     }
 }
 
@@ -202,7 +213,7 @@ template<typename scalar_type> // real to complex case
 void fft3d<backend_tag, index>::standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
                                             std::complex<scalar_type> workspace[],
                                             std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
-                                            std::array<typename one_dim_backend<backend_tag>::type*, 3> const executor,
+                                            std::array<typename one_dim_backend<backend_tag>::executor*, 3> const executor,
                                             direction, scale scaling) const{
     /*
      * Follows logic similar to the complex-to-complex case but the first shaper and executor will be applied to real data.
@@ -305,13 +316,19 @@ void fft3d<backend_tag, index>::standard_transform(std::complex<scalar_type> con
 
 heffte_instantiate_fft3d(backend::stock, int)
 heffte_instantiate_fft3d(backend::stock, long long)
+heffte_instantiate_fft3d_cos(backend::stock_cos, int)
+heffte_instantiate_fft3d_cos(backend::stock_cos, long long)
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_fft3d(backend::fftw, int)
 heffte_instantiate_fft3d(backend::fftw, long long)
+heffte_instantiate_fft3d_cos(backend::fftw_cos, int)
+heffte_instantiate_fft3d_cos(backend::fftw_cos, long long)
 #endif
 #ifdef Heffte_ENABLE_MKL
 heffte_instantiate_fft3d(backend::mkl, int)
 heffte_instantiate_fft3d(backend::mkl, long long)
+heffte_instantiate_fft3d_cos(backend::mkl_cos, int)
+heffte_instantiate_fft3d_cos(backend::mkl_cos, long long)
 #endif
 #ifdef Heffte_ENABLE_CUDA
 heffte_instantiate_fft3d(backend::cufft, int)
