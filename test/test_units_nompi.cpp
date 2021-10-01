@@ -278,7 +278,6 @@ void test_1d_cos(){
 
     auto load_input = test_traits<backend_tag>::load(input);
     fft->forward(load_input.data());
-    for(auto x : load_input) std::cout << x << "\n";
     sassert(approx(load_input, reference));
 
     fft->backward(load_input.data());
@@ -892,7 +891,7 @@ int main(int, char**){
     test_gpu_scale();
 
     test_1d<backend::stock>();
-    //test_1d_cos<backend::stock_cos>();
+    test_1d_cos<backend::stock_cos>();
     #ifdef Heffte_ENABLE_FFTW
     test_1d<backend::fftw>();
     test_1d_cos<backend::fftw_cos>();
@@ -903,6 +902,9 @@ int main(int, char**){
     #endif
     #ifdef Heffte_ENABLE_GPU
     test_1d<gpu_backend>(); // pick the default GPU backend
+    #endif
+    #ifdef Heffte_ENABLE_CUDA
+    test_1d_cos<backend::cufft_cos>();
     #endif
 
     test_1d_reorder();

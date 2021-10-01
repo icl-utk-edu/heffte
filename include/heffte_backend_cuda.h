@@ -109,6 +109,20 @@ namespace cuda {
                         index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                         scalar_type const source[], scalar_type destination[]);
 
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
+     */
+    struct cos_pre_pos_processor{
+        template<typename precision>
+        static void pre_forward(cudaStream_t, int length, precision const input[], precision fft_signal[]);
+        template<typename precision>
+        static void post_forward(cudaStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        template<typename precision>
+        static void pre_backward(cudaStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        template<typename precision>
+        static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
+    };
 }
 
 namespace backend{
@@ -117,6 +131,11 @@ namespace backend{
      * \brief Indicate that the cuFFT backend has been enabled.
      */
     template<> struct is_enabled<cufft> : std::true_type{};
+    /*!
+     * \ingroup hefftecuda
+     * \brief Indicate that the cuFFT backend has been enabled for Cosine Transform.
+     */
+    template<> struct is_enabled<cufft_cos> : std::true_type{};
 
     /*!
      * \ingroup hefftecuda
@@ -124,6 +143,25 @@ namespace backend{
      */
     template<>
     struct device_instance<cufft>{
+        //! \brief Constructor, sets up the stream.
+        device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        cudaStream_t stream(){ return _stream; }
+        //! \brief Returns the nullptr (const case).
+        cudaStream_t stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue, no-op in the CPU case.
+        void synchronize_device() const{ cuda::check_error(cudaStreamSynchronize(_stream), "device sync"); }
+        //! \brief The CUDA stream to be used in all operations.
+        mutable cudaStream_t _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = cudaStream_t;
+    };
+    /*!
+     * \ingroup hefftecuda
+     * \brief The CUDA backend uses a CUDA stream.
+     */
+    template<>
+    struct device_instance<cufft_cos>{
         //! \brief Constructor, sets up the stream.
         device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
         //! \brief Returns the nullptr.
@@ -213,6 +251,17 @@ namespace backend{
      */
     template<>
     struct buffer_traits<cufft>{
+        //! \brief The cufft library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the cuda vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
+    /*!
+     * \ingroup hefftecuda
+     * \brief Defines the location type-tag and the cuda container.
+     */
+    template<>
+    struct buffer_traits<cufft_cos>{
         //! \brief The cufft library uses data on the gpu device.
         using location = tag::gpu;
         //! \brief The data is managed by the cuda vector container.
@@ -644,6 +693,19 @@ template<> struct one_dim_backend<backend::cufft>{
 };
 
 /*!
+ * \ingroup hefftecuda
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::cufft_cos>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = cos_executor<backend::cufft, cuda::cos_pre_pos_processor>;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
+};
+
+/*!
  * \ingroup hefftepacking
  * \brief Simple packer that copies sub-boxes without transposing the order of the indexes.
  */
@@ -704,6 +766,14 @@ namespace data_scaling {
 template<> struct default_plan_options<backend::cufft>{
     //! \brief The reshape operations will not transpose the data.
     static const bool use_reorder = false;
+};
+/*!
+ * \ingroup hefftecuda
+ * \brief Sets the default options for the cufft backend.
+ */
+template<> struct default_plan_options<backend::cufft_cos>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
 };
 
 }

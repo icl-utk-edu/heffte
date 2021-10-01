@@ -120,7 +120,9 @@ template<typename backend_tag, bool use_r2c = false>
 plan_options set_options(plan_options opts){
     if (std::is_same<backend_tag, backend::stock_cos>::value
         or std::is_same<backend_tag, backend::fftw_cos>::value
-        or std::is_same<backend_tag, backend::mkl_cos>::value){
+        or std::is_same<backend_tag, backend::mkl_cos>::value
+        or std::is_same<backend_tag, backend::cufft_cos>::value
+    ){
         // currently the cosine options work only with reorder.
         opts.use_reorder = true;
         return opts;

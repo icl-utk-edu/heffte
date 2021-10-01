@@ -144,6 +144,65 @@ __global__ void simple_scal(index num_entries, scalar_type data[], scalar_type s
     }
 }
 
+#define BLK_X 256
+
+// DCT-II (REDFT10)
+// even symmetry; even-indexed elements are 0 (size 2 N + 1)
+// (a b c) -> (0 a 0 b 0 c   0   c 0 b 0 a 0)
+template<typename scalar_type>
+__global__ void cos_pre_forward_kernel(int N, scalar_type const *input, scalar_type *fft_signal){
+    int ind = blockIdx.x*BLK_X + threadIdx.x;
+
+    if (ind < N) {
+        fft_signal[2*ind]   = 0.0;
+        fft_signal[2*ind+1] = input[ind];
+    }
+    fft_signal[2*N] = 0.0;
+    if (ind < N) {
+        fft_signal[4*N-2*ind]  = 0;
+        fft_signal[4*N-2*ind-1]= input[ind];
+    }
+}
+// (c1 c2 c3 ...) -> (c1.x c2.x c3.x)
+template<typename scalar_type>
+__global__ void cos_post_forward_kernel(int N, scalar_type const *fft_signal, scalar_type *result){
+    int ind = blockIdx.x*BLK_X + threadIdx.x;
+
+    if (ind < N) {
+        result[ind] = fft_signal[2*ind];
+    }
+}
+// DCT-III is the inverse of DCT-II (or IDCT; REDFT01)
+// odd symmetry; imaginary parts are set to 0
+// (a b c) -> (a,0 b,0 c,0 0,0 -c,0 -b,0 -a,0)
+template<typename scalar_type>
+__global__ void cos_pre_backward_kernel(int N, scalar_type const *input, scalar_type *fft_signal){
+    int ind = blockIdx.x*BLK_X + threadIdx.x;
+
+    if (ind < N) {
+        fft_signal[2*ind]   = input[ind];
+        fft_signal[2*ind+1] = 0.0;
+    }
+    if (ind == 0){
+        fft_signal[2*N]   = 0.0;
+        fft_signal[2*N+1] = 0.0;
+    }
+    if (ind < N) {
+        fft_signal[2*(N+ind+1)]   = -input[N-ind-1];
+        fft_signal[2*(N+ind+1)+1] = 0.0;
+    }
+}
+// extract the odd elements
+// (a b c d e f) -> (b d f)
+template<typename scalar_type>
+__global__ void cos_post_backward_kernel(int N, scalar_type const *fft_signal, scalar_type *result){
+    int ind = blockIdx.x*BLK_X + threadIdx.x;
+
+    if (ind < N) {
+        result[ind] =  fft_signal[1+2*ind];
+    }
+}
+
 /*
  * Create a 1-D CUDA thread grid using the total_threads and number of threads per block.
  * Basically, computes the number of blocks but no more than 65536.
@@ -296,6 +355,40 @@ template void scale_data<float, int>(cudaStream_t, int num_entries, float *data,
 template void scale_data<double, int>(cudaStream_t, int num_entries, double *data, double scale_factor);
 template void scale_data<float, long long>(cudaStream_t, long long num_entries, float *data, double scale_factor);
 template void scale_data<double, long long>(cudaStream_t, long long num_entries, double *data, double scale_factor);
+
+template<typename precision>
+void cos_pre_pos_processor::pre_forward(cudaStream_t stream, int length, precision const input[], precision fft_signal[]){
+    dim3 threads( BLK_X, 1 );
+    dim3 grid( (length + BLK_X-1)/BLK_X, 1 );
+    cos_pre_forward_kernel<<<grid, threads, 0, stream>>>(length, input, fft_signal);
+}
+template<typename precision>
+void cos_pre_pos_processor::post_forward(cudaStream_t stream, int length, std::complex<precision> const fft_result[], precision result[]){
+    dim3 threads( BLK_X, 1 );
+    dim3 grid( (length + BLK_X-1)/BLK_X, 1 );
+    cos_post_forward_kernel<<<grid, threads, 0, stream>>>(length, reinterpret_cast<precision const*>(fft_result), result);
+}
+template<typename precision>
+void cos_pre_pos_processor::pre_backward(cudaStream_t stream, int length, precision const input[], std::complex<precision> fft_signal[]){
+    dim3 threads( BLK_X, 1 );
+    dim3 grid( (length + BLK_X-1)/BLK_X, 1 );
+    cos_pre_backward_kernel<<<grid, threads, 0, stream>>>(length, input, reinterpret_cast<precision*>(fft_signal));
+}
+template<typename precision>
+void cos_pre_pos_processor::post_backward(cudaStream_t stream, int length, precision const fft_result[], precision result[]){
+    dim3 threads( BLK_X, 1 );
+    dim3 grid( (length + BLK_X-1)/BLK_X, 1 );
+    cos_post_backward_kernel<<<grid, threads, 0, stream>>>(length, fft_result, result);
+}
+
+#define heffte_instantiate_cos(precision) \
+    template void cos_pre_pos_processor::pre_forward<precision>(cudaStream_t, int, precision const[], precision[]); \
+    template void cos_pre_pos_processor::post_forward<precision>(cudaStream_t, int,  std::complex<precision> const[], precision[]); \
+    template void cos_pre_pos_processor::pre_backward<precision>(cudaStream_t, int, precision const[], std::complex<precision>[]); \
+    template void cos_pre_pos_processor::post_backward<precision>(cudaStream_t, int, precision const[], precision[]); \
+
+heffte_instantiate_cos(float)
+heffte_instantiate_cos(double)
 
 } // namespace cuda
 
