@@ -79,18 +79,19 @@ struct cos_executor{
 
     template<typename scalar_type>
     void forward(scalar_type data[]) const{
-        auto temp = make_buffer_container<scalar_type>(stream, fft->real_size() + 1);
-        auto ctemp = make_buffer_container<std::complex<scalar_type>>(stream, fft->complex_size());
-        for(int i=0; i<num_batch; i++)
+        typename backend::buffer_traits<fft_backend_tag>::template container<scalar_type> temp(fft->real_size() + 1);
+        typename backend::buffer_traits<fft_backend_tag>::template container<std::complex<scalar_type>> ctemp(fft->complex_size());
+        for(int i=0; i<num_batch; i++){
             cos_processor::pre_forward(stream, length, data + i * length, temp.data() + i * 4 * length);
+        }
         fft->forward(temp.data(), ctemp.data());
         for(int i=0; i<num_batch; i++)
             cos_processor::post_forward(stream, length, ctemp.data() + i * (2 * length + 1), data + i * length);
     }
     template<typename scalar_type>
     void backward(scalar_type data[]) const{
-        auto temp = make_buffer_container<scalar_type>(stream, fft->real_size());
-        auto ctemp = make_buffer_container<std::complex<scalar_type>>(stream, fft->complex_size());
+        typename backend::buffer_traits<fft_backend_tag>::template container<scalar_type> temp(fft->real_size() + 1);
+        typename backend::buffer_traits<fft_backend_tag>::template container<std::complex<scalar_type>> ctemp(fft->complex_size());
         for(int i=0; i<num_batch; i++)
             cos_processor::pre_backward(stream, length, data + i * length, ctemp.data() + i * (2 * length + 1));
         fft->backward(ctemp.data(), temp.data());
