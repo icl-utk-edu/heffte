@@ -225,7 +225,7 @@ public:
      */
     fft3d(box3d<index> const inbox, box3d<index> const outbox, MPI_Comm const comm,
           plan_options const options = default_options<backend_tag>()) :
-        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, options), mpi::comm_rank(comm), comm){
+        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, set_options<backend_tag>(options)), mpi::comm_rank(comm), comm){
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
     /*!
@@ -248,7 +248,7 @@ public:
     fft3d(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
           box3d<index> const inbox, box3d<index> const outbox, MPI_Comm const comm,
           plan_options const options = default_options<backend_tag>()) :
-        fft3d(gpu_stream, plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, options), mpi::comm_rank(comm), comm){
+        fft3d(gpu_stream, plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, set_options<backend_tag>(options)), mpi::comm_rank(comm), comm){
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
 
