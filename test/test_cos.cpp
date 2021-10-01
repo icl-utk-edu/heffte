@@ -26,7 +26,6 @@ void test_cosine_transform(MPI_Comm comm){
     auto local_input = input_maker<backend_tag, scalar_type>::select(world, boxes[me], world_input);
     auto reference = get_subbox(world, boxes[me], world_result);
     auto reference_inv = get_subbox(world, boxes[me], world_input);
-    for(auto &x : reference_inv) x *= 64.0 * 24.0;
 
     // TODO Handle options
         heffte::fft3d<backend_tag> trans_cos(boxes[me], boxes[me], comm);
@@ -36,7 +35,7 @@ void test_cosine_transform(MPI_Comm comm){
         tassert(approx(forward, reference));
 
         tvector inverse(trans_cos.size_inbox());
-        trans_cos.backward(forward.data(), inverse.data());
+        trans_cos.backward(forward.data(), inverse.data(), heffte::scale::full);
         tassert(approx(inverse, reference_inv, (std::is_same<scalar_type, float>::value) ? 0.001 : 1.0));
 }
 

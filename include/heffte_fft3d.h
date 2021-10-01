@@ -436,7 +436,13 @@ public:
     /*!
      * \brief Returns the scale factor for the given scaling.
      */
-    double get_scale_factor(scale scaling) const{ return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor; }
+    double get_scale_factor(scale scaling) const{
+        if (backend::uses_fft_types<backend_tag>::value){
+            return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor;
+        }else{
+            return (scaling == scale::symmetric) ? std::sqrt(scale_factor / 64.0) : scale_factor / 64.0;
+        }
+    }
 
     /*!
      * \brief Returns the workspace size that will be used, size is measured in complex numbers.
