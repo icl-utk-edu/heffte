@@ -75,11 +75,11 @@ struct real2real_executor{
     }
 
     template<typename index>
-    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type, box3d<index> const, int, int)
+    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const, int, int) : stream(cstream)
     { throw std::runtime_error("2D cosine transform is not yet implemented!"); }
 
     template<typename index>
-    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type, box3d<index> const)
+    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const) : stream(cstream)
     { throw std::runtime_error("3D cosine transform is not yet implemented!"); }
 
     template<typename scalar_type>
