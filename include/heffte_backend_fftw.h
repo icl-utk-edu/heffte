@@ -473,7 +473,7 @@ template<> struct one_dim_backend<backend::fftw>{
  */
 template<> struct one_dim_backend<backend::fftw_cos>{
     //! \brief Defines the real-to-real executor.
-    using executor = cos_executor<backend::fftw, cpu_cos_pre_pos_processor>;
+    using executor = real2real_executor<backend::fftw, cpu_cos_pre_pos_processor, cpu_buffer_factory>;
     //! \brief There is no real-to-complex variant.
     using executor_r2c = void;
 };

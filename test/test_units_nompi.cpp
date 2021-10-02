@@ -906,6 +906,9 @@ int main(int, char**){
     #ifdef Heffte_ENABLE_CUDA
     test_1d_cos<backend::cufft_cos>();
     #endif
+    #ifdef Heffte_ENABLE_ONEAPI
+    test_1d_cos<backend::onemkl_cos>();
+    #endif
 
     test_1d_reorder();
     test_transpose();

@@ -146,6 +146,11 @@ namespace backend {
      * \brief Type-tag for the oneMKL backend
      */
     struct onemkl{};
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Type-tag for the Cosine Transform using the oneMKL backend
+     */
+    struct onemkl_cos{};
 
     /*!
      * \ingroup fft3dbackend
@@ -251,6 +256,11 @@ namespace backend {
      * \brief Returns the human readable name of the oneMKL backend.
      */
     template<> inline std::string name<onemkl>(){ return "onemkl"; }
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Returns the human readable name of the oneMKL backend.
+     */
+    template<> inline std::string name<onemkl_cos>(){ return "onemkl-cos"; }
 
     /*!
      * \ingroup fft3dbackend
@@ -332,6 +342,11 @@ namespace backend {
      * \brief Sets the cos() transform types.
      */
     template<> struct uses_fft_types<cufft_cos> : std::false_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Sets the cos() transform types.
+     */
+    template<> struct uses_fft_types<onemkl_cos> : std::false_type{};
 
     /*!
      * \ingroup fft3dbackend
@@ -421,6 +436,7 @@ constexpr bool has_executor2d(){
             or std::is_same<backend_tag, backend::fftw_cos>::value
             or std::is_same<backend_tag, backend::mkl_cos>::value
             or std::is_same<backend_tag, backend::cufft_cos>::value
+            or std::is_same<backend_tag, backend::onemkl_cos>::value
             );
 }
 /*!
@@ -434,6 +450,7 @@ constexpr bool has_executor3d(){
             or std::is_same<backend_tag, backend::fftw_cos>::value
             or std::is_same<backend_tag, backend::mkl_cos>::value
             or std::is_same<backend_tag, backend::cufft_cos>::value
+            or std::is_same<backend_tag, backend::onemkl_cos>::value
             );
 }
 

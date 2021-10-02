@@ -439,7 +439,7 @@ template<> struct one_dim_backend<backend::mkl>{
  */
 template<> struct one_dim_backend<backend::mkl_cos>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = cos_executor<backend::mkl, cpu_cos_pre_pos_processor>;;
+    using executor = real2real_executor<backend::mkl, cpu_cos_pre_pos_processor, cpu_buffer_factory>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };

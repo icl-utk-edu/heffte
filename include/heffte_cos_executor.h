@@ -56,10 +56,15 @@ struct cpu_cos_pre_pos_processor{
     }
 };
 
-template<typename fft_backend_tag, typename cos_processor>
-struct cos_executor{
+struct cpu_buffer_factory{
+    template<typename scalar_type>
+    static std::vector<scalar_type> make(void*, size_t size){ return std::vector<scalar_type>(size); }
+};
+
+template<typename fft_backend_tag, typename prepost_processor, typename buffer_factory>
+struct real2real_executor{
     template<typename index>
-    cos_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const box, int dimension) :
+    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const box, int dimension) :
         stream(cstream),
         length(box.osize(0)),
         num_batch(box.osize(1) * box.osize(2)),
@@ -70,33 +75,33 @@ struct cos_executor{
     }
 
     template<typename index>
-    cos_executor(typename backend::device_instance<fft_backend_tag>::stream_type, box3d<index> const, int, int)
+    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const, int, int) : stream(cstream)
     { throw std::runtime_error("2D cosine transform is not yet implemented!"); }
 
     template<typename index>
-    cos_executor(typename backend::device_instance<fft_backend_tag>::stream_type, box3d<index> const)
+    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const) : stream(cstream)
     { throw std::runtime_error("3D cosine transform is not yet implemented!"); }
 
     template<typename scalar_type>
     void forward(scalar_type data[]) const{
-        typename backend::buffer_traits<fft_backend_tag>::template container<scalar_type> temp(fft->real_size() + 1);
-        typename backend::buffer_traits<fft_backend_tag>::template container<std::complex<scalar_type>> ctemp(fft->complex_size());
+        auto temp = buffer_factory::template make<scalar_type>(stream, fft->real_size() + 1);
+        auto ctemp = buffer_factory::template make<std::complex<scalar_type>>(stream, fft->complex_size());
         for(int i=0; i<num_batch; i++){
-            cos_processor::pre_forward(stream, length, data + i * length, temp.data() + i * 4 * length);
+            prepost_processor::pre_forward(stream, length, data + i * length, temp.data() + i * 4 * length);
         }
         fft->forward(temp.data(), ctemp.data());
         for(int i=0; i<num_batch; i++)
-            cos_processor::post_forward(stream, length, ctemp.data() + i * (2 * length + 1), data + i * length);
+            prepost_processor::post_forward(stream, length, ctemp.data() + i * (2 * length + 1), data + i * length);
     }
     template<typename scalar_type>
     void backward(scalar_type data[]) const{
-        typename backend::buffer_traits<fft_backend_tag>::template container<scalar_type> temp(fft->real_size() + 1);
-        typename backend::buffer_traits<fft_backend_tag>::template container<std::complex<scalar_type>> ctemp(fft->complex_size());
+        auto temp = buffer_factory::template make<scalar_type>(stream, fft->real_size());
+        auto ctemp = buffer_factory::template make<std::complex<scalar_type>>(stream, fft->complex_size());
         for(int i=0; i<num_batch; i++)
-            cos_processor::pre_backward(stream, length, data + i * length, ctemp.data() + i * (2 * length + 1));
+            prepost_processor::pre_backward(stream, length, data + i * length, ctemp.data() + i * (2 * length + 1));
         fft->backward(ctemp.data(), temp.data());
         for(int i=0; i<num_batch; i++)
-            cos_processor::post_backward(stream, length, temp.data() + 4 * i * length, data + i * length);
+            prepost_processor::post_backward(stream, length, temp.data() + 4 * i * length, data + i * length);
     }
 
     template<typename precision>
