@@ -692,6 +692,12 @@ template<> struct one_dim_backend<backend::cufft>{
     using executor_r2c = cufft_executor_r2c;
 };
 
+struct cuda_buffer_factory{
+    template<typename scalar_type>
+    static backend::buffer_traits<backend::cufft>::container<scalar_type>
+    make(cudaStream_t stream, size_t size){ return backend::buffer_traits<backend::cufft>::container<scalar_type>(stream, size); }
+};
+
 /*!
  * \ingroup hefftecuda
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
@@ -700,7 +706,7 @@ template<> struct one_dim_backend<backend::cufft>{
  */
 template<> struct one_dim_backend<backend::cufft_cos>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = cos_executor<backend::cufft, cuda::cos_pre_pos_processor>;
+    using executor = real2real_executor<backend::cufft, cuda::cos_pre_pos_processor, cuda_buffer_factory>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };
