@@ -347,6 +347,10 @@ heffte_instantiate_fft3d_cos(backend::cufft_sin, long long)
 #ifdef Heffte_ENABLE_ROCM
 heffte_instantiate_fft3d(backend::rocfft, int)
 heffte_instantiate_fft3d(backend::rocfft, long long)
+heffte_instantiate_fft3d_cos(backend::rocfft_cos, int)
+heffte_instantiate_fft3d_cos(backend::rocfft_cos, long long)
+heffte_instantiate_fft3d_cos(backend::rocfft_sin, int)
+heffte_instantiate_fft3d_cos(backend::rocfft_sin, long long)
 #endif
 #ifdef Heffte_ENABLE_ONEAPI
 heffte_instantiate_fft3d(backend::onemkl, int)

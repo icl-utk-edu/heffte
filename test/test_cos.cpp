@@ -73,6 +73,12 @@ void perform_tests(MPI_Comm const comm){
     test_cosine_transform<backend::cufft_sin, float>(comm);
     test_cosine_transform<backend::cufft_sin, double>(comm);
     #endif
+    #ifdef Heffte_ENABLE_ROCM
+    test_cosine_transform<backend::rocfft_cos, float>(comm);
+    test_cosine_transform<backend::rocfft_cos, double>(comm);
+    test_cosine_transform<backend::rocfft_sin, float>(comm);
+    test_cosine_transform<backend::rocfft_sin, double>(comm);
+    #endif
     #ifdef Heffte_ENABLE_ONEAPI
     test_cosine_transform<backend::onemkl_cos, float>(comm);
     test_cosine_transform<backend::onemkl_cos, double>(comm);
