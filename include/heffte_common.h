@@ -171,6 +171,11 @@ namespace backend {
      * \brief Type-tag for the Cosine Transform using the oneMKL backend
      */
     struct onemkl_cos{};
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Type-tag for the Sine Transform using the oneMKL backend
+     */
+    struct onemkl_sin{};
 
     /*!
      * \ingroup fft3dbackend
@@ -301,6 +306,11 @@ namespace backend {
      * \brief Returns the human readable name of the oneMKL backend.
      */
     template<> inline std::string name<onemkl_cos>(){ return "onemkl-cos"; }
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Returns the human readable name of the oneMKL backend.
+     */
+    template<> inline std::string name<onemkl_sin>(){ return "onemkl-sin"; }
 
     /*!
      * \ingroup fft3dbackend
@@ -399,7 +409,7 @@ namespace backend {
     template<> struct uses_fft_types<cufft_cos> : std::false_type{};
     /*!
      * \ingroup hefftemkl
-     * \brief Sets the cos() transform types.
+     * \brief Sets the sin() transform types.
      */
     template<> struct uses_fft_types<cufft_sin> : std::false_type{};
     /*!
@@ -407,6 +417,11 @@ namespace backend {
      * \brief Sets the cos() transform types.
      */
     template<> struct uses_fft_types<onemkl_cos> : std::false_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Sets the sin() transform types.
+     */
+    template<> struct uses_fft_types<onemkl_sin> : std::false_type{};
 
     /*!
      * \ingroup fft3dbackend
@@ -501,6 +516,7 @@ constexpr bool has_executor2d(){
             or std::is_same<backend_tag, backend::fftw_sin>::value
             or std::is_same<backend_tag, backend::mkl_sin>::value
             or std::is_same<backend_tag, backend::cufft_sin>::value
+            or std::is_same<backend_tag, backend::onemkl_sin>::value
             );
 }
 /*!
@@ -519,6 +535,7 @@ constexpr bool has_executor3d(){
             or std::is_same<backend_tag, backend::fftw_sin>::value
             or std::is_same<backend_tag, backend::mkl_sin>::value
             or std::is_same<backend_tag, backend::cufft_sin>::value
+            or std::is_same<backend_tag, backend::onemkl_sin>::value
             );
 }
 

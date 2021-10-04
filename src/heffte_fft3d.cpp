@@ -353,6 +353,8 @@ heffte_instantiate_fft3d(backend::onemkl, int)
 heffte_instantiate_fft3d(backend::onemkl, long long)
 heffte_instantiate_fft3d_cos(backend::onemkl_cos, int)
 heffte_instantiate_fft3d_cos(backend::onemkl_cos, long long)
+heffte_instantiate_fft3d_cos(backend::onemkl_sin, int)
+heffte_instantiate_fft3d_cos(backend::onemkl_sin, long long)
 #endif
 
 }

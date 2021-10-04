@@ -76,6 +76,8 @@ void perform_tests(MPI_Comm const comm){
     #ifdef Heffte_ENABLE_ONEAPI
     test_cosine_transform<backend::onemkl_cos, float>(comm);
     test_cosine_transform<backend::onemkl_cos, double>(comm);
+    test_cosine_transform<backend::onemkl_sin, float>(comm);
+    test_cosine_transform<backend::onemkl_sin, double>(comm);
     #endif
 }
 

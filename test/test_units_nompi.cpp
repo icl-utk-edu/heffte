@@ -961,6 +961,7 @@ int main(int, char**){
     #endif
     #ifdef Heffte_ENABLE_ONEAPI
     test_1d_cos<backend::onemkl_cos>();
+    test_1d_sin<backend::onemkl_sin>();
     #endif
 
     test_1d_reorder();

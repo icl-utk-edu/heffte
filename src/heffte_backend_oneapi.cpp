@@ -240,6 +240,10 @@ template<typename precision> struct heffte_cos_pre_forward_kernel{};
 template<typename precision> struct heffte_cos_post_forward_kernel{};
 template<typename precision> struct heffte_cos_pre_backward_kernel{};
 template<typename precision> struct heffte_cos_post_backward_kernel{};
+template<typename precision> struct heffte_sin_pre_forward_kernel{};
+template<typename precision> struct heffte_sin_post_forward_kernel{};
+template<typename precision> struct heffte_sin_pre_backward_kernel{};
+template<typename precision> struct heffte_sin_post_backward_kernel{};
 
 template<typename precision>
 void cos_pre_pos_processor::pre_forward(sycl::queue& stream, int length, precision const input[], precision fft_signal[]){
@@ -294,12 +298,76 @@ void cos_pre_pos_processor::post_backward(sycl::queue& stream, int length, preci
             });
     }).wait();
 }
+template<typename precision>
+void sin_pre_pos_processor::pre_forward(sycl::queue& stream, int length, precision const input[], precision fft_signal[]){
+    stream.submit([&](sycl::handler& h){
+        h.parallel_for<heffte_sin_pre_forward_kernel<precision>>(
+            sycl::range<1>{static_cast<size_t>(length),},
+            [=](sycl::id<1> i){
+                fft_signal[2*i[0]]   = 0.0;
+                fft_signal[2*i[0]+1] = input[i[0]];
+                fft_signal[2*length] = 0.;
+                fft_signal[4*length-2*i[0]]  = 0.0;
+                fft_signal[4*length-2*i[0]-1]= -input[i[0]];
+            });
+    }).wait();
+}
+template<typename precision>
+void sin_pre_pos_processor::post_forward(sycl::queue& stream, int length, std::complex<precision> const fft_signal[], precision result[]){
+    precision const *rfft_signal = reinterpret_cast<precision const*>(fft_signal);
+    stream.submit([&](sycl::handler& h){
+        h.parallel_for<heffte_sin_post_forward_kernel<precision>>(
+            sycl::range<1>{static_cast<size_t>(length),},
+            [=](sycl::id<1> i){
+                result[i] = -rfft_signal[2*(i[0]+1)+1];
+            });
+    }).wait();
+}
+template<typename precision>
+void sin_pre_pos_processor::pre_backward(sycl::queue& stream, int length, precision const input[], std::complex<precision> fft_signal[]){
+    precision *rfft_signal = reinterpret_cast<precision*>(fft_signal);
+    stream.submit([&](sycl::handler& h){
+        h.parallel_for<heffte_sin_pre_backward_kernel<precision>>(
+            sycl::range<1>{static_cast<size_t>(length),},
+            [=](sycl::id<1> i){
+                if (i[0] == 0){
+                    rfft_signal[0] = 0.0;
+                    rfft_signal[1] = 0.0;
+                }
+                if (i[0] < static_cast<size_t>(length)) {
+                    rfft_signal[2*(i[0]+1)]   = 0.0;
+                    rfft_signal[2*(i[0]+1)+1] = -input[i[0]];
+                }
+                if (i[0] == static_cast<size_t>(length)-1){
+                    rfft_signal[4*length]   = 0.0;
+                    rfft_signal[4*length+1] = 0.0;
+                } else if (i[0] < static_cast<size_t>(length)) {
+                    rfft_signal[2*(length+i[0]+1)]   = 0.0;
+                    rfft_signal[2*(length+i[0]+1)+1] = -input[length-i[0]-2];
+                }
+            });
+    }).wait();
+}
+template<typename precision>
+void sin_pre_pos_processor::post_backward(sycl::queue& stream, int length, precision const fft_signal[], precision result[]){
+    stream.submit([&](sycl::handler& h){
+        h.parallel_for<heffte_sin_post_backward_kernel<precision>>(
+            sycl::range<1>{static_cast<size_t>(length),},
+            [=](sycl::id<1> i){
+                result[i[0]] = fft_signal[1+2*i[0]];
+            });
+    }).wait();
+}
 
 #define heffte_instantiate_cos(precision) \
     template void cos_pre_pos_processor::pre_forward<precision>(sycl::queue&, int, precision const[], precision[]); \
     template void cos_pre_pos_processor::post_forward<precision>(sycl::queue&, int,  std::complex<precision> const[], precision[]); \
     template void cos_pre_pos_processor::pre_backward<precision>(sycl::queue&, int, precision const[], std::complex<precision>[]); \
     template void cos_pre_pos_processor::post_backward<precision>(sycl::queue&, int, precision const[], precision[]); \
+    template void sin_pre_pos_processor::pre_forward<precision>(sycl::queue&, int, precision const[], precision[]); \
+    template void sin_pre_pos_processor::post_forward<precision>(sycl::queue&, int,  std::complex<precision> const[], precision[]); \
+    template void sin_pre_pos_processor::pre_backward<precision>(sycl::queue&, int, precision const[], std::complex<precision>[]); \
+    template void sin_pre_pos_processor::post_backward<precision>(sycl::queue&, int, precision const[], precision[]); \
 
 heffte_instantiate_cos(float)
 heffte_instantiate_cos(double)
