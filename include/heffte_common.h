@@ -149,6 +149,11 @@ namespace backend {
      * \brief Type-tag for the Cosine Transform using the cuFFT backend
      */
     struct cufft_cos{};
+    /*!
+     * \ingroup hefftecuda
+     * \brief Type-tag for the Sine Transform using the cuFFT backend
+     */
+    struct cufft_sin{};
 
     /*!
      * \ingroup heffterocm
@@ -274,6 +279,11 @@ namespace backend {
      * \brief Returns the human readable name of the cuFFT backend.
      */
     template<> inline std::string name<cufft_cos>(){ return "cufft-cos"; }
+    /*!
+     * \ingroup hefftecuda
+     * \brief Returns the human readable name of the cuFFT backend.
+     */
+    template<> inline std::string name<cufft_sin>(){ return "cufft-sin"; }
 
     /*!
      * \ingroup heffterocm
@@ -391,6 +401,11 @@ namespace backend {
      * \ingroup hefftemkl
      * \brief Sets the cos() transform types.
      */
+    template<> struct uses_fft_types<cufft_sin> : std::false_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Sets the cos() transform types.
+     */
     template<> struct uses_fft_types<onemkl_cos> : std::false_type{};
 
     /*!
@@ -485,6 +500,7 @@ constexpr bool has_executor2d(){
             or std::is_same<backend_tag, backend::stock_sin>::value
             or std::is_same<backend_tag, backend::fftw_sin>::value
             or std::is_same<backend_tag, backend::mkl_sin>::value
+            or std::is_same<backend_tag, backend::cufft_sin>::value
             );
 }
 /*!
@@ -502,6 +518,7 @@ constexpr bool has_executor3d(){
             or std::is_same<backend_tag, backend::stock_sin>::value
             or std::is_same<backend_tag, backend::fftw_sin>::value
             or std::is_same<backend_tag, backend::mkl_sin>::value
+            or std::is_same<backend_tag, backend::cufft_sin>::value
             );
 }
 

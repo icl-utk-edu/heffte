@@ -126,6 +126,7 @@ plan_options set_options(plan_options opts){
         or std::is_same<backend_tag, backend::stock_sin>::value
         or std::is_same<backend_tag, backend::fftw_sin>::value
         or std::is_same<backend_tag, backend::mkl_sin>::value
+        or std::is_same<backend_tag, backend::cufft_sin>::value
     ){
         // currently the cosine options work only with reorder.
         opts.use_reorder = true;

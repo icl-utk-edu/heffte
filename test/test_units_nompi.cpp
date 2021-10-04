@@ -957,6 +957,7 @@ int main(int, char**){
     #endif
     #ifdef Heffte_ENABLE_CUDA
     test_1d_cos<backend::cufft_cos>();
+    test_1d_sin<backend::cufft_sin>();
     #endif
     #ifdef Heffte_ENABLE_ONEAPI
     test_1d_cos<backend::onemkl_cos>();

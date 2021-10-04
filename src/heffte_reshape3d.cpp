@@ -748,6 +748,8 @@ heffte_instantiate_reshape3d(backend::cufft, int)
 heffte_instantiate_reshape3d(backend::cufft, long long)
 heffte_instantiate_reshape3d(backend::cufft_cos, int)
 heffte_instantiate_reshape3d(backend::cufft_cos, long long)
+heffte_instantiate_reshape3d(backend::cufft_sin, int)
+heffte_instantiate_reshape3d(backend::cufft_sin, long long)
 #endif
 #ifdef Heffte_ENABLE_ROCM
 heffte_instantiate_reshape3d(backend::rocfft, int)
