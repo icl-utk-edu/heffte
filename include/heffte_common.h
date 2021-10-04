@@ -100,6 +100,11 @@ namespace backend {
      * \brief Type-tag for the Cosine Transform using the FFTW backend
      */
     struct fftw_cos{};
+    /*!
+     * \ingroup hefftefftw
+     * \brief Type-tag for the Sine Transform using the FFTW backend
+     */
+    struct fftw_sin{};
 
     /*!
      * \ingroup hefftestock
@@ -111,6 +116,11 @@ namespace backend {
      * \brief Type-tag for the Cosine Transform using the stock FFT backend
      */
     struct stock_cos{};
+    /*!
+     * \ingroup hefftestock
+     * \brief Type-tag for the Sine Transform using the stock FFT backend
+     */
+    struct stock_sin{};
 
     /*!
      * \ingroup hefftemkl
@@ -122,6 +132,11 @@ namespace backend {
      * \brief Type-tag for the Cosine Transform using the MKL FFT backend
      */
     struct mkl_cos{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Type-tag for the Sine Transform using the MKL FFT backend
+     */
+    struct mkl_sin{};
 
     /*!
      * \ingroup hefftecuda
@@ -212,6 +227,11 @@ namespace backend {
      * \brief Returns the human readable name of the FFTW backend.
      */
     template<> inline std::string name<fftw_cos>(){ return "fftw-cos"; }
+    /*!
+     * \ingroup hefftefftw
+     * \brief Returns the human readable name of the FFTW backend.
+     */
+    template<> inline std::string name<fftw_sin>(){ return "fftw-sin"; }
 
     /*!
      * \ingroup hefftestock
@@ -223,6 +243,11 @@ namespace backend {
      * \brief Returns the human readable name of the stock backend.
      */
     template<> inline std::string name<stock_cos>(){ return "stock-cos"; }
+    /*!
+     * \ingroup hefftestock
+     * \brief Returns the human readable name of the stock backend.
+     */
+    template<> inline std::string name<stock_sin>(){ return "stock-sin"; }
 
     /*!
      * \ingroup hefftemkl
@@ -234,6 +259,11 @@ namespace backend {
      * \brief Returns the human readable name of the MKL backend.
      */
     template<> inline std::string name<mkl_cos>(){ return "mkl-cos"; }
+    /*!
+     * \ingroup hefftemkl
+     * \brief Returns the human readable name of the MKL backend.
+     */
+    template<> inline std::string name<mkl_sin>(){ return "mkl-sin"; }
     /*!
      * \ingroup hefftecuda
      * \brief Returns the human readable name of the cuFFT backend.
@@ -328,15 +358,30 @@ namespace backend {
      */
     template<> struct uses_fft_types<fftw_cos> : std::false_type{};
     /*!
+     * \ingroup fft3dbackend
+     * \brief Sets the sin() transform types.
+     */
+    template<> struct uses_fft_types<fftw_sin> : std::false_type{};
+    /*!
      * \ingroup hefftestock
      * \brief Sets the cos() transform types.
      */
     template<> struct uses_fft_types<stock_cos> : std::false_type{};
     /*!
+     * \ingroup hefftestock
+     * \brief Sets the sin() transform types.
+     */
+    template<> struct uses_fft_types<stock_sin> : std::false_type{};
+    /*!
      * \ingroup hefftemkl
      * \brief Sets the cos() transform types.
      */
     template<> struct uses_fft_types<mkl_cos> : std::false_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Sets the sin() transform types.
+     */
+    template<> struct uses_fft_types<mkl_sin> : std::false_type{};
     /*!
      * \ingroup hefftemkl
      * \brief Sets the cos() transform types.
@@ -437,6 +482,9 @@ constexpr bool has_executor2d(){
             or std::is_same<backend_tag, backend::mkl_cos>::value
             or std::is_same<backend_tag, backend::cufft_cos>::value
             or std::is_same<backend_tag, backend::onemkl_cos>::value
+            or std::is_same<backend_tag, backend::stock_sin>::value
+            or std::is_same<backend_tag, backend::fftw_sin>::value
+            or std::is_same<backend_tag, backend::mkl_sin>::value
             );
 }
 /*!
@@ -451,6 +499,9 @@ constexpr bool has_executor3d(){
             or std::is_same<backend_tag, backend::mkl_cos>::value
             or std::is_same<backend_tag, backend::cufft_cos>::value
             or std::is_same<backend_tag, backend::onemkl_cos>::value
+            or std::is_same<backend_tag, backend::stock_sin>::value
+            or std::is_same<backend_tag, backend::fftw_sin>::value
+            or std::is_same<backend_tag, backend::mkl_sin>::value
             );
 }
 

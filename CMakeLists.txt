@@ -77,6 +77,7 @@ set(Heffte_common_sources
     include/heffte_reshape3d.h
     include/heffte_fft3d.h
     include/heffte_fft3d_r2c.h
+    include/heffte_r2r_executor.h
     include/stock_fft/heffte_stock_algos.h
     include/stock_fft/heffte_stock_allocator.h
     include/stock_fft/heffte_stock_complex.h

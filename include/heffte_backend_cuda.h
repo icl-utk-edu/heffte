@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_CUDA_H
 #define HEFFTE_BACKEND_CUDA_H
 
-#include "heffte_cos_executor.h"
+#include "heffte_r2r_executor.h"
 
 #ifdef Heffte_ENABLE_CUDA
 

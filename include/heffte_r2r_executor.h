@@ -56,6 +56,41 @@ struct cpu_cos_pre_pos_processor{
     }
 };
 
+struct cpu_sin_pre_pos_processor{
+    template<typename precision>
+    static void pre_forward(void*, int length, precision const input[], precision fft_signal[]){
+        for(int i=0; i<length; i++){
+            fft_signal[2*i]   = 0.0;
+            fft_signal[2*i+1] = input[i];
+        }
+        fft_signal[2*length] = 0.;
+        for(int i=0; i<length; i++){
+            fft_signal[4*length-2*i]  = 0.0;
+            fft_signal[4*length-2*i-1]= -input[i];
+        }
+    }
+    template<typename precision>
+    static void post_forward(void*, int length, std::complex<precision> const fft_result[], precision result[]){
+        for(int i=0; i < length; i++)
+            result[i] = -std::imag(fft_result[i+1]);
+    }
+    template<typename precision>
+    static void pre_backward(void*, int length, precision const input[], std::complex<precision> fft_signal[]){
+        fft_signal[0] = std::complex<precision>(0.0);
+        for(int i=0; i < length; i++){
+            fft_signal[i+1] = std::complex<precision>(0.0, -input[i]);
+        }
+        fft_signal[2*length] = std::complex<precision>(0.0);
+        for(int i=0; i < length-1; i++){
+            fft_signal[length + i + 1] = std::complex<precision>(0.0, -input[length - i - 2]);
+        }
+    }
+    template<typename precision>
+    static void post_backward(void*, int length, precision const fft_result[], precision result[]){
+        cpu_cos_pre_pos_processor::post_backward(nullptr, length, fft_result, result);
+    }
+};
+
 struct cpu_buffer_factory{
     template<typename scalar_type>
     static std::vector<scalar_type> make(void*, size_t size){ return std::vector<scalar_type>(size); }
