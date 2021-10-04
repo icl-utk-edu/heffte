@@ -111,6 +111,35 @@ namespace rocm {
     void transpose_unpack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
                         index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                         scalar_type const source[], scalar_type destination[]);
+
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
+     */
+    struct cos_pre_pos_processor{
+        template<typename precision>
+        static void pre_forward(hipStream_t, int length, precision const input[], precision fft_signal[]);
+        template<typename precision>
+        static void post_forward(hipStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        template<typename precision>
+        static void pre_backward(hipStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        template<typename precision>
+        static void post_backward(hipStream_t, int length, precision const fft_result[], precision result[]);
+    };
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Sine Transform pre-post processing methods using CUDA.
+     */
+    struct sin_pre_pos_processor{
+        template<typename precision>
+        static void pre_forward(hipStream_t, int length, precision const input[], precision fft_signal[]);
+        template<typename precision>
+        static void post_forward(hipStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        template<typename precision>
+        static void pre_backward(hipStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        template<typename precision>
+        static void post_backward(hipStream_t, int length, precision const fft_result[], precision result[]);
+    };
 }
 
 namespace backend{
@@ -119,6 +148,16 @@ namespace backend{
      * \brief Indicate that the cuFFT backend has been enabled.
      */
     template<> struct is_enabled<rocfft> : std::true_type{};
+    /*!
+     * \ingroup heffterocm
+     * \brief Indicate that the cuFFT backend has been enabled.
+     */
+    template<> struct is_enabled<rocfft_cos> : std::true_type{};
+    /*!
+     * \ingroup heffterocm
+     * \brief Indicate that the cuFFT backend has been enabled.
+     */
+    template<> struct is_enabled<rocfft_sin> : std::true_type{};
 
     /*!
      * \ingroup heffterocm
@@ -126,6 +165,44 @@ namespace backend{
      */
     template<>
     struct device_instance<rocfft>{
+        //! \brief Constructor, sets up the stream.
+        device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        hipStream_t stream(){ return _stream; }
+        //! \brief Returns the nullptr (const case).
+        hipStream_t stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue.
+        void synchronize_device() const{ rocm::check_error(hipStreamSynchronize(_stream), "device sync"); }
+        //! \brief The CUDA stream to be used in all operations.
+        mutable hipStream_t _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = hipStream_t;
+    };
+    /*!
+     * \ingroup heffterocm
+     * \brief The ROCm backend uses a HIP stream.
+     */
+    template<>
+    struct device_instance<rocfft_cos>{
+        //! \brief Constructor, sets up the stream.
+        device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        hipStream_t stream(){ return _stream; }
+        //! \brief Returns the nullptr (const case).
+        hipStream_t stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue.
+        void synchronize_device() const{ rocm::check_error(hipStreamSynchronize(_stream), "device sync"); }
+        //! \brief The CUDA stream to be used in all operations.
+        mutable hipStream_t _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = hipStream_t;
+    };
+    /*!
+     * \ingroup heffterocm
+     * \brief The ROCm backend uses a HIP stream.
+     */
+    template<>
+    struct device_instance<rocfft_sin>{
         //! \brief Constructor, sets up the stream.
         device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
         //! \brief Returns the nullptr.
@@ -215,6 +292,28 @@ namespace backend{
      */
     template<>
     struct buffer_traits<rocfft>{
+        //! \brief The rocfft library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the ROCm vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
+    /*!
+     * \ingroup heffterocm
+     * \brief Defines the location type-tag and the cuda container.
+     */
+    template<>
+    struct buffer_traits<rocfft_cos>{
+        //! \brief The rocfft library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the ROCm vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
+    /*!
+     * \ingroup heffterocm
+     * \brief Defines the location type-tag and the cuda container.
+     */
+    template<>
+    struct buffer_traits<rocfft_sin>{
         //! \brief The rocfft library uses data on the gpu device.
         using location = tag::gpu;
         //! \brief The data is managed by the ROCm vector container.
@@ -684,6 +783,37 @@ template<> struct one_dim_backend<backend::rocfft>{
     using executor_r2c = rocfft_executor_r2c;
 };
 
+struct rocm_buffer_factory{
+    template<typename scalar_type>
+    static backend::buffer_traits<backend::cufft>::container<scalar_type>
+    make(cudaStream_t stream, size_t size){ return backend::buffer_traits<backend::cufft>::container<scalar_type>(stream, size); }
+};
+
+/*!
+ * \ingroup hefftecuda
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::rocfft_cos>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::rocfft, rocm::cos_pre_pos_processor, rocm_buffer_factory>;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
+};
+/*!
+ * \ingroup hefftecuda
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::rocfft_sin>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::rocfft, rocm::sin_pre_pos_processor, rocm_buffer_factory>;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
+};
+
 /*!
  * \ingroup hefftepacking
  * \brief Simple packer that copies sub-boxes without transposing the order of the indexes.
@@ -743,6 +873,22 @@ namespace data_scaling {
  * \brief Sets the default options for the cufft backend.
  */
 template<> struct default_plan_options<backend::rocfft>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup heffterocm
+ * \brief Sets the default options for the cufft backend.
+ */
+template<> struct default_plan_options<backend::rocfft_cos>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup heffterocm
+ * \brief Sets the default options for the cufft backend.
+ */
+template<> struct default_plan_options<backend::rocfft_sin>{
     //! \brief The reshape operations will not transpose the data.
     static const bool use_reorder = true;
 };

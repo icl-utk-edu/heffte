@@ -959,6 +959,10 @@ int main(int, char**){
     test_1d_cos<backend::cufft_cos>();
     test_1d_sin<backend::cufft_sin>();
     #endif
+    #ifdef Heffte_ENABLE_ROCM
+    test_1d_cos<backend::rocfft_cos>();
+    test_1d_sin<backend::rocfft_sin>();
+    #endif
     #ifdef Heffte_ENABLE_ONEAPI
     test_1d_cos<backend::onemkl_cos>();
     test_1d_sin<backend::onemkl_sin>();

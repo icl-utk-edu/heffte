@@ -160,6 +160,16 @@ namespace backend {
      * \brief Type-tag for the rocFFT backend
      */
     struct rocfft{};
+    /*!
+     * \ingroup heffterocm
+     * \brief Type-tag for the Cosine Transform using the rocFFT backend
+     */
+    struct rocfft_cos{};
+    /*!
+     * \ingroup heffterocm
+     * \brief Type-tag for the Sine Transform using the rocFFT backend
+     */
+    struct rocfft_sin{};
 
     /*!
      * \ingroup heffteoneapi
@@ -295,6 +305,16 @@ namespace backend {
      * \brief Returns the human readable name of the rocFFT backend.
      */
     template<> inline std::string name<rocfft>(){ return "rocfft"; }
+    /*!
+     * \ingroup heffterocm
+     * \brief Returns the human readable name of the rocFFT backend.
+     */
+    template<> inline std::string name<rocfft_cos>(){ return "rocfft-cos"; }
+    /*!
+     * \ingroup heffterocm
+     * \brief Returns the human readable name of the rocFFT backend.
+     */
+    template<> inline std::string name<rocfft_sin>(){ return "rocfft-sin"; }
 
     /*!
      * \ingroup heffteoneapi
@@ -416,6 +436,16 @@ namespace backend {
      * \ingroup hefftemkl
      * \brief Sets the cos() transform types.
      */
+    template<> struct uses_fft_types<rocfft_cos> : std::false_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Sets the sin() transform types.
+     */
+    template<> struct uses_fft_types<rocfft_sin> : std::false_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Sets the cos() transform types.
+     */
     template<> struct uses_fft_types<onemkl_cos> : std::false_type{};
     /*!
      * \ingroup hefftemkl
@@ -511,11 +541,13 @@ constexpr bool has_executor2d(){
             or std::is_same<backend_tag, backend::fftw_cos>::value
             or std::is_same<backend_tag, backend::mkl_cos>::value
             or std::is_same<backend_tag, backend::cufft_cos>::value
+            or std::is_same<backend_tag, backend::rocfft_cos>::value
             or std::is_same<backend_tag, backend::onemkl_cos>::value
             or std::is_same<backend_tag, backend::stock_sin>::value
             or std::is_same<backend_tag, backend::fftw_sin>::value
             or std::is_same<backend_tag, backend::mkl_sin>::value
             or std::is_same<backend_tag, backend::cufft_sin>::value
+            or std::is_same<backend_tag, backend::rocfft_sin>::value
             or std::is_same<backend_tag, backend::onemkl_sin>::value
             );
 }
@@ -530,11 +562,13 @@ constexpr bool has_executor3d(){
             or std::is_same<backend_tag, backend::fftw_cos>::value
             or std::is_same<backend_tag, backend::mkl_cos>::value
             or std::is_same<backend_tag, backend::cufft_cos>::value
+            or std::is_same<backend_tag, backend::rocfft_cos>::value
             or std::is_same<backend_tag, backend::onemkl_cos>::value
             or std::is_same<backend_tag, backend::stock_sin>::value
             or std::is_same<backend_tag, backend::fftw_sin>::value
             or std::is_same<backend_tag, backend::mkl_sin>::value
             or std::is_same<backend_tag, backend::cufft_sin>::value
+            or std::is_same<backend_tag, backend::rocfft_sin>::value
             or std::is_same<backend_tag, backend::onemkl_sin>::value
             );
 }
