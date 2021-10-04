@@ -725,23 +725,31 @@ heffte_instantiate_reshape3d(backend::stock, int)
 heffte_instantiate_reshape3d(backend::stock, long long)
 heffte_instantiate_reshape3d(backend::stock_cos, int)
 heffte_instantiate_reshape3d(backend::stock_cos, long long)
+heffte_instantiate_reshape3d(backend::stock_sin, int)
+heffte_instantiate_reshape3d(backend::stock_sin, long long)
 #ifdef Heffte_ENABLE_FFTW
 heffte_instantiate_reshape3d(backend::fftw, int)
 heffte_instantiate_reshape3d(backend::fftw, long long)
 heffte_instantiate_reshape3d(backend::fftw_cos, int)
 heffte_instantiate_reshape3d(backend::fftw_cos, long long)
+heffte_instantiate_reshape3d(backend::fftw_sin, int)
+heffte_instantiate_reshape3d(backend::fftw_sin, long long)
 #endif
 #ifdef Heffte_ENABLE_MKL
 heffte_instantiate_reshape3d(backend::mkl, int)
 heffte_instantiate_reshape3d(backend::mkl, long long)
 heffte_instantiate_reshape3d(backend::mkl_cos, int)
 heffte_instantiate_reshape3d(backend::mkl_cos, long long)
+heffte_instantiate_reshape3d(backend::mkl_sin, int)
+heffte_instantiate_reshape3d(backend::mkl_sin, long long)
 #endif
 #ifdef Heffte_ENABLE_CUDA
 heffte_instantiate_reshape3d(backend::cufft, int)
 heffte_instantiate_reshape3d(backend::cufft, long long)
 heffte_instantiate_reshape3d(backend::cufft_cos, int)
 heffte_instantiate_reshape3d(backend::cufft_cos, long long)
+heffte_instantiate_reshape3d(backend::cufft_sin, int)
+heffte_instantiate_reshape3d(backend::cufft_sin, long long)
 #endif
 #ifdef Heffte_ENABLE_ROCM
 heffte_instantiate_reshape3d(backend::rocfft, int)
@@ -752,6 +760,8 @@ heffte_instantiate_reshape3d(backend::onemkl, int)
 heffte_instantiate_reshape3d(backend::onemkl, long long)
 heffte_instantiate_reshape3d(backend::onemkl_cos, int)
 heffte_instantiate_reshape3d(backend::onemkl_cos, long long)
+heffte_instantiate_reshape3d(backend::onemkl_sin, int)
+heffte_instantiate_reshape3d(backend::onemkl_sin, long long)
 #endif
 
 }

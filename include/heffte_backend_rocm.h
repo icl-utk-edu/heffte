@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_ROCM_H
 #define HEFFTE_BACKEND_ROCM_H
 
-#include "heffte_cos_executor.h"
+#include "heffte_r2r_executor.h"
 
 #ifdef Heffte_ENABLE_ROCM
 

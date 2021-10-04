@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_ONEAPI_H
 #define HEFFTE_BACKEND_ONEAPI_H
 
-#include "heffte_cos_executor.h"
+#include "heffte_r2r_executor.h"
 
 #ifdef Heffte_ENABLE_ONEAPI
 
@@ -123,6 +123,20 @@ namespace oapi {
         template<typename precision>
         static void post_backward(sycl::queue&, int length, precision const fft_result[], precision result[]);
     };
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
+     */
+    struct sin_pre_pos_processor{
+        template<typename precision>
+        static void pre_forward(sycl::queue&, int length, precision const input[], precision fft_signal[]);
+        template<typename precision>
+        static void post_forward(sycl::queue&, int length, std::complex<precision> const fft_result[], precision result[]);
+        template<typename precision>
+        static void pre_backward(sycl::queue&, int length, precision const input[], std::complex<precision> fft_signal[]);
+        template<typename precision>
+        static void post_backward(sycl::queue&, int length, precision const fft_result[], precision result[]);
+    };
 
 }
 
@@ -137,6 +151,11 @@ namespace backend{
      * \brief Indicate that the oneMKL backend has been enabled.
      */
     template<> struct is_enabled<onemkl_cos> : std::true_type{};
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Indicate that the oneMKL backend has been enabled.
+     */
+    template<> struct is_enabled<onemkl_sin> : std::true_type{};
 
     /*!
      * \ingroup heffteoneapi
@@ -167,6 +186,28 @@ namespace backend{
      */
     template<>
     struct device_instance<onemkl_cos>{
+        //! \brief Empty constructor.
+        device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
+        //! \brief Constructor assigning the queue.
+        device_instance(sycl::queue &new_stream) : _stream(new_stream){}
+        //! \brief Constructor assigning from an existing wrapper.
+        device_instance(std::reference_wrapper<sycl::queue> &new_stream) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        sycl::queue& stream(){ return _stream; }
+        //! \brief Returns the nullptr.
+        sycl::queue& stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue.
+        void synchronize_device() const{ _stream.get().wait(); }
+        //! \brief The sycl::queue, either user provided or created by heFFTe.
+        std::reference_wrapper<sycl::queue> _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = std::reference_wrapper<sycl::queue>;
+    };/*!
+     * \ingroup heffteoneapi
+     * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
+     */
+    template<>
+    struct device_instance<onemkl_sin>{
         //! \brief Empty constructor.
         device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
         //! \brief Constructor assigning the queue.
@@ -263,6 +304,17 @@ namespace backend{
      */
     template<>
     struct buffer_traits<onemkl_cos>{
+        //! \brief The oneMKL library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the oneAPI vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Defines the location type-tag and the oneAPI container.
+     */
+    template<>
+    struct buffer_traits<onemkl_sin>{
         //! \brief The oneMKL library uses data on the gpu device.
         using location = tag::gpu;
         //! \brief The data is managed by the oneAPI vector container.
@@ -553,6 +605,16 @@ template<> struct one_dim_backend<backend::onemkl_cos>{
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = onemkl_executor_r2c;
 };
+/*!
+ * \ingroup heffteoneapi
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ */
+template<> struct one_dim_backend<backend::onemkl_sin>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::onemkl, oapi::sin_pre_pos_processor, oneapi_buffer_factory>;;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = onemkl_executor_r2c;
+};
 
 /*!
  * \ingroup hefftepacking
@@ -623,6 +685,14 @@ template<> struct default_plan_options<backend::onemkl>{
  * \brief Sets the default options for the oneMKL backend.
  */
 template<> struct default_plan_options<backend::onemkl_cos>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup heffteoneapi
+ * \brief Sets the default options for the oneMKL backend.
+ */
+template<> struct default_plan_options<backend::onemkl_sin>{
     //! \brief The reshape operations will not transpose the data.
     static const bool use_reorder = true;
 };

@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_FFTW_H
 #define HEFFTE_BACKEND_FFTW_H
 
-#include "heffte_cos_executor.h"
+#include "heffte_r2r_executor.h"
 
 #ifdef Heffte_ENABLE_FFTW
 
@@ -38,6 +38,11 @@ namespace backend{
      * \brief Indicate that the cos() transform using the FFTW backend has been enabled.
      */
     template<> struct is_enabled<fftw_cos> : std::true_type{};
+    /*!
+     * \ingroup hefftefftw
+     * \brief Indicate that the cos() transform using the FFTW backend has been enabled.
+     */
+    template<> struct is_enabled<fftw_sin> : std::true_type{};
 
 // Specialization is not necessary since the default behavior assumes CPU parameters.
 //     template<>
@@ -477,6 +482,18 @@ template<> struct one_dim_backend<backend::fftw_cos>{
     //! \brief There is no real-to-complex variant.
     using executor_r2c = void;
 };
+/*!
+ * \ingroup hefftefftw
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::fftw_sin>{
+    //! \brief Defines the real-to-real executor.
+    using executor = real2real_executor<backend::fftw, cpu_sin_pre_pos_processor, cpu_buffer_factory>;
+    //! \brief There is no real-to-complex variant.
+    using executor_r2c = void;
+};
 
 /*!
  * \ingroup hefftefftw
@@ -492,6 +509,14 @@ template<> struct default_plan_options<backend::fftw>{
  * \brief Sets the default options for the fftw backend.
  */
 template<> struct default_plan_options<backend::fftw_cos>{
+    //! \brief The reshape operations will also reorder the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup hefftefftw
+ * \brief Sets the default options for the fftw backend.
+ */
+template<> struct default_plan_options<backend::fftw_sin>{
     //! \brief The reshape operations will also reorder the data.
     static const bool use_reorder = true;
 };
