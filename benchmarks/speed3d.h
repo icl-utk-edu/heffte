@@ -7,18 +7,33 @@
 
 #include "test_fft3d.h"
 
-#ifdef Heffte_ENABLE_CUDA
-using gpu_backend = heffte::backend::cufft;
+#ifdef BENCH_C2C
+template<typename precision>
+struct bench_types{
+    using input = std::complex<precision>;
+    using output = std::complex<precision>;
+};
 #endif
-#ifdef Heffte_ENABLE_ROCM
-using gpu_backend = heffte::backend::rocfft;
+#ifdef BENCH_R2C
+template<typename precision>
+struct bench_types{
+    using input = precision;
+    using output = std::complex<precision>;
+};
 #endif
-#ifdef Heffte_ENABLE_ONEAPI
-using gpu_backend = heffte::backend::onemkl;
+#ifdef BENCH_R2R
+template<typename precision>
+struct bench_types{
+    using input = precision;
+    using output = precision;
+};
 #endif
 
 template<typename backend_tag, typename precision_type, typename index>
 void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &args){
+
+    using input_type = typename bench_types<precision_type>::input;
+    using output_type = typename bench_types<precision_type>::output;
 
     int me, nprocs;
     MPI_Comm fft_comm = MPI_COMM_WORLD;  // Change if need to compute FFT within a subcommunicator
@@ -49,19 +64,27 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     if (proc_o[0] * proc_o[1] * proc_o[2] != nprocs)
         throw std::runtime_error(std::string(" incorrect output processor grid, specified ") + std::to_string(proc_o[0] * proc_o[1] * proc_o[2]) + " processors but using " + std::to_string(nprocs));
 
+    int const r2c_dir = [&]()->int{
+        #ifdef BENCH_R2C
+        int r = get_r2c_directoin(args);
+        return (r == -1) ? 0 : r;
+        #else
+        return -1;
+        #endif
+    }();
+
     std::vector<box3d<index>> inboxes  = heffte::split_world(world, proc_i);
-    std::vector<box3d<index>> outboxes = heffte::split_world(world, proc_o);
+    std::vector<box3d<index>> outboxes = heffte::split_world((r2c_dir == -1) ? world : world.r2c(r2c_dir), proc_o);
 
     #ifdef Heffte_ENABLE_GPU
-    if (std::is_same<backend_tag, gpu_backend>::value and has_option(args, "-mps")){
+    if (backend::uses_gpu<backend_tag>::value and has_option(args, "-mps")){
         heffte::gpu::device_set(me % heffte::gpu::device_count());
     }
     #endif
 
     // Define 3D FFT plan
-    heffte::plan_options options = args_to_options<backend_tag>(args);
 
-    auto fft = make_fft3d<backend_tag>(inboxes[me], outboxes[me], fft_comm, options);
+    heffte::plan_options options = args_to_options<backend_tag>(args);
 
     std::array<int, 2> proc_grid = make_procgrid(nprocs);
     // writes out the proc_grid in the given dimension
@@ -78,32 +101,54 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     };
 
     // the call above uses the following plan, get it twice to give verbose info of the grid-shapes
-    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, -1, heffte::default_options<backend_tag>());
+    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, r2c_dir, heffte::default_options<backend_tag>());
 
     // Locally initialize input
-    auto input = make_data<BENCH_INPUT>(inboxes[me]);
+    auto input = make_data<input_type>(inboxes[me]);
     auto reference_input = input; // safe a copy for error checking
 
     // define allocation for in-place transform
-    std::vector<std::complex<precision_type>> output(std::max(fft.size_outbox(), fft.size_inbox()));
+    #if defined(BENCH_C2C) || defined(BENCH_R2R)
+    auto fft = make_fft3d<backend_tag>(inboxes[me], outboxes[me], fft_comm, options);
+    std::vector<output_type> output(std::max(fft.size_outbox(), fft.size_inbox()));
     std::copy(input.begin(), input.end(), output.begin());
 
-    std::complex<precision_type> *output_array = output.data();
+    output_type *output_array = output.data();
     #ifdef Heffte_ENABLE_GPU
-    gpu::vector<std::complex<precision_type>> gpu_output;
-    if (std::is_same<backend_tag, gpu_backend>::value){
+    gpu::vector<output_type> gpu_output;
+    if (backend::uses_gpu<backend_tag>::value){
         gpu_output = gpu::transfer::load(output);
         output_array = gpu_output.data();
     }
     #endif
+    output_type *input_array = output_array; // using in-place transform for the C2C case
+    output_type *result = output.data();
+    #endif
+
+    #ifdef BENCH_R2C
+    auto fft = make_fft3d_r2c<backend_tag>(inboxes[me], outboxes[me], r2c_dir, fft_comm, options);
+
+    input_type *input_array = input.data();
+    #ifdef Heffte_ENABLE_GPU
+    gpu::vector<input_type> gpu_input;
+    if (backend::uses_gpu<backend_tag>::value){
+        gpu_input = gpu::transfer::load(input);
+        input_array = gpu_input.data();
+    }
+    #endif
+
+    typename heffte::fft3d<backend_tag>::template buffer_container<output_type> output(fft.size_outbox());
+    output_type *output_array = output.data();
+    input_type *result = input.data();
+    #endif
 
     // Define workspace array
-    typename heffte::fft3d<backend_tag>::template buffer_container<std::complex<precision_type>> workspace(fft.size_workspace());
+    typename heffte::fft3d<backend_tag>::template buffer_container<output_type> workspace(fft.size_workspace());
 
     // Warmup
     heffte::add_trace("mark warmup begin");
-    fft.forward(output_array, output_array,  scale::full);
-    fft.backward(output_array, output_array);
+    fft.forward(input_array, output_array,  scale::full);
+    fft.backward(output_array, input_array);
 
     // Execution
     int const ntest = nruns(args);
@@ -111,9 +156,9 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     double t = -MPI_Wtime();
     for(int i = 0; i < ntest; ++i) {
         heffte::add_trace("mark forward begin");
-        fft.forward(output_array, output_array, workspace.data(), scale::full);
+        fft.forward(input_array, output_array, workspace.data(), scale::full);
         heffte::add_trace("mark backward begin");
-        fft.backward(output_array, output_array, workspace.data());
+        fft.backward(output_array, input_array, workspace.data());
     }
     #ifdef Heffte_ENABLE_GPU
     if (backend::uses_gpu<backend_tag>::value)
@@ -126,18 +171,25 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     double t_max = 0.0;
 	MPI_Reduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, 0, fft_comm);
 
-    // Validate result
+    // Validate result, but first unload from the GPU
     #ifdef Heffte_ENABLE_GPU
+    #if defined(BENCH_C2C) || defined(BENCH_R2R)
     if (std::is_same<backend_tag, gpu_backend>::value){
-        // unload from the GPU, if it was stored there
         output = gpu::transfer::unload(gpu_output);
+        result = output.data();
     }
     #endif
-    output.resize(input.size()); // match the size of the original input
+    #ifdef BENCH_R2C
+    if (std::is_same<backend_tag, gpu_backend>::value){
+        input = gpu::transfer::unload(gpu_input);
+        result = input.data();
+    }
+    #endif
+    #endif
 
     precision_type err = 0.0;
     for(size_t i=0; i<input.size(); i++)
-        err = std::max(err, std::abs(input[i] - output[i]));
+        err = std::max(err, std::abs(reference_input[i] - result[i]));
     precision_type mpi_max_err = 0.0;
     MPI_Allreduce(&err, &mpi_max_err, 1, mpi::type_from<precision_type>(), MPI_MAX, fft_comm);
 
@@ -159,7 +211,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
         double const floprate = 5.0 * fftsize * std::log(fftsize) * 1e-9 / std::log(2.0) / t_max;
         long long mem_usage = static_cast<long long>(fft.size_inbox()) + static_cast<long long>(fft.size_outbox())
                             + static_cast<long long>(fft.size_workspace());
-        mem_usage *= sizeof(std::complex<precision_type>);
+        mem_usage *= sizeof(output_type);
         mem_usage /= 1024ll * 1024ll; // convert to MB
         cout << "\n----------------------------------------------------------------------------- \n";
         cout << "heFFTe performance test\n";
@@ -206,10 +258,32 @@ int main(int argc, char *argv[]){
 
     #ifdef BENCH_C2C
     std::string bench_executable = "./speed3d_c2c";
-    #else
+    #endif
+    #ifdef BENCH_R2C
     std::string bench_executable = "./speed3d_r2c";
     #endif
+    #ifdef BENCH_R2R
+    std::string bench_executable = "./speed3d_r2r";
+    #endif
 
+#ifdef BENCH_R2R
+    std::string backends = "stock-cos stock-sin ";
+    #ifdef Heffte_ENABLE_FFTW
+    backends += "fftw-cos fftw-sin ";
+    #endif
+    #ifdef Heffte_ENABLE_CUDA
+    backends += "cufft-cos cufft-sin ";
+    #endif
+    #ifdef Heffte_ENABLE_ROCM
+    backends += "rocfft-cos rocfft-sin ";
+    #endif
+    #ifdef Heffte_ENABLE_ONEAPI
+    backends += "onemkl-cos onemkl-sin ";
+    #endif
+    #ifdef Heffte_ENABLE_MKL
+    backends += "mkl-cos mkl-sin ";
+    #endif
+#else
     std::string backends = "stock ";
     #ifdef Heffte_ENABLE_FFTW
     backends += "fftw ";
@@ -226,6 +300,7 @@ int main(int argc, char *argv[]){
     #ifdef Heffte_ENABLE_MKL
     backends += "mkl ";
     #endif
+#endif
 
     if (argc < 6){
         if (mpi::world_rank(0)){
@@ -249,12 +324,20 @@ int main(int argc, char *argv[]){
                  << "         -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries \n"
                  << "         -ingrid x y z: specifies the processor grid to use in the input, x y z must be integers \n"
                  << "         -outgrid x y z: specifies the processor grid to use in the output, x y z must be integers \n"
+                 << "         -r2c_dir dir: specifies the r2c direction for the r2c tests, dir must be 0 1 or 2 \n"
                  << "         -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices\n"
                  << "         -nX: number of times to repeat the run, accepted variants are -n5 (default), -n10, -n50\n"
+                 #ifdef BENCH_R2R
+                 << "Examples:\n"
+                 << "    mpirun -np  4 " << bench_executable << " fftw-cos  double 128 128 128 -p2p\n"
+                 << "    mpirun -np  8 " << bench_executable << " cufft-cos float  256 256 256\n"
+                 << "    mpirun -np 12 " << bench_executable << " fftw-sin  double 512 512 512 -slabs\n\n";
+                 #else
                  << "Examples:\n"
                  << "    mpirun -np  4 " << bench_executable << " fftw  double 128 128 128 -no-reorder\n"
                  << "    mpirun -np  8 " << bench_executable << " cufft float  256 256 256\n"
                  << "    mpirun -np 12 " << bench_executable << " fftw  double 512 512 512 -p2p -slabs\n\n";
+                 #endif
         }
 
         MPI_Finalize();
@@ -292,6 +375,30 @@ int main(int argc, char *argv[]){
                  + std::string(argv[3]) + "_" + std::string(argv[4]) + "_" + std::string(argv[5]));
 
     bool valid_backend = false;
+#ifdef BENCH_R2R
+    #ifdef Heffte_ENABLE_FFTW
+    valid_backend = valid_backend or perform_benchmark<backend::fftw_cos>(precision_string, backend_string, "fftw-cos", size_fft, arguments(argc, argv));
+    valid_backend = valid_backend or perform_benchmark<backend::fftw_sin>(precision_string, backend_string, "fftw-sin", size_fft, arguments(argc, argv));
+    #endif
+    valid_backend = valid_backend or perform_benchmark<backend::stock_cos>(precision_string, backend_string, "stock-cos", size_fft, arguments(argc, argv));
+    valid_backend = valid_backend or perform_benchmark<backend::stock_sin>(precision_string, backend_string, "stock-sin", size_fft, arguments(argc, argv));
+    #ifdef Heffte_ENABLE_MKL
+    valid_backend = valid_backend or perform_benchmark<backend::mkl_cos>(precision_string, backend_string, "mkl-cos", size_fft, arguments(argc, argv));
+    valid_backend = valid_backend or perform_benchmark<backend::mkl_sin>(precision_string, backend_string, "mkl-sin", size_fft, arguments(argc, argv));
+    #endif
+    #ifdef Heffte_ENABLE_CUDA
+    valid_backend = valid_backend or perform_benchmark<backend::cufft_cos>(precision_string, backend_string, "cufft-cos", size_fft, arguments(argc, argv));
+    valid_backend = valid_backend or perform_benchmark<backend::cufft_sin>(precision_string, backend_string, "cufft-sin", size_fft, arguments(argc, argv));
+    #endif
+    #ifdef Heffte_ENABLE_ROCM
+    valid_backend = valid_backend or perform_benchmark<backend::rocfft_cos>(precision_string, backend_string, "rocfft-cos", size_fft, arguments(argc, argv));
+    valid_backend = valid_backend or perform_benchmark<backend::rocfft_sin>(precision_string, backend_string, "rocfft-sin", size_fft, arguments(argc, argv));
+    #endif
+    #ifdef Heffte_ENABLE_ONEAPI
+    valid_backend = valid_backend or perform_benchmark<backend::onemkl_cos>(precision_string, backend_string, "onemkl-cos", size_fft, arguments(argc, argv));
+    valid_backend = valid_backend or perform_benchmark<backend::onemkl_sin>(precision_string, backend_string, "onemkl-sin", size_fft, arguments(argc, argv));
+    #endif
+#else
     #ifdef Heffte_ENABLE_FFTW
     valid_backend = valid_backend or perform_benchmark<backend::fftw>(precision_string, backend_string, "fftw", size_fft, arguments(argc, argv));
     #endif
@@ -308,6 +415,7 @@ int main(int argc, char *argv[]){
     #ifdef Heffte_ENABLE_ONEAPI
     valid_backend = valid_backend or perform_benchmark<backend::onemkl>(precision_string, backend_string, "onemkl", size_fft, arguments(argc, argv));
     #endif
+#endif
 
     if (not valid_backend){
         if (mpi::world_rank(0)){

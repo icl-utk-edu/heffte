@@ -70,14 +70,14 @@ void benchmark_convolution(std::array<int,3> size_fft, std::deque<std::string> c
 
     // Locally initialize inputs
     auto X = make_data<BENCH_INPUT>(inboxes[me]);
-    auto Y = X; 
+    auto Y = X;
 
     // define allocation for in-place transform
     std::vector<std::complex<precision_type>> output(std::max(fft.size_outbox(), fft.size_inbox()));
     std::copy(X.begin(), X.end(), output.begin());
 
     std::complex<precision_type> *output_array = output.data();
-    
+
     // Define workspace array
     typename heffte::fft3d<backend_tag>::template buffer_container<std::complex<precision_type>> workspace(fft.size_workspace());
 
@@ -87,8 +87,8 @@ void benchmark_convolution(std::array<int,3> size_fft, std::deque<std::string> c
     MPI_Barrier(fft_comm);
     double t = -MPI_Wtime();
         fft.forward(output_array, output_array, workspace.data(), scale::full);
-        
-        for(int i=0; i<output.size(); ++i){
+
+        for(size_t i=0; i<output.size(); ++i){
             // cout << output_array[i] << endl;
             output_array[i] *= output_array[i];
         }
@@ -104,12 +104,12 @@ void benchmark_convolution(std::array<int,3> size_fft, std::deque<std::string> c
     // Print results
     if(me==0){
         t_max = t_max / (2.0 * ntest);
-        double const fftsize  = static_cast<double>(world.count());
-        double const floprate = 5.0 * fftsize * std::log(fftsize) * 1e-9 / std::log(2.0) / t_max;
-        long long mem_usage = static_cast<long long>(fft.size_inbox()) + static_cast<long long>(fft.size_outbox())
-                            + static_cast<long long>(fft.size_workspace());
-        mem_usage *= sizeof(std::complex<precision_type>);
-        mem_usage /= 1024ll * 1024ll; // convert to MB
+//         double const fftsize  = static_cast<double>(world.count());
+//         double const floprate = 5.0 * fftsize * std::log(fftsize) * 1e-9 / std::log(2.0) / t_max;
+//         long long mem_usage = static_cast<long long>(fft.size_inbox()) + static_cast<long long>(fft.size_outbox())
+//                             + static_cast<long long>(fft.size_workspace());
+//         mem_usage *= sizeof(std::complex<precision_type>);
+//         mem_usage /= 1024ll * 1024ll; // convert to MB
         cout << "\n----------------------------------------------------------------------------- \n";
         cout << "heFFTe performance test\n";
         cout << "----------------------------------------------------------------------------- \n";

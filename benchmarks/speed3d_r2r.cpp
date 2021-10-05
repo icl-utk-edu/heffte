@@ -5,6 +5,6 @@
        Performance test for 3D FFTs using heFFTe to compute 3D real-to-complex transforms
 */
 
-#define BENCH_R2C
+#define BENCH_R2R
 
 #include "speed3d.h"
