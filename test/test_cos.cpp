@@ -35,7 +35,7 @@ void test_cosine_transform(MPI_Comm comm){
 
     for(auto const options : make_all_options<backend_tag>()){
         if (not options.use_pencils) continue;
-        heffte::fft3d<backend_tag> trans_cos(boxes[me], boxes[me], comm, options);
+        heffte::rtransform<backend_tag> trans_cos(boxes[me], boxes[me], comm, options);
         tvector forward(trans_cos.size_outbox());
 
         trans_cos.forward(local_input.data(), forward.data());
