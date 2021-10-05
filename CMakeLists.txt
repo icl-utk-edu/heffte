@@ -9,8 +9,8 @@ option(Heffte_ENABLE_ONEAPI   "Enable the oneAPI/DPC++ and oneMKL backend"  OFF)
 option(Heffte_ENABLE_MKL      "Enable the Intel MKL backend"       OFF)
 option(Heffte_ENABLE_DOXYGEN  "Build the Doxygen documentation"    OFF)
 
-option(Heffte_ENABLE_INTRINSICS  "Enable the use of AVX registers in the stock backend, adds flags: -mfma -mavx"    OFF)
-option(Heffte_ENABLE_AVX512      "Enable the use of AVX512 registers in the stock backend, adds flag: -mavx512f"    OFF)
+option(Heffte_ENABLE_AVX      "Enable the use of AVX registers in the stock backend, adds flags: -mfma -mavx"       OFF)
+option(Heffte_ENABLE_AVX512   "Enable the use of AVX512 registers in the stock backend, adds AVX flags plus: -mavx512f -mavx512dq"    OFF)
 
 option(Heffte_ENABLE_MAGMA    "Enable some helper functions from UTK MAGMA for GPU backends"   OFF)
 
@@ -25,16 +25,23 @@ option(BUILD_SHARED_LIBS      "Builds shared libraries using CMake conventions" 
 # add the file with common CMake helper macros
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/heffte_macros.cmake")
 
+set(Heffte_langs "CXX")
 if (CMAKE_C_COMPILER)
     enable_language(C)
+    set(Heffte_langs "${Heffte_langs} C")
 endif()
 if (Heffte_ENABLE_FORTRAN)
     enable_language(Fortran)
+    set(Heffte_langs "${Heffte_langs} Fortran")
 endif()
 
 # oneAPI requires regular MKL as a CPU backend
 if (Heffte_ENABLE_ONEAPI)
     set(Heffte_ENABLE_MKL ON CACHE BOOL "oneAPI requires Intel MKL backend to be enabled" FORCE)
+endif()
+
+if (Heffte_ENABLE_AVX512)
+    set(Heffte_ENABLE_AVX ON CACHE BOOL "AVX with 256-bits requires AVX512" FORCE)
 endif()
 
 # guard against in-source builds (may be tricked by sym-links, but it is as good as it gets)
@@ -70,6 +77,12 @@ set(Heffte_common_sources
     include/heffte_reshape3d.h
     include/heffte_fft3d.h
     include/heffte_fft3d_r2c.h
+    include/heffte_r2r_executor.h
+    include/stock_fft/heffte_stock_algos.h
+    include/stock_fft/heffte_stock_allocator.h
+    include/stock_fft/heffte_stock_complex.h
+    include/stock_fft/heffte_stock_tree.h
+    include/stock_fft/heffte_stock_vec_types.h
     src/heffte_c.cpp
     src/heffte_plan_logic.cpp
     src/heffte_magma_helpers.cpp
@@ -113,10 +126,6 @@ endif()
 # handle other dependencies
 target_link_libraries(Heffte MPI::MPI_CXX)
 
-list(APPEND Heffte_common_sources
-     include/stock_fft/*
-    )
-
 if (Heffte_ENABLE_FFTW)
     find_package(HeffteFFTW REQUIRED)
     target_link_libraries(Heffte Heffte::FFTW)
@@ -147,12 +156,11 @@ if (Heffte_ENABLE_MAGMA)
 endif()
 
 # other target properties
-if (Heffte_ENABLE_INTRINSICS OR Heffte_ENABLE_AVX512)
+if (Heffte_ENABLE_AVX)
     target_compile_options(Heffte PUBLIC -mfma -mavx)
 endif()
-
 if (Heffte_ENABLE_AVX512)
-    target_compile_options(Heffte PUBLIC -mavx512f)
+    target_compile_options(Heffte PUBLIC -mavx512f -mavx512dq)
 endif()
 
 target_compile_features(Heffte PUBLIC cxx_std_11)
@@ -216,10 +224,12 @@ endif()
 # Post Install Test
 ###########################
 # The REGEX helps accept both list and regular set of flags.
-string(REGEX REPLACE ";" " " Heffte_mpi_preflags  "${MPIEXEC_PREFLAGS}")
-string(REGEX REPLACE ";" " " Heffte_mpi_postflags "${MPIEXEC_POSTFLAGS}")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MakeTest.cmake" "${CMAKE_CURRENT_BINARY_DIR}/configured/CMakeLists.txt" @ONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/test/post_install_test.cmake.sh" "${CMAKE_CURRENT_BINARY_DIR}/post_install_test.sh" @ONLY)
 add_custom_target(test_install COMMAND bash "${CMAKE_CURRENT_BINARY_DIR}/post_install_test.sh")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/configured/CMakeLists.txt"
+        DESTINATION "share/heffte/testing/"
+        PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ)
 
 
 ##############################
@@ -227,7 +237,7 @@ add_custom_target(test_install COMMAND bash "${CMAKE_CURRENT_BINARY_DIR}/post_in
 ##############################
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExampleCMakeLists.cmake" "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" DESTINATION share/heffte/examples)
-install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.f90")
+install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.c" PATTERN "*.f90")
 
 # print summary of the CMake options, skip if using add_subdirectory(heffte)
 if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})

@@ -10,7 +10,7 @@ if (Heffte_ENABLE_CUDA)
     list(APPEND HEFFTE_OPTIONS "CUDA_TOOLKIT_ROOT_DIR")
 endif()
 
-foreach(_opt FFTW MKL CUDA ROCM ONEAPI INTRINSICS PYTHON FORTRAN TRACING)
+foreach(_opt FFTW MKL CUDA ROCM ONEAPI AVX AVX512 PYTHON FORTRAN TRACING)
     list(APPEND HEFFTE_OPTIONS "Heffte_ENABLE_${_opt}")
 endforeach()
 
@@ -18,5 +18,8 @@ foreach(_opt ${HEFFTE_OPTIONS})
     message(STATUS " -D ${_opt}=${${_opt}}")
 endforeach()
 unset(_opt)
+if (Heffte_ENABLE_SWIG)
+    message(STATUS " -D Heffte_ENABLE_SWIG=ON")
+endif()
 
 message(STATUS "")

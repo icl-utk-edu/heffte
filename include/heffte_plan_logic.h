@@ -76,7 +76,7 @@ struct plan_options{
     {}
     //! \brief Constructor, initializes each variable, primarily for internal use.
     plan_options(bool reorder, reshape_algorithm alg, bool pencils)
-        : use_reorder(reorder), algorithm(alg), use_pencils(pencils)
+        : use_reorder(reorder), algorithm(alg), use_pencils(pencils), use_gpu_aware(true)
     {}
     //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
     bool use_reorder;
@@ -106,6 +106,41 @@ inline std::ostream & operator << (std::ostream &os, plan_options const options)
        << ((options.use_pencils) ? "decomposition:pencil" : "decomposition:slab") << ", "
        << ((options.use_gpu_aware) ? "mpi:from-gpu" : "mpi:from-cpu") << ")";
     return os;
+}
+
+/*!
+ * \ingroup fft3d
+ * \brief Adjusts the user provided options to what can be handled by the backend.
+ *
+ * Some backends do not support all available options, e.g., they require the use_reorder
+ * option to be set on. This template makes the necessary adjustments so that the correct
+ * answer is always computed even if the user provides unsupported options.
+ */
+template<typename backend_tag, bool use_r2c = false>
+plan_options set_options(plan_options opts){
+    if (std::is_same<backend_tag, backend::stock_cos>::value
+        or std::is_same<backend_tag, backend::fftw_cos>::value
+        or std::is_same<backend_tag, backend::mkl_cos>::value
+        or std::is_same<backend_tag, backend::cufft_cos>::value
+        or std::is_same<backend_tag, backend::rocfft_cos>::value
+        or std::is_same<backend_tag, backend::onemkl_cos>::value
+        or std::is_same<backend_tag, backend::stock_sin>::value
+        or std::is_same<backend_tag, backend::fftw_sin>::value
+        or std::is_same<backend_tag, backend::mkl_sin>::value
+        or std::is_same<backend_tag, backend::cufft_sin>::value
+        or std::is_same<backend_tag, backend::rocfft_sin>::value
+        or std::is_same<backend_tag, backend::onemkl_sin>::value
+    ){
+        // currently the cosine options work only with reorder.
+        opts.use_reorder = true;
+        return opts;
+    }else if (use_r2c and std::is_same<backend_tag, backend::rocfft>::value){
+        // the rocfft backend with r2c requires the reorder (problem with the strides)
+        opts.use_reorder = true;
+        return opts;
+    }else{
+        return opts; // all options are supported for this backend
+    }
 }
 
 /*!

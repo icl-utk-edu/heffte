@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_ROCM_H
 #define HEFFTE_BACKEND_ROCM_H
 
-#include "heffte_pack3d.h"
+#include "heffte_r2r_executor.h"
 
 #ifdef Heffte_ENABLE_ROCM
 
@@ -111,6 +111,35 @@ namespace rocm {
     void transpose_unpack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
                         index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                         scalar_type const source[], scalar_type destination[]);
+
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
+     */
+    struct cos_pre_pos_processor{
+        template<typename precision>
+        static void pre_forward(hipStream_t, int length, precision const input[], precision fft_signal[]);
+        template<typename precision>
+        static void post_forward(hipStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        template<typename precision>
+        static void pre_backward(hipStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        template<typename precision>
+        static void post_backward(hipStream_t, int length, precision const fft_result[], precision result[]);
+    };
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Sine Transform pre-post processing methods using CUDA.
+     */
+    struct sin_pre_pos_processor{
+        template<typename precision>
+        static void pre_forward(hipStream_t, int length, precision const input[], precision fft_signal[]);
+        template<typename precision>
+        static void post_forward(hipStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        template<typename precision>
+        static void pre_backward(hipStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        template<typename precision>
+        static void post_backward(hipStream_t, int length, precision const fft_result[], precision result[]);
+    };
 }
 
 namespace backend{
@@ -119,6 +148,16 @@ namespace backend{
      * \brief Indicate that the cuFFT backend has been enabled.
      */
     template<> struct is_enabled<rocfft> : std::true_type{};
+    /*!
+     * \ingroup heffterocm
+     * \brief Indicate that the cuFFT backend has been enabled.
+     */
+    template<> struct is_enabled<rocfft_cos> : std::true_type{};
+    /*!
+     * \ingroup heffterocm
+     * \brief Indicate that the cuFFT backend has been enabled.
+     */
+    template<> struct is_enabled<rocfft_sin> : std::true_type{};
 
     /*!
      * \ingroup heffterocm
@@ -126,6 +165,44 @@ namespace backend{
      */
     template<>
     struct device_instance<rocfft>{
+        //! \brief Constructor, sets up the stream.
+        device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        hipStream_t stream(){ return _stream; }
+        //! \brief Returns the nullptr (const case).
+        hipStream_t stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue.
+        void synchronize_device() const{ rocm::check_error(hipStreamSynchronize(_stream), "device sync"); }
+        //! \brief The CUDA stream to be used in all operations.
+        mutable hipStream_t _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = hipStream_t;
+    };
+    /*!
+     * \ingroup heffterocm
+     * \brief The ROCm backend uses a HIP stream.
+     */
+    template<>
+    struct device_instance<rocfft_cos>{
+        //! \brief Constructor, sets up the stream.
+        device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        hipStream_t stream(){ return _stream; }
+        //! \brief Returns the nullptr (const case).
+        hipStream_t stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue.
+        void synchronize_device() const{ rocm::check_error(hipStreamSynchronize(_stream), "device sync"); }
+        //! \brief The CUDA stream to be used in all operations.
+        mutable hipStream_t _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = hipStream_t;
+    };
+    /*!
+     * \ingroup heffterocm
+     * \brief The ROCm backend uses a HIP stream.
+     */
+    template<>
+    struct device_instance<rocfft_sin>{
         //! \brief Constructor, sets up the stream.
         device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
         //! \brief Returns the nullptr.
@@ -215,6 +292,28 @@ namespace backend{
      */
     template<>
     struct buffer_traits<rocfft>{
+        //! \brief The rocfft library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the ROCm vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
+    /*!
+     * \ingroup heffterocm
+     * \brief Defines the location type-tag and the cuda container.
+     */
+    template<>
+    struct buffer_traits<rocfft_cos>{
+        //! \brief The rocfft library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the ROCm vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
+    /*!
+     * \ingroup heffterocm
+     * \brief Defines the location type-tag and the cuda container.
+     */
+    template<>
+    struct buffer_traits<rocfft_sin>{
         //! \brief The rocfft library uses data on the gpu device.
         using location = tag::gpu;
         //! \brief The data is managed by the ROCm vector container.
@@ -324,6 +423,70 @@ struct plan_rocfft<std::complex<precision_type>, dir>{
 
         rocm::check_error( rocfft_plan_description_destroy(desc), "rocm plan destroy");
     }
+    /*!
+     * \brief Constructor, takes inputs identical to cufftMakePlanMany().
+     *
+     * \param size1 is the number of entries in a 2-D transform, direction 1
+     * \param size2 is the number of entries in a 2-D transform, direction 2
+     * \param embed is the stride between entries in each dimension
+     * \param batch is the number of transforms in the batch
+     * \param dist is the distance between the first entries of consecutive sequences
+     */
+    plan_rocfft(size_t size1, size_t size2, std::array<size_t, 2> const &embed, size_t batch, size_t dist) : plan(nullptr), worksize(0){
+        size_t size[2] = {size1, size2};
+
+        rocfft_plan_description desc = nullptr;
+        rocm::check_error( rocfft_plan_description_create(&desc), "rocm plan create");
+
+        rocm::check_error(
+            rocfft_plan_description_set_data_layout(
+                desc,
+                rocfft_array_type_complex_interleaved,
+                rocfft_array_type_complex_interleaved,
+                nullptr, nullptr,
+                2, embed.data(), dist, 2, embed.data(), dist
+            ),
+            "plan layout"
+        );
+
+        rocm::check_error(
+        rocfft_plan_create(&plan, rocfft_placement_inplace,
+                           (dir == direction::forward) ? rocfft_transform_type_complex_forward : rocfft_transform_type_complex_inverse,
+                           (std::is_same<precision_type, float>::value) ? rocfft_precision_single : rocfft_precision_double,
+                           2, size, batch, desc),
+        "plan create");
+
+        rocm::check_error( rocfft_plan_get_work_buffer_size(plan, &worksize), "get_worksize");
+
+        rocm::check_error( rocfft_plan_description_destroy(desc), "rocm plan destroy");
+    }
+    //! \brief Constructor, takes inputs identical to cufftPlan3d()
+    plan_rocfft(size_t size1, size_t size2, size_t size3){
+        std::array<size_t, 3> size = {size1, size2, size3};
+        rocfft_plan_description desc = nullptr;
+        rocm::check_error( rocfft_plan_description_create(&desc), "rocm plan create");
+
+        rocm::check_error(
+            rocfft_plan_description_set_data_layout(
+                desc,
+                rocfft_array_type_complex_interleaved,
+                rocfft_array_type_complex_interleaved,
+                nullptr, nullptr, 3, nullptr, 1, 3, nullptr, 1
+            ),
+            "plan layout"
+        );
+
+        rocm::check_error(
+        rocfft_plan_create(&plan, rocfft_placement_inplace,
+                           (dir == direction::forward) ? rocfft_transform_type_complex_forward : rocfft_transform_type_complex_inverse,
+                           (std::is_same<precision_type, float>::value) ? rocfft_precision_single : rocfft_precision_double,
+                           3, size.data(), 1, desc),
+        "plan create 3d");
+
+        rocm::check_error( rocfft_plan_get_work_buffer_size(plan, &worksize), "get_worksize");
+
+        rocm::check_error( rocfft_plan_description_destroy(desc), "rocm plan destroy");
+    }
     //! \brief Destructor, deletes the plan.
     ~plan_rocfft(){ rocm::check_error( rocfft_plan_destroy(plan), "plan destory"); }
     //! \brief Custom conversion to the rocfft_plan.
@@ -355,13 +518,51 @@ public:
     template<typename index>
     rocfft_executor(hipStream_t active_stream, box3d<index> const box, int dimension) :
         stream(active_stream),
-        size(box.size[dimension]),
+        size(box.size[dimension]), size2(0),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == box.order[0]) ? size : 1),
         blocks((dimension == box.order[1]) ? box.osize(2) : 1),
         block_stride(box.osize(0) * box.osize(1)),
-        total_size(box.count())
+        total_size(box.count()),
+        embed({0, 0})
+    {}
+    //! \brief Merges two FFTs into one.
+    template<typename index>
+    rocfft_executor(hipStream_t active_stream, box3d<index> const box, int dir1, int dir2) :
+        stream(active_stream),
+        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        blocks(1), block_stride(0), total_size(box.count())
+    {
+        int odir1 = box.find_order(dir1);
+        int odir2 = box.find_order(dir2);
+
+        if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            stride = 1;
+            dist = size * size2;
+            embed = {static_cast<size_t>(stride), static_cast<size_t>(size)};
+            howmanyffts = box.size[2];
+        }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            stride = box.size[0];
+            dist = 1;
+            embed = {static_cast<size_t>(stride), static_cast<size_t>(size) * static_cast<size_t>(stride)};
+            howmanyffts = box.size[0];
+        }else{ // case of directions (0, 2)
+            stride = 1;
+            dist = size;
+            embed = {static_cast<size_t>(stride), static_cast<size_t>(box.size[1]) * static_cast<size_t>(box.size[0])};
+            howmanyffts = box.size[1];
+        }
+    }
+    //! \brief Merges three FFTs into one.
+    template<typename index>
+    rocfft_executor(hipStream_t active_stream, box3d<index> const box) :
+        stream(active_stream),
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        stride(0), dist(0),
+        blocks(1), block_stride(0),
+        total_size(box.count()),
+        embed({0, 0})
     {}
 
     //! \brief Perform an in-place FFT on the data in the given direction.
@@ -434,12 +635,20 @@ private:
     //! \brief Helper template to create the plan.
     template<typename scalar_type, direction dir>
     void make_plan(std::unique_ptr<plan_rocfft<scalar_type, dir>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, howmanyffts, stride, dist));
+        if (not plan){
+            if (dist == 0)
+                plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, size2, howmanyffts));
+            else if (size2 == 0)
+                plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, howmanyffts, stride, dist));
+            else
+                plan = std::unique_ptr<plan_rocfft<scalar_type, dir>>(new plan_rocfft<scalar_type, dir>(size, size2, embed, howmanyffts, dist));
+        }
     }
 
     mutable hipStream_t stream;
 
-    int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    std::array<size_t, 2> embed;
     mutable std::unique_ptr<plan_rocfft<std::complex<float>, direction::forward>> ccomplex_forward;
     mutable std::unique_ptr<plan_rocfft<std::complex<float>, direction::backward>> ccomplex_backward;
     mutable std::unique_ptr<plan_rocfft<std::complex<double>, direction::forward>> zcomplex_forward;
@@ -569,20 +778,40 @@ private:
  */
 template<> struct one_dim_backend<backend::rocfft>{
     //! \brief Defines the complex-to-complex executor.
-    using type = rocfft_executor;
+    using executor = rocfft_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = rocfft_executor_r2c;
+    using executor_r2c = rocfft_executor_r2c;
+};
 
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<rocfft_executor> make(hipStream_t stream, box3d<index> const box, int dimension){
-        return std::unique_ptr<rocfft_executor>(new rocfft_executor(stream, box, dimension));
-    }
-    //! \brief Constructs a real-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<rocfft_executor_r2c> make_r2c(hipStream_t stream, box3d<index> const box, int dimension){
-        return std::unique_ptr<rocfft_executor_r2c>(new rocfft_executor_r2c(stream, box, dimension));
-    }
+struct rocm_buffer_factory{
+    template<typename scalar_type>
+    static backend::buffer_traits<backend::cufft>::container<scalar_type>
+    make(cudaStream_t stream, size_t size){ return backend::buffer_traits<backend::cufft>::container<scalar_type>(stream, size); }
+};
+
+/*!
+ * \ingroup hefftecuda
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::rocfft_cos>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::rocfft, rocm::cos_pre_pos_processor, rocm_buffer_factory>;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
+};
+/*!
+ * \ingroup hefftecuda
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::rocfft_sin>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::rocfft, rocm::sin_pre_pos_processor, rocm_buffer_factory>;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
 };
 
 /*!
@@ -644,6 +873,22 @@ namespace data_scaling {
  * \brief Sets the default options for the cufft backend.
  */
 template<> struct default_plan_options<backend::rocfft>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup heffterocm
+ * \brief Sets the default options for the cufft backend.
+ */
+template<> struct default_plan_options<backend::rocfft_cos>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup heffterocm
+ * \brief Sets the default options for the cufft backend.
+ */
+template<> struct default_plan_options<backend::rocfft_sin>{
     //! \brief The reshape operations will not transpose the data.
     static const bool use_reorder = true;
 };

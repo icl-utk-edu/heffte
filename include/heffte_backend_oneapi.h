@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_ONEAPI_H
 #define HEFFTE_BACKEND_ONEAPI_H
 
-#include "heffte_pack3d.h"
+#include "heffte_r2r_executor.h"
 
 #ifdef Heffte_ENABLE_ONEAPI
 
@@ -109,14 +109,53 @@ namespace oapi {
                         index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                         scalar_type const source[], scalar_type destination[]);
 
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
+     */
+    struct cos_pre_pos_processor{
+        template<typename precision>
+        static void pre_forward(sycl::queue&, int length, precision const input[], precision fft_signal[]);
+        template<typename precision>
+        static void post_forward(sycl::queue&, int length, std::complex<precision> const fft_result[], precision result[]);
+        template<typename precision>
+        static void pre_backward(sycl::queue&, int length, precision const input[], std::complex<precision> fft_signal[]);
+        template<typename precision>
+        static void post_backward(sycl::queue&, int length, precision const fft_result[], precision result[]);
+    };
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
+     */
+    struct sin_pre_pos_processor{
+        template<typename precision>
+        static void pre_forward(sycl::queue&, int length, precision const input[], precision fft_signal[]);
+        template<typename precision>
+        static void post_forward(sycl::queue&, int length, std::complex<precision> const fft_result[], precision result[]);
+        template<typename precision>
+        static void pre_backward(sycl::queue&, int length, precision const input[], std::complex<precision> fft_signal[]);
+        template<typename precision>
+        static void post_backward(sycl::queue&, int length, precision const fft_result[], precision result[]);
+    };
+
 }
 
 namespace backend{
     /*!
      * \ingroup heffteoneapi
-     * \brief Indicate that the cuFFT backend has been enabled.
+     * \brief Indicate that the oneMKL backend has been enabled.
      */
     template<> struct is_enabled<onemkl> : std::true_type{};
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Indicate that the oneMKL backend has been enabled.
+     */
+    template<> struct is_enabled<onemkl_cos> : std::true_type{};
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Indicate that the oneMKL backend has been enabled.
+     */
+    template<> struct is_enabled<onemkl_sin> : std::true_type{};
 
     /*!
      * \ingroup heffteoneapi
@@ -124,6 +163,51 @@ namespace backend{
      */
     template<>
     struct device_instance<onemkl>{
+        //! \brief Empty constructor.
+        device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
+        //! \brief Constructor assigning the queue.
+        device_instance(sycl::queue &new_stream) : _stream(new_stream){}
+        //! \brief Constructor assigning from an existing wrapper.
+        device_instance(std::reference_wrapper<sycl::queue> &new_stream) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        sycl::queue& stream(){ return _stream; }
+        //! \brief Returns the nullptr.
+        sycl::queue& stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue.
+        void synchronize_device() const{ _stream.get().wait(); }
+        //! \brief The sycl::queue, either user provided or created by heFFTe.
+        std::reference_wrapper<sycl::queue> _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = std::reference_wrapper<sycl::queue>;
+    };
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
+     */
+    template<>
+    struct device_instance<onemkl_cos>{
+        //! \brief Empty constructor.
+        device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
+        //! \brief Constructor assigning the queue.
+        device_instance(sycl::queue &new_stream) : _stream(new_stream){}
+        //! \brief Constructor assigning from an existing wrapper.
+        device_instance(std::reference_wrapper<sycl::queue> &new_stream) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        sycl::queue& stream(){ return _stream; }
+        //! \brief Returns the nullptr.
+        sycl::queue& stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue.
+        void synchronize_device() const{ _stream.get().wait(); }
+        //! \brief The sycl::queue, either user provided or created by heFFTe.
+        std::reference_wrapper<sycl::queue> _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = std::reference_wrapper<sycl::queue>;
+    };/*!
+     * \ingroup heffteoneapi
+     * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
+     */
+    template<>
+    struct device_instance<onemkl_sin>{
         //! \brief Empty constructor.
         device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
         //! \brief Constructor assigning the queue.
@@ -214,6 +298,28 @@ namespace backend{
         //! \brief The data is managed by the oneAPI vector container.
         template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
     };
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Defines the location type-tag and the oneAPI container.
+     */
+    template<>
+    struct buffer_traits<onemkl_cos>{
+        //! \brief The oneMKL library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the oneAPI vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Defines the location type-tag and the oneAPI container.
+     */
+    template<>
+    struct buffer_traits<onemkl_sin>{
+        //! \brief The oneMKL library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the oneAPI vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
 }
 
 /*!
@@ -229,15 +335,55 @@ public:
     template<typename index>
     onemkl_executor(sycl::queue &inq, box3d<index> const box, int dimension) :
         q(inq),
-        size(box.size[dimension]),
+        size(box.size[dimension]), size2(0),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == box.order[0]) ? size : 1),
         blocks((dimension == box.order[1]) ? box.osize(2) : 1),
         block_stride(box.osize(0) * box.osize(1)),
         total_size(box.count()),
+        embed({0, static_cast<MKL_LONG>(stride), 0}),
         init_cplan(false), init_zplan(false),
         cplan(size), zplan(size)
+    {}
+    //! \brief Merges two FFTs into one.
+    template<typename index>
+    onemkl_executor(sycl::queue &inq, box3d<index> const box, int dir1, int dir2) :
+        q(inq),
+        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        blocks(1), block_stride(0), total_size(box.count()),
+        init_cplan(false), init_zplan(false),
+        cplan({size, size2}), zplan({size, size2})
+    {
+        int odir1 = box.find_order(dir1);
+        int odir2 = box.find_order(dir2);
+
+        if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            stride = 1;
+            dist = size * size2;
+            embed = {0, static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(size)};
+            howmanyffts = box.size[2];
+        }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            stride = box.size[0];
+            dist = 1;
+            embed = {0, static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(size) * static_cast<MKL_LONG>(stride)};
+            howmanyffts = box.size[0];
+        }else{ // case of directions (0, 2)
+            stride = 1;
+            dist = size;
+            embed = {0, static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(box.size[1]) * static_cast<MKL_LONG>(box.size[0])};
+            howmanyffts = box.size[1];
+        }
+    }
+    //! \brief Merges two FFTs into one.
+    template<typename index>
+    onemkl_executor(sycl::queue &inq, box3d<index> const box) :
+        q(inq),
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        stride(0), dist(0),
+        blocks(1), block_stride(0), total_size(box.count()),
+        init_cplan(false), init_zplan(false),
+        cplan({howmanyffts, size2, size}), zplan({howmanyffts, size2, size})
     {}
 
     //! \brief Forward fft, float-complex case.
@@ -297,13 +443,25 @@ private:
     //! \brief Helper template to create the plan.
     template<typename onemkl_plan_type>
     void make_plan(onemkl_plan_type &plan) const{
-        plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
-        plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
-        MKL_LONG slstride[] = {0, static_cast<MKL_LONG>(stride)};
-        plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, slstride);
-        plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, slstride);
-        plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
-        plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
+        if (dist == 0){
+            plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, 1);
+            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
+        }else if (size2 == 0){
+            plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
+            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
+            plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
+            plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
+        }else{
+            plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
+            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
+            plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
+            plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
+        }
+
         plan.commit(q);
         q.wait();
 
@@ -314,7 +472,8 @@ private:
     }
 
     sycl::queue &q;
-    int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    std::array<MKL_LONG, 3> embed;
 
     mutable bool init_cplan, init_zplan;
     mutable oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::SINGLE, oneapi::mkl::dft::domain::COMPLEX> cplan;
@@ -427,20 +586,34 @@ private:
  */
 template<> struct one_dim_backend<backend::onemkl>{
     //! \brief Defines the complex-to-complex executor.
-    using type = onemkl_executor;
+    using executor = onemkl_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = onemkl_executor_r2c;
-
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<onemkl_executor> make(sycl::queue &q, box3d<index> const box, int dimension){
-        return std::unique_ptr<onemkl_executor>(new onemkl_executor(q, box, dimension));
-    }
-    //! \brief Constructs a real-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<onemkl_executor_r2c> make_r2c(sycl::queue &q, box3d<index> const box, int dimension){
-        return std::unique_ptr<onemkl_executor_r2c>(new onemkl_executor_r2c(q, box, dimension));
-    }
+    using executor_r2c = onemkl_executor_r2c;
+};
+struct oneapi_buffer_factory{
+    template<typename scalar_type>
+    static backend::buffer_traits<backend::onemkl>::container<scalar_type>
+    make(sycl::queue &stream, size_t size){ return backend::buffer_traits<backend::onemkl>::container<scalar_type>(stream, size); }
+};
+/*!
+ * \ingroup heffteoneapi
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ */
+template<> struct one_dim_backend<backend::onemkl_cos>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::onemkl, oapi::cos_pre_pos_processor, oneapi_buffer_factory>;;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = onemkl_executor_r2c;
+};
+/*!
+ * \ingroup heffteoneapi
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ */
+template<> struct one_dim_backend<backend::onemkl_sin>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::onemkl, oapi::sin_pre_pos_processor, oneapi_buffer_factory>;;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = onemkl_executor_r2c;
 };
 
 /*!
@@ -506,6 +679,22 @@ namespace data_scaling {
 template<> struct default_plan_options<backend::onemkl>{
     //! \brief The reshape operations will not transpose the data.
     static const bool use_reorder = false;
+};
+/*!
+ * \ingroup heffteoneapi
+ * \brief Sets the default options for the oneMKL backend.
+ */
+template<> struct default_plan_options<backend::onemkl_cos>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup heffteoneapi
+ * \brief Sets the default options for the oneMKL backend.
+ */
+template<> struct default_plan_options<backend::onemkl_sin>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
 };
 
 }

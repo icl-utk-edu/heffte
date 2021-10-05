@@ -510,7 +510,12 @@ std::unique_ptr<reshape3d_base<index>> make_reshape3d(typename backend::device_i
 
             compute_overlap_map_transpose_pack(0, 1, output_boxes[me], {input_boxes[me]}, proc, offset, sizes, plans);
 
-            return std::unique_ptr<reshape3d_base<index>>(new reshape3d_transpose<typename backend::buffer_traits<backend_tag>::location, index >(stream, plans[0]));
+            if (not plans.empty()){
+                return std::unique_ptr<reshape3d_base<index>>(new reshape3d_transpose<typename backend::buffer_traits<backend_tag>::location, index >(stream, plans[0]));
+            }else{
+                // when the number of indexes is very small, the current box can be empty
+                return std::unique_ptr<reshape3d_base<index>>();
+            }
         }
     }else{
         if (options.algorithm == reshape_algorithm::alltoallv){

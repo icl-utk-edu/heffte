@@ -7,6 +7,8 @@
 #ifndef HEFFTE_STOCK_VEC_TYPES_H
 #define HEFFTE_STOCK_VEC_TYPES_H
 
+#include "heffte_config.h"
+
 #ifdef __AVX__
 #include <immintrin.h>
 #endif
@@ -101,26 +103,46 @@ inline typename pack<double, 1>::type mm_add(typename pack<double, 1>::type cons
 inline typename pack<float, 1>::type mm_sub(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b){ return a - b; }
 //! \brief Calculate double-precision complex subtraction
 inline typename pack<double, 1>::type mm_sub(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b){ return a - b; }
-//! \brief Calculate single-precision a division
+//! \brief Calculate single-precision division
 inline typename pack<float, 1>::type mm_div(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b){ return a / b.real(); }
-//! \brief Calculate double-precision a division
+//! \brief Calculate double-precision division
 inline typename pack<double, 1>::type mm_div(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b){ return a / b.real(); }
-//! \brief Calculate single-precision a multiplication
+//! \brief Calculate single-precision negation of a
+inline typename pack<float, 1>::type mm_neg(typename pack<float, 1>::type const &a){ return -a; }
+//! \brief Calculate double-precision negation of a
+inline typename pack<double, 1>::type mm_neg(typename pack<double, 1>::type const &a){ return -a; }
+//! \brief Calculate single-precision multiplication
 inline typename pack<float, 1>::type mm_mul(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b){ return a * b.real(); }
-//! \brief Calculate double-precision a multiplication
+//! \brief Calculate double-precision multiplication
 inline typename pack<double, 1>::type mm_mul(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b){ return a * b.real(); }
 //! \brief Perform single-precision complex multiplication
 inline typename pack<float, 1>::type mm_complex_mul(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b){ return a * b; }
 //! \brief Perform double-precision complex multiplication
 inline typename pack<double, 1>::type mm_complex_mul(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b){ return a * b; }
+//! \brief Perform single-precision complex fused-multiply add
+inline typename pack<float, 1>::type mm_complex_fmadd(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b, typename pack<float, 1>::type const &c){ return a * b + c; }
+//! \brief Perform double-precision complex fused-multiply add
+inline typename pack<double, 1>::type mm_complex_fmadd(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b, typename pack<double, 1>::type const &c){ return a * b + c; }
+//! \brief Perform single-precision complex fused-multiply subtract
+inline typename pack<float, 1>::type mm_complex_fmsub(typename pack<float, 1>::type const &a, typename pack<float, 1>::type const &b, typename pack<float, 1>::type const &c){ return a * b - c; }
+//! \brief Perform double-precision complex fused-multiply subtract
+inline typename pack<double, 1>::type mm_complex_fmsub(typename pack<double, 1>::type const &a, typename pack<double, 1>::type const &b, typename pack<double, 1>::type const &c){ return a * b - c; }
+//! \brief Perform single-precision multiplication by i
+inline typename pack<float, 1>::type mm_complex_mul_i(typename pack<float, 1>::type const &a){return a * std::complex<float>{0.f,1.f}; }
+//! \brief Perform double-precision multiplication by i
+inline typename pack<double, 1>::type mm_complex_mul_i(typename pack<double, 1>::type const &a){ return a * std::complex<double>{0.,1.}; }
+//! \brief Perform single-precision multiplication by -i
+inline typename pack<float, 1>::type mm_complex_mul_neg_i(typename pack<float, 1>::type const &a){return a * std::complex<float>{0.f,-1.f}; }
+//! \brief Perform double-precision multiplication by -i
+inline typename pack<double, 1>::type mm_complex_mul_neg_i(typename pack<double, 1>::type const &a){ return a * std::complex<double>{0.,-1.}; }
 //! \brief Calculate single-precision complex squared modulus
-inline typename pack<float, 1>::type mm_complex_sq_mod(typename pack<float,1>::type const &a){ return norm(a); }
+inline typename pack<float, 1>::type mm_complex_sq_mod(typename pack<float,1>::type const &a){ return std::complex<float>{norm(a), norm(a)}; }
 //! \brief Calculate double-precision complex squared modulus
-inline typename pack<double, 1>::type mm_complex_sq_mod(typename pack<double,1>::type const &a){ return norm(a); }
+inline typename pack<double, 1>::type mm_complex_sq_mod(typename pack<double,1>::type const &a){ return std::complex<double>{norm(a), norm(a)}; }
 //! \brief Calculate single-precision complex modulus
-inline float mm_complex_mod(typename pack<float,1>::type const &a){ return std::abs(a); }
+inline typename pack<float, 1>::type mm_complex_mod(typename pack<float,1>::type const &a){ return std::complex<float>{std::abs(a), std::abs(a)}; }
 //! \brief Calculate double-precision complex modulus
-inline double mm_complex_mod(typename pack<double,1>::type const &a){ return std::abs(a); }
+inline typename pack<double, 1>::type mm_complex_mod(typename pack<double,1>::type const &a){ return std::complex<double>{std::abs(a), std::abs(a)}; }
 //! \brief Calculate single-precision complex conjugation
 inline typename pack<float, 1>::type mm_complex_conj(typename pack<float,1>::type const &a){ return conj(a); }
 //! \brief Calculate double-precision complex conjugation
@@ -134,7 +156,7 @@ inline typename pack<double, 1>::type mm_complex_div(typename pack<double, 1>::t
 /* Below is functionality for vector packs */
 /////////////////////////////////////////////
 
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
 
 //! \brief Alias for vector pack of 2 elements, double precision
 template<> struct pack<double, 2> { using type = __m128d; };
@@ -288,7 +310,7 @@ inline typename pack<double,4>::type mm_complex_load<double,4>(std::complex<doub
 }
 
 ///////////////////////////////////////////////////
-/* Elementary binary operations for vector packs */
+/* Elementary operations for vector packs */
 ///////////////////////////////////////////////////
 
 /* Addition */
@@ -380,6 +402,27 @@ inline pack<double, 4>::type mm_div(pack<double, 4>::type const &x, pack<double,
 }
 
 
+/* Negation */
+//! \brief Perform division on vectorized packs of four floats
+inline pack<float, 4>::type mm_neg(pack<float, 4>::type const &x) {
+    return _mm_xor_ps(x, (mm_set1<float, 4>(-0.f)));
+}
+
+//! \brief Perform division on vectorized packs of eight floats
+inline pack<float, 8>::type mm_neg(pack<float, 8>::type const &x) {
+    return _mm256_xor_ps(x, (mm_set1<float, 8>(-0.f)));
+}
+
+//! \brief Perform division on vectorized packs of two doubles
+inline pack<double, 2>::type mm_neg(pack<double, 2>::type const &x) {
+    return _mm_xor_pd(x, (mm_set1<double, 2>(-0.)));
+}
+
+//! \brief Perform division on vectorized packs of four doubles
+inline pack<double, 4>::type mm_neg(pack<double, 4>::type const &x) {
+    return _mm256_xor_pd(x, (mm_set1<double, 4>(-0.)));
+}
+
 ///////////////////////////////////////////
 /* Complex operations using vector packs */
 ///////////////////////////////////////////
@@ -422,6 +465,88 @@ inline pack<double, 4>::type mm_complex_mul(pack<double, 4>::type const &x, pack
     typename pack<double,4>::type ba = _mm256_permute_pd(x, 0b0101);
     typename pack<double,4>::type dd = _mm256_permute_pd(y, 0b1111);
     typename pack<double,4>::type dba = _mm256_mul_pd(ba, dd);
+    typename pack<double,4>::type mult = _mm256_fmaddsub_pd(x, cc, dba);
+    return mult;
+}
+
+// Fused multiply-add
+
+//! \brief Complex fused-multiply add two pairs of floats
+inline pack<float,4>::type mm_complex_fmadd(pack<float, 4>::type const &x, pack<float, 4>::type const &y, pack<float, 4>::type const &z) {
+    typename pack<float,4>::type cc = _mm_permute_ps(y, 0b10100000);
+    typename pack<float,4>::type ba = _mm_permute_ps(x, 0b10110001);
+    typename pack<float,4>::type dd = _mm_permute_ps(y, 0b11110101);
+    typename pack<float,4>::type dba = _mm_fmaddsub_ps(ba, dd, z);
+    typename pack<float,4>::type mult = _mm_fmaddsub_ps(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex fused-multiply add four pairs of floats
+inline pack<float, 8>::type mm_complex_fmadd(pack<float, 8>::type const &x, pack<float, 8>::type const &y, pack<float, 8>::type const &z) {
+    typename pack<float,8>::type cc = _mm256_permute_ps(y, 0b10100000);
+    typename pack<float,8>::type ba = _mm256_permute_ps(x, 0b10110001);
+    typename pack<float,8>::type dd = _mm256_permute_ps(y, 0b11110101);
+    typename pack<float,8>::type dba = _mm256_fmaddsub_ps(ba, dd, z);
+    typename pack<float,8>::type mult = _mm256_fmaddsub_ps(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex fused-multiply add one pair of doubles
+inline pack<double, 2>::type mm_complex_fmadd(pack<double, 2>::type const &x, pack<double, 2>::type const &y, pack<double, 2>::type const &z) {
+    typename pack<double,2>::type cc = _mm_permute_pd(y, 0);
+    typename pack<double,2>::type ba = _mm_permute_pd(x, 0b01);
+    typename pack<double,2>::type dd = _mm_permute_pd(y, 0b11);
+    typename pack<double,2>::type dba = _mm_fmaddsub_pd(ba, dd, z);
+    typename pack<double,2>::type mult = _mm_fmaddsub_pd(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex fused-multiply add two pairs of doubles
+inline pack<double, 4>::type mm_complex_fmadd(pack<double, 4>::type const &x, pack<double, 4>::type const &y, pack<double, 4>::type const &z) {
+    typename pack<double,4>::type cc = _mm256_permute_pd(y, 0b0000);
+    typename pack<double,4>::type ba = _mm256_permute_pd(x, 0b0101);
+    typename pack<double,4>::type dd = _mm256_permute_pd(y, 0b1111);
+    typename pack<double,4>::type dba = _mm256_fmaddsub_pd(ba, dd, z);
+    typename pack<double,4>::type mult = _mm256_fmaddsub_pd(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex fused-multiply subtract two pairs of floats
+inline pack<float,4>::type mm_complex_fmsub(pack<float, 4>::type const &x, pack<float, 4>::type const &y, pack<float, 4>::type const &z) {
+    typename pack<float,4>::type cc = _mm_permute_ps(y, 0b10100000);
+    typename pack<float,4>::type ba = _mm_permute_ps(x, 0b10110001);
+    typename pack<float,4>::type dd = _mm_permute_ps(y, 0b11110101);
+    typename pack<float,4>::type dba = _mm_fmsubadd_ps(ba, dd, z);
+    typename pack<float,4>::type mult = _mm_fmaddsub_ps(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex fused-multiply subtract four pairs of floats
+inline pack<float, 8>::type mm_complex_fmsub(pack<float, 8>::type const &x, pack<float, 8>::type const &y, pack<float, 8>::type const &z) {
+    typename pack<float,8>::type cc = _mm256_permute_ps(y, 0b10100000);
+    typename pack<float,8>::type ba = _mm256_permute_ps(x, 0b10110001);
+    typename pack<float,8>::type dd = _mm256_permute_ps(y, 0b11110101);
+    typename pack<float,8>::type dba = _mm256_fmsubadd_ps(ba, dd, z);
+    typename pack<float,8>::type mult = _mm256_fmaddsub_ps(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex fused-multiply subtract one pair of doubles
+inline pack<double, 2>::type mm_complex_fmsub(pack<double, 2>::type const &x, pack<double, 2>::type const &y, pack<double, 2>::type const &z) {
+    typename pack<double,2>::type cc = _mm_permute_pd(y, 0);
+    typename pack<double,2>::type ba = _mm_permute_pd(x, 0b01);
+    typename pack<double,2>::type dd = _mm_permute_pd(y, 0b11);
+    typename pack<double,2>::type dba = _mm_fmsubadd_pd(ba, dd, z);
+    typename pack<double,2>::type mult = _mm_fmaddsub_pd(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex fused-multiply subtract two pairs of doubles
+inline pack<double, 4>::type mm_complex_fmsub(pack<double, 4>::type const &x, pack<double, 4>::type const &y, pack<double, 4>::type const &z) {
+    typename pack<double,4>::type cc = _mm256_permute_pd(y, 0b0000);
+    typename pack<double,4>::type ba = _mm256_permute_pd(x, 0b0101);
+    typename pack<double,4>::type dd = _mm256_permute_pd(y, 0b1111);
+    typename pack<double,4>::type dba = _mm256_fmsubadd_pd(ba, dd, z);
     typename pack<double,4>::type mult = _mm256_fmaddsub_pd(x, cc, dba);
     return mult;
 }
@@ -473,22 +598,63 @@ inline pack<double, 4>::type mm_complex_mod(pack<double, 4>::type const &x) {
 
 //! \brief Conjugate two single precision complex numbers
 inline pack<float, 4>::type mm_complex_conj(pack<float, 4>::type const &x) {
-    return _mm_blend_ps(x, -x, 0b1010);
+    return _mm_blend_ps(x, (mm_neg(x)), 0b1010);
 }
 
 //! \brief Conjugate four single precision complex numbers
 inline pack<float, 8>::type mm_complex_conj(pack<float, 8>::type const &x) {
-    return _mm256_blend_ps(x, -x, 0b10101010);
+    return _mm256_blend_ps(x, (mm_neg(x)), 0b10101010);
 }
 
 //! \brief Conjugate two double precision complex numbers
 inline pack<double, 2>::type mm_complex_conj(pack<double, 2>::type const &x) {
-    return _mm_blend_pd(x, -x, 0b10);
+    return _mm_blend_pd(x, (mm_neg(x)), 0b10);
 }
 
 //! \brief Conjugate four double precision complex numbers
 inline pack<double, 4>::type mm_complex_conj(pack<double, 4>::type const &x) {
-    return _mm256_blend_pd(x, -x, 0b1010);
+    return _mm256_blend_pd(x, (mm_neg(x)), 0b1010);
+}
+
+// Special operation when multiplying by i and -i
+//! \brief Multiply two complex numbers by i, single precision
+inline pack<float, 4>::type mm_complex_mul_i(pack<float, 4>::type const &x) {
+    return _mm_permute_ps( (mm_complex_conj(x)), 0b10110001);
+}
+
+//! \brief Multiply four complex numbers by i, single precision
+inline pack<float, 8>::type mm_complex_mul_i(pack<float, 8>::type const &x) {
+    return _mm256_permute_ps( (mm_complex_conj(x)), 0b10110001);
+}
+
+//! \brief Multiply one complex number by i, double precision
+inline pack<double, 2>::type mm_complex_mul_i(pack<double, 2>::type const &x) {
+    return _mm_permute_pd( (mm_complex_conj(x)), 0b00000001);
+}
+
+//! \brief Multiply two complex numbers by i, double precision
+inline pack<double, 4>::type mm_complex_mul_i(pack<double, 4>::type const &x) {
+    return _mm256_permute_pd( (mm_complex_conj(x)), 0b00000101);
+}
+
+//! \brief Multiply two complex numbers by -i, single precision
+inline pack<float, 4>::type mm_complex_mul_neg_i(pack<float, 4>::type const &x) {
+    return mm_complex_conj(_mm_permute_ps(x, 0b10110001));
+}
+
+//! \brief Multiply four complex numbers by -i, single precision
+inline pack<float, 8>::type mm_complex_mul_neg_i(pack<float, 8>::type const &x) {
+    return mm_complex_conj(_mm256_permute_ps(x, 0b10110001));
+}
+
+//! \brief Multiply one complex number by -i, double precision
+inline pack<double, 2>::type mm_complex_mul_neg_i(pack<double, 2>::type const &x) {
+    return mm_complex_conj(_mm_permute_pd(x, 0b0000001));
+}
+
+//! \brief Multiply two complex numbers by -i, double precision
+inline pack<double, 4>::type mm_complex_mul_neg_i(pack<double, 4>::type const &x) {
+    return mm_complex_conj(_mm256_permute_pd(x, 0b00000101));
 }
 
 // Complex division
@@ -514,7 +680,7 @@ inline pack<double, 4>::type mm_complex_div(pack<double, 4>::type const &x, pack
 }
 
 // Now all the implementations for types in AVX512 headers
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
 
 //! \brief Alias for vector pack of 8 elements, double precision
 template<> struct pack<double, 8> { using type = __m512d; };
@@ -648,6 +814,16 @@ inline pack<double, 8>::type mm_div(pack<double, 8>::type const &x, pack<double,
     return _mm512_div_pd(x, y);
 }
 
+/* Negation */
+//! \brief Perform division on vectorized packs of sixteen floats
+inline pack<float, 16>::type mm_neg(pack<float, 16>::type const &x) {
+    return _mm512_xor_ps(x, (mm_set1<float, 16>(-0.f)));
+}
+
+//! \brief Perform division on vectorized packs of eight doubles
+inline pack<double, 8>::type mm_neg(pack<double, 8>::type const &x) {
+    return _mm512_xor_pd(x, (mm_set1<double, 8>(-0.f)));
+}
 
 ///////////////////////////////////////////
 /* Complex operations using AVX512 vector packs */
@@ -671,6 +847,48 @@ inline pack<double, 8>::type mm_complex_mul(pack<double, 8>::type const &x, pack
     typename pack<double, 8>::type ba = _mm512_permute_pd(x, 0b01010101);
     typename pack<double, 8>::type dd = _mm512_permute_pd(y, 0b11111111);
     typename pack<double, 8>::type dba = _mm512_mul_pd(ba, dd);
+    typename pack<double, 8>::type mult = _mm512_fmaddsub_pd(x, cc, dba);
+    return mult;
+}
+
+// Complex fused-multiply add
+
+//! \brief Complex fmadd eight pairs of floats
+inline pack<float,16>::type mm_complex_fmadd(pack<float, 16>::type const &x, pack<float, 16>::type const &y, pack<float, 16>::type const &alpha) {
+    typename pack<float, 16>::type cc = _mm512_permute_ps(y, 0b10100000);
+    typename pack<float, 16>::type ba = _mm512_permute_ps(x, 0b10110001);
+    typename pack<float, 16>::type dd = _mm512_permute_ps(y, 0b11110101);
+    typename pack<float, 16>::type dba = _mm512_fmaddsub_ps(ba, dd, alpha);
+    typename pack<float, 16>::type mult = _mm512_fmaddsub_ps(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex fmadd four pairs of doubles
+inline pack<double, 8>::type mm_complex_fmadd(pack<double, 8>::type const &x, pack<double, 8>::type const &y, pack<double, 8>::type const &alpha) {
+    typename pack<double, 8>::type cc = _mm512_permute_pd(y, 0b00000000);
+    typename pack<double, 8>::type ba = _mm512_permute_pd(x, 0b01010101);
+    typename pack<double, 8>::type dd = _mm512_permute_pd(y, 0b11111111);
+    typename pack<double, 8>::type dba = _mm512_fmaddsub_pd(ba, dd, alpha);
+    typename pack<double, 8>::type mult = _mm512_fmaddsub_pd(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex fmsub eight pairs of floats
+inline pack<float,16>::type mm_complex_fmsub(pack<float, 16>::type const &x, pack<float, 16>::type const &y, pack<float, 16>::type const &alpha) {
+    typename pack<float, 16>::type cc = _mm512_permute_ps(y, 0b10100000);
+    typename pack<float, 16>::type ba = _mm512_permute_ps(x, 0b10110001);
+    typename pack<float, 16>::type dd = _mm512_permute_ps(y, 0b11110101);
+    typename pack<float, 16>::type dba = _mm512_fmsubadd_ps(ba, dd, alpha);
+    typename pack<float, 16>::type mult = _mm512_fmaddsub_ps(x, cc, dba);
+    return mult;
+}
+
+//! \brief Complex fmsub four pairs of doubles
+inline pack<double, 8>::type mm_complex_fmsub(pack<double, 8>::type const &x, pack<double, 8>::type const &y, pack<double, 8>::type const &alpha) {
+    typename pack<double, 8>::type cc = _mm512_permute_pd(y, 0b00000000);
+    typename pack<double, 8>::type ba = _mm512_permute_pd(x, 0b01010101);
+    typename pack<double, 8>::type dd = _mm512_permute_pd(y, 0b11111111);
+    typename pack<double, 8>::type dba = _mm512_fmsubadd_pd(ba, dd, alpha);
     typename pack<double, 8>::type mult = _mm512_fmaddsub_pd(x, cc, dba);
     return mult;
 }
@@ -709,12 +927,33 @@ inline pack<double, 8>::type mm_complex_mod(pack<double, 8>::type const &x) {
 
 //! \brief Conjugate eight single precision complex numbers
 inline pack<float, 16>::type mm_complex_conj(pack<float, 16>::type const &x) {
-    return _mm512_mask_blend_ps(0b1010101010101010, x, -x);
+    return _mm512_mask_blend_ps(0b1010101010101010, x, mm_neg(x));
 }
 
 //! \brief Conjugate four double precision complex numbers
 inline pack<double, 8>::type mm_complex_conj(pack<double, 8>::type const &x) {
-    return _mm512_mask_blend_pd(0b10101010, x, -x);
+    return _mm512_mask_blend_pd(0b10101010, x, mm_neg(x));
+}
+
+// Special operation when multiplying by i and -i
+//! \brief Multiply eight complex numbers by i, single precision
+inline pack<float, 16>::type mm_complex_mul_i(pack<float, 16>::type const &x) {
+    return _mm512_permute_ps( (mm_complex_conj(x)), 0b10110001);
+}
+
+//! \brief Multiply four complex numbers by i, double precision
+inline pack<double, 8>::type mm_complex_mul_i(pack<double, 8>::type const &x) {
+    return _mm512_permute_pd( (mm_complex_conj(x)), 0b01010101);
+}
+
+//! \brief Multiply eight complex numbers by -i, single precision
+inline pack<float, 16>::type mm_complex_mul_neg_i(pack<float, 16>::type const &x) {
+    return mm_complex_conj(_mm512_permute_ps(x, 0b10110001));
+}
+
+//! \brief Multiply four complex numbers by -i, double precision
+inline pack<double, 8>::type mm_complex_mul_neg_i(pack<double, 8>::type const &x) {
+    return mm_complex_conj(_mm512_permute_pd(x, 0b01010101));
 }
 
 // Complex division
@@ -729,8 +968,8 @@ inline pack<double, 8>::type mm_complex_div(pack<double, 8>::type const &x, pack
     return _mm512_div_pd(mm_complex_mul(x, mm_complex_conj(y)), mm_complex_sq_mod(y));
 }
 
-#endif // __AVX512F__
-#endif // __AVX__
+#endif // Heffte_ENABLE_AVX512
+#endif // Heffte_ENABLE_AVX
 
 }
 }

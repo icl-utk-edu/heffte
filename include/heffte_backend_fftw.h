@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_FFTW_H
 #define HEFFTE_BACKEND_FFTW_H
 
-#include "heffte_pack3d.h"
+#include "heffte_r2r_executor.h"
 
 #ifdef Heffte_ENABLE_FFTW
 
@@ -32,6 +32,17 @@ namespace backend{
      * \brief Indicate that the FFTW backend has been enabled.
      */
     template<> struct is_enabled<fftw> : std::true_type{};
+
+    /*!
+     * \ingroup hefftefftw
+     * \brief Indicate that the cos() transform using the FFTW backend has been enabled.
+     */
+    template<> struct is_enabled<fftw_cos> : std::true_type{};
+    /*!
+     * \ingroup hefftefftw
+     * \brief Indicate that the cos() transform using the FFTW backend has been enabled.
+     */
+    template<> struct is_enabled<fftw_sin> : std::true_type{};
 
 // Specialization is not necessary since the default behavior assumes CPU parameters.
 //     template<>
@@ -84,6 +95,36 @@ struct plan_fftw<std::complex<float>, dir>{
                                                     (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                 ))
         {}
+    /*!
+     * \brief Constructor, takes inputs identical to fftwf_plan_many_dft().
+     *
+     * \param size1 is the number of entries in a 2-D transform, dimension 1
+     * \param size2 is the number of entries in a 2-D transform, dimension 2
+     * \param howmanyffts is the number of transforms in the batch
+     * \param stride is the distance between entries of the same transform
+     * \param dist is the distance between the first entries of consecutive sequences
+     */
+    plan_fftw(int size1, int size2, std::array<int, 2> const &embed, int howmanyffts, int stride, int dist){
+        std::array<int, 2> size = {size2, size1};
+
+        if (embed[0] == 0 and embed[1] == 0){
+            plan = fftwf_plan_many_dft(2, size.data(), howmanyffts, nullptr, nullptr, stride, dist,
+                                                    nullptr, nullptr, stride, dist,
+                                                    (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
+                                      );
+        }else{
+            plan = fftwf_plan_many_dft(2, size.data(), howmanyffts, nullptr, embed.data(), stride, dist,
+                                                    nullptr, embed.data(), stride, dist,
+                                                    (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
+                                      );
+        }
+    }
+    //! \brief Identical to the float-complex specialization.
+    plan_fftw(int size1, int size2, int size3){
+        std::array<int, 3> size = {size3, size2, size1};
+        plan = fftwf_plan_many_dft(3, size.data(), 1, nullptr, nullptr, 1, 1, nullptr, nullptr, 1, 1,
+                                   (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE);
+    }
     //! \brief Destructor, deletes the plan.
     ~plan_fftw(){ fftwf_destroy_plan(plan); }
     //! \brief Custom conversion to the FFTW3 plan.
@@ -104,6 +145,28 @@ struct plan_fftw<std::complex<double>, dir>{
                                                    (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                ))
         {}
+    //! \brief Identical to the float-complex specialization.
+    plan_fftw(int size1, int size2, std::array<int, 2> const &embed, int howmanyffts, int stride, int dist){
+        std::array<int, 2> size = {size2, size1};
+
+        if (embed[0] == 0 and embed[1] == 0){
+            plan = fftw_plan_many_dft(2, size.data(), howmanyffts, nullptr, nullptr, stride, dist,
+                                                      nullptr, nullptr, stride, dist,
+                                                      (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
+                                     );
+        }else{
+            plan = fftw_plan_many_dft(2, size.data(), howmanyffts, nullptr, embed.data(), stride, dist,
+                                                      nullptr, embed.data(), stride, dist,
+                                                      (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
+                                     );
+        }
+    }
+    //! \brief Identical to the float-complex specialization.
+    plan_fftw(int size1, int size2, int size3){
+        std::array<int, 3> size = {size3, size2, size1};
+        plan = fftw_plan_many_dft(3, size.data(), 1, nullptr, nullptr, 1, 1, nullptr, nullptr, 1, 1,
+                                  (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE);
+    }
     //! \brief Identical to the float-complex specialization.
     ~plan_fftw(){ fftw_destroy_plan(plan); }
     //! \brief Identical to the float-complex specialization.
@@ -128,14 +191,48 @@ class fftw_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
-    fftw_executor(box3d<index> const box, int dimension) :
-        size(box.size[dimension]),
+    fftw_executor(void*, box3d<index> const box, int dimension) :
+        size(box.size[dimension]), size2(0),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == box.order[0]) ? size : 1),
         blocks((dimension == box.order[1]) ? box.osize(2) : 1),
         block_stride(box.osize(0) * box.osize(1)),
-        total_size(box.count())
+        total_size(box.count()),
+        embed({0, 0})
+    {}
+    //! \brief Merges two FFTs into one.
+    template<typename index>
+    fftw_executor(void*, box3d<index> const box, int dir1, int dir2) :
+        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        blocks(1), block_stride(0), total_size(box.count()), embed({0, 0})
+    {
+        int odir1 = box.find_order(dir1);
+        int odir2 = box.find_order(dir2);
+
+        if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            stride = 1;
+            dist = size * size2;
+            howmanyffts = box.size[2];
+        }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            stride = box.size[0];
+            dist = 1;
+            howmanyffts = box.size[0];
+        }else{ // case of directions (0, 2)
+            stride = 1;
+            dist = size;
+            embed = {static_cast<int>(box.size[2]), static_cast<int>(box.size[1] * box.size[0])};
+            howmanyffts = box.size[1];
+        }
+    }
+    //! \brief Merges three FFTs into one.
+    template<typename index>
+    fftw_executor(void*, box3d<index> const box) :
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        stride(0), dist(0),
+        blocks(1), block_stride(0),
+        total_size(box.count()),
+        embed({0, 0})
     {}
 
     //! \brief Forward fft, float-complex case.
@@ -199,10 +296,18 @@ private:
     //! \brief Helper template to create the plan.
     template<typename scalar_type, direction dir>
     void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, dist));
+        if (not plan){
+            if (dist == 0)
+                plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, size2, howmanyffts));
+            else if (size2 == 0)
+                plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, dist));
+            else
+                plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, size2, embed, howmanyffts, stride, dist));
+        }
     }
 
-    int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    std::array<int, 2> embed;
     mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::forward>> cforward;
     mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::backward>> cbackward;
     mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::forward>> zforward;
@@ -284,7 +389,7 @@ public:
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
     template<typename index>
-    fftw_executor_r2c(box3d<index> const box, int dimension) :
+    fftw_executor_r2c(void*, box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -360,20 +465,34 @@ private:
  */
 template<> struct one_dim_backend<backend::fftw>{
     //! \brief Defines the complex-to-complex executor.
-    using type = fftw_executor;
+    using executor = fftw_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = fftw_executor_r2c;
+    using executor_r2c = fftw_executor_r2c;
+};
 
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<fftw_executor> make(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<fftw_executor>(new fftw_executor(box, dimension));
-    }
-    //! \brief Constructs a real-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<fftw_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<fftw_executor_r2c>(new fftw_executor_r2c(box, dimension));
-    }
+/*!
+ * \ingroup hefftefftw
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::fftw_cos>{
+    //! \brief Defines the real-to-real executor.
+    using executor = real2real_executor<backend::fftw, cpu_cos_pre_pos_processor, cpu_buffer_factory>;
+    //! \brief There is no real-to-complex variant.
+    using executor_r2c = void;
+};
+/*!
+ * \ingroup hefftefftw
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::fftw_sin>{
+    //! \brief Defines the real-to-real executor.
+    using executor = real2real_executor<backend::fftw, cpu_sin_pre_pos_processor, cpu_buffer_factory>;
+    //! \brief There is no real-to-complex variant.
+    using executor_r2c = void;
 };
 
 /*!
@@ -381,6 +500,23 @@ template<> struct one_dim_backend<backend::fftw>{
  * \brief Sets the default options for the fftw backend.
  */
 template<> struct default_plan_options<backend::fftw>{
+    //! \brief The reshape operations will also reorder the data.
+    static const bool use_reorder = true;
+};
+
+/*!
+ * \ingroup hefftefftw
+ * \brief Sets the default options for the fftw backend.
+ */
+template<> struct default_plan_options<backend::fftw_cos>{
+    //! \brief The reshape operations will also reorder the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup hefftefftw
+ * \brief Sets the default options for the fftw backend.
+ */
+template<> struct default_plan_options<backend::fftw_sin>{
     //! \brief The reshape operations will also reorder the data.
     static const bool use_reorder = true;
 };

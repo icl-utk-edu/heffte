@@ -148,12 +148,12 @@ module heffte_cufft
     swigf_heffte_fft3d_r2c_cufft_forward__SWIG_12, swigf_heffte_fft3d_r2c_cufft_forward__SWIG_13
  end type heffte_fft3d_r2c_cufft
  interface heffte_fft3d_r2c_cufft
-  module procedure swigf_new_heffte_fft3d_r2c_cufft__SWIG_2, swigf_new_heffte_fft3d_r2c_cufft__SWIG_3, &
-    swigf_new_heffte_fft3d_r2c_cufft__SWIG_4
+  module procedure swigf_new_heffte_fft3d_r2c_cufft__SWIG_4, swigf_new_heffte_fft3d_r2c_cufft__SWIG_5, &
+    swigf_new_heffte_fft3d_r2c_cufft__SWIG_6
  end interface
  interface heffte_fft3d_cufft
-  module procedure swigf_new_heffte_fft3d_cufft__SWIG_2, swigf_new_heffte_fft3d_cufft__SWIG_3, &
-    swigf_new_heffte_fft3d_cufft__SWIG_4
+  module procedure swigf_new_heffte_fft3d_cufft__SWIG_4, swigf_new_heffte_fft3d_cufft__SWIG_5, &
+    swigf_new_heffte_fft3d_cufft__SWIG_6
  end interface
 
 ! WRAPPER DECLARATIONS
@@ -171,9 +171,9 @@ import :: swigarraywrapper
 type(SwigArrayWrapper) :: fresult
 end function
 
-function swigc_new_heffte_fft3d_cufft__SWIG_2(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+function swigc_new_heffte_fft3d_cufft__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20, farg21, farg22) &
-bind(C, name="_wrap_new_heffte_fft3d_cufft__SWIG_2") &
+bind(C, name="_wrap_new_heffte_fft3d_cufft__SWIG_4") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -202,9 +202,9 @@ integer(C_INT), intent(in) :: farg22
 type(SwigClassWrapper) :: fresult
 end function
 
-function swigc_new_heffte_fft3d_cufft__SWIG_3(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+function swigc_new_heffte_fft3d_cufft__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19) &
-bind(C, name="_wrap_new_heffte_fft3d_cufft__SWIG_3") &
+bind(C, name="_wrap_new_heffte_fft3d_cufft__SWIG_5") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -230,9 +230,9 @@ integer(C_INT), intent(in) :: farg19
 type(SwigClassWrapper) :: fresult
 end function
 
-function swigc_new_heffte_fft3d_cufft__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+function swigc_new_heffte_fft3d_cufft__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13) &
-bind(C, name="_wrap_new_heffte_fft3d_cufft__SWIG_4") &
+bind(C, name="_wrap_new_heffte_fft3d_cufft__SWIG_6") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -258,7 +258,7 @@ result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
-integer(C_INT) :: fresult
+integer(C_LONG_LONG) :: fresult
 end function
 
 function swigc_heffte_fft3d_cufft_size_outbox(farg1) &
@@ -267,7 +267,7 @@ result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
-integer(C_INT) :: fresult
+integer(C_LONG_LONG) :: fresult
 end function
 
 function swigc_heffte_fft3d_cufft_get_scale_factor(farg1, farg2) &
@@ -633,9 +633,9 @@ type(SwigClassWrapper), intent(inout) :: farg1
 type(SwigClassWrapper), intent(in) :: farg2
 end subroutine
 
-function swigc_new_heffte_fft3d_r2c_cufft__SWIG_2(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+function swigc_new_heffte_fft3d_r2c_cufft__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
   farg11, farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20, farg21, farg22, farg23) &
-bind(C, name="_wrap_new_heffte_fft3d_r2c_cufft__SWIG_2") &
+bind(C, name="_wrap_new_heffte_fft3d_r2c_cufft__SWIG_4") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -665,9 +665,9 @@ integer(C_INT), intent(in) :: farg23
 type(SwigClassWrapper) :: fresult
 end function
 
-function swigc_new_heffte_fft3d_r2c_cufft__SWIG_3(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+function swigc_new_heffte_fft3d_r2c_cufft__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
   farg11, farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20) &
-bind(C, name="_wrap_new_heffte_fft3d_r2c_cufft__SWIG_3") &
+bind(C, name="_wrap_new_heffte_fft3d_r2c_cufft__SWIG_5") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -694,9 +694,9 @@ integer(C_INT), intent(in) :: farg20
 type(SwigClassWrapper) :: fresult
 end function
 
-function swigc_new_heffte_fft3d_r2c_cufft__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+function swigc_new_heffte_fft3d_r2c_cufft__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
   farg11, farg12, farg13, farg14) &
-bind(C, name="_wrap_new_heffte_fft3d_r2c_cufft__SWIG_4") &
+bind(C, name="_wrap_new_heffte_fft3d_r2c_cufft__SWIG_6") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
@@ -723,7 +723,7 @@ result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
-integer(C_INT) :: fresult
+integer(C_LONG_LONG) :: fresult
 end function
 
 function swigc_heffte_fft3d_r2c_cufft_size_outbox(farg1) &
@@ -732,7 +732,7 @@ result(fresult)
 use, intrinsic :: ISO_C_BINDING
 import :: swigclasswrapper
 type(SwigClassWrapper), intent(in) :: farg1
-integer(C_INT) :: fresult
+integer(C_LONG_LONG) :: fresult
 end function
 
 function swigc_heffte_fft3d_r2c_cufft_size_workspace(farg1) &
@@ -980,8 +980,8 @@ subroutine SWIGTM_fin_bool(finp, iminp)
   end if
 end subroutine
 
-function swigf_new_heffte_fft3d_cufft__SWIG_2(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, oo0, &
-  oo1, oo2, comm, use_reorder, use_alltoall, use_pencils) &
+function swigf_new_heffte_fft3d_cufft__SWIG_4(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, oo0, &
+  oo1, oo2, comm, use_reorder, algorithm, use_pencils) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
 type(heffte_fft3d_cufft) :: self
@@ -1005,7 +1005,7 @@ integer(C_INT), intent(in) :: oo1
 integer(C_INT), intent(in) :: oo2
 integer :: comm
 logical, intent(in) :: use_reorder
-logical, intent(in) :: use_alltoall
+integer(C_INT), intent(in) :: algorithm
 logical, intent(in) :: use_pencils
 type(SwigClassWrapper) :: fresult 
 integer(C_INT) :: farg1 
@@ -1051,14 +1051,14 @@ farg17 = oo1
 farg18 = oo2
 farg19 = int(comm, C_INT)
 call SWIGTM_fin_bool(use_reorder, farg20)
-call SWIGTM_fin_bool(use_alltoall, farg21)
+farg21 = algorithm
 call SWIGTM_fin_bool(use_pencils, farg22)
-fresult = swigc_new_heffte_fft3d_cufft__SWIG_2(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+fresult = swigc_new_heffte_fft3d_cufft__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20, farg21, farg22)
 self%swigdata = fresult
 end function
 
-function swigf_new_heffte_fft3d_cufft__SWIG_3(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, oo0, &
+function swigf_new_heffte_fft3d_cufft__SWIG_5(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, oo0, &
   oo1, oo2, comm) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
@@ -1122,12 +1122,12 @@ farg16 = oo0
 farg17 = oo1
 farg18 = oo2
 farg19 = int(comm, C_INT)
-fresult = swigc_new_heffte_fft3d_cufft__SWIG_3(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+fresult = swigc_new_heffte_fft3d_cufft__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19)
 self%swigdata = fresult
 end function
 
-function swigf_new_heffte_fft3d_cufft__SWIG_4(il0, il1, il2, ih0, ih1, ih2, ol0, ol1, ol2, oh0, oh1, oh2, comm) &
+function swigf_new_heffte_fft3d_cufft__SWIG_6(il0, il1, il2, ih0, ih1, ih2, ol0, ol1, ol2, oh0, oh1, oh2, comm) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
 type(heffte_fft3d_cufft) :: self
@@ -1172,7 +1172,7 @@ farg10 = oh0
 farg11 = oh1
 farg12 = oh2
 farg13 = int(comm, C_INT)
-fresult = swigc_new_heffte_fft3d_cufft__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
+fresult = swigc_new_heffte_fft3d_cufft__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, farg11, &
   farg12, farg13)
 self%swigdata = fresult
 end function
@@ -1180,9 +1180,9 @@ end function
 function swigf_heffte_fft3d_cufft_size_inbox(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
-integer(C_INT) :: swig_result
+integer(C_LONG_LONG) :: swig_result
 class(heffte_fft3d_cufft), intent(in) :: self
-integer(C_INT) :: fresult 
+integer(C_LONG_LONG) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
@@ -1193,9 +1193,9 @@ end function
 function swigf_heffte_fft3d_cufft_size_outbox(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
-integer(C_INT) :: swig_result
+integer(C_LONG_LONG) :: swig_result
 class(heffte_fft3d_cufft), intent(in) :: self
-integer(C_INT) :: fresult 
+integer(C_LONG_LONG) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
@@ -1848,8 +1848,8 @@ call swigc_heffte_fft3d_cufft_op_assign__(farg1, farg2)
 self%swigdata = farg1
 end subroutine
 
-function swigf_new_heffte_fft3d_r2c_cufft__SWIG_2(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, &
-  oo0, oo1, oo2, r2c_direction, comm, use_reorder, use_alltoall, use_pencils) &
+function swigf_new_heffte_fft3d_r2c_cufft__SWIG_4(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, &
+  oo0, oo1, oo2, r2c_direction, comm, use_reorder, algorithm, use_pencils) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
 type(heffte_fft3d_r2c_cufft) :: self
@@ -1874,7 +1874,7 @@ integer(C_INT), intent(in) :: oo2
 integer(C_INT), intent(in) :: r2c_direction
 integer :: comm
 logical, intent(in) :: use_reorder
-logical, intent(in) :: use_alltoall
+integer(C_INT), intent(in) :: algorithm
 logical, intent(in) :: use_pencils
 type(SwigClassWrapper) :: fresult 
 integer(C_INT) :: farg1 
@@ -1922,14 +1922,14 @@ farg18 = oo2
 farg19 = r2c_direction
 farg20 = int(comm, C_INT)
 call SWIGTM_fin_bool(use_reorder, farg21)
-call SWIGTM_fin_bool(use_alltoall, farg22)
+farg22 = algorithm
 call SWIGTM_fin_bool(use_pencils, farg23)
-fresult = swigc_new_heffte_fft3d_r2c_cufft__SWIG_2(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+fresult = swigc_new_heffte_fft3d_r2c_cufft__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
   farg11, farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20, farg21, farg22, farg23)
 self%swigdata = fresult
 end function
 
-function swigf_new_heffte_fft3d_r2c_cufft__SWIG_3(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, &
+function swigf_new_heffte_fft3d_r2c_cufft__SWIG_5(il0, il1, il2, ih0, ih1, ih2, io0, io1, io2, ol0, ol1, ol2, oh0, oh1, oh2, &
   oo0, oo1, oo2, r2c_direction, comm) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
@@ -1996,12 +1996,12 @@ farg17 = oo1
 farg18 = oo2
 farg19 = r2c_direction
 farg20 = int(comm, C_INT)
-fresult = swigc_new_heffte_fft3d_r2c_cufft__SWIG_3(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+fresult = swigc_new_heffte_fft3d_r2c_cufft__SWIG_5(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
   farg11, farg12, farg13, farg14, farg15, farg16, farg17, farg18, farg19, farg20)
 self%swigdata = fresult
 end function
 
-function swigf_new_heffte_fft3d_r2c_cufft__SWIG_4(il0, il1, il2, ih0, ih1, ih2, ol0, ol1, ol2, oh0, oh1, oh2, r2c_direction, &
+function swigf_new_heffte_fft3d_r2c_cufft__SWIG_6(il0, il1, il2, ih0, ih1, ih2, ol0, ol1, ol2, oh0, oh1, oh2, r2c_direction, &
   comm) &
 result(self)
 use, intrinsic :: ISO_C_BINDING
@@ -2050,7 +2050,7 @@ farg11 = oh1
 farg12 = oh2
 farg13 = r2c_direction
 farg14 = int(comm, C_INT)
-fresult = swigc_new_heffte_fft3d_r2c_cufft__SWIG_4(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
+fresult = swigc_new_heffte_fft3d_r2c_cufft__SWIG_6(farg1, farg2, farg3, farg4, farg5, farg6, farg7, farg8, farg9, farg10, &
   farg11, farg12, farg13, farg14)
 self%swigdata = fresult
 end function
@@ -2058,9 +2058,9 @@ end function
 function swigf_heffte_fft3d_r2c_cufft_size_inbox(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
-integer(C_INT) :: swig_result
+integer(C_LONG_LONG) :: swig_result
 class(heffte_fft3d_r2c_cufft), intent(in) :: self
-integer(C_INT) :: fresult 
+integer(C_LONG_LONG) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata
@@ -2071,9 +2071,9 @@ end function
 function swigf_heffte_fft3d_r2c_cufft_size_outbox(self) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
-integer(C_INT) :: swig_result
+integer(C_LONG_LONG) :: swig_result
 class(heffte_fft3d_r2c_cufft), intent(in) :: self
-integer(C_INT) :: fresult 
+integer(C_LONG_LONG) :: fresult 
 type(SwigClassWrapper) :: farg1 
 
 farg1 = self%swigdata

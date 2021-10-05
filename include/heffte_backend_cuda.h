@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_CUDA_H
 #define HEFFTE_BACKEND_CUDA_H
 
-#include "heffte_pack3d.h"
+#include "heffte_r2r_executor.h"
 
 #ifdef Heffte_ENABLE_CUDA
 
@@ -109,6 +109,34 @@ namespace cuda {
                         index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                         scalar_type const source[], scalar_type destination[]);
 
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
+     */
+    struct cos_pre_pos_processor{
+        template<typename precision>
+        static void pre_forward(cudaStream_t, int length, precision const input[], precision fft_signal[]);
+        template<typename precision>
+        static void post_forward(cudaStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        template<typename precision>
+        static void pre_backward(cudaStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        template<typename precision>
+        static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
+    };
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Sine Transform pre-post processing methods using CUDA.
+     */
+    struct sin_pre_pos_processor{
+        template<typename precision>
+        static void pre_forward(cudaStream_t, int length, precision const input[], precision fft_signal[]);
+        template<typename precision>
+        static void post_forward(cudaStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        template<typename precision>
+        static void pre_backward(cudaStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        template<typename precision>
+        static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
+    };
 }
 
 namespace backend{
@@ -117,6 +145,16 @@ namespace backend{
      * \brief Indicate that the cuFFT backend has been enabled.
      */
     template<> struct is_enabled<cufft> : std::true_type{};
+    /*!
+     * \ingroup hefftecuda
+     * \brief Indicate that the cuFFT backend has been enabled for Cosine Transform.
+     */
+    template<> struct is_enabled<cufft_cos> : std::true_type{};
+    /*!
+     * \ingroup hefftecuda
+     * \brief Indicate that the cuFFT backend has been enabled for Sine Transform.
+     */
+    template<> struct is_enabled<cufft_sin> : std::true_type{};
 
     /*!
      * \ingroup hefftecuda
@@ -124,6 +162,44 @@ namespace backend{
      */
     template<>
     struct device_instance<cufft>{
+        //! \brief Constructor, sets up the stream.
+        device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        cudaStream_t stream(){ return _stream; }
+        //! \brief Returns the nullptr (const case).
+        cudaStream_t stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue, no-op in the CPU case.
+        void synchronize_device() const{ cuda::check_error(cudaStreamSynchronize(_stream), "device sync"); }
+        //! \brief The CUDA stream to be used in all operations.
+        mutable cudaStream_t _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = cudaStream_t;
+    };
+    /*!
+     * \ingroup hefftecuda
+     * \brief The CUDA backend uses a CUDA stream.
+     */
+    template<>
+    struct device_instance<cufft_cos>{
+        //! \brief Constructor, sets up the stream.
+        device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
+        //! \brief Returns the nullptr.
+        cudaStream_t stream(){ return _stream; }
+        //! \brief Returns the nullptr (const case).
+        cudaStream_t stream() const{ return _stream; }
+        //! \brief Syncs the execution with the queue, no-op in the CPU case.
+        void synchronize_device() const{ cuda::check_error(cudaStreamSynchronize(_stream), "device sync"); }
+        //! \brief The CUDA stream to be used in all operations.
+        mutable cudaStream_t _stream;
+        //! \brief The type for the internal stream.
+        using stream_type = cudaStream_t;
+    };
+    /*!
+     * \ingroup hefftecuda
+     * \brief The CUDA backend uses a CUDA stream.
+     */
+    template<>
+    struct device_instance<cufft_sin>{
         //! \brief Constructor, sets up the stream.
         device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
         //! \brief Returns the nullptr.
@@ -218,6 +294,28 @@ namespace backend{
         //! \brief The data is managed by the cuda vector container.
         template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
     };
+    /*!
+     * \ingroup hefftecuda
+     * \brief Defines the location type-tag and the cuda container.
+     */
+    template<>
+    struct buffer_traits<cufft_cos>{
+        //! \brief The cufft library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the cuda vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
+    /*!
+     * \ingroup hefftecuda
+     * \brief Defines the location type-tag and the cuda container.
+     */
+    template<>
+    struct buffer_traits<cufft_sin>{
+        //! \brief The cufft library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the cuda vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
 }
 
 /*!
@@ -254,9 +352,54 @@ template<typename scalar_type> struct plan_cufft{
             cufftMakePlanMany(plan, 1, &size, &size, stride, dist, &size, stride, dist,
                               (std::is_same<scalar_type, std::complex<float>>::value) ? CUFFT_C2C : CUFFT_Z2Z,
                               batch, &work_size),
-            "plan_cufft::cufftMakePlanMany()"
+            "plan_cufft::cufftMakePlanMany() 1D"
         );
 
+        if (stream != nullptr)
+            cuda::check_error( cufftSetStream(plan, stream), "cufftSetStream()");
+    }
+    /*!
+     * \brief Constructor, takes inputs identical to cufftMakePlanMany().
+     *
+     * \param stream is the CUDA stream to use for the transform
+     * \param size1 is the number of entries in a 2-D transform (dimension 1)
+     * \param size2 is the number of entries in a 2-D transform (dimension 2)
+     * \param embed defines the embedding of the 2-D transform into a 3-D box
+     * \param batch is the number of transforms in the batch
+     * \param stride is the distance between entries of the same transform
+     * \param dist is the distance between the first entries of consecutive sequences
+     */
+    plan_cufft(cudaStream_t stream, int size1, int size2, std::array<int, 2> const &embed, int batch, int stride, int dist){
+        size_t work_size = 0;
+        int size[2] = {size2, size1};
+
+        cuda::check_error(cufftCreate(&plan), "plan_cufft::cufftCreate()");
+        if (embed[0] == 0 and embed[1] == 0){
+            cuda::check_error(
+                cufftMakePlanMany(plan, 2, size, size, stride, dist, size, stride, dist,
+                                (std::is_same<scalar_type, std::complex<float>>::value) ? CUFFT_C2C : CUFFT_Z2Z,
+                                batch, &work_size),
+                "plan_cufft::cufftMakePlanMany() 2D"
+            );
+        }else{
+            cuda::check_error(
+                cufftMakePlanMany(plan, 2, size, const_cast<int*>(embed.data()), stride, dist, const_cast<int*>(embed.data()), stride, dist,
+                                (std::is_same<scalar_type, std::complex<float>>::value) ? CUFFT_C2C : CUFFT_Z2Z,
+                                batch, &work_size),
+                "plan_cufft::cufftMakePlanMany() 2D with embedding"
+            );
+        }
+
+        if (stream != nullptr)
+            cuda::check_error( cufftSetStream(plan, stream), "cufftSetStream()");
+    }
+    //! \brief Constructor, takes inputs identical to cufftPlan3d()
+    plan_cufft(cudaStream_t stream, int size1, int size2, int size3){
+        cuda::check_error(
+            cufftPlan3d(&plan, size3, size2, size1,
+                        (std::is_same<scalar_type, std::complex<float>>::value) ? CUFFT_C2C : CUFFT_Z2Z),
+            "plan_cufft::cufftPlan3d()"
+        );
         if (stream != nullptr)
             cuda::check_error( cufftSetStream(plan, stream), "cufftSetStream()");
     }
@@ -288,13 +431,49 @@ public:
     template<typename index>
     cufft_executor(cudaStream_t active_stream, box3d<index> const box, int dimension) :
         stream(active_stream),
-        size(box.size[dimension]),
+        size(box.size[dimension]), size2(0),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == box.order[0]) ? size : 1),
         blocks((dimension == box.order[1]) ? box.osize(2) : 1),
         block_stride(box.osize(0) * box.osize(1)),
-        total_size(box.count())
+        total_size(box.count()),
+        embed({0, 0})
+    {}
+    //! \brief Merges two FFTs into one.
+    template<typename index>
+    cufft_executor(cudaStream_t active_stream, box3d<index> const box, int dir1, int dir2) :
+        stream(active_stream),
+        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        blocks(1), block_stride(0), total_size(box.count()), embed({0, 0})
+    {
+        int odir1 = box.find_order(dir1);
+        int odir2 = box.find_order(dir2);
+
+        if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            stride = 1;
+            dist = size * size2;
+            howmanyffts = box.size[2];
+        }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            stride = box.size[0];
+            dist = 1;
+            howmanyffts = box.size[0];
+        }else{ // case of directions (0, 2)
+            stride = 1;
+            dist = size;
+            embed = {static_cast<int>(box.size[2]), static_cast<int>(box.size[1] * box.size[0])};
+            howmanyffts = box.size[1];
+        }
+    }
+    //! \brief Merges three FFTs into one.
+    template<typename index>
+    cufft_executor(cudaStream_t active_stream, box3d<index> const box) :
+        stream(active_stream),
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        stride(0), dist(0),
+        blocks(1), block_stride(0),
+        total_size(box.count()),
+        embed({0, 0})
     {}
 
     //! \brief Forward fft, float-complex case.
@@ -358,12 +537,20 @@ private:
     //! \brief Helper template to create the plan.
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_cufft<scalar_type>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, howmanyffts, stride, dist));
+        if (not plan){
+            if (dist == 0)
+                plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, size2, howmanyffts));
+            else if (size2 == 0)
+                plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, howmanyffts, stride, dist));
+            else
+                plan = std::unique_ptr<plan_cufft<scalar_type>>(new plan_cufft<scalar_type>(stream, size, size2, embed, howmanyffts, stride, dist));
+        }
     }
 
     mutable cudaStream_t stream;
 
-    int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    std::array<int, 2> embed;
     mutable std::unique_ptr<plan_cufft<std::complex<float>>> ccomplex_plan;
     mutable std::unique_ptr<plan_cufft<std::complex<double>>> zcomplex_plan;
 };
@@ -549,20 +736,40 @@ private:
  */
 template<> struct one_dim_backend<backend::cufft>{
     //! \brief Defines the complex-to-complex executor.
-    using type = cufft_executor;
+    using executor = cufft_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = cufft_executor_r2c;
+    using executor_r2c = cufft_executor_r2c;
+};
 
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<cufft_executor> make(cudaStream_t stream, box3d<index> const box, int dimension){
-        return std::unique_ptr<cufft_executor>(new cufft_executor(stream, box, dimension));
-    }
-    //! \brief Constructs a real-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<cufft_executor_r2c> make_r2c(cudaStream_t stream, box3d<index> const box, int dimension){
-        return std::unique_ptr<cufft_executor_r2c>(new cufft_executor_r2c(stream, box, dimension));
-    }
+struct cuda_buffer_factory{
+    template<typename scalar_type>
+    static backend::buffer_traits<backend::cufft>::container<scalar_type>
+    make(cudaStream_t stream, size_t size){ return backend::buffer_traits<backend::cufft>::container<scalar_type>(stream, size); }
+};
+
+/*!
+ * \ingroup hefftecuda
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::cufft_cos>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::cufft, cuda::cos_pre_pos_processor, cuda_buffer_factory>;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
+};
+/*!
+ * \ingroup hefftecuda
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::cufft_sin>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::cufft, cuda::sin_pre_pos_processor, cuda_buffer_factory>;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
 };
 
 /*!
@@ -626,6 +833,22 @@ namespace data_scaling {
 template<> struct default_plan_options<backend::cufft>{
     //! \brief The reshape operations will not transpose the data.
     static const bool use_reorder = false;
+};
+/*!
+ * \ingroup hefftecuda
+ * \brief Sets the default options for the cufft backend.
+ */
+template<> struct default_plan_options<backend::cufft_cos>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup hefftecuda
+ * \brief Sets the default options for the cufft backend.
+ */
+template<> struct default_plan_options<backend::cufft_sin>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
 };
 
 }

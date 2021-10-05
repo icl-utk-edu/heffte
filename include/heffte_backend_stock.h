@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_STOCK_FFT_H
 #define HEFFTE_BACKEND_STOCK_FFT_H
 
-#include "heffte_pack3d.h"
+#include "heffte_r2r_executor.h"
 
 #include "stock_fft/heffte_stock_tree.h"
 
@@ -26,6 +26,16 @@ namespace backend{
      * \brief Indicate that the stock backend has been enabled.
      */
     template<> struct is_enabled<stock> : std::true_type{};
+    /*!
+     * \ingroup hefftestock
+     * \brief Indicate that the stock backend has been enabled.
+     */
+    template<> struct is_enabled<stock_cos> : std::true_type{};
+    /*!
+     * \ingroup hefftestock
+     * \brief Indicate that the stock backend has been enabled.
+     */
+    template<> struct is_enabled<stock_sin> : std::true_type{};
 
 // Specialization is not necessary since the default behavior assumes CPU parameters.
 //     template<>
@@ -38,16 +48,16 @@ namespace backend{
 //! \brief Recognize stock FFT single complex (which are std::complex) types
 template<> struct is_ccomplex<stock::Complex<float, 1>> : std::true_type{};
 template<> struct is_zcomplex<stock::Complex<double, 1>> : std::true_type{};
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
 /*!
  * \ingroup hefftestock
  * \brief Recognize the stock FFT single precision complex types.
  */
 template<> struct is_ccomplex<stock::Complex<float, 4>> : std::true_type{};
 template<> struct is_ccomplex<stock::Complex<float, 8>> : std::true_type{};
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
 template<> struct is_ccomplex<stock::Complex<float, 16>> : std::true_type{};
-#endif // __AVX512F__
+#endif // Heffte_ENABLE_AVX512
 
 /*!
  * \ingroup hefftestock
@@ -55,12 +65,12 @@ template<> struct is_ccomplex<stock::Complex<float, 16>> : std::true_type{};
  */
 template<> struct is_zcomplex<stock::Complex<double, 2>> : std::true_type{};
 template<> struct is_zcomplex<stock::Complex<double, 4>> : std::true_type{};
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
 template<> struct is_zcomplex<stock::Complex<double, 8>> : std::true_type{};
-#endif // __AVX512F__
-#endif // __AVX__
+#endif // Heffte_ENABLE_AVX512
+#endif // Heffte_ENABLE_AVX
 
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
 
 //! \brief Copy an array of numbers into a stock::Complex where only the first c_len spots are filled
 template<typename F, int L>
@@ -84,13 +94,13 @@ stock::Complex<F,L> copy_pad(F const *c, int c_len, int i_stride) {
 }
 
 template<typename F> struct pack_size { };
-#ifdef __AVX512F__
+#ifdef Heffte_ENABLE_AVX512
 template<>           struct pack_size<float> {constexpr static int size = 16;};
 template<>           struct pack_size<double>{constexpr static int size = 8;};
 #else
 template<>           struct pack_size<float> {constexpr static int size = 8;};
 template<>           struct pack_size<double>{constexpr static int size = 4;};
-#endif // __AVX512F__
+#endif // Heffte_ENABLE_AVX512
 
 /*!
  * \ingroup hefftestock
@@ -414,7 +424,7 @@ struct plan_stock_fft<std::complex<F>, dir>{
         }
     }
 };
-#endif // __AVX512F__
+#endif // Heffte_ENABLE_AVX512
 
 /*!
  * \ingroup hefftestock
@@ -432,7 +442,7 @@ class stock_fft_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
-    stock_fft_executor(box3d<index> const box, int dimension) :
+    stock_fft_executor(void*, box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         num_ffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -441,6 +451,14 @@ public:
         block_stride(box.osize(0) * box.osize(1)),
         total_size(box.count())
     {}
+    //! \brief Placeholder, unimplemented.
+    template<typename index> stock_fft_executor(void*, box3d<index> const, int, int){
+        throw std::runtime_error("2D transforms for the stock backend are not available yet!");
+    }
+    //! \brief Placeholder, unimplemented.
+    template<typename index> stock_fft_executor(void*, box3d<index> const){
+        throw std::runtime_error("3D transforms for the stock backend are not available yet!");
+    }
 
     //! \brief Forward fft, float-complex case.
     void forward(std::complex<float> data[]) const{
@@ -525,7 +543,7 @@ public:
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
     template<typename index>
-    stock_fft_executor_r2c(box3d<index> const box, int dimension) :
+    stock_fft_executor_r2c(void*, box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         num_ffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -594,20 +612,33 @@ private:
  */
 template<> struct one_dim_backend<backend::stock>{
     //! \brief Defines the complex-to-complex executor.
-    using type = stock_fft_executor;
+    using executor = stock_fft_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = stock_fft_executor_r2c;
-
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<stock_fft_executor> make(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<stock_fft_executor>(new stock_fft_executor(box, dimension));
-    }
-    //! \brief Constructs a real-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<stock_fft_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<stock_fft_executor_r2c>(new stock_fft_executor_r2c(box, dimension));
-    }
+    using executor_r2c = stock_fft_executor_r2c;
+};
+/*!
+ * \ingroup hefftestock
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::stock_cos>{
+    //! \brief Defines the real-to-real executor.
+    using executor = real2real_executor<backend::stock, cpu_cos_pre_pos_processor, cpu_buffer_factory>;
+    //! \brief There is no real-to-complex variant.
+    using executor_r2c = void;
+};
+/*!
+ * \ingroup hefftestock
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::stock_sin>{
+    //! \brief Defines the real-to-real executor.
+    using executor = real2real_executor<backend::stock, cpu_sin_pre_pos_processor, cpu_buffer_factory>;
+    //! \brief There is no real-to-complex variant.
+    using executor_r2c = void;
 };
 
 /*!
@@ -615,6 +646,22 @@ template<> struct one_dim_backend<backend::stock>{
  * \brief Sets the default options for the stock fft backend.
  */
 template<> struct default_plan_options<backend::stock>{
+    //! \brief The reshape operations will also reorder the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup hefftestock
+ * \brief Sets the default options for the stock fft backend.
+ */
+template<> struct default_plan_options<backend::stock_cos>{
+    //! \brief The reshape operations will also reorder the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup hefftestock
+ * \brief Sets the default options for the stock fft backend.
+ */
+template<> struct default_plan_options<backend::stock_sin>{
     //! \brief The reshape operations will also reorder the data.
     static const bool use_reorder = true;
 };

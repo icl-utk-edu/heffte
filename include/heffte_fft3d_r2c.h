@@ -46,9 +46,9 @@ template<typename backend_tag, typename index = int>
 class fft3d_r2c : public backend::device_instance<backend_tag>{
 public:
     //! \brief FFT executor for the complex-to-complex dimensions.
-    using backend_executor_c2c = typename one_dim_backend<backend_tag>::type;
+    using backend_executor_c2c = typename one_dim_backend<backend_tag>::executor;
     //! \brief FFT executor for the real-to-complex dimension.
-    using backend_executor_r2c = typename one_dim_backend<backend_tag>::type_r2c;
+    using backend_executor_r2c = typename one_dim_backend<backend_tag>::executor_r2c;
     /*!
      * \brief Type-tag that is either tag::cpu or tag::gpu to indicate the location of the data.
      */
@@ -75,11 +75,7 @@ public:
      */
     fft3d_r2c(box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
               plan_options const options = default_options<backend_tag>()) :
-        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction,
-                                  #ifdef Heffte_ENABLE_ROCM
-                                  (std::is_same<backend_tag, backend::rocfft>::value) ? force_reorder(options) :
-                                  #endif
-                                  options),
+        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, set_options<backend_tag, true>(options)),
                   mpi::comm_rank(comm), comm){
         assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
@@ -91,11 +87,7 @@ public:
               box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
               plan_options const options = default_options<backend_tag>()) :
         fft3d_r2c(gpu_stream,
-                  plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction,
-                                  #ifdef Heffte_ENABLE_ROCM
-                                  (std::is_same<backend_tag, backend::rocfft>::value) ? force_reorder(options) :
-                                  #endif
-                                  options),
+                  plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, set_options<backend_tag, true>(options)),
                   mpi::comm_rank(comm), comm){
         assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");

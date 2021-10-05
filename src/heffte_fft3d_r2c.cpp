@@ -50,9 +50,9 @@ void fft3d_r2c<backend_tag, index>::setup(logic_plan3d<index> const &plan, MPI_C
         backward_shaper[3-i] = make_reshape3d<backend_tag>(this->stream(), plan.out_shape[i], plan.in_shape[i], comm, plan.options);
     }
 
-    executor_r2c = one_dim_backend<backend_tag>::make_r2c(this->stream(), plan.out_shape[0][mpi::comm_rank(comm)], plan.fft_direction[0]);
-    executor[0] = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[1][mpi::comm_rank(comm)], plan.fft_direction[1]);
-    executor[1] = one_dim_backend<backend_tag>::make(this->stream(), plan.out_shape[2][mpi::comm_rank(comm)], plan.fft_direction[2]);
+    executor_r2c = make_executor_r2c<backend_tag>(this->stream(), plan.out_shape[0][mpi::comm_rank(comm)], plan.fft_direction[0]);
+    executor[0] = make_executor<backend_tag>(this->stream(), plan.out_shape[1][mpi::comm_rank(comm)], plan.fft_direction[1]);
+    executor[1] = make_executor<backend_tag>(this->stream(), plan.out_shape[2][mpi::comm_rank(comm)], plan.fft_direction[2]);
 }
 
 template<typename backend_tag, typename index>

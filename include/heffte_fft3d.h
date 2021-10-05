@@ -76,6 +76,36 @@ template<> struct fft_output<double>{
 };
 
 /*!
+ * \ingroup fft3dcomplex
+ * \brief Defines the relationship between pairs of input-output types in a general transform algorithms.
+ *
+ * Handles the case where we differentiate between the standard FFT transform and the Cosine Transform.
+ */
+template<typename scalar_type, typename backend_tag, typename = void>
+struct transform_output{
+    //! \brief The output type corresponding to the scalar_type and backend_tag.
+    //using type = scalar_type;
+};
+/*!
+ * \ingroup fft3dcomplex
+ * \brief Specialization for standard FFT.
+ */
+template<typename scalar_type, typename backend_tag>
+struct transform_output<scalar_type, backend_tag, typename std::enable_if<backend::uses_fft_types<backend_tag>::value>::type>{
+    //! \brief The output type corresponding to the scalar_type and backend_tag (FFT case).
+    using type = typename fft_output<scalar_type>::type;
+};
+/*!
+ * \ingroup fft3dcomplex
+ * \brief Specialization for Cosine Transform.
+ */
+template<typename scalar_type, typename backend_tag>
+struct transform_output<scalar_type, backend_tag, typename std::enable_if<not backend::uses_fft_types<backend_tag>::value>::type>{
+    //! \brief The output type corresponding to the scalar_type and backend_tag (Cosine Transform case).
+    using type = scalar_type;
+};
+
+/*!
  * \ingroup fft3d
  * \brief Indicates the scaling factor to apply on the result of an FFT operation.
  *
@@ -166,7 +196,7 @@ template<typename backend_tag, typename index = int>
 class fft3d : public backend::device_instance<backend_tag>{
 public:
     //! \brief Alias to the wrapper class for the one dimensional backend library.
-    using backend_executor = typename one_dim_backend<backend_tag>::type;
+    using backend_executor = typename one_dim_backend<backend_tag>::executor;
     /*!
      * \brief Alias to the container template associated with the backend.
      *
@@ -178,7 +208,7 @@ public:
     //! \brief Container of real values corresponding to the complex type T.
     template<typename T> using real_buffer_container = buffer_container<typename define_standard_type<T>::type::value_type>;
     //! \brief Container of the output type corresponding to T, see \ref HeffteFFT3DCompatibleTypes "the table of compatible input and output types".
-    template<typename T> using output_buffer_container = buffer_container<typename fft_output<T>::type>;
+    template<typename T> using output_buffer_container = buffer_container<typename transform_output<T, backend_tag>::type>;
 
     /*!
      * \brief Type-tag that is either tag::cpu or tag::gpu to indicate the location of the data.
@@ -195,7 +225,7 @@ public:
      */
     fft3d(box3d<index> const inbox, box3d<index> const outbox, MPI_Comm const comm,
           plan_options const options = default_options<backend_tag>()) :
-        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, options), mpi::comm_rank(comm), comm){
+        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, set_options<backend_tag>(options)), mpi::comm_rank(comm), comm){
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
     /*!
@@ -218,7 +248,7 @@ public:
     fft3d(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
           box3d<index> const inbox, box3d<index> const outbox, MPI_Comm const comm,
           plan_options const options = default_options<backend_tag>()) :
-        fft3d(gpu_stream, plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, options), mpi::comm_rank(comm), comm){
+        fft3d(gpu_stream, plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, set_options<backend_tag>(options)), mpi::comm_rank(comm), comm){
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
 
@@ -278,11 +308,8 @@ public:
      */
     template<typename input_type, typename output_type>
     void forward(input_type const input[], output_type output[], scale scaling = scale::none) const{
-        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
-                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value)
-                   or (is_ccomplex<input_type>::value and is_ccomplex<output_type>::value)
-                   or (is_zcomplex<input_type>::value and is_zcomplex<output_type>::value),
-                "Using either an unknown complex type or an incompatible pair of types!");
+        static_assert(backend::check_types<backend_tag, input_type, output_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
 
         standard_transform(convert_to_standard(input), convert_to_standard(output), forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
     }
@@ -301,11 +328,8 @@ public:
      */
     template<typename input_type, typename output_type>
     void forward(input_type const input[], output_type output[], output_type workspace[], scale scaling = scale::none) const{
-        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
-                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value)
-                   or (is_ccomplex<input_type>::value and is_ccomplex<output_type>::value)
-                   or (is_zcomplex<input_type>::value and is_zcomplex<output_type>::value),
-                "Using either an unknown complex type or an incompatible pair of types!");
+        static_assert(backend::check_types<backend_tag, input_type, output_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
 
         standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace),
                            forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
@@ -339,7 +363,7 @@ public:
     output_buffer_container<input_type> forward(buffer_container<input_type> const &input, scale scaling = scale::none){
         if (input.size() < static_cast<size_t>(size_inbox()))
             throw std::invalid_argument("The input vector is smaller than size_inbox(), i.e., not enough entries provided to fill the inbox.");
-        auto output = make_buffer_container<typename fft_output<input_type>::type>(this->stream(), size_outbox());
+        auto output = make_buffer_container<typename transform_output<input_type, backend_tag>::type>(this->stream(), size_outbox());
         forward(input.data(), output.data(), scaling);
         return output;
     }
@@ -365,11 +389,8 @@ public:
      */
     template<typename input_type, typename output_type>
     void backward(input_type const input[], output_type output[], scale scaling = scale::none) const{
-        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
-                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value)
-                   or (is_ccomplex<output_type>::value and is_ccomplex<input_type>::value)
-                   or (is_zcomplex<output_type>::value and is_zcomplex<input_type>::value),
-                "Using either an unknown complex type or an incompatible pair of types!");
+        static_assert(backend::check_types<backend_tag, output_type, input_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
 
         standard_transform(convert_to_standard(input), convert_to_standard(output), backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
     }
@@ -379,11 +400,8 @@ public:
      */
     template<typename input_type, typename output_type>
     void backward(input_type const input[], output_type output[], input_type workspace[], scale scaling = scale::none) const{
-        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
-                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value)
-                   or (is_ccomplex<output_type>::value and is_ccomplex<input_type>::value)
-                   or (is_zcomplex<output_type>::value and is_zcomplex<input_type>::value),
-                "Using either an unknown complex type or an incompatible pair of types!");
+        static_assert(backend::check_types<backend_tag, output_type, input_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
 
         standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace),
                            backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
@@ -418,7 +436,13 @@ public:
     /*!
      * \brief Returns the scale factor for the given scaling.
      */
-    double get_scale_factor(scale scaling) const{ return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor; }
+    double get_scale_factor(scale scaling) const{
+        if (backend::uses_fft_types<backend_tag>::value){
+            return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor;
+        }else{
+            return (scaling == scale::symmetric) ? std::sqrt(scale_factor / 64.0) : scale_factor / 64.0;
+        }
+    }
 
     /*!
      * \brief Returns the workspace size that will be used, size is measured in complex numbers.
@@ -480,16 +504,15 @@ private:
      * \param scaling is the type of scaling to apply to the output data
      */
     template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
-                            std::complex<scalar_type> workspace[],
+    void standard_transform(scalar_type const input[], scalar_type output[], scalar_type workspace[],
                             std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const; // complex to complex
     //! \brief Overload that allocates and deallocates the workspace.
     template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], std::complex<scalar_type> output[],
+    void standard_transform(scalar_type const input[], scalar_type output[],
                             std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
                             std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
+        auto workspace = make_buffer_container<typename transform_output<scalar_type, backend_tag>::type>(this->stream(), size_workspace());
         standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
     }
     /*!

@@ -19,6 +19,11 @@ add_executable(test_unit_nompi test_units_nompi.cpp)
 target_link_libraries(test_unit_nompi  Heffte)
 add_test(unit_tests_nompi  test_unit_nompi)
 
+# no MPI test of different aspects of the stock implementations
+add_executable(test_unit_stock  test_units_stock.cpp)
+target_link_libraries(test_unit_stock  Heffte)
+add_test(unit_tests_stock  test_unit_stock)
+
 # test the reshape methods
 add_executable(test_reshape3d test_reshape3d.cpp)
 target_link_libraries(test_reshape3d  Heffte)
@@ -39,7 +44,9 @@ heffte_add_mpi_test(NAME heffte_fft3d_np12  COMMAND test_fft3d RANKS 12)
 # test the user-provided streams
 add_executable(test_streams  test_fft3d.h test_streams.cpp)
 target_link_libraries(test_streams  Heffte)
-# heffte_add_mpi_test(NAME heffte_streams_np6 COMMAND test_streams RANKS 6) # will enable once Volta issue is fixed
+if (NOT Heffte_ENABLE_CUDA)
+    heffte_add_mpi_test(NAME heffte_streams_np6 COMMAND test_streams RANKS 6) # will enable once Volta issue is fixed
+endif()
 
 # test the real-to-complex class
 add_executable(test_fft3d_r2c  test_fft3d.h test_fft3d_r2c.cpp)
@@ -50,6 +57,10 @@ heffte_add_mpi_test(NAME heffte_fft2d_r2c_np4   COMMAND test_fft3d_r2c RANKS 4)
 heffte_add_mpi_test(NAME heffte_fft3d_r2c_np6   COMMAND test_fft3d_r2c RANKS 6)
 heffte_add_mpi_test(NAME heffte_fft3d_r2c_np8   COMMAND test_fft3d_r2c RANKS 8)
 heffte_add_mpi_test(NAME heffte_fft3d_r2c_np12  COMMAND test_fft3d_r2c RANKS 12)
+
+add_executable(test_cos_transform  test_fft3d.h test_cos.cpp)
+target_link_libraries(test_cos_transform  Heffte)
+heffte_add_mpi_test(NAME test_cos_np4   COMMAND  test_cos_transform RANKS 4)
 
 # test the 32 and 64 bit integers
 add_executable(test_longlong  test_fft3d.h test_longlong.cpp)

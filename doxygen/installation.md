@@ -25,6 +25,7 @@ Tested backend libraries:
 
 | Backend        | Tested versions |
 |----|----|
+| stock          | all             |
 | fftw3          | 3.3.7 - 3.3.8   |
 | mkl            | 2016            |
 | oneapi/onemkl  | 2021.2          |
@@ -52,6 +53,7 @@ cmake \
     -D CMAKE_BUILD_TYPE=Release \
     -D BUILD_SHARED_LIBS=ON     \
     -D CMAKE_INSTALL_PREFIX=<path-for-installation> \
+    -D Heffte_ENABLE_AVX=ON \
     -D Heffte_ENABLE_FFTW=ON \
     -D FFTW_ROOT=<path-to-fftw3-installation> \
     -D Heffte_ENABLE_CUDA=ON \
@@ -71,6 +73,7 @@ Additional heFFTe options:
     Heffte_ENABLE_ROCM=<ON/OFF>      (enable the rocFFT backend)
     Heffte_ENABLE_ONEAPI=<ON/OFF>    (enable the oneMKL backend)
     Heffte_ENABLE_MKL=<ON/OFF>       (enable the MKL backend)
+    Heffte_ENABLE_AVX512=<ON/OFF>    (enable AVX512 instructions in the stock backend)
     MKL_ROOT=<path>                  (path to the MKL folder)
     Heffte_ENABLE_DOXYGEN=<ON/OFF>   (build the documentation)
     Heffte_ENABLE_TRACING=<ON/OFF>   (enable the even logging engine)
@@ -86,6 +89,13 @@ Additional language interfaces and helper methods:
 See the Fortran and Python sections for details.
 
 ### List of Available Backend Libraries
+
+* **Stock:** the stock backend library is a CPU-based 1-D FFT library built *into* HeFFTe, and requires no additional external libraries or hardware. This is enabled by default, and can optionally perform vectorized complex arithmetic using AVX and AVX512 instruction sets (this accelerates the backend by up to an order of magnitude, but includes no vectorization by default). This vectorization is enabled with
+```
+    -D Heffte_ENABLE_AVX=<ON/OFF>
+    -D Heffte_ENABLE_AVX512=<ON/OFF>
+```
+Just using `Heffte_ENABLE_AVX512` enables all the vectorization flags. Using vectorization is optional and not required for using the stock backend.
 
 * **FFTW3:** the [fftw3](http://www.fftw.org/) library is the de-facto standard for open source FFT library and is distributed under the GNU General Public License, the fftw3 backend is enabled with:
 ```

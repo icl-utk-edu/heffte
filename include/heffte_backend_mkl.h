@@ -7,7 +7,7 @@
 #ifndef HEFFTE_BACKEND_MKL_H
 #define HEFFTE_BACKEND_MKL_H
 
-#include "heffte_pack3d.h"
+#include "heffte_r2r_executor.h"
 
 #ifdef Heffte_ENABLE_MKL
 
@@ -32,6 +32,16 @@ namespace backend{
      * \brief Indicate that the MKL backend has been enabled.
      */
     template<> struct is_enabled<mkl> : std::true_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Indicate that the MKL Cosine Transform backend has been enabled.
+     */
+    template<> struct is_enabled<mkl_cos> : std::true_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Indicate that the MKL Sine Transform backend has been enabled.
+     */
+    template<> struct is_enabled<mkl_sin> : std::true_type{};
 }
 
 /*!
@@ -90,6 +100,50 @@ struct plan_mkl{
         check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, static_cast<MKL_LONG>(dist)), "mkl set odist");
         check_error( DftiCommitDescriptor(plan), "mkl commit");
     }
+    /*!
+     * \brief Constructor, takes inputs identical to MKL FFT descriptors.
+     *
+     * \param size1 is the number of entries in a 2-D transform, direction 1
+     * \param size2 is the number of entries in a 2-D transform, direction 2
+     * \param howmanyffts is the number of transforms in the batch
+     * \param stride is the distance between entries of the same transform
+     * \param dist is the distance between the first entries of consecutive sequences
+     */
+    plan_mkl(size_t size1, size_t size2, std::array<MKL_LONG, 2> const &embed, size_t howmanyffts, size_t dist) : plan(nullptr){
+        static_assert(std::is_same<scalar_type, std::complex<float>>::value
+                      or std::is_same<scalar_type, std::complex<double>>::value,
+                      "plan_mkl requires std::complex scalar_type with float or double, see plan_mkl_r2c for real types");
+
+        MKL_LONG size[] = {static_cast<MKL_LONG>(size1), static_cast<MKL_LONG>(size2)};
+        check_error( DftiCreateDescriptor(&plan, (std::is_same<scalar_type, std::complex<float>>::value) ?
+                                                  DFTI_SINGLE : DFTI_DOUBLE,
+                                          DFTI_COMPLEX, 2, size), "mkl plan create 2d" );
+        check_error( DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, static_cast<MKL_LONG>(howmanyffts)), "mkl set howmany");
+        check_error( DftiSetValue(plan, DFTI_PLACEMENT, DFTI_INPLACE), "mkl set in place");
+        MKL_LONG lstride[] = {0, static_cast<MKL_LONG>(embed[0]), static_cast<MKL_LONG>(embed[1])};
+        check_error( DftiSetValue(plan, DFTI_INPUT_STRIDES, lstride), "mkl set istride");
+        check_error( DftiSetValue(plan, DFTI_OUTPUT_STRIDES, lstride), "mkl set ostride");
+        check_error( DftiSetValue(plan, DFTI_INPUT_DISTANCE, static_cast<MKL_LONG>(dist)), "mkl set idist");
+        check_error( DftiSetValue(plan, DFTI_OUTPUT_DISTANCE, static_cast<MKL_LONG>(dist)), "mkl set odist");
+        check_error( DftiCommitDescriptor(plan), "mkl commit");
+
+    }
+    /*!
+     * \brief Constructor, takes inputs identical to MKL FFT descriptors.
+     *
+     * \param size1 is the number of entries in a 3-D transform, direction 1
+     * \param size2 is the number of entries in a 3-D transform, direction 2
+     * \param size3 is the number of entries in a 3-D transform, direction 3
+     */
+    plan_mkl(int size1, int size2, int size3){
+        MKL_LONG size[] = {static_cast<MKL_LONG>(size3), static_cast<MKL_LONG>(size2), static_cast<MKL_LONG>(size1)};
+        check_error( DftiCreateDescriptor(&plan, (std::is_same<scalar_type, std::complex<float>>::value) ?
+                                                  DFTI_SINGLE : DFTI_DOUBLE,
+                                          DFTI_COMPLEX, 3, size), "mkl plan create 3d" );
+        check_error( DftiSetValue(plan, DFTI_NUMBER_OF_TRANSFORMS, 1), "mkl set howmany");
+        check_error( DftiSetValue(plan, DFTI_PLACEMENT, DFTI_INPLACE), "mkl set in place");
+        check_error( DftiCommitDescriptor(plan), "mkl commit");
+    }
 
     //! \brief Destructor, deletes the plan.
     ~plan_mkl(){ check_error( DftiFreeDescriptor(&plan), "mkl delete descriptor"); }
@@ -115,14 +169,50 @@ class mkl_executor{
 public:
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
-    mkl_executor(box3d<index> const box, int dimension) :
-        size(box.size[dimension]),
+    mkl_executor(void*, box3d<index> const box, int dimension) :
+        size(box.size[dimension]), size2(0),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
         dist((dimension == box.order[0]) ? size : 1),
         blocks((dimension == box.order[1]) ? box.osize(2) : 1),
         block_stride(box.osize(0) * box.osize(1)),
-        total_size(box.count())
+        total_size(box.count()),
+        embed({0, 0})
+    {}
+    //! \brief Merges two FFTs into one.
+    template<typename index>
+    mkl_executor(void*, box3d<index> const box, int dir1, int dir2) :
+        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        blocks(1), block_stride(0), total_size(box.count())
+    {
+        int odir1 = box.find_order(dir1);
+        int odir2 = box.find_order(dir2);
+
+        if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            stride = 1;
+            dist = size * size2;
+            embed = {static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(size)};
+            howmanyffts = box.size[2];
+        }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            stride = box.size[0];
+            dist = 1;
+            embed = {static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(size) * static_cast<MKL_LONG>(stride)};
+            howmanyffts = box.size[0];
+        }else{ // case of directions (0, 2)
+            stride = 1;
+            dist = size;
+            embed = {static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(box.size[1]) * static_cast<MKL_LONG>(box.size[0])};
+            howmanyffts = box.size[1];
+        }
+    }
+    //! \brief Merges three FFTs into one.
+    template<typename index>
+    mkl_executor(void*, box3d<index> const box) :
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        stride(0), dist(0),
+        blocks(1), block_stride(0),
+        total_size(box.count()),
+        embed({0, 0})
     {}
 
     //! \brief Forward fft, float-complex case.
@@ -186,10 +276,18 @@ private:
     //! \brief Helper template to create the plan.
     template<typename scalar_type>
     void make_plan(std::unique_ptr<plan_mkl<scalar_type>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_mkl<scalar_type>>(new plan_mkl<scalar_type>(size, howmanyffts, stride, dist));
+        if (not plan){
+            if (dist == 0)
+                plan = std::unique_ptr<plan_mkl<scalar_type>>(new plan_mkl<scalar_type>(size, size2, howmanyffts));
+            else if (size2 == 0)
+                plan = std::unique_ptr<plan_mkl<scalar_type>>(new plan_mkl<scalar_type>(size, howmanyffts, stride, dist));
+            else
+                plan = std::unique_ptr<plan_mkl<scalar_type>>(new plan_mkl<scalar_type>(size, size2, embed, howmanyffts, dist));
+        }
     }
 
-    int size, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    std::array<MKL_LONG, 2> embed;
     mutable std::unique_ptr<plan_mkl<std::complex<float>>> cplan;
     mutable std::unique_ptr<plan_mkl<std::complex<double>>> zplan;
 };
@@ -258,7 +356,7 @@ public:
      * Note that the result sits in the box returned by box.r2c(dimension).
      */
     template<typename index>
-    mkl_executor_r2c(box3d<index> const box, int dimension) :
+    mkl_executor_r2c(void*, box3d<index> const box, int dimension) :
         size(box.size[dimension]),
         howmanyffts(fft1d_get_howmany(box, dimension)),
         stride(fft1d_get_stride(box, dimension)),
@@ -334,20 +432,33 @@ private:
  */
 template<> struct one_dim_backend<backend::mkl>{
     //! \brief Defines the complex-to-complex executor.
-    using type = mkl_executor;
+    using executor = mkl_executor;
     //! \brief Defines the real-to-complex executor.
-    using type_r2c = mkl_executor_r2c;
-
-    //! \brief Constructs a complex-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<mkl_executor> make(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<mkl_executor>(new mkl_executor(box, dimension));
-    }
-    //! \brief Constructs a real-to-complex executor.
-    template<typename index>
-    static std::unique_ptr<mkl_executor_r2c> make_r2c(void*, box3d<index> const box, int dimension){
-        return std::unique_ptr<mkl_executor_r2c>(new mkl_executor_r2c(box, dimension));
-    }
+    using executor_r2c = mkl_executor_r2c;
+};
+/*!
+ * \ingroup hefftemkl
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::mkl_cos>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::mkl, cpu_cos_pre_pos_processor, cpu_buffer_factory>;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
+};
+/*!
+ * \ingroup hefftemkl
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::mkl_sin>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::mkl, cpu_sin_pre_pos_processor, cpu_buffer_factory>;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
 };
 
 /*!
@@ -357,6 +468,22 @@ template<> struct one_dim_backend<backend::mkl>{
 template<> struct default_plan_options<backend::mkl>{
     //! \brief The reshape operations will not transpose the data.
     static const bool use_reorder = false;
+};
+/*!
+ * \ingroup hefftemkl
+ * \brief Sets the default options for the mkl backend.
+ */
+template<> struct default_plan_options<backend::mkl_cos>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup hefftemkl
+ * \brief Sets the default options for the mkl backend.
+ */
+template<> struct default_plan_options<backend::mkl_sin>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
 };
 
 }

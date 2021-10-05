@@ -1,6 +1,11 @@
 
 @PACKAGE_INIT@
 
+if (TARGET Heffte::Heffte OR Heffte_FIND_QUIETLY)
+    # respect the Heffte_FIND_QUIETLY and don't show outputs on second search
+    set(Heffte_be_silent ON)
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/HeffteTargets.cmake")
 
 if (@Heffte_ENABLE_FFTW@ AND NOT TARGET Heffte::FFTW)
@@ -92,7 +97,7 @@ endif()
 
 check_required_components(Heffte)
 
-if (Heffte_FOUND OR "${Heffte_FOUND}" STREQUAL "")
+if (NOT Heffte_be_silent AND (Heffte_FOUND OR "${Heffte_FOUND}" STREQUAL ""))
     # oddly enough, Heffte_FOUND is empty when there is no error
     message(STATUS "Found Heffte: @CMAKE_INSTALL_PREFIX@ (found version @PROJECT_VERSION@)")
     set(Heffte_ALL_MODULES "")
