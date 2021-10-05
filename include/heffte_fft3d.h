@@ -595,6 +595,16 @@ using fft2d = fft3d<backend_tag, index>;
 
 /*!
  * \ingroup fft3d
+ * \brief Alias of heffte::fft3d to be more expressive when using Sine and Cosine transforms.
+ *
+ * The "r" in front of the name relates to the real type of the transform and differentiates the name from std::transform
+ * in case the use includes the heffte namespace directly.
+ */
+template<typename backend_tag, typename index = int>
+using rtransform = fft3d<backend_tag, index>;
+
+/*!
+ * \ingroup fft3d
  * \brief Factory method that auto-detects the index type based on the box.
  */
 template<typename backend_tag, typename index>

@@ -145,17 +145,17 @@ namespace rocm {
 namespace backend{
     /*!
      * \ingroup heffterocm
-     * \brief Indicate that the cuFFT backend has been enabled.
+     * \brief Indicate that the rocFFT backend has been enabled.
      */
     template<> struct is_enabled<rocfft> : std::true_type{};
     /*!
      * \ingroup heffterocm
-     * \brief Indicate that the cuFFT backend has been enabled.
+     * \brief Indicate that the rocFFT backend has been enabled.
      */
     template<> struct is_enabled<rocfft_cos> : std::true_type{};
     /*!
      * \ingroup heffterocm
-     * \brief Indicate that the cuFFT backend has been enabled.
+     * \brief Indicate that the rocFFT backend has been enabled.
      */
     template<> struct is_enabled<rocfft_sin> : std::true_type{};
 
@@ -377,7 +377,7 @@ struct plan_rocfft{
     size_t size_work() const{ return worksize; }
 
 private:
-    //! \brief The cufft opaque structure (pointer to struct).
+    //! \brief The rocfft opaque structure (pointer to struct).
     rocfft_plan plan;
     //! \brief The size of the scratch workspace.
     size_t worksize;
@@ -657,9 +657,9 @@ private:
 
 /*!
  * \ingroup heffterocm
- * \brief Wrapper to cuFFT API for real-to-complex transform with shortening of the data.
+ * \brief Wrapper to rocFFT API for real-to-complex transform with shortening of the data.
  *
- * Serves the same purpose of heffte::cufft_executor but only real input is accepted
+ * Serves the same purpose of heffte::rocfft_executor but only real input is accepted
  * and only the unique (non-conjugate) coefficients are computed.
  * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
  */
@@ -785,12 +785,12 @@ template<> struct one_dim_backend<backend::rocfft>{
 
 struct rocm_buffer_factory{
     template<typename scalar_type>
-    static backend::buffer_traits<backend::cufft>::container<scalar_type>
-    make(cudaStream_t stream, size_t size){ return backend::buffer_traits<backend::cufft>::container<scalar_type>(stream, size); }
+    static backend::buffer_traits<backend::rocfft>::container<scalar_type>
+    make(hipStream_t stream, size_t size){ return backend::buffer_traits<backend::rocfft>::container<scalar_type>(stream, size); }
 };
 
 /*!
- * \ingroup hefftecuda
+ * \ingroup heffterocm
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
  *
  * The struct is specialized for each backend.
@@ -802,7 +802,7 @@ template<> struct one_dim_backend<backend::rocfft_cos>{
     using executor_r2c = void;
 };
 /*!
- * \ingroup hefftecuda
+ * \ingroup heffterocm
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
  *
  * The struct is specialized for each backend.
