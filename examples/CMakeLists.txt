@@ -21,6 +21,11 @@ if (Heffte_ENABLE_CUDA)
     target_link_libraries(heffte_example_cuda Heffte)
 endif()
 
+if (Heffte_ENABLE_ONEAPI)
+    add_executable(heffte_example_sycl heffte_example_sycl.cpp)
+    target_link_libraries(heffte_example_sycl Heffte)
+endif()
+
 if (Heffte_ENABLE_FFTW AND CMAKE_C_COMPILER)
     add_executable(heffte_example_c heffte_example_c.c)
     target_link_libraries(heffte_example_c Heffte)
