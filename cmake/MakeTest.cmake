@@ -30,6 +30,10 @@ if (Heffte_CUDA_FOUND)
     heffte_add_mpi_test(NAME example_cuda     COMMAND  examples/heffte_example_cuda     RANKS 2)
 endif()
 
+if (Heffte_ONEAPI_FOUND)
+    heffte_add_mpi_test(NAME example_sycl     COMMAND  examples/heffte_example_sycl     RANKS 4)
+endif()
+
 if (Heffte_FFTW_FOUND AND CMAKE_C_COMPILER)
     heffte_add_mpi_test(NAME example_c        COMMAND  examples/heffte_example_c        RANKS 2)
 endif()
