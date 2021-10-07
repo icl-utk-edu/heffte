@@ -16,6 +16,7 @@
  * Encapsulates all classes and method for the C++11 API, most notably:
  * - namespace \ref heffte
  * - class heffte::fft3d
+ * - class heffte::rtransform
  * - class heffte::fft3d_r2c
  * - class heffte::box3d
  * - enum heffte::scale
@@ -231,7 +232,7 @@ public:
     /*!
      * \brief Identical to the other constructor but accepts a GPU stream or queue.
      *
-     * \param stream is an initialized GPU stream or queue, the actual type depends on the backend as follows:
+     * \param gpu_stream is an initialized GPU stream or queue, the actual type depends on the backend as follows:
      *
      * <table>
      * <tr><td> CPU backend </td><td> void*, the stream is never referenced </td></tr>
@@ -594,8 +595,44 @@ using fft2d = fft3d<backend_tag, index>;
  * \ingroup fft3d
  * \brief Alias of heffte::fft3d to be more expressive when using Sine and Cosine transforms.
  *
- * The "r" in front of the name relates to the real type of the transform and differentiates the name from std::transform
- * in case the use includes the heffte namespace directly.
+ * \par Overview
+ * In addition to the standard Discrete Fourier Transform, heFFTe also supports the discrete
+ * Sine and Cosine transforms. The input/output arrays/vectors and follow the same logic
+ * as in the heffte::fft3d class, in fact the heffte::rtransform is just an alias to that template.
+ * The difference lies in the way the name of the backend is selected and the accepted types.
+ *
+ * \par Tags
+ * The type-tags associated with the Sine and Cosine transforms are names starting with a regular
+ * FFT tag and appending either `_sin` or `_cos` to the name, e.g.,
+ * <table>
+ * <tr><td> Backend </td><td> Sine Transform </td><td> Cosine Transform </td></tr>
+ * <tr><td> Stock   </td><td> heffte::backend::stock_sin  </td><td> heffte::backend::stock_cos  </td></tr>
+ * <tr><td> FFTW    </td><td> heffte::backend::fftw_sin   </td><td> heffte::backend::fftw_cos   </td></tr>
+ * <tr><td> MKL     </td><td> heffte::backend::mkl_sin    </td><td> heffte::backend::mkl_cos    </td></tr>
+ * <tr><td> oneMKL  </td><td> heffte::backend::onemkl_sin </td><td> heffte::backend::onemkl_cos </td></tr>
+ * <tr><td> cuFFT   </td><td> heffte::backend::cufft_sin  </td><td> heffte::backend::cufft_cos  </td></tr>
+ * <tr><td> rocFFT  </td><td> heffte::backend::rocfft_sin </td><td> heffte::backend::rocfft_cos </td></tr>
+ * </table>
+ * The tags can be enabled for either the heffte::fft3d template or the heffte::rtransform alias.
+ *
+ * \par Types
+ * The Sine and Cosine transforms operate with real types, float and double for the two supported precisions.
+ * Similarly the size of the workspace vector is measured in the corresponding real units.
+ *
+ * \par Memory Requirements
+ * In the current implementation, the real transforms require more additional workspace memory,
+ * which can be counter-intuitive but it is the expected behavior.
+ *
+ * \par Relationship to FFTW
+ * The FFTW is probably the most widely used library for FFT algorithms including the Sine and Cosine
+ * transforms. The algorithms implemented in heFFTe correspond to:
+ * <table>
+ * <tr><td> heFFTe Transform </td><td> FFTW Transform Type </td></tr>
+ * <tr><td> Sine - forward    </td><td> FFTW_RODFT10 </td></tr>
+ * <tr><td> Sine - backward   </td><td> FFTW_RODFT01 </td></tr>
+ * <tr><td> Cosine - forward  </td><td> FFTW_REDFT10 </td></tr>
+ * <tr><td> Cosine - backward </td><td> FFTW_REDFT01 </td></tr>
+ * </table>
  */
 template<typename backend_tag, typename index = int>
 using rtransform = fft3d<backend_tag, index>;

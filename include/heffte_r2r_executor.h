@@ -9,8 +9,25 @@
 
 #include "heffte_pack3d.h"
 
+/*!
+ * \ingroup fft3d
+ * \addtogroup fft3dr2r Sine and Cosine Transforms
+ *
+ * HeFFTe now supports the discrete Sine and Cosine transforms,
+ * which use real input and output data but the same data layout
+ * and MPI communication patterns as the Fourier transform.
+ * See heffte::rtransform for more details.
+ *
+ * The transforms are performed using the standard FFT algorithms
+ * with a pre- and post-processing steps.
+ */
+
 namespace heffte {
 
+/*!
+ * \ingroup fft3dr2r
+ * \brief Create a box with larger dimension that will exploit the symmetry for the Sine and Cosine Transforms.
+ */
 template<typename index>
 box3d<index> make_cos_box(box3d<index> const &box){
     std::array<index, 3> high{box.size[0]-1, box.size[1]-1, box.size[2]-1};
@@ -18,7 +35,12 @@ box3d<index> make_cos_box(box3d<index> const &box){
     return box3d<index>(std::array<index, 3>{0, 0, 0}, high, box.order);
 }
 
+/*!
+ * \ingroup fft3dr2r
+ * \brief Pre/Post processing for the Cosine transform using the CPU.
+ */
 struct cpu_cos_pre_pos_processor{
+    //! \brief Pre-process in the forward transform.
     template<typename precision>
     static void pre_forward(void*, int length, precision const input[], precision fft_signal[]){
         for(int i = 0; i < length; i++){
@@ -30,12 +52,14 @@ struct cpu_cos_pre_pos_processor{
             fft_signal[4*length-i] = fft_signal[i];
         }
     }
+    //! \brief Post-process in the forward transform.
     template<typename precision>
     static void post_forward(void*, int length, std::complex<precision> const fft_result[], precision result[]){
         for(int i = 0; i < length; i++){
             result[i] = std::real(fft_result[i]);
         }
     }
+    //! \brief Pre-process in the inverse transform.
     template<typename precision>
     static void pre_backward(void*, int length, precision const input[], std::complex<precision> fft_signal[]){
         for(int i = 0; i < length; i++){
@@ -49,6 +73,7 @@ struct cpu_cos_pre_pos_processor{
             index --;
         }
     }
+    //! \brief Post-process in the inverse transform.
     template<typename precision>
     static void post_backward(void*, int length, precision const fft_result[], precision result[]){
         for(int i=0; i<length; i++)
@@ -56,7 +81,12 @@ struct cpu_cos_pre_pos_processor{
     }
 };
 
+/*!
+ * \ingroup fft3dr2r
+ * \brief Pre/Post processing for the Sine transform using the CPU.
+ */
 struct cpu_sin_pre_pos_processor{
+    //! \brief Pre-process in the forward transform.
     template<typename precision>
     static void pre_forward(void*, int length, precision const input[], precision fft_signal[]){
         for(int i=0; i<length; i++){
@@ -69,11 +99,13 @@ struct cpu_sin_pre_pos_processor{
             fft_signal[4*length-2*i-1]= -input[i];
         }
     }
+    //! \brief Post-process in the forward transform.
     template<typename precision>
     static void post_forward(void*, int length, std::complex<precision> const fft_result[], precision result[]){
         for(int i=0; i < length; i++)
             result[i] = -std::imag(fft_result[i+1]);
     }
+    //! \brief Pre-process in the inverse transform.
     template<typename precision>
     static void pre_backward(void*, int length, precision const input[], std::complex<precision> fft_signal[]){
         fft_signal[0] = std::complex<precision>(0.0);
@@ -85,19 +117,23 @@ struct cpu_sin_pre_pos_processor{
             fft_signal[length + i + 1] = std::complex<precision>(0.0, -input[length - i - 2]);
         }
     }
+    //! \brief Post-process in the inverse transform.
     template<typename precision>
     static void post_backward(void*, int length, precision const fft_result[], precision result[]){
         cpu_cos_pre_pos_processor::post_backward(nullptr, length, fft_result, result);
     }
 };
 
-struct cpu_buffer_factory{
-    template<typename scalar_type>
-    static std::vector<scalar_type> make(void*, size_t size){ return std::vector<scalar_type>(size); }
-};
-
-template<typename fft_backend_tag, typename prepost_processor, typename buffer_factory>
+/*!
+ * \ingroup fft3dr2r
+ * \brief Template algorithm for the Sine and Cosine transforms.
+ *
+ * \tparam fft_backend_tag indicate the FFT backend to use, e.g., fftw or cufft.
+ * \tparam prepost_processor a collection of methods for pre-post processing the data before/after applying the FFT
+ */
+template<typename fft_backend_tag, typename prepost_processor>
 struct real2real_executor{
+    //! \brief Construct a plan for batch 1D transforms.
     template<typename index>
     real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const box, int dimension) :
         stream(cstream),
@@ -108,15 +144,16 @@ struct real2real_executor{
     {
         assert(dimension == box.order[0]); // supporting only ordered operations (for now)
     }
-
+    //! \brief Construct a plan for batch 2D transforms, not implemented currently.
     template<typename index>
     real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const, int, int) : stream(cstream)
     { throw std::runtime_error("2D real-to-real transform is not yet implemented!"); }
-
+    //! \brief Construct a plan for a single 3D transform, not implemented currently.
     template<typename index>
     real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const) : stream(cstream)
     { throw std::runtime_error("3D real-to-real transform is not yet implemented!"); }
 
+    //! \brief Forward transform.
     template<typename scalar_type>
     void forward(scalar_type data[], scalar_type workspace[]) const{
         scalar_type* temp = workspace;
@@ -129,6 +166,7 @@ struct real2real_executor{
         for(int i=0; i<num_batch; i++)
             prepost_processor::post_forward(stream, length, ctemp + i * (2 * length + 1), data + i * length);
     }
+    //! \brief Inverse transform.
     template<typename scalar_type>
     void backward(scalar_type data[], scalar_type workspace[]) const{
         scalar_type* temp = workspace;
@@ -141,10 +179,12 @@ struct real2real_executor{
             prepost_processor::post_backward(stream, length, temp + 4 * i * length, data + i * length);
     }
 
+    //! \brief Placeholder for template type consistency, should never be called.
     template<typename precision>
     void forward(precision const[], std::complex<precision>[]) const{
         throw std::runtime_error("Calling cos-transform with real-to-complex data! This should not happen!");
     }
+    //! \brief Placeholder for template type consistency, should never be called.
     template<typename precision>
     void backward(std::complex<precision> indata[], precision outdata[]) const{ forward(outdata, indata); }
 

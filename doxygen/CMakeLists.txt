@@ -23,7 +23,7 @@ set(DOXYGEN_HTML_COLORSTYLE_SAT     "95")
 set(DOXYGEN_HTML_COLORSTYLE_GAMMA  "190")
 
 # PREDEFINED is used only during doxygen build to show all methods and classes for all options
-set(DOXYGEN_PREDEFINED "Heffte_ENABLE_FFTW;Heffte_ENABLE_MKL;Heffte_ENABLE_CUDA;Heffte_ENABLE_TRACING")
+set(DOXYGEN_PREDEFINED "Heffte_ENABLE_FFTW;Heffte_ENABLE_MKL;Heffte_ENABLE_CUDA;Heffte_ENABLE_ROCM;Heffte_ENABLE_ONEAPI;Heffte_ENABLE_TRACING")
 
 # better HeFFTe name
 set(DOXYGEN_PROJECT_NAME "Highly Efficient FFT for Exascale: HeFFTe v${Heffte_VERSION_MAJOR}.${Heffte_VERSION_MINOR}")

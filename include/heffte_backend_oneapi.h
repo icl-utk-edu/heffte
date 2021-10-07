@@ -47,7 +47,7 @@ namespace heffte{
  * The name is chosen distinct from the oneMKL name that use "oneapi".
  */
 namespace oapi {
-    //! \brief Creates a new SYCL queue.
+    //! \brief Creates a new SYCL queue, try to use the GPU but if an issue is encountered then default to the CPU.
     inline sycl::queue make_sycl_queue(){
         try{
             return sycl::queue(sycl::gpu_selector());
@@ -56,6 +56,15 @@ namespace oapi {
         }
     }
 
+    /*!
+     * \ingroup heffteoneapi
+     * \brief Default queue to use in case the user does not provide one.
+     *
+     * The SYCL/DPC++ standard does not provide a default queue, unlike CUDA and ROCm.
+     * For API consistency, heFFTe will use this queue which will be shard by all objects created
+     * by the library. However, it is strongly recommended that the user provide their own
+     * queue in the constructor of the heffte::fft3d and heffte::fft3d_r2c objects.
+     */
     extern sycl::queue internal_sycl_queue;
 
     /*!
@@ -114,12 +123,16 @@ namespace oapi {
      * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
      */
     struct cos_pre_pos_processor{
+        //! \brief Pre-process in the forward transform.
         template<typename precision>
         static void pre_forward(sycl::queue&, int length, precision const input[], precision fft_signal[]);
+        //! \brief Post-process in the forward transform.
         template<typename precision>
         static void post_forward(sycl::queue&, int length, std::complex<precision> const fft_result[], precision result[]);
+        //! \brief Pre-process in the inverse transform.
         template<typename precision>
         static void pre_backward(sycl::queue&, int length, precision const input[], std::complex<precision> fft_signal[]);
+        //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(sycl::queue&, int length, precision const fft_result[], precision result[]);
     };
@@ -128,12 +141,16 @@ namespace oapi {
      * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
      */
     struct sin_pre_pos_processor{
+        //! \brief Pre-process in the forward transform.
         template<typename precision>
         static void pre_forward(sycl::queue&, int length, precision const input[], precision fft_signal[]);
+        //! \brief Post-process in the forward transform.
         template<typename precision>
         static void post_forward(sycl::queue&, int length, std::complex<precision> const fft_result[], precision result[]);
+        //! \brief Pre-process in the inverse transform.
         template<typename precision>
         static void pre_backward(sycl::queue&, int length, precision const input[], std::complex<precision> fft_signal[]);
+        //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(sycl::queue&, int length, precision const fft_result[], precision result[]);
     };
@@ -594,18 +611,13 @@ template<> struct one_dim_backend<backend::onemkl>{
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = onemkl_executor_r2c;
 };
-struct oneapi_buffer_factory{
-    template<typename scalar_type>
-    static backend::buffer_traits<backend::onemkl>::container<scalar_type>
-    make(sycl::queue &stream, size_t size){ return backend::buffer_traits<backend::onemkl>::container<scalar_type>(stream, size); }
-};
 /*!
  * \ingroup heffteoneapi
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
  */
 template<> struct one_dim_backend<backend::onemkl_cos>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::onemkl, oapi::cos_pre_pos_processor, oneapi_buffer_factory>;;
+    using executor = real2real_executor<backend::onemkl, oapi::cos_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = onemkl_executor_r2c;
 };
@@ -615,7 +627,7 @@ template<> struct one_dim_backend<backend::onemkl_cos>{
  */
 template<> struct one_dim_backend<backend::onemkl_sin>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::onemkl, oapi::sin_pre_pos_processor, oneapi_buffer_factory>;;
+    using executor = real2real_executor<backend::onemkl, oapi::sin_pre_pos_processor>;;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = onemkl_executor_r2c;
 };

@@ -26,11 +26,11 @@ Tested backend libraries:
 | Backend        | Tested versions |
 |----|----|
 | stock          | all             |
-| fftw3          | 3.3.7 - 3.3.8   |
+| fftw3          | 3.3.7 - 3.3.10  |
 | mkl            | 2016            |
-| oneapi/onemkl  | 2021.2          |
+| oneapi/onemkl  | 2021.4          |
 | cuda/cufft     | 9.0 - 11        |
-| rocm/rocfft    | 3.8             |
+| rocm/rocfft    | 4.0 - 4.3       |
 
 The listed tested versions are part of the continuous integration and nightly build systems,
 but heFFTe may yet work with other compilers and backend versions.
@@ -140,7 +140,7 @@ Different implementations of MPI can provide GPU-Aware capabilities, where data 
 ```
     -D Heffte_DISABLE_GPU_AWARE_MPI=ON
 ```
-**Note:** disabling the GPU-Aware capabilities guarantees correctness of the computed results but may have very detrimental impact on performance. The option is provided for testing and debugging and for development of user code on a machine that does not have GPU-Aware support, e.g., an office desktop or a personal laptop. The option has no effect on the CPU backends.
+**Note:** The GPU-Aware capabilities can also be disabled at runtime by setting the corresponding option in `heffte::plan_options`. On some platforms, the GPU-Aware MPI calls have significantly larger latency and moving the buffers to the CPU before ini
 
 
 ### Linking to HeFFTe

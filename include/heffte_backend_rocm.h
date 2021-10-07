@@ -117,12 +117,16 @@ namespace rocm {
      * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
      */
     struct cos_pre_pos_processor{
+        //! \brief Pre-process in the forward transform.
         template<typename precision>
         static void pre_forward(hipStream_t, int length, precision const input[], precision fft_signal[]);
+        //! \brief Post-process in the forward transform.
         template<typename precision>
         static void post_forward(hipStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        //! \brief Pre-process in the inverse transform.
         template<typename precision>
         static void pre_backward(hipStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(hipStream_t, int length, precision const fft_result[], precision result[]);
     };
@@ -131,12 +135,16 @@ namespace rocm {
      * \brief Implementation of Sine Transform pre-post processing methods using CUDA.
      */
     struct sin_pre_pos_processor{
+        //! \brief Pre-process in the forward transform.
         template<typename precision>
         static void pre_forward(hipStream_t, int length, precision const input[], precision fft_signal[]);
+        //! \brief Post-process in the forward transform.
         template<typename precision>
         static void post_forward(hipStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        //! \brief Pre-process in the inverse transform.
         template<typename precision>
         static void pre_backward(hipStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(hipStream_t, int length, precision const fft_result[], precision result[]);
     };
@@ -333,8 +341,6 @@ struct plan_rocfft{
     /*!
      * \brief Constructor and initializer of the plan.
      *
-     * \param stream the hipStream_t to use for the transform
-     * \param dir is the direction (forward or backward) for the plan
      * \param size is the number of entries in a 1-D transform
      * \param batch is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
@@ -809,12 +815,6 @@ template<> struct one_dim_backend<backend::rocfft>{
     using executor_r2c = rocfft_executor_r2c;
 };
 
-struct rocm_buffer_factory{
-    template<typename scalar_type>
-    static backend::buffer_traits<backend::rocfft>::container<scalar_type>
-    make(hipStream_t stream, size_t size){ return backend::buffer_traits<backend::rocfft>::container<scalar_type>(stream, size); }
-};
-
 /*!
  * \ingroup heffterocm
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
@@ -823,7 +823,7 @@ struct rocm_buffer_factory{
  */
 template<> struct one_dim_backend<backend::rocfft_cos>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::rocfft, rocm::cos_pre_pos_processor, rocm_buffer_factory>;
+    using executor = real2real_executor<backend::rocfft, rocm::cos_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };
@@ -835,7 +835,7 @@ template<> struct one_dim_backend<backend::rocfft_cos>{
  */
 template<> struct one_dim_backend<backend::rocfft_sin>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::rocfft, rocm::sin_pre_pos_processor, rocm_buffer_factory>;
+    using executor = real2real_executor<backend::rocfft, rocm::sin_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };
