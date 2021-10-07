@@ -387,28 +387,28 @@ public:
     {}
 
     //! \brief Forward fft, float-complex case.
-    void forward(std::complex<float> data[]) const{
+    void forward(std::complex<float> data[], std::complex<float>*) const{
         if (not init_cplan) make_plan(cplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(cplan, data + i * block_stride);
         q.wait();
     }
     //! \brief Backward fft, float-complex case.
-    void backward(std::complex<float> data[]) const{
+    void backward(std::complex<float> data[], std::complex<float>*) const{
         if (not init_cplan) make_plan(cplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(cplan, data + i * block_stride);
         q.wait();
     }
     //! \brief Forward fft, double-complex case.
-    void forward(std::complex<double> data[]) const{
+    void forward(std::complex<double> data[], std::complex<double>*) const{
         if (not init_zplan) make_plan(zplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(zplan, data + i * block_stride);
         q.wait();
     }
     //! \brief Backward fft, double-complex case.
-    void backward(std::complex<double> data[]) const{
+    void backward(std::complex<double> data[], std::complex<double>*) const{
         if (not init_zplan) make_plan(zplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(zplan, data + i * block_stride);
@@ -416,28 +416,30 @@ public:
     }
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
-    void forward(float const indata[], std::complex<float> outdata[]) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<float>(indata[i]);
-        forward(outdata);
+        forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
-    void backward(std::complex<float> indata[], float outdata[]) const{
-        backward(indata);
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const{
+        backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
     //! \brief Converts the deal data to complex and performs double-complex forward transform.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<double>(indata[i]);
-        forward(outdata);
+        forward(outdata, workspace);
     }
     //! \brief Performs backward double-complex transform and truncates the complex part of the result.
-    void backward(std::complex<double> indata[], double outdata[]) const{
-        backward(indata);
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const{
+        backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
 
     //! \brief Returns the size of the box.
     int box_size() const{ return total_size; }
+    //! \brief Return the size of the needed workspace.
+    size_t workspace_size() const{ return 0; }
 
 private:
     //! \brief Helper template to create the plan.
@@ -513,28 +515,28 @@ public:
     {}
 
     //! \brief Forward transform, single precision.
-    void forward(float const indata[], std::complex<float> outdata[]) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(splan, const_cast<float*>(indata + i * rblock_stride), reinterpret_cast<float*>(outdata + i * cblock_stride));
         q.wait();
     }
     //! \brief Backward transform, single precision.
-    void backward(std::complex<float> const indata[], float outdata[]) const{
+    void backward(std::complex<float> const indata[], float outdata[], std::complex<float>*) const{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
         q.wait();
     }
     //! \brief Forward transform, double precision.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(dplan, const_cast<double*>(indata + i * rblock_stride), reinterpret_cast<double*>(outdata + i * cblock_stride));
         q.wait();
     }
     //! \brief Backward transform, double precision.
-    void backward(std::complex<double> const indata[], double outdata[]) const{
+    void backward(std::complex<double> const indata[], double outdata[], std::complex<double>*) const{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
@@ -545,6 +547,8 @@ public:
     int real_size() const{ return rsize; }
     //! \brief Returns the size of the box with complex coefficients.
     int complex_size() const{ return csize; }
+    //! \brief Return the size of the needed workspace.
+    size_t workspace_size() const{ return 0; }
 
 private:
     //! \brief Helper template to initialize the plan.

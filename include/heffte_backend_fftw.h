@@ -236,7 +236,7 @@ public:
     {}
 
     //! \brief Forward fft, float-complex case.
-    void forward(std::complex<float> data[]) const{
+    void forward(std::complex<float> data[], std::complex<float>*) const{
         make_plan(cforward);
         for(int i=0; i<blocks; i++){
             fftwf_complex* block_data = reinterpret_cast<fftwf_complex*>(data + i * block_stride);
@@ -244,7 +244,7 @@ public:
         }
     }
     //! \brief Backward fft, float-complex case.
-    void backward(std::complex<float> data[]) const{
+    void backward(std::complex<float> data[], std::complex<float>*) const{
         make_plan(cbackward);
         for(int i=0; i<blocks; i++){
             fftwf_complex* block_data = reinterpret_cast<fftwf_complex*>(data + i * block_stride);
@@ -252,7 +252,7 @@ public:
         }
     }
     //! \brief Forward fft, double-complex case.
-    void forward(std::complex<double> data[]) const{
+    void forward(std::complex<double> data[], std::complex<double>*) const{
         make_plan(zforward);
         for(int i=0; i<blocks; i++){
             fftw_complex* block_data = reinterpret_cast<fftw_complex*>(data + i * block_stride);
@@ -260,7 +260,7 @@ public:
         }
     }
     //! \brief Backward fft, double-complex case.
-    void backward(std::complex<double> data[]) const{
+    void backward(std::complex<double> data[], std::complex<double>*) const{
         make_plan(zbackward);
         for(int i=0; i<blocks; i++){
             fftw_complex* block_data = reinterpret_cast<fftw_complex*>(data + i * block_stride);
@@ -269,28 +269,30 @@ public:
     }
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
-    void forward(float const indata[], std::complex<float> outdata[]) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<float>(indata[i]);
-        forward(outdata);
+        forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
-    void backward(std::complex<float> indata[], float outdata[]) const{
-        backward(indata);
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const{
+        backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
     //! \brief Converts the deal data to complex and performs double-complex forward transform.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<double>(indata[i]);
-        forward(outdata);
+        forward(outdata, workspace);
     }
     //! \brief Performs backward double-complex transform and truncates the complex part of the result.
-    void backward(std::complex<double> indata[], double outdata[]) const{
-        backward(indata);
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const{
+        backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
 
     //! \brief Returns the size of the box.
     int box_size() const{ return total_size; }
+    //! \brief Return the size of the needed workspace.
+    size_t workspace_size() const{ return 0; }
 
 private:
     //! \brief Helper template to create the plan.
@@ -403,7 +405,7 @@ public:
     {}
 
     //! \brief Forward transform, single precision.
-    void forward(float const indata[], std::complex<float> outdata[]) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const{
         make_plan(sforward);
         for(int i=0; i<blocks; i++){
             float *rdata = const_cast<float*>(indata + i * rblock_stride);
@@ -412,7 +414,7 @@ public:
         }
     }
     //! \brief Backward transform, single precision.
-    void backward(std::complex<float> const indata[], float outdata[]) const{
+    void backward(std::complex<float> const indata[], float outdata[], std::complex<float>*) const{
         make_plan(sbackward);
         for(int i=0; i<blocks; i++){
             fftwf_complex* cdata = const_cast<fftwf_complex*>(reinterpret_cast<fftwf_complex const*>(indata + i * cblock_stride));
@@ -420,7 +422,7 @@ public:
         }
     }
     //! \brief Forward transform, double precision.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const{
         make_plan(dforward);
         for(int i=0; i<blocks; i++){
             double *rdata = const_cast<double*>(indata + i * rblock_stride);
@@ -429,7 +431,7 @@ public:
         }
     }
     //! \brief Backward transform, double precision.
-    void backward(std::complex<double> const indata[], double outdata[]) const{
+    void backward(std::complex<double> const indata[], double outdata[], std::complex<double>*) const{
         make_plan(dbackward);
         for(int i=0; i<blocks; i++){
             fftw_complex* cdata = const_cast<fftw_complex*>(reinterpret_cast<fftw_complex const*>(indata + i * cblock_stride));
@@ -441,6 +443,8 @@ public:
     int real_size() const{ return rsize; }
     //! \brief Returns the size of the box with complex coefficients.
     int complex_size() const{ return csize; }
+    //! \brief Return the size of the needed workspace.
+    size_t workspace_size() const{ return 0; }
 
 private:
     //! \brief Helper template to initialize the plan.

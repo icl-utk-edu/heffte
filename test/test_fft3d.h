@@ -93,17 +93,25 @@ std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, 
     auto loaded_input = test_traits<backend_tag>::load(input);
     backend::device_instance<backend_tag> device;
     typename test_traits<backend_tag>::template container<std::complex<precision_type>> loaded_result(input.size());
-    make_executor<backend_tag>(device.stream(), world, 0)->forward(loaded_input.data(), loaded_result.data());
-    for(int i=1; i<3; i++)
-        make_executor<backend_tag>(device.stream(), world, i)->forward(loaded_result.data());
+    auto fft0 = make_executor<backend_tag>(device.stream(), world, 0);
+    auto fft1 = make_executor<backend_tag>(device.stream(), world, 1);
+    auto fft2 = make_executor<backend_tag>(device.stream(), world, 2);
+    auto workspace = make_buffer_container<std::complex<precision_type>>(device.stream(),
+                        get_max_work_size(std::array<typename one_dim_backend<backend_tag>::executor*, 3>{fft0.get(), fft1.get(), fft2.get()}));
+    fft0->forward(loaded_input.data(), loaded_result.data(), workspace.data());
+    fft1->forward(loaded_result.data(), workspace.data());
+    fft2->forward(loaded_result.data(), workspace.data());
     return test_traits<backend_tag>::unload(loaded_result);
 }
 template<typename backend_tag, typename precision_type, typename index>
 std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<std::complex<precision_type>> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
     backend::device_instance<backend_tag> device;
-    for(int i=0; i<3; i++)
-        make_executor<backend_tag>(device.stream(), world, i)->forward(loaded_input.data());
+    for(int i=0; i<3; i++){
+        auto fft = make_executor<backend_tag>(device.stream(), world, i);
+        auto workspace = make_buffer_container<std::complex<precision_type>>(device.stream(), fft->workspace_size());
+        fft->forward(loaded_input.data(), workspace.data());
+    }
     return test_traits<backend_tag>::unload(loaded_input);
 }
 
