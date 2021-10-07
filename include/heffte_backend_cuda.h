@@ -477,7 +477,7 @@ public:
     {}
 
     //! \brief Forward fft, float-complex case.
-    void forward(std::complex<float> data[]) const{
+    void forward(std::complex<float> data[], std::complex<float>*) const{
         make_plan(ccomplex_plan);
         for(int i=0; i<blocks; i++){
             cufftComplex* block_data = reinterpret_cast<cufftComplex*>(data + i * block_stride);
@@ -485,7 +485,7 @@ public:
         }
     }
     //! \brief Backward fft, float-complex case.
-    void backward(std::complex<float> data[]) const{
+    void backward(std::complex<float> data[], std::complex<float>*) const{
         make_plan(ccomplex_plan);
         for(int i=0; i<blocks; i++){
             cufftComplex* block_data = reinterpret_cast<cufftComplex*>(data + i * block_stride);
@@ -493,7 +493,7 @@ public:
         }
     }
     //! \brief Forward fft, double-complex case.
-    void forward(std::complex<double> data[]) const{
+    void forward(std::complex<double> data[], std::complex<double>*) const{
         make_plan(zcomplex_plan);
         for(int i=0; i<blocks; i++){
             cufftDoubleComplex* block_data = reinterpret_cast<cufftDoubleComplex*>(data + i * block_stride);
@@ -501,7 +501,7 @@ public:
         }
     }
     //! \brief Backward fft, double-complex case.
-    void backward(std::complex<double> data[]) const{
+    void backward(std::complex<double> data[], std::complex<double>*) const{
         make_plan(zcomplex_plan);
         for(int i=0; i<blocks; i++){
             cufftDoubleComplex* block_data = reinterpret_cast<cufftDoubleComplex*>(data + i * block_stride);
@@ -510,28 +510,30 @@ public:
     }
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
-    void forward(float const indata[], std::complex<float> outdata[]) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const{
         cuda::convert(stream, total_size, indata, outdata);
-        forward(outdata);
+        forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
-    void backward(std::complex<float> indata[], float outdata[]) const{
-        backward(indata);
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const{
+        backward(indata, workspace);
         cuda::convert(stream, total_size, indata, outdata);
     }
     //! \brief Converts the deal data to complex and performs double-complex forward transform.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const{
         cuda::convert(stream, total_size, indata, outdata);
-        forward(outdata);
+        forward(outdata, workspace);
     }
     //! \brief Performs backward double-complex transform and truncates the complex part of the result.
-    void backward(std::complex<double> indata[], double outdata[]) const{
-        backward(indata);
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const{
+        backward(indata, workspace);
         cuda::convert(stream, total_size, indata, outdata);
     }
 
     //! \brief Returns the size of the box.
     int box_size() const{ return total_size; }
+    //! \brief Return the size of the needed workspace.
+    size_t workspace_size() const{ return 0; }
 
 private:
     //! \brief Helper template to create the plan.
@@ -635,7 +637,7 @@ public:
     {}
 
     //! \brief Forward transform, single precision.
-    void forward(float const indata[], std::complex<float> outdata[]) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const{
         make_plan(sforward, direction::forward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -654,7 +656,7 @@ public:
         }
     }
     //! \brief Backward transform, single precision.
-    void backward(std::complex<float> const indata[], float outdata[]) const{
+    void backward(std::complex<float> const indata[], float outdata[], std::complex<float>*) const{
         make_plan(sbackward, direction::backward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -671,7 +673,7 @@ public:
         }
     }
     //! \brief Forward transform, double precision.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const{
         make_plan(dforward, direction::forward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -689,7 +691,7 @@ public:
         }
     }
     //! \brief Backward transform, double precision.
-    void backward(std::complex<double> const indata[], double outdata[]) const{
+    void backward(std::complex<double> const indata[], double outdata[], std::complex<double>*) const{
         make_plan(dbackward, direction::backward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -710,6 +712,8 @@ public:
     int real_size() const{ return rsize; }
     //! \brief Returns the size of the box with complex coefficients.
     int complex_size() const{ return csize; }
+    //! \brief Return the size of the needed workspace.
+    size_t workspace_size() const{ return 0; }
 
 private:
     //! \brief Helper template to initialize the plan.

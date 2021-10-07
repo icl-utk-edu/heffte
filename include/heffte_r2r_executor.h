@@ -111,32 +111,34 @@ struct real2real_executor{
 
     template<typename index>
     real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const, int, int) : stream(cstream)
-    { throw std::runtime_error("2D cosine transform is not yet implemented!"); }
+    { throw std::runtime_error("2D real-to-real transform is not yet implemented!"); }
 
     template<typename index>
     real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const) : stream(cstream)
-    { throw std::runtime_error("3D cosine transform is not yet implemented!"); }
+    { throw std::runtime_error("3D real-to-real transform is not yet implemented!"); }
 
     template<typename scalar_type>
-    void forward(scalar_type data[]) const{
-        auto temp = buffer_factory::template make<scalar_type>(stream, fft->real_size() + 1);
-        auto ctemp = buffer_factory::template make<std::complex<scalar_type>>(stream, fft->complex_size());
+    void forward(scalar_type data[], scalar_type workspace[]) const{
+        scalar_type* temp = workspace;
+        std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->real_size() + 1));
+        std::complex<scalar_type>* fft_work = (fft->workspace_size() == 0) ? nullptr : ctemp + fft->complex_size();
         for(int i=0; i<num_batch; i++){
-            prepost_processor::pre_forward(stream, length, data + i * length, temp.data() + i * 4 * length);
+            prepost_processor::pre_forward(stream, length, data + i * length, temp + i * 4 * length);
         }
-        fft->forward(temp.data(), ctemp.data());
+        fft->forward(temp, ctemp, fft_work);
         for(int i=0; i<num_batch; i++)
-            prepost_processor::post_forward(stream, length, ctemp.data() + i * (2 * length + 1), data + i * length);
+            prepost_processor::post_forward(stream, length, ctemp + i * (2 * length + 1), data + i * length);
     }
     template<typename scalar_type>
-    void backward(scalar_type data[]) const{
-        auto temp = buffer_factory::template make<scalar_type>(stream, fft->real_size());
-        auto ctemp = buffer_factory::template make<std::complex<scalar_type>>(stream, fft->complex_size());
+    void backward(scalar_type data[], scalar_type workspace[]) const{
+        scalar_type* temp = workspace;
+        std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->real_size() + 1));
+        std::complex<scalar_type>* fft_work = (fft->workspace_size() == 0) ? nullptr : ctemp + fft->complex_size();
         for(int i=0; i<num_batch; i++)
-            prepost_processor::pre_backward(stream, length, data + i * length, ctemp.data() + i * (2 * length + 1));
-        fft->backward(ctemp.data(), temp.data());
+            prepost_processor::pre_backward(stream, length, data + i * length, ctemp + i * (2 * length + 1));
+        fft->backward(ctemp, temp, fft_work);
         for(int i=0; i<num_batch; i++)
-            prepost_processor::post_backward(stream, length, temp.data() + 4 * i * length, data + i * length);
+            prepost_processor::post_backward(stream, length, temp + 4 * i * length, data + i * length);
     }
 
     template<typename precision>
@@ -148,7 +150,21 @@ struct real2real_executor{
 
     //! \brief Returns the size of the box.
     int box_size() const{ return total_size; }
-
+    //! \brief Returns the size of the box.
+    size_t workspace_size() const{
+        return fft->real_size() + 1 + 2 * fft->complex_size() + 2 * fft->workspace_size()
+               + ((std::is_same<fft_backend_tag, backend::cufft>::value) ? 1 : 0);
+    }
+    //! \brief Moves the pointer forward to be aligned to the size of std::complex<scalar_type>, used for CUDA only.
+    template<typename scalar_type>
+    std::complex<scalar_type>* align_pntr(std::complex<scalar_type> *p) const{
+        if (std::is_same<fft_backend_tag, backend::cufft>::value){
+            return (reinterpret_cast<size_t>(p) % sizeof(std::complex<scalar_type>) == 0) ? p :
+                reinterpret_cast<std::complex<scalar_type>*>(reinterpret_cast<scalar_type*>(p) + 1);
+        }else{
+            return p;
+        }
+    }
 private:
     typename backend::device_instance<fft_backend_tag>::stream_type stream;
 
