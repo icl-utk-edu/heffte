@@ -238,7 +238,7 @@ public:
      * <tr><td> CPU backend </td><td> void*, the stream is never referenced </td></tr>
      * <tr><td> CUDA backend </td><td> cudaStream_t </td></tr>
      * <tr><td> ROCm backend </td><td> hipStream_t </td></tr>
-     * <tr><td> oneAPI backend </td><td> sycl::queue const& </td></tr>
+     * <tr><td> oneAPI backend </td><td> sycl::queue & </td></tr>
      * </table>
      *
      * In all cases, heFFTe takes a non-owning reference or alias to the stream;

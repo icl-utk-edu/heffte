@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project("Heffte" VERSION 2.1.0 LANGUAGES CXX)
+project("Heffte" VERSION 2.2.0 LANGUAGES CXX)
 
 option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            OFF)
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
@@ -52,6 +52,18 @@ endif()
 # Set default install path to build
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set (CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "default install path" FORCE )
+endif()
+
+# try to find git and if available, set the hit-hash into the header
+find_package(Git)
+# do not set the hash if git is missing or
+# if we are generating files for simple GNU Make compatibility
+if (Git_FOUND)
+    execute_process(COMMAND ${GIT_EXECUTABLE} log --pretty=format:%H -n 1
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                    OUTPUT_VARIABLE   Heffte_GIT_HASH)
+else()
+    set(Heffte_GIT_HASH "Unknown, CMake could not find git.")
 endif()
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/heffte_config.cmake.h"
