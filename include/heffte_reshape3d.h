@@ -89,11 +89,13 @@ protected:
     // the no-gpu-aware version alleviate the latency when working with small FFTs
     // hence the cpu buffers will be small and will not cause issues
     // note that the main API accepts a GPU buffer for scratch work and cannot be used here
+    //! \brief Allocates and returns a CPU buffer when GPU-Aware communication has been disabled.
     template<typename scalar_type> scalar_type* cpu_send_buffer(size_t num_entries) const{
         size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
         send_unaware.resize(float_entries);
         return reinterpret_cast<scalar_type*>(send_unaware.data());
     }
+    //! \brief Allocates and returns a CPU buffer when GPU-Aware communication has been disabled.
     template<typename scalar_type> scalar_type* cpu_recv_buffer(size_t num_entries) const{
         size_t float_entries = num_entries * sizeof(scalar_type) / sizeof(float);
         recv_unaware.resize(float_entries);
@@ -193,7 +195,7 @@ private:
  * \param q device stream
  * \param input_boxes list of all input boxes across all ranks in the comm
  * \param output_boxes list of all output boxes across all ranks in the comm
- * \param use_gpu_aware use MPI calls directly from the GPU (GPU backends only)
+ * \param uses_gpu_aware use MPI calls directly from the GPU (GPU backends only)
  * \param comm the communicator associated with all the boxes
  *
  * \returns unique_ptr containing an instance of the heffte::reshape3d_alltoall
@@ -307,6 +309,7 @@ private:
  * \tparam backend_tag the backend to use for the reshape operations
  * \tparam packer is the packer to use to parts of boxes into global send/recv buffer
  *
+ * \param q device stream
  * \param input_boxes list of all input boxes across all ranks in the comm
  * \param output_boxes list of all output boxes across all ranks in the comm
  * \param use_gpu_aware use MPI calls directly from the GPU (GPU backends only)
@@ -412,6 +415,7 @@ private:
  * \tparam backend_tag the backend to use for the reshape operations
  * \tparam packer is the packer to use to parts of boxes into global send/recv buffer
  *
+ * \param q device stream
  * \param input_boxes list of all input boxes across all ranks in the comm
  * \param output_boxes list of all output boxes across all ranks in the comm
  * \param algorithm must be either reshape_algorithm::p2p or reshape_algorithm::p2p_plined
@@ -425,7 +429,7 @@ private:
  */
 template<typename backend_tag, template<typename device> class packer = direct_packer, typename index>
 std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer, index>>
-make_reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stream_type stream,
+make_reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stream_type q,
                             std::vector<box3d<index>> const &input_boxes,
                             std::vector<box3d<index>> const &output_boxes,
                             reshape_algorithm algorithm, bool use_gpu_aware,

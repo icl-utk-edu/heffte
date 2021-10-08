@@ -100,6 +100,7 @@ struct plan_fftw<std::complex<float>, dir>{
      *
      * \param size1 is the number of entries in a 2-D transform, dimension 1
      * \param size2 is the number of entries in a 2-D transform, dimension 2
+     * \param embed is the size of the leading dimensions of the data array
      * \param howmanyffts is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
      * \param dist is the distance between the first entries of consecutive sequences
@@ -482,7 +483,7 @@ template<> struct one_dim_backend<backend::fftw>{
  */
 template<> struct one_dim_backend<backend::fftw_cos>{
     //! \brief Defines the real-to-real executor.
-    using executor = real2real_executor<backend::fftw, cpu_cos_pre_pos_processor, cpu_buffer_factory>;
+    using executor = real2real_executor<backend::fftw, cpu_cos_pre_pos_processor>;
     //! \brief There is no real-to-complex variant.
     using executor_r2c = void;
 };
@@ -494,7 +495,7 @@ template<> struct one_dim_backend<backend::fftw_cos>{
  */
 template<> struct one_dim_backend<backend::fftw_sin>{
     //! \brief Defines the real-to-real executor.
-    using executor = real2real_executor<backend::fftw, cpu_sin_pre_pos_processor, cpu_buffer_factory>;
+    using executor = real2real_executor<backend::fftw, cpu_sin_pre_pos_processor>;
     //! \brief There is no real-to-complex variant.
     using executor_r2c = void;
 };

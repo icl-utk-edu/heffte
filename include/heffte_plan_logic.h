@@ -28,16 +28,17 @@ namespace heffte {
  * The bandwidth-bound case hits pretty close to the maximum throughput of the MPI interconnect
  * while the latency-bound case is more affected by the latency of the large number of small communications.
  * As a short-hand we can call these small-problems (latency-bound) or large-problems (bandwidth-bound),
- * although the specific cut-off point is dependent on the backend (and the version of the backend),
+ * although the specific cutoff point is dependent on the backend (and the version of the backend),
  * the version of MPI, the machine interconnect, and the specific optimizations that have been implemented in MPI.
  *
  * There is a plan of adding an auto-tuning framework in heFFTe to help users select the best
  * possible set of options; however, currently the users have to manually find the best option for their hardware.
  * The expected "best" algorithm is:
  * \code
- *      reshape_algorithm::alltoallv          : for largest problems
- *      reshape_algorithm::p2p_plined
- *      reshape_algorithm::p2p                : for smallest problems
+ *      reshape_algorithm::alltoallv          : for larger FFT, many MPI ranks
+ *      reshape_algorithm::alltoall           : for smaller FFT, many MPI ranks
+ *      reshape_algorithm::p2p_plined         : for larger FFT, fewer MPI ranks
+ *      reshape_algorithm::p2p                : for smaller FFT, fewer MPI ranks
  * \endcode
  *
  * Note that in the GPU case, the above algorithms are also affected by the GPU latency
@@ -45,7 +46,7 @@ namespace heffte {
  * variable of the heffte::plan_options.
  */
 enum class reshape_algorithm{
-    //! \brief Using the MPI_Alltoallv options, no padding on the data.
+    //! \brief Using the MPI_Alltoallv options, no padding on the data (default option).
     alltoallv = 0,
     //! \brief Using the MPI_Alltoall options, with padding on the data.
     alltoall = 3,
@@ -62,9 +63,39 @@ enum class reshape_algorithm{
  * Example usage:
  * \code
  *  heffte::plan_options options = heffte::default_options<heffte::backend::fftw>();
- *  options.use_alltoall = false; // forces the use of point-to-point communication
+ *  options.algorithm = reshape_algorithm::p2p; // forces the use of point-to-point communication
  *  heffte::fft3d<heffte::backend::fftw> fft3d(inbox, outbox, comm, options);
  * \endcode
+ *
+ * \par Option use_reorder
+ * Controls whether the backends should be called with strided or contiguous data.
+ * If the option is enabled then during the reshape operations heFFTe will reorder
+ * the data so that the backend is called for contiguous batch of 1D FFTs.
+ * Otherwise the strided call will be performed. Depending on the size and
+ * the specific backend (or version of the backend), one or the other may improve performance.
+ * The reorder is applied during the unpacking stage of an MPI communication and
+ * will be applied even if no MPI communication is used.
+ * Note that some backends don't currently support strided transforms, e.g.,
+ * the Sine and Cosine transforms, in which case this option will have no effect.
+ *
+ * \par Option algorithm
+ * Specifies the combination of MPI calls to use in the communication.
+ * See `heffte::reshape_algorithm` for details.
+ *
+ * \par Option use_pencils
+ * Indicates whether the intermediate steps of the computation should be done
+ * either in pencil or slab format. Slabs work better for problems with fewer
+ * MPI ranks, while pencils work better when the number ranks increases.
+ * The specific cutoff depends on the hardware and MPI implementation.
+ * Note that is the input or output shape of the data is in slab format,
+ * then this option will be ignored.
+ *
+ * \par Option use_gpu_aware
+ * Applied only when using one of the GPU backends, indicates whether MPI communication
+ * should be initiated from the GPU device or if the data has to be moved the CPU first.
+ * MPI calls from the GPU have faster throughput but larger latency, thus initiating
+ * the calls from the CPU (e.g., setting use_gpu_aware to false) can be faster
+ * when using smaller problems compared to the number of MPI ranks.
  */
 struct plan_options{
     //! \brief Constructor, initializes all options with the default values for the given backend tag.

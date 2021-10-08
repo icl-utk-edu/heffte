@@ -114,12 +114,16 @@ namespace cuda {
      * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
      */
     struct cos_pre_pos_processor{
+        //! \brief Pre-process in the forward transform.
         template<typename precision>
         static void pre_forward(cudaStream_t, int length, precision const input[], precision fft_signal[]);
+        //! \brief Post-process in the forward transform.
         template<typename precision>
         static void post_forward(cudaStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        //! \brief Pre-process in the inverse transform.
         template<typename precision>
         static void pre_backward(cudaStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
     };
@@ -128,12 +132,16 @@ namespace cuda {
      * \brief Implementation of Sine Transform pre-post processing methods using CUDA.
      */
     struct sin_pre_pos_processor{
+        //! \brief Pre-process in the forward transform.
         template<typename precision>
         static void pre_forward(cudaStream_t, int length, precision const input[], precision fft_signal[]);
+        //! \brief Post-process in the forward transform.
         template<typename precision>
         static void post_forward(cudaStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        //! \brief Pre-process in the inverse transform.
         template<typename precision>
         static void pre_backward(cudaStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
     };
@@ -745,12 +753,6 @@ template<> struct one_dim_backend<backend::cufft>{
     using executor_r2c = cufft_executor_r2c;
 };
 
-struct cuda_buffer_factory{
-    template<typename scalar_type>
-    static backend::buffer_traits<backend::cufft>::container<scalar_type>
-    make(cudaStream_t stream, size_t size){ return backend::buffer_traits<backend::cufft>::container<scalar_type>(stream, size); }
-};
-
 /*!
  * \ingroup hefftecuda
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
@@ -759,7 +761,7 @@ struct cuda_buffer_factory{
  */
 template<> struct one_dim_backend<backend::cufft_cos>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::cufft, cuda::cos_pre_pos_processor, cuda_buffer_factory>;
+    using executor = real2real_executor<backend::cufft, cuda::cos_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };
@@ -771,7 +773,7 @@ template<> struct one_dim_backend<backend::cufft_cos>{
  */
 template<> struct one_dim_backend<backend::cufft_sin>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::cufft, cuda::sin_pre_pos_processor, cuda_buffer_factory>;
+    using executor = real2real_executor<backend::cufft, cuda::sin_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };

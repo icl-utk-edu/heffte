@@ -629,7 +629,7 @@ template<> struct one_dim_backend<backend::stock>{
  */
 template<> struct one_dim_backend<backend::stock_cos>{
     //! \brief Defines the real-to-real executor.
-    using executor = real2real_executor<backend::stock, cpu_cos_pre_pos_processor, cpu_buffer_factory>;
+    using executor = real2real_executor<backend::stock, cpu_cos_pre_pos_processor>;
     //! \brief There is no real-to-complex variant.
     using executor_r2c = void;
 };
@@ -641,7 +641,7 @@ template<> struct one_dim_backend<backend::stock_cos>{
  */
 template<> struct one_dim_backend<backend::stock_sin>{
     //! \brief Defines the real-to-real executor.
-    using executor = real2real_executor<backend::stock, cpu_sin_pre_pos_processor, cpu_buffer_factory>;
+    using executor = real2real_executor<backend::stock, cpu_sin_pre_pos_processor>;
     //! \brief There is no real-to-complex variant.
     using executor_r2c = void;
 };

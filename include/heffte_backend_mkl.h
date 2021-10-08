@@ -105,8 +105,8 @@ struct plan_mkl{
      *
      * \param size1 is the number of entries in a 2-D transform, direction 1
      * \param size2 is the number of entries in a 2-D transform, direction 2
+     * \param embed is the size of the leading dimensions of the data array
      * \param howmanyffts is the number of transforms in the batch
-     * \param stride is the distance between entries of the same transform
      * \param dist is the distance between the first entries of consecutive sequences
      */
     plan_mkl(size_t size1, size_t size2, std::array<MKL_LONG, 2> const &embed, size_t howmanyffts, size_t dist) : plan(nullptr){
@@ -448,7 +448,7 @@ template<> struct one_dim_backend<backend::mkl>{
  */
 template<> struct one_dim_backend<backend::mkl_cos>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::mkl, cpu_cos_pre_pos_processor, cpu_buffer_factory>;
+    using executor = real2real_executor<backend::mkl, cpu_cos_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };
@@ -460,7 +460,7 @@ template<> struct one_dim_backend<backend::mkl_cos>{
  */
 template<> struct one_dim_backend<backend::mkl_sin>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::mkl, cpu_sin_pre_pos_processor, cpu_buffer_factory>;
+    using executor = real2real_executor<backend::mkl, cpu_sin_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };
