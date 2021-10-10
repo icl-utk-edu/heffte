@@ -220,10 +220,19 @@ configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cm
 ######################
 # EXAMPLES and TESTS #
 ######################
-add_subdirectory(benchmarks)
-add_subdirectory(examples)
-enable_testing()
-add_subdirectory(test)
+if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
+    add_subdirectory(benchmarks)
+    add_subdirectory(examples)
+    enable_testing()
+    add_subdirectory(test)
+else()
+    if (CUDA_INCLUDE_DIRS)
+        # cuda_add_library() apparently adds the includes as private
+        target_include_directories(Heffte PUBLIC ${CUDA_INCLUDE_DIRS})
+    endif()
+    add_library(Heffte::Heffte INTERFACE IMPORTED GLOBAL)
+    target_link_libraries(Heffte::Heffte INTERFACE Heffte)
+endif()
 if (Heffte_ENABLE_FORTRAN)
     add_subdirectory(fortran)
 endif()
