@@ -11,7 +11,9 @@
 
 #ifdef Heffte_ENABLE_ROCM
 
+#ifndef __HIP_PLATFORM_HCC__
 #define __HIP_PLATFORM_HCC__
+#endif
 #include <hip/hip_runtime.h>
 #include <rocfft.h>
 #include "heffte_backend_vector.h"

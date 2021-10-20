@@ -6,6 +6,10 @@
 #   HeffteMAGMA_LIBRARIES and HeffteMAGMA_INCLUDES will be defined
 #   The variables can also be used to bypass the search
 
+if (NOT Heffte_ENABLE_CUDA AND NOT Heffte_ENABLE_ROCM)
+    message(FATAL_ERROR "MAGMA helpers work only with a GPU backend, e.g., CUDA or ROCM")
+endif()
+
 set(MAGMA_ROOT "$ENV{MAGMA_ROOT}" CACHE PATH "The root folder for the MAGMA installation, e.g., containing lib and include folders")
 
 # respect the provided libraries
@@ -35,3 +39,16 @@ find_package_handle_standard_args(HeffteMAGMA DEFAULT_MSG
 add_library(Heffte::MAGMA INTERFACE IMPORTED GLOBAL)
 target_link_libraries(Heffte::MAGMA INTERFACE ${HeffteMAGMA_LIBRARIES})
 set_target_properties(Heffte::MAGMA PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${HeffteMAGMA_INCLUDES})
+
+if (Heffte_ENABLE_CUDA)
+    list(FILTER CUDA_CUBLAS_LIBRARIES EXCLUDE REGEX "-NOTFOUND$") # work-around CMake 3.10 + CUDA 10
+    target_link_libraries(Heffte Heffte::MAGMA INTERFACE ${CUDA_CUBLAS_LIBRARIES})
+endif()
+
+if (Heffte_ENABLE_ROCM)
+    find_package(rocblas REQUIRED)
+    find_package(rocsparse REQUIRED)
+    find_package(hipblas REQUIRED)
+    find_package(hipsparse REQUIRED)
+    target_link_libraries(Heffte::MAGMA INTERFACE roc::rocblas roc::rocsparse roc::hipblas roc::hipsparse)
+endif()
