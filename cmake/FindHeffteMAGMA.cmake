@@ -42,7 +42,7 @@ set_target_properties(Heffte::MAGMA PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${H
 
 if (Heffte_ENABLE_CUDA)
     list(FILTER CUDA_CUBLAS_LIBRARIES EXCLUDE REGEX "-NOTFOUND$") # work-around CMake 3.10 + CUDA 10
-    target_link_libraries(Heffte Heffte::MAGMA INTERFACE ${CUDA_CUBLAS_LIBRARIES})
+    target_link_libraries(Heffte::MAGMA INTERFACE ${CUDA_CUBLAS_LIBRARIES})
 endif()
 
 if (Heffte_ENABLE_ROCM)
