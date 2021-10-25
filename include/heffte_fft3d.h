@@ -7,7 +7,7 @@
 #ifndef HEFFTE_FFT3D_H
 #define HEFFTE_FFT3D_H
 
-#include "heffte_reshape3d.h"
+#include "heffte_compute_transform.h"
 
 /*!
  * \defgroup fft3d Fast Fourier Transform
@@ -83,10 +83,7 @@ template<> struct fft_output<double>{
  * Handles the case where we differentiate between the standard FFT transform and the Cosine Transform.
  */
 template<typename scalar_type, typename backend_tag, typename = void>
-struct transform_output{
-    //! \brief The output type corresponding to the scalar_type and backend_tag.
-    //using type = scalar_type;
-};
+struct transform_output{};
 /*!
  * \ingroup fft3dcomplex
  * \brief Specialization for standard FFT.
@@ -105,6 +102,7 @@ struct transform_output<scalar_type, backend_tag, typename std::enable_if<not ba
     //! \brief The output type corresponding to the scalar_type and backend_tag (Cosine Transform case).
     using type = scalar_type;
 };
+
 
 /*!
  * \ingroup fft3d
@@ -312,7 +310,8 @@ public:
         static_assert(backend::check_types<backend_tag, input_type, output_type>::value,
                       "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
+        auto workspace = make_buffer_container<typename transform_output<typename define_standard_type<output_type>::type, backend_tag>::type>(this->stream(), size_workspace());
+        forward(input, output, workspace.data(), scaling);
     }
 
     /*!
@@ -332,8 +331,11 @@ public:
         static_assert(backend::check_types<backend_tag, input_type, output_type>::value,
                       "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace),
-                           forward_shaper, {fft0.get(), fft1.get(), fft2.get()}, direction::forward, scaling);
+        compute_transform<location_tag, index>(this->stream(), convert_to_standard(input), convert_to_standard(output),
+                                               convert_to_standard(workspace),
+                                               executor_buffer_offset, size_comm_buffers(), forward_shaper,
+                                               forward_executors(), direction::forward);
+        apply_scale(direction::forward, scaling, output);
     }
 
     /*!
@@ -393,7 +395,8 @@ public:
         static_assert(backend::check_types<backend_tag, output_type, input_type>::value,
                       "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
+        auto workspace = make_buffer_container<typename transform_output<input_type, backend_tag>::type>(this->stream(), size_workspace());
+        backward(input, output, workspace.data(), scaling);
     }
 
     /*!
@@ -404,8 +407,11 @@ public:
         static_assert(backend::check_types<backend_tag, output_type, input_type>::value,
                       "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace),
-                           backward_shaper, {fft2.get(), fft1.get(), fft0.get()}, direction::backward, scaling);
+        compute_transform<location_tag, index>(this->stream(), convert_to_standard(input), convert_to_standard(output),
+                                               convert_to_standard(workspace),
+                                               executor_buffer_offset, size_comm_buffers(), backward_shaper,
+                                               backward_executors(), direction::backward);
+        apply_scale(direction::backward, scaling, output);
     }
 
     /*!
@@ -434,9 +440,7 @@ public:
         return result;
     }
 
-    /*!
-     * \brief Returns the scale factor for the given scaling.
-     */
+    //! \brief Returns the scale factor for the given scaling.
     double get_scale_factor(scale scaling) const{
         if (backend::uses_fft_types<backend_tag>::value){
             return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor;
@@ -445,11 +449,9 @@ public:
         }
     }
 
-    /*!
-     * \brief Returns the workspace size that will be used, size is measured in complex numbers.
-     */
+    //! \brief Returns the workspace size that will be used, size is measured in complex numbers.
     size_t size_workspace() const{ return size_buffer_work; }
-    //!\brief Returns the size used by the communication workspace buffers (internal use).
+    //! \brief Returns the size used by the communication workspace buffers (internal use).
     size_t size_comm_buffers() const{ return comm_buffer_offset; }
 
 private:
@@ -472,82 +474,75 @@ private:
      * \param this_mpi_rank is the rank of this mpi process, i.e., mpi::comm_rank(comm)
      * \param comm is the communicator operating on the data
      */
-    fft3d(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
+    fft3d(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm)  :
+        backend::device_instance<backend_tag>(),
+        pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
+        scale_factor(1.0 / static_cast<double>(plan.index_count))
+        #ifdef Heffte_ENABLE_MAGMA
+        , hmagma(this->stream())
+        #endif
+    {
+        setup(plan, comm);
+    }
 
     //! \brief Same as the other case but accepts the gpu_stream too.
     fft3d(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
-          logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
+          logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
+        backend::device_instance<backend_tag>(gpu_stream),
+        pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
+        scale_factor(1.0 / static_cast<double>(plan.index_count))
+        #ifdef Heffte_ENABLE_MAGMA
+        , hmagma(this->stream())
+        #endif
+    {
+        setup(plan, comm);
+    }
 
     //! \brief Setup the executors and the reshapes.
-    void setup(logic_plan3d<index> const &plan, MPI_Comm const comm);
+    void setup(logic_plan3d<index> const &plan, MPI_Comm const comm){
+        for(int i=0; i<4; i++){
+            forward_shaper[i]    = make_reshape3d<backend_tag>(this->stream(), plan.in_shape[i], plan.out_shape[i], comm, plan.options);
+            backward_shaper[3-i] = make_reshape3d<backend_tag>(this->stream(), plan.out_shape[i], plan.in_shape[i], comm, plan.options);
+        }
 
-    /*!
-     * \brief Performs the FFT assuming the input types match the C++ standard.
-     *
-     * The generic template API will convert the various input types into C++ standards
-     * using heffte::convert_to_standard() and will call one of these overloads.
-     * The three overloads of standard_transform() perform the operations planned by the constructor.
-     *
-     * \tparam scalar_type is either float or double, indicating the working precision
-     *
-     * \param input is the input for the forward or backward transform
-     * \param output is the output for the forward or backward transform
-     * \param workspace is the pre-allocated buffer with size at least size_workspace()
-     * \param shaper are the four stages of the reshape operations
-     * \param executor holds the three stages of the one dimensional FFT algorithm
-     * \param dir indicates whether to use the forward or backward method of the executor
-     * \param scaling is the type of scaling to apply to the output data
-     */
-    template<typename scalar_type>
-    void standard_transform(scalar_type const input[], scalar_type output[], scalar_type workspace[],
-                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
-                            std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const; // complex to complex
-    //! \brief Overload that allocates and deallocates the workspace.
-    template<typename scalar_type>
-    void standard_transform(scalar_type const input[], scalar_type output[],
-                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
-                            std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        auto workspace = make_buffer_container<typename transform_output<scalar_type, backend_tag>::type>(this->stream(), size_workspace());
-        standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
+        int const my_rank = mpi::comm_rank(comm);
+
+        if (has_executor3d<backend_tag>() and not forward_shaper[1] and not forward_shaper[2]){
+            executors[0] = make_executor<backend_tag>(this->stream(), plan.out_shape[0][my_rank]);
+        }else if (has_executor2d<backend_tag>() and (not forward_shaper[1] or not forward_shaper[2])){
+            if (not forward_shaper[1]){
+                executors[0] = make_executor<backend_tag>(this->stream(), plan.out_shape[0][my_rank],
+                                                          plan.fft_direction[0], plan.fft_direction[1]);
+                executors[2] = make_executor<backend_tag>(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
+            }else{
+                executors[0] = make_executor<backend_tag>(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
+                executors[2] = make_executor<backend_tag>(this->stream(), plan.out_shape[2][my_rank],
+                                                          plan.fft_direction[1], plan.fft_direction[2]);
+            }
+        }else{
+            executors[0] = make_executor<backend_tag>(this->stream(), plan.out_shape[0][my_rank], plan.fft_direction[0]);
+            executors[1] = make_executor<backend_tag>(this->stream(), plan.out_shape[1][my_rank], plan.fft_direction[1]);
+            executors[2] = make_executor<backend_tag>(this->stream(), plan.out_shape[2][my_rank], plan.fft_direction[2]);
+        }
+
+        size_t executor_workspace_size = get_max_work_size(executors);
+        comm_buffer_offset = std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper));
+        // the last junk of (fft0->box_size() + 1) / 2 is used only when doing complex-to-real backward transform
+        // maybe update the API to call for different size buffers for different complex/real types
+        size_buffer_work =  comm_buffer_offset + executor_workspace_size
+                          + get_max_box_size(executors)
+                          + ((backward_shaper[3]) ? (executors[0]->box_size() + 1) / 2 : 0);
+        executor_buffer_offset = (executor_workspace_size == 0) ? 0 : size_buffer_work - executor_workspace_size;
     }
-    /*!
-     * \brief Overload to handle the real-to-complex case.
-     *
-     * The inputs are identical to the complex-to-complex case, except the direction parameter which is ignores
-     * since the real-to-complex transform is always forward.
-     */
-    template<typename scalar_type>
-    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
-                            std::complex<scalar_type> workspace[],
-                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
-                            std::array<backend_executor*, 3> const executor, direction, scale) const; // real to complex
-    //! \brief Overload that allocates and deallocates the workspace.
-    template<typename scalar_type>
-    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[],
-                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
-                            std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
-        standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
+    //! \brief Return references to the executors in forward order.
+    std::array<executor_base*, 3> forward_executors() const{
+        return std::array<executor_base*, 3>{executors[0].get(), executors[1].get(), executors[2].get()};
     }
-    /*!
-     * \brief Overload to handle the complex-to-real case.
-     *
-     * The inputs are identical to the complex-to-complex case, except the direction parameter which is ignores
-     * since the complex-to-real transform is always backward.
-     */
-    template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
-                            std::complex<scalar_type> workspace[],
-                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
-                            std::array<backend_executor*, 3> const executor, direction dir, scale) const; // complex to real
-    //! \brief Overload that allocates and deallocates the workspace.
-    template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[],
-                            std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
-                            std::array<backend_executor*, 3> const executor, direction dir, scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
-        standard_transform(input, output, workspace.data(), shaper, executor, dir, scaling);
+    //! \brief Return references to the executors in forward order.
+    std::array<executor_base*, 3> backward_executors() const{
+        return std::array<executor_base*, 3>{executors[2].get(), executors[1].get(), executors[0].get()};
     }
+
     //! \brief Applies the scaling factor to the data.
     template<typename scalar_type>
     void apply_scale(direction dir, scale scaling, scalar_type data[]) const{
@@ -571,7 +566,7 @@ private:
     std::array<std::unique_ptr<reshape3d_base<index>>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base<index>>, 4> backward_shaper;
 
-    std::unique_ptr<backend_executor> fft0, fft1, fft2;
+    std::array<std::unique_ptr<executor_base>, 3> executors;
     #ifdef Heffte_ENABLE_MAGMA
     gpu::magma_handle<typename backend::buffer_traits<backend_tag>::location> hmagma;
     #endif

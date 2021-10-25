@@ -63,6 +63,8 @@ namespace backend {
     * \brief Common data-transfer operations on the cpu.
     */
     template<> struct data_manipulator<tag::cpu> {
+        //! \brief The stream type for the device.
+        using stream_type = void*;
         //! \brief Wrapper around std::copy_n().
         template<typename source_type, typename destination_type>
         static void copy_n(void*, source_type const source[], size_t num_entries, destination_type destination[]){
@@ -464,6 +466,44 @@ namespace backend {
                   )>::type> : std::true_type{};
 
 }
+
+/*!
+ * \ingroup fft3dbackend
+ * \brief Base class for all backend executors.
+ */
+class executor_base{
+public:
+    //! \brief Virtual destructor.
+    virtual ~executor_base() = default;
+    //! \brief Forward r2r, single precision.
+    virtual void forward(float[], float*) const{}
+    //! \brief Forward r2r, double precision.
+    virtual void forward(double[], double*) const{}
+    //! \brief Backward r2r, single precision.
+    virtual void backward(float[], float*) const{}
+    //! \brief Backward r2r, double precision.
+    virtual void backward(double[], double*) const{}
+    //! \brief Forward FFT, single precision.
+    virtual void forward(std::complex<float>[], std::complex<float>*) const{}
+    //! \brief Forward FFT, double precision.
+    virtual void forward(std::complex<double>[], std::complex<double>*) const{}
+    //! \brief Backward FFT, single precision.
+    virtual void backward(std::complex<float>[], std::complex<float>*) const{}
+    //! \brief Backward FFT, double precision.
+    virtual void backward(std::complex<double>[], std::complex<double>*) const{}
+    //! \brief Forward FFT real-to-complex, single precision.
+    virtual void forward(float const[], std::complex<float>[], std::complex<float>*) const{}
+    //! \brief Forward FFT real-to-complex, double precision.
+    virtual void forward(double const[], std::complex<double>[], std::complex<double>*) const{}
+    //! \brief Backward FFT real-to-complex, single precision.
+    virtual void backward(std::complex<float>[], float[], std::complex<float>*) const{}
+    //! \brief Backward FFT real-to-complex, double precision.
+    virtual void backward(std::complex<double>[], double[], std::complex<double>*) const{}
+    //! \brief Return the size of the box.
+    virtual int box_size() const{ return 0; }
+    //! \brief Return the workspace of the size.
+    virtual size_t workspace_size() const{ return 0; }
+};
 
 /*!
  * \ingroup fft3dbackend

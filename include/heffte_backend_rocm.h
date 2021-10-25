@@ -241,6 +241,8 @@ namespace backend{
      * \brief Specialization for the data operations in ROCm mode.
      */
     template<> struct data_manipulator<tag::gpu> {
+        //! \brief The stream type for the device.
+        using stream_type = hipStream_t;
         //! \brief Defines the backend_device.
         using backend_device = backend::device_instance<typename default_backend<tag::gpu>::type>;
         //! \brief Allocate memory.
@@ -520,8 +522,12 @@ private:
  * for the different types.
  * All input and output arrays must have size equal to the box.
  */
-class rocfft_executor{
+class rocfft_executor : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
     rocfft_executor(hipStream_t active_stream, box3d<index> const box, int dimension) :
@@ -614,33 +620,47 @@ public:
     }
 
     //! \brief Forward fft, float-complex case.
-    template<typename precision_type>
-    void forward(std::complex<precision_type> data[], std::complex<precision_type> *workspace) const{
-        execute<precision_type, direction::forward>(data, workspace);
+    void forward(std::complex<float> data[], std::complex<float> *workspace) const override{
+        execute<float, direction::forward>(data, workspace);
+    }
+    //! \brief Forward fft, double-complex case.
+    void forward(std::complex<double> data[], std::complex<double> *workspace) const override{
+        execute<double, direction::forward>(data, workspace);
     }
     //! \brief Backward fft, float-complex case.
-    template<typename precision_type>
-    void backward(std::complex<precision_type> data[], std::complex<precision_type> *workspace) const{
-        execute<precision_type, direction::backward>(data, workspace);
+    void backward(std::complex<float> data[], std::complex<float> *workspace) const override{
+        execute<float, direction::backward>(data, workspace);
+    }
+    //! \brief Backward fft, double-complex case.
+    void backward(std::complex<double> data[], std::complex<double> *workspace) const override{
+        execute<double, direction::backward>(data, workspace);
     }
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
-    template<typename precision_type>
-    void forward(precision_type const indata[], std::complex<precision_type> outdata[], std::complex<precision_type> *workspace) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
+        rocm::convert(stream, total_size, indata, outdata);
+        forward(outdata, workspace);
+    }
+    //! \brief Converts the deal data to complex and performs double-complex forward transform.
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
         rocm::convert(stream, total_size, indata, outdata);
         forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
-    template<typename precision_type>
-    void backward(std::complex<precision_type> indata[], precision_type outdata[], std::complex<precision_type> *workspace) const{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const override{
+        backward(indata, workspace);
+        rocm::convert(stream, total_size, indata, outdata);
+    }
+    //! \brief Performs backward double-complex transform and truncates the complex part of the result.
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const override{
         backward(indata, workspace);
         rocm::convert(stream, total_size, indata, outdata);
     }
 
     //! \brief Returns the size of the box.
-    int box_size() const{ return total_size; }
+    int box_size() const override{ return total_size; }
     //! \brief Return the size of the needed workspace.
-    size_t workspace_size() const{ return worksize; }
+    size_t workspace_size() const override{ return worksize; }
     //! \brief Computes the size of the needed workspace.
     size_t compute_workspace_size() const{
         make_plan(ccomplex_forward);

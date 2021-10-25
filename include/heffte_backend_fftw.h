@@ -188,8 +188,12 @@ struct plan_fftw<std::complex<double>, dir>{
  * for the different types.
  * All input and output arrays must have size equal to the box.
  */
-class fftw_executor{
+class fftw_executor : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
     fftw_executor(void*, box3d<index> const box, int dimension) :
@@ -237,7 +241,7 @@ public:
     {}
 
     //! \brief Forward fft, float-complex case.
-    void forward(std::complex<float> data[], std::complex<float>*) const{
+    void forward(std::complex<float> data[], std::complex<float>*) const override{
         make_plan(cforward);
         for(int i=0; i<blocks; i++){
             fftwf_complex* block_data = reinterpret_cast<fftwf_complex*>(data + i * block_stride);
@@ -245,7 +249,7 @@ public:
         }
     }
     //! \brief Backward fft, float-complex case.
-    void backward(std::complex<float> data[], std::complex<float>*) const{
+    void backward(std::complex<float> data[], std::complex<float>*) const override{
         make_plan(cbackward);
         for(int i=0; i<blocks; i++){
             fftwf_complex* block_data = reinterpret_cast<fftwf_complex*>(data + i * block_stride);
@@ -253,7 +257,7 @@ public:
         }
     }
     //! \brief Forward fft, double-complex case.
-    void forward(std::complex<double> data[], std::complex<double>*) const{
+    void forward(std::complex<double> data[], std::complex<double>*) const override{
         make_plan(zforward);
         for(int i=0; i<blocks; i++){
             fftw_complex* block_data = reinterpret_cast<fftw_complex*>(data + i * block_stride);
@@ -261,7 +265,7 @@ public:
         }
     }
     //! \brief Backward fft, double-complex case.
-    void backward(std::complex<double> data[], std::complex<double>*) const{
+    void backward(std::complex<double> data[], std::complex<double>*) const override{
         make_plan(zbackward);
         for(int i=0; i<blocks; i++){
             fftw_complex* block_data = reinterpret_cast<fftw_complex*>(data + i * block_stride);
@@ -270,30 +274,30 @@ public:
     }
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
-    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<float>(indata[i]);
         forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
-    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const override{
         backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
     //! \brief Converts the deal data to complex and performs double-complex forward transform.
-    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<double>(indata[i]);
         forward(outdata, workspace);
     }
     //! \brief Performs backward double-complex transform and truncates the complex part of the result.
-    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const{
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const override{
         backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
 
     //! \brief Returns the size of the box.
-    int box_size() const{ return total_size; }
+    int box_size() const override{ return total_size; }
     //! \brief Return the size of the needed workspace.
-    size_t workspace_size() const{ return 0; }
+    size_t workspace_size() const override{ return 0; }
 
 private:
     //! \brief Helper template to create the plan.

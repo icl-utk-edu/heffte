@@ -132,7 +132,7 @@ struct cpu_sin_pre_pos_processor{
  * \tparam prepost_processor a collection of methods for pre-post processing the data before/after applying the FFT
  */
 template<typename fft_backend_tag, typename prepost_processor>
-struct real2real_executor{
+struct real2real_executor : public executor_base{
     //! \brief Construct a plan for batch 1D transforms.
     template<typename index>
     real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const box, int dimension) :
@@ -189,9 +189,9 @@ struct real2real_executor{
     void backward(std::complex<precision> indata[], precision outdata[]) const{ forward(outdata, indata); }
 
     //! \brief Returns the size of the box.
-    int box_size() const{ return total_size; }
+    int box_size() const override{ return total_size; }
     //! \brief Returns the size of the box.
-    size_t workspace_size() const{
+    size_t workspace_size() const override{
         return fft->real_size() + 1 + 2 * fft->complex_size() + 2 * fft->workspace_size()
                + ((std::is_same<fft_backend_tag, backend::cufft>::value) ? 1 : 0);
     }
@@ -205,6 +205,15 @@ struct real2real_executor{
             return p;
         }
     }
+    //! \brief Forward r2r, single precision.
+    virtual void forward(float data[], float *workspace) const override{ forward<float>(data, workspace); }
+    //! \brief Forward r2r, double precision.
+    virtual void forward(double data[], double *workspace) const override{ forward<double>(data, workspace); }
+    //! \brief Backward r2r, single precision.
+    virtual void backward(float data[], float *workspace) const override{ backward<float>(data, workspace); }
+    //! \brief Backward r2r, double precision.
+    virtual void backward(double data[], double *workspace) const override{ backward<double>(data, workspace); }
+
 private:
     typename backend::device_instance<fft_backend_tag>::stream_type stream;
 
