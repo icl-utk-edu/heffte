@@ -503,6 +503,8 @@ public:
     virtual int box_size() const{ return 0; }
     //! \brief Return the workspace of the size.
     virtual size_t workspace_size() const{ return 0; }
+    //! \brief Return the size of the complex-box (r2c executors).
+    virtual int complex_size() const{ return box_size(); }
 };
 
 /*!

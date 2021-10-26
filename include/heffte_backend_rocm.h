@@ -528,6 +528,8 @@ public:
     using executor_base::forward;
     //! \brief Bring forth method that have not been overloaded.
     using executor_base::backward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::complex_size;
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
     rocfft_executor(hipStream_t active_stream, box3d<index> const box, int dimension) :
@@ -707,8 +709,12 @@ private:
  * and only the unique (non-conjugate) coefficients are computed.
  * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
  */
-class rocfft_executor_r2c{
+class rocfft_executor_r2c : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
     /*!
      * \brief Constructor defines the box and the dimension of reduction.
      *
@@ -747,7 +753,7 @@ public:
         if (wsize > 0)
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(workspace), wsize);
 
-        backend::buffer_traits<backend::rocfft>::container<precision_type> copy_indata(stream, indata, indata + real_size());
+        backend::buffer_traits<backend::rocfft>::container<precision_type> copy_indata(stream, indata, indata + box_size());
 
         for(int i=0; i<blocks; i++){
             void *rdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata.data() + i * rblock_stride));
@@ -760,7 +766,7 @@ public:
     }
     //! \brief Backward transform, single precision.
     template<typename precision_type>
-    void backward(std::complex<precision_type> const indata[], precision_type outdata[], std::complex<precision_type> *workspace) const{
+    void backward(std::complex<precision_type> indata[], precision_type outdata[], std::complex<precision_type> *workspace) const{
         if (std::is_same<precision_type, float>::value){
             make_plan(sbackward);
         }else{
@@ -786,13 +792,29 @@ public:
         }
         rocfft_execution_info_destroy(info);
     }
+    //! \brief Forward transform, single precision.
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
+        forward<float>(indata, outdata, workspace);
+    }
+    //! \brief Backward transform, single precision.
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const override{
+        backward<float>(indata, outdata, workspace);
+    }
+    //! \brief Forward transform, double precision.
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
+        forward<double>(indata, outdata, workspace);
+    }
+    //! \brief Backward transform, double precision.
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const override{
+        backward<double>(indata, outdata, workspace);
+    }
 
     //! \brief Returns the size of the box with real data.
-    int real_size() const{ return rsize; }
+    int box_size() const override{ return rsize; }
     //! \brief Returns the size of the box with complex coefficients.
-    int complex_size() const{ return csize; }
+    int complex_size() const override{ return csize; }
     //! \brief Return the size of the needed workspace.
-    size_t workspace_size() const{ return worksize; }
+    size_t workspace_size() const override{ return worksize; }
     //! \brief Computes the size of the needed workspace.
     size_t compute_workspace_size() const{
         make_plan(sforward);

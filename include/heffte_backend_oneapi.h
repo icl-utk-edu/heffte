@@ -354,6 +354,8 @@ public:
     using executor_base::forward;
     //! \brief Bring forth method that have not been overloaded.
     using executor_base::backward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::complex_size;
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
     onemkl_executor(sycl::queue &inq, box3d<index> const box, int dimension) :
@@ -513,8 +515,12 @@ private:
  * and only the unique (non-conjugate) coefficients are computed.
  * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
  */
-class onemkl_executor_r2c{
+class onemkl_executor_r2c : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
     /*!
      * \brief Constructor defines the box and the dimension of reduction.
      *
@@ -538,28 +544,28 @@ public:
     {}
 
     //! \brief Forward transform, single precision.
-    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const override{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(splan, const_cast<float*>(indata + i * rblock_stride), reinterpret_cast<float*>(outdata + i * cblock_stride));
         q.wait();
     }
     //! \brief Backward transform, single precision.
-    void backward(std::complex<float> const indata[], float outdata[], std::complex<float>*) const{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float>*) const override{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
         q.wait();
     }
     //! \brief Forward transform, double precision.
-    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const override{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(dplan, const_cast<double*>(indata + i * rblock_stride), reinterpret_cast<double*>(outdata + i * cblock_stride));
         q.wait();
     }
     //! \brief Backward transform, double precision.
-    void backward(std::complex<double> const indata[], double outdata[], std::complex<double>*) const{
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double>*) const override{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
@@ -567,11 +573,11 @@ public:
     }
 
     //! \brief Returns the size of the box with real data.
-    int real_size() const{ return rsize; }
+    int box_size() const override{ return rsize; }
     //! \brief Returns the size of the box with complex coefficients.
-    int complex_size() const{ return csize; }
+    int complex_size() const override{ return csize; }
     //! \brief Return the size of the needed workspace.
-    size_t workspace_size() const{ return 0; }
+    size_t workspace_size() const override{ return 0; }
 
 private:
     //! \brief Helper template to initialize the plan.

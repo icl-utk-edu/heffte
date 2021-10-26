@@ -806,8 +806,8 @@ void test_cross_reference_r2c(){
                 sassert(approx(curesult, result));
             }
 
-            std::vector<scalar_type> inverse(fft_cpu.real_size());
-            gpu::vector<scalar_type> cuinverse(fft_gpu.real_size());
+            std::vector<scalar_type> inverse(fft_cpu.box_size());
+            gpu::vector<scalar_type> cuinverse(fft_gpu.box_size());
 
             fft_cpu.backward(result.data(), inverse.data(), nullptr);
             fft_gpu.backward(curesult.data(), cuinverse.data(), nullptr);
@@ -911,8 +911,8 @@ void test_cross_reference_r2c(){
             }
             sassert(approx(cuinput, input)); // checks const-correctness
 
-            std::vector<scalar_type> inverse(fft_cpu.real_size());
-            gpu::vector<scalar_type> cuinverse(fft_gpu.real_size());
+            std::vector<scalar_type> inverse(fft_cpu.box_size());
+            gpu::vector<scalar_type> cuinverse(fft_gpu.box_size());
 
             fft_cpu.backward(result.data(), inverse.data(), nullptr);
             fft_gpu.backward(curesult.data(), cuinverse.data(), workspace.data());

@@ -101,7 +101,6 @@ set(Heffte_common_sources
     src/heffte_magma_helpers.cpp
     src/heffte_reshape3d.cpp
     src/heffte_compute_transform.cpp
-    src/heffte_fft3d_r2c.cpp
     )
 
 if (Heffte_ENABLE_ROCM)

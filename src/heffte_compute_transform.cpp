@@ -206,12 +206,12 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
     // executor 2 must apply complex to real backward transform
     if (shaper[3]){
         // there is one more reshape left, transform into a real temporary buffer
-        scalar_type* real_buffer = reinterpret_cast<scalar_type*>(temp_buffer + executor[2]->box_size());
+        scalar_type* real_buffer = reinterpret_cast<scalar_type*>(workspace);
         { add_trace name("fft-1d");
         if (executor[2] != nullptr) executor[2]->backward(temp_buffer, real_buffer, executor_workspace);
         }
         add_trace name("reshape");
-        shaper[3]->apply(real_buffer, output, reinterpret_cast<scalar_type*>(workspace));
+        shaper[3]->apply(real_buffer, output, reinterpret_cast<scalar_type*>(workspace + executor[2]->box_size()));
     }else{
         add_trace name("fft-1d");
         if (executor[2] != nullptr) executor[2]->backward(temp_buffer, output, executor_workspace);

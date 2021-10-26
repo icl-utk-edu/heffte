@@ -194,6 +194,8 @@ public:
     using executor_base::forward;
     //! \brief Bring forth method that have not been overloaded.
     using executor_base::backward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::complex_size;
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
     fftw_executor(void*, box3d<index> const box, int dimension) :
@@ -388,8 +390,12 @@ struct plan_fftw<double, dir>{
  * and only the unique (non-conjugate) coefficients are computed.
  * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
  */
-class fftw_executor_r2c{
+class fftw_executor_r2c : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
     /*!
      * \brief Constructor defines the box and the dimension of reduction.
      *
@@ -410,7 +416,7 @@ public:
     {}
 
     //! \brief Forward transform, single precision.
-    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const override{
         make_plan(sforward);
         for(int i=0; i<blocks; i++){
             float *rdata = const_cast<float*>(indata + i * rblock_stride);
@@ -419,7 +425,7 @@ public:
         }
     }
     //! \brief Backward transform, single precision.
-    void backward(std::complex<float> const indata[], float outdata[], std::complex<float>*) const{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float>*) const override{
         make_plan(sbackward);
         for(int i=0; i<blocks; i++){
             fftwf_complex* cdata = const_cast<fftwf_complex*>(reinterpret_cast<fftwf_complex const*>(indata + i * cblock_stride));
@@ -427,7 +433,7 @@ public:
         }
     }
     //! \brief Forward transform, double precision.
-    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const override{
         make_plan(dforward);
         for(int i=0; i<blocks; i++){
             double *rdata = const_cast<double*>(indata + i * rblock_stride);
@@ -436,7 +442,7 @@ public:
         }
     }
     //! \brief Backward transform, double precision.
-    void backward(std::complex<double> const indata[], double outdata[], std::complex<double>*) const{
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double>*) const override{
         make_plan(dbackward);
         for(int i=0; i<blocks; i++){
             fftw_complex* cdata = const_cast<fftw_complex*>(reinterpret_cast<fftw_complex const*>(indata + i * cblock_stride));
@@ -445,11 +451,11 @@ public:
     }
 
     //! \brief Returns the size of the box with real data.
-    int real_size() const{ return rsize; }
+    int box_size() const override{ return rsize; }
     //! \brief Returns the size of the box with complex coefficients.
-    int complex_size() const{ return csize; }
+    int complex_size() const override{ return csize; }
     //! \brief Return the size of the needed workspace.
-    size_t workspace_size() const{ return 0; }
+    size_t workspace_size() const override{ return 0; }
 
 private:
     //! \brief Helper template to initialize the plan.
