@@ -617,30 +617,30 @@ void test_1d_reorder(){
     #endif
 
     #ifdef Heffte_ENABLE_ONEAPI
-    for(size_t i=0; i<3; i++){
-        heffte::mkl_executor fft(nullptr, box, box.order[i]);
-
-        auto cresult = gpu::transfer::load(cinput);
-        fft.forward(cresult.data(), nullptr);
-        sassert(approx(cresult, creference[i]));
-
-        fft.backward(cresult.data(), nullptr);
-        auto cpu_cresult = gpu::transfer::unload(cresult);
-        for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
-        sassert(approx(cpu_cresult, cinput));
-
-        heffte::mkl_executor_r2c fft_r2c(nullptr, box, box.order[i]);
-
-        gpu::vector<ctype> rresult(rreference[i].size());
-        fft_r2c.forward(gpu::transfer::load(rinput).data(), rresult.data(), nullptr);
-        sassert(approx(rresult, rreference[i]));
-
-        gpu::vector<rtype> brresult(rinput.size());
-        fft_r2c.backward(rresult.data(), brresult.data(), nullptr);
-        auto cpu_brresult = gpu::transfer::unload(brresult);
-        for(auto &r : cpu_brresult) r /= (2.0 + box.order[i]);
-        sassert(approx(cpu_brresult, rinput));
-    }
+//     for(size_t i=0; i<3; i++){
+//         heffte::mkl_executor fft(nullptr, box, box.order[i]);
+//
+//         auto cresult = gpu::transfer::load(cinput);
+//         fft.forward(cresult.data(), nullptr);
+//         sassert(approx(cresult, creference[i]));
+//
+//         fft.backward(cresult.data(), nullptr);
+//         auto cpu_cresult = gpu::transfer::unload(cresult);
+//         for(auto &r : cpu_cresult) r /= (2.0 + box.order[i]);
+//         sassert(approx(cpu_cresult, cinput));
+//
+//         heffte::mkl_executor_r2c fft_r2c(nullptr, box, box.order[i]);
+//
+//         gpu::vector<ctype> rresult(rreference[i].size());
+//         fft_r2c.forward(gpu::transfer::load(rinput).data(), rresult.data(), nullptr);
+//         sassert(approx(rresult, rreference[i]));
+//
+//         gpu::vector<rtype> brresult(rinput.size());
+//         fft_r2c.backward(rresult.data(), brresult.data(), nullptr);
+//         auto cpu_brresult = gpu::transfer::unload(brresult);
+//         for(auto &r : cpu_brresult) r /= (2.0 + box.order[i]);
+//         sassert(approx(cpu_brresult, rinput));
+//     }
     #endif
 }
 
