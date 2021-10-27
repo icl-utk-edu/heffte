@@ -169,45 +169,7 @@ namespace backend{
      * \brief The CUDA backend uses a CUDA stream.
      */
     template<>
-    struct device_instance<cufft>{
-        //! \brief Constructor, sets up the stream.
-        device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        cudaStream_t stream(){ return _stream; }
-        //! \brief Returns the nullptr (const case).
-        cudaStream_t stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue, no-op in the CPU case.
-        void synchronize_device() const{ cuda::check_error(cudaStreamSynchronize(_stream), "device sync"); }
-        //! \brief The CUDA stream to be used in all operations.
-        mutable cudaStream_t _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = cudaStream_t;
-    };
-    /*!
-     * \ingroup hefftecuda
-     * \brief The CUDA backend uses a CUDA stream.
-     */
-    template<>
-    struct device_instance<cufft_cos>{
-        //! \brief Constructor, sets up the stream.
-        device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        cudaStream_t stream(){ return _stream; }
-        //! \brief Returns the nullptr (const case).
-        cudaStream_t stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue, no-op in the CPU case.
-        void synchronize_device() const{ cuda::check_error(cudaStreamSynchronize(_stream), "device sync"); }
-        //! \brief The CUDA stream to be used in all operations.
-        mutable cudaStream_t _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = cudaStream_t;
-    };
-    /*!
-     * \ingroup hefftecuda
-     * \brief The CUDA backend uses a CUDA stream.
-     */
-    template<>
-    struct device_instance<cufft_sin>{
+    struct device_instance<tag::gpu>{
         //! \brief Constructor, sets up the stream.
         device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
         //! \brief Returns the nullptr.
@@ -239,7 +201,7 @@ namespace backend{
         //! \brief The stream type for the device.
         using stream_type = cudaStream_t;
         //! \brief Defines the backend_device.
-        using backend_device = backend::device_instance<backend::cufft>;
+        using backend_device = backend::device_instance<tag::gpu>;
         //! \brief Allocate memory.
         template<typename scalar_type>
         static scalar_type* allocate(cudaStream_t stream, size_t num_entries){

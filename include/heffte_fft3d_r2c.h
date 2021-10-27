@@ -43,7 +43,7 @@ namespace heffte {
  * \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
  */
 template<typename backend_tag, typename index = int>
-class fft3d_r2c : public backend::device_instance<backend_tag>{
+class fft3d_r2c : public backend::device_instance<typename backend::buffer_traits<backend_tag>::location>{
 public:
     //! \brief FFT executor for the complex-to-complex dimensions.
     using backend_executor_c2c = typename one_dim_backend<backend_tag>::executor;
@@ -262,9 +262,9 @@ private:
     }
 
     //! \brief Same as in the fft3d case.
-    fft3d_r2c(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
+    fft3d_r2c(typename backend::device_instance<location_tag>::stream_type gpu_stream,
               logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
-        backend::device_instance<backend_tag>(gpu_stream),
+        backend::device_instance<location_tag>(gpu_stream),
         pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
         scale_factor(1.0 / static_cast<double>(plan.index_count))
         #ifdef Heffte_ENABLE_MAGMA
@@ -306,7 +306,7 @@ private:
         if (scaling != scale::none){
             add_trace name("scale");
             #ifdef Heffte_ENABLE_MAGMA
-            if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
+            if (std::is_same<location_tag, tag::gpu>::value){
                 hmagma.scal((dir == direction::forward) ? size_outbox() : size_inbox(), get_scale_factor(scaling), data);
                 return;
             }
@@ -325,7 +325,7 @@ private:
 
     std::array<std::unique_ptr<executor_base>, 3> executors;
     #ifdef Heffte_ENABLE_MAGMA
-    gpu::magma_handle<typename backend::buffer_traits<backend_tag>::location> hmagma;
+    gpu::magma_handle<location_tag> hmagma;
     #endif
 
     // cache some values for faster read

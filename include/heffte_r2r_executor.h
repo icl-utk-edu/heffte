@@ -135,7 +135,7 @@ template<typename fft_backend_tag, typename prepost_processor>
 struct real2real_executor : public executor_base{
     //! \brief Construct a plan for batch 1D transforms.
     template<typename index>
-    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const box, int dimension) :
+    real2real_executor(typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type cstream, box3d<index> const box, int dimension) :
         stream(cstream),
         length(box.osize(0)),
         num_batch(box.osize(1) * box.osize(2)),
@@ -146,11 +146,11 @@ struct real2real_executor : public executor_base{
     }
     //! \brief Construct a plan for batch 2D transforms, not implemented currently.
     template<typename index>
-    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const, int, int) : stream(cstream)
+    real2real_executor(typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type cstream, box3d<index> const, int, int) : stream(cstream)
     { throw std::runtime_error("2D real-to-real transform is not yet implemented!"); }
     //! \brief Construct a plan for a single 3D transform, not implemented currently.
     template<typename index>
-    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const) : stream(cstream)
+    real2real_executor(typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type cstream, box3d<index> const) : stream(cstream)
     { throw std::runtime_error("3D real-to-real transform is not yet implemented!"); }
 
     //! \brief Forward transform.
@@ -215,7 +215,7 @@ struct real2real_executor : public executor_base{
     virtual void backward(double data[], double *workspace) const override{ backward<double>(data, workspace); }
 
 private:
-    typename backend::device_instance<fft_backend_tag>::stream_type stream;
+    typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type stream;
 
     int length, num_batch, total_size;
 

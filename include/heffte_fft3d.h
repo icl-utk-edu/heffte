@@ -192,7 +192,7 @@ enum class scale{
  * </table>
  */
 template<typename backend_tag, typename index = int>
-class fft3d : public backend::device_instance<backend_tag>{
+class fft3d : public backend::device_instance<typename backend::buffer_traits<backend_tag>::location>{
 public:
     //! \brief Alias to the wrapper class for the one dimensional backend library.
     using backend_executor = typename one_dim_backend<backend_tag>::executor;
@@ -244,7 +244,7 @@ public:
      * If no stream is provided, heFFTe will use the default CUDA or HIP stream or a default internal SYCL queue;
      * note in the SYCL case the internal queue will create a new SYCL context which is probably not optimal.
      */
-    fft3d(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
+    fft3d(typename backend::device_instance<location_tag>::stream_type gpu_stream,
           box3d<index> const inbox, box3d<index> const outbox, MPI_Comm const comm,
           plan_options const options = default_options<backend_tag>()) :
         fft3d(gpu_stream, plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, set_options<backend_tag>(options)), mpi::comm_rank(comm), comm){
@@ -475,7 +475,7 @@ private:
      * \param comm is the communicator operating on the data
      */
     fft3d(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm)  :
-        backend::device_instance<backend_tag>(),
+        backend::device_instance<location_tag>(),
         pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
         scale_factor(1.0 / static_cast<double>(plan.index_count))
         #ifdef Heffte_ENABLE_MAGMA
@@ -486,9 +486,9 @@ private:
     }
 
     //! \brief Same as the other case but accepts the gpu_stream too.
-    fft3d(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
+    fft3d(typename backend::device_instance<location_tag>::stream_type gpu_stream,
           logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
-        backend::device_instance<backend_tag>(gpu_stream),
+        backend::device_instance<location_tag>(gpu_stream),
         pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
         scale_factor(1.0 / static_cast<double>(plan.index_count))
         #ifdef Heffte_ENABLE_MAGMA

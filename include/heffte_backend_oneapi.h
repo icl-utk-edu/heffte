@@ -179,7 +179,7 @@ namespace backend{
      * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
      */
     template<>
-    struct device_instance<onemkl>{
+    struct device_instance<tag::gpu>{
         //! \brief Empty constructor.
         device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
         //! \brief Constructor assigning the queue.
@@ -197,52 +197,6 @@ namespace backend{
         //! \brief The type for the internal stream.
         using stream_type = std::reference_wrapper<sycl::queue>;
     };
-    /*!
-     * \ingroup heffteoneapi
-     * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
-     */
-    template<>
-    struct device_instance<onemkl_cos>{
-        //! \brief Empty constructor.
-        device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
-        //! \brief Constructor assigning the queue.
-        device_instance(sycl::queue &new_stream) : _stream(new_stream){}
-        //! \brief Constructor assigning from an existing wrapper.
-        device_instance(std::reference_wrapper<sycl::queue> &new_stream) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        sycl::queue& stream(){ return _stream; }
-        //! \brief Returns the nullptr.
-        sycl::queue& stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue.
-        void synchronize_device() const{ _stream.get().wait(); }
-        //! \brief The sycl::queue, either user provided or created by heFFTe.
-        std::reference_wrapper<sycl::queue> _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = std::reference_wrapper<sycl::queue>;
-    };/*!
-     * \ingroup heffteoneapi
-     * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
-     */
-    template<>
-    struct device_instance<onemkl_sin>{
-        //! \brief Empty constructor.
-        device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
-        //! \brief Constructor assigning the queue.
-        device_instance(sycl::queue &new_stream) : _stream(new_stream){}
-        //! \brief Constructor assigning from an existing wrapper.
-        device_instance(std::reference_wrapper<sycl::queue> &new_stream) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        sycl::queue& stream(){ return _stream; }
-        //! \brief Returns the nullptr.
-        sycl::queue& stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue.
-        void synchronize_device() const{ _stream.get().wait(); }
-        //! \brief The sycl::queue, either user provided or created by heFFTe.
-        std::reference_wrapper<sycl::queue> _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = std::reference_wrapper<sycl::queue>;
-    };
-
     /*!
      * \ingroup heffterocm
      * \brief In oneAPI mode, the default GPU backend is onemkl.
@@ -260,7 +214,7 @@ namespace backend{
         //! \brief The stream type for the device.
         using stream_type = sycl::queue&;
         //! \brief Defines the backend_device.
-        using backend_device = backend::device_instance<typename default_backend<tag::gpu>::type>;
+        using backend_device = backend::device_instance<tag::gpu>;
         //! \brief Allocate memory.
         template<typename scalar_type>
         static scalar_type* allocate(sycl::queue &stream, size_t num_entries){

@@ -174,45 +174,7 @@ namespace backend{
      * \brief The ROCm backend uses a HIP stream.
      */
     template<>
-    struct device_instance<rocfft>{
-        //! \brief Constructor, sets up the stream.
-        device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        hipStream_t stream(){ return _stream; }
-        //! \brief Returns the nullptr (const case).
-        hipStream_t stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue.
-        void synchronize_device() const{ rocm::check_error(hipStreamSynchronize(_stream), "device sync"); }
-        //! \brief The CUDA stream to be used in all operations.
-        mutable hipStream_t _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = hipStream_t;
-    };
-    /*!
-     * \ingroup heffterocm
-     * \brief The ROCm backend uses a HIP stream.
-     */
-    template<>
-    struct device_instance<rocfft_cos>{
-        //! \brief Constructor, sets up the stream.
-        device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        hipStream_t stream(){ return _stream; }
-        //! \brief Returns the nullptr (const case).
-        hipStream_t stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue.
-        void synchronize_device() const{ rocm::check_error(hipStreamSynchronize(_stream), "device sync"); }
-        //! \brief The CUDA stream to be used in all operations.
-        mutable hipStream_t _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = hipStream_t;
-    };
-    /*!
-     * \ingroup heffterocm
-     * \brief The ROCm backend uses a HIP stream.
-     */
-    template<>
-    struct device_instance<rocfft_sin>{
+    struct device_instance<tag::gpu>{
         //! \brief Constructor, sets up the stream.
         device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
         //! \brief Returns the nullptr.
@@ -244,7 +206,7 @@ namespace backend{
         //! \brief The stream type for the device.
         using stream_type = hipStream_t;
         //! \brief Defines the backend_device.
-        using backend_device = backend::device_instance<typename default_backend<tag::gpu>::type>;
+        using backend_device = backend::device_instance<tag::gpu>;
         //! \brief Allocate memory.
         template<typename scalar_type>
         static scalar_type* allocate(hipStream_t stream, size_t num_entries){
