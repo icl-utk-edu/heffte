@@ -59,10 +59,9 @@ CONFIG_BACKEND = config_fftw
 CUDA_KERNELS =
 
 # non-cuda object files
-OBJECT_FILES = heffte_fft3d.o     \
-               heffte_fft3d_r2c.o \
+OBJECT_FILES = heffte_compute_transform.o \
                heffte_reshape3d.o \
-               heffte_plan_logic.o\
+               heffte_plan_logic.o \
 
 # check each backend and set the dependencies
 CUFFTW = no_cuda
