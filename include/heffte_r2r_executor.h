@@ -132,10 +132,10 @@ struct cpu_sin_pre_pos_processor{
  * \tparam prepost_processor a collection of methods for pre-post processing the data before/after applying the FFT
  */
 template<typename fft_backend_tag, typename prepost_processor>
-struct real2real_executor{
+struct real2real_executor : public executor_base{
     //! \brief Construct a plan for batch 1D transforms.
     template<typename index>
-    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const box, int dimension) :
+    real2real_executor(typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type cstream, box3d<index> const box, int dimension) :
         stream(cstream),
         length(box.osize(0)),
         num_batch(box.osize(1) * box.osize(2)),
@@ -146,18 +146,18 @@ struct real2real_executor{
     }
     //! \brief Construct a plan for batch 2D transforms, not implemented currently.
     template<typename index>
-    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const, int, int) : stream(cstream)
+    real2real_executor(typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type cstream, box3d<index> const, int, int) : stream(cstream)
     { throw std::runtime_error("2D real-to-real transform is not yet implemented!"); }
     //! \brief Construct a plan for a single 3D transform, not implemented currently.
     template<typename index>
-    real2real_executor(typename backend::device_instance<fft_backend_tag>::stream_type cstream, box3d<index> const) : stream(cstream)
+    real2real_executor(typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type cstream, box3d<index> const) : stream(cstream)
     { throw std::runtime_error("3D real-to-real transform is not yet implemented!"); }
 
     //! \brief Forward transform.
     template<typename scalar_type>
     void forward(scalar_type data[], scalar_type workspace[]) const{
         scalar_type* temp = workspace;
-        std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->real_size() + 1));
+        std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->box_size() + 1));
         std::complex<scalar_type>* fft_work = (fft->workspace_size() == 0) ? nullptr : ctemp + fft->complex_size();
         for(int i=0; i<num_batch; i++){
             prepost_processor::pre_forward(stream, length, data + i * length, temp + i * 4 * length);
@@ -170,7 +170,7 @@ struct real2real_executor{
     template<typename scalar_type>
     void backward(scalar_type data[], scalar_type workspace[]) const{
         scalar_type* temp = workspace;
-        std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->real_size() + 1));
+        std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->box_size() + 1));
         std::complex<scalar_type>* fft_work = (fft->workspace_size() == 0) ? nullptr : ctemp + fft->complex_size();
         for(int i=0; i<num_batch; i++)
             prepost_processor::pre_backward(stream, length, data + i * length, ctemp + i * (2 * length + 1));
@@ -189,10 +189,10 @@ struct real2real_executor{
     void backward(std::complex<precision> indata[], precision outdata[]) const{ forward(outdata, indata); }
 
     //! \brief Returns the size of the box.
-    int box_size() const{ return total_size; }
+    int box_size() const override{ return total_size; }
     //! \brief Returns the size of the box.
-    size_t workspace_size() const{
-        return fft->real_size() + 1 + 2 * fft->complex_size() + 2 * fft->workspace_size()
+    size_t workspace_size() const override{
+        return fft->box_size() + 1 + 2 * fft->complex_size() + 2 * fft->workspace_size()
                + ((std::is_same<fft_backend_tag, backend::cufft>::value) ? 1 : 0);
     }
     //! \brief Moves the pointer forward to be aligned to the size of std::complex<scalar_type>, used for CUDA only.
@@ -205,8 +205,17 @@ struct real2real_executor{
             return p;
         }
     }
+    //! \brief Forward r2r, single precision.
+    virtual void forward(float data[], float *workspace) const override{ forward<float>(data, workspace); }
+    //! \brief Forward r2r, double precision.
+    virtual void forward(double data[], double *workspace) const override{ forward<double>(data, workspace); }
+    //! \brief Backward r2r, single precision.
+    virtual void backward(float data[], float *workspace) const override{ backward<float>(data, workspace); }
+    //! \brief Backward r2r, double precision.
+    virtual void backward(double data[], double *workspace) const override{ backward<double>(data, workspace); }
+
 private:
-    typename backend::device_instance<fft_backend_tag>::stream_type stream;
+    typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type stream;
 
     int length, num_batch, total_size;
 

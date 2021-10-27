@@ -215,7 +215,7 @@ void test_1d_complex(){
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
-    backend::device_instance<backend_tag> device;
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
 
     for(size_t i=0; i<reference.size(); i++){
         auto fft = heffte::make_executor<backend_tag>(device.stream(), box, i);
@@ -242,7 +242,7 @@ void test_1d_real(){
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1<scalar_type>(), make_fft2<scalar_type>() };
-    backend::device_instance<backend_tag> device;
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
 
     for(size_t i=0; i<reference.size(); i++){
         auto fft = heffte::make_executor<backend_tag>(device.stream(), box, i);
@@ -275,7 +275,7 @@ void test_1d_cos(){
     std::vector<scalar_type> reference(6 * reference1.size());
     for(int i=0; i<6; i++) std::copy(reference1.begin(), reference1.end(), reference.begin() + i * reference1.size());
 
-    backend::device_instance<backend_tag> device;
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
     auto fft = heffte::make_executor<backend_tag>(device.stream(), box, 0);
     auto workspace = make_buffer_container<scalar_type>(device.stream(), fft->workspace_size());
 
@@ -320,7 +320,7 @@ void test_1d_sin(){
     std::vector<scalar_type> reference(6 * reference1.size());
     for(int i=0; i<6; i++) std::copy(reference1.begin(), reference1.end(), reference.begin() + i * reference1.size());
 
-    backend::device_instance<backend_tag> device;
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
     auto fft = heffte::make_executor<backend_tag>(device.stream(), box, 0);
     auto workspace = make_buffer_container<scalar_type>(device.stream(), fft->workspace_size());
 
@@ -361,7 +361,7 @@ void test_1d_r2c(){
     auto const input = make_input<scalar_type>();
     std::vector<std::vector<typename fft_output<scalar_type>::type>> reference =
         { make_fft0<scalar_type>(), make_fft1_r2c<scalar_type>(), make_fft2_r2c<scalar_type>() };
-    backend::device_instance<backend_tag> device;
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
 
     #ifdef Heffte_ENABLE_ROCM
     if (std::is_same<backend_tag, backend::rocfft>::value)
@@ -467,7 +467,7 @@ void test_gpu_scale(){
     std::vector<float> y = x;
     for(auto &v : y) v *= 3.0;
     auto gx = gpu::transfer::load(x);
-    backend::device_instance<backend::default_backend<tag::gpu>::type> device;
+    backend::device_instance<tag::gpu> device;
     data_scaling::apply(device.stream(), gx.size(), gx.data(), 3.0);
     x = gpu::transfer::unload(gx);
     sassert(approx(x, y));
@@ -652,7 +652,7 @@ void test_in_node_transpose(){
     using ltag = typename backend::buffer_traits<backend_tag>::location;
     current_test<scalar_type, using_nompi> name("reshape transpose");
 
-    backend::device_instance<backend_tag> device;
+    backend::device_instance<ltag> device;
     std::vector<int> proc, offset, sizes; // dummy variables, only needed to call the overlap map method
     std::vector<heffte::pack_plan_3d<int>> plans;
 
@@ -777,7 +777,7 @@ void test_cross_reference_type(){
 template<typename scalar_type>
 void test_cross_reference_r2c(){
     current_test<scalar_type, using_nompi> name("cufft - fftw reference r2c");
-    backend::device_instance<backend::cufft> device;
+    backend::device_instance<tag::gpu> device;
 
     for(int case_counter = 0; case_counter < 2; case_counter++){
         // due to alignment issues on the cufft side
@@ -806,8 +806,8 @@ void test_cross_reference_r2c(){
                 sassert(approx(curesult, result));
             }
 
-            std::vector<scalar_type> inverse(fft_cpu.real_size());
-            gpu::vector<scalar_type> cuinverse(fft_gpu.real_size());
+            std::vector<scalar_type> inverse(fft_cpu.box_size());
+            gpu::vector<scalar_type> cuinverse(fft_gpu.box_size());
 
             fft_cpu.backward(result.data(), inverse.data(), nullptr);
             fft_gpu.backward(curesult.data(), cuinverse.data(), nullptr);
@@ -879,7 +879,7 @@ void test_cross_reference_type(){
 template<typename scalar_type>
 void test_cross_reference_r2c(){
     current_test<scalar_type, using_nompi> name("rocfft - fftw reference r2c");
-    backend::device_instance<backend::rocfft> device;
+    backend::device_instance<tag::gpu> device;
 
     for(int case_counter = 0; case_counter < 2; case_counter++){
         // due to alignment issues on the rocfft side
@@ -911,8 +911,8 @@ void test_cross_reference_r2c(){
             }
             sassert(approx(cuinput, input)); // checks const-correctness
 
-            std::vector<scalar_type> inverse(fft_cpu.real_size());
-            gpu::vector<scalar_type> cuinverse(fft_gpu.real_size());
+            std::vector<scalar_type> inverse(fft_cpu.box_size());
+            gpu::vector<scalar_type> cuinverse(fft_gpu.box_size());
 
             fft_cpu.backward(result.data(), inverse.data(), nullptr);
             fft_gpu.backward(curesult.data(), cuinverse.data(), workspace.data());

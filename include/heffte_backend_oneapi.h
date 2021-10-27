@@ -179,7 +179,7 @@ namespace backend{
      * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
      */
     template<>
-    struct device_instance<onemkl>{
+    struct device_instance<tag::gpu>{
         //! \brief Empty constructor.
         device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
         //! \brief Constructor assigning the queue.
@@ -197,52 +197,6 @@ namespace backend{
         //! \brief The type for the internal stream.
         using stream_type = std::reference_wrapper<sycl::queue>;
     };
-    /*!
-     * \ingroup heffteoneapi
-     * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
-     */
-    template<>
-    struct device_instance<onemkl_cos>{
-        //! \brief Empty constructor.
-        device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
-        //! \brief Constructor assigning the queue.
-        device_instance(sycl::queue &new_stream) : _stream(new_stream){}
-        //! \brief Constructor assigning from an existing wrapper.
-        device_instance(std::reference_wrapper<sycl::queue> &new_stream) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        sycl::queue& stream(){ return _stream; }
-        //! \brief Returns the nullptr.
-        sycl::queue& stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue.
-        void synchronize_device() const{ _stream.get().wait(); }
-        //! \brief The sycl::queue, either user provided or created by heFFTe.
-        std::reference_wrapper<sycl::queue> _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = std::reference_wrapper<sycl::queue>;
-    };/*!
-     * \ingroup heffteoneapi
-     * \brief Specialization that contains the sycl::queue needed for the DPC++ backend.
-     */
-    template<>
-    struct device_instance<onemkl_sin>{
-        //! \brief Empty constructor.
-        device_instance() : _stream(heffte::oapi::internal_sycl_queue){}
-        //! \brief Constructor assigning the queue.
-        device_instance(sycl::queue &new_stream) : _stream(new_stream){}
-        //! \brief Constructor assigning from an existing wrapper.
-        device_instance(std::reference_wrapper<sycl::queue> &new_stream) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        sycl::queue& stream(){ return _stream; }
-        //! \brief Returns the nullptr.
-        sycl::queue& stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue.
-        void synchronize_device() const{ _stream.get().wait(); }
-        //! \brief The sycl::queue, either user provided or created by heFFTe.
-        std::reference_wrapper<sycl::queue> _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = std::reference_wrapper<sycl::queue>;
-    };
-
     /*!
      * \ingroup heffterocm
      * \brief In oneAPI mode, the default GPU backend is onemkl.
@@ -257,8 +211,10 @@ namespace backend{
      * \brief Specialization for the data operations in ROCm mode.
      */
     template<> struct data_manipulator<tag::gpu> {
+        //! \brief The stream type for the device.
+        using stream_type = sycl::queue&;
         //! \brief Defines the backend_device.
-        using backend_device = backend::device_instance<typename default_backend<tag::gpu>::type>;
+        using backend_device = backend::device_instance<tag::gpu>;
         //! \brief Allocate memory.
         template<typename scalar_type>
         static scalar_type* allocate(sycl::queue &stream, size_t num_entries){
@@ -346,8 +302,14 @@ namespace backend{
  * A single class that manages the plans and executions of oneMKL FFTs.
  * Handles the complex-to-complex cases.
  */
-class onemkl_executor{
+class onemkl_executor : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::complex_size;
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
     onemkl_executor(sycl::queue &inq, box3d<index> const box, int dimension) :
@@ -404,28 +366,28 @@ public:
     {}
 
     //! \brief Forward fft, float-complex case.
-    void forward(std::complex<float> data[], std::complex<float>*) const{
+    void forward(std::complex<float> data[], std::complex<float>*) const override{
         if (not init_cplan) make_plan(cplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(cplan, data + i * block_stride);
         q.wait();
     }
     //! \brief Backward fft, float-complex case.
-    void backward(std::complex<float> data[], std::complex<float>*) const{
+    void backward(std::complex<float> data[], std::complex<float>*) const override{
         if (not init_cplan) make_plan(cplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(cplan, data + i * block_stride);
         q.wait();
     }
     //! \brief Forward fft, double-complex case.
-    void forward(std::complex<double> data[], std::complex<double>*) const{
+    void forward(std::complex<double> data[], std::complex<double>*) const override{
         if (not init_zplan) make_plan(zplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(zplan, data + i * block_stride);
         q.wait();
     }
     //! \brief Backward fft, double-complex case.
-    void backward(std::complex<double> data[], std::complex<double>*) const{
+    void backward(std::complex<double> data[], std::complex<double>*) const override{
         if (not init_zplan) make_plan(zplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(zplan, data + i * block_stride);
@@ -433,30 +395,30 @@ public:
     }
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
-    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<float>(indata[i]);
         forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
-    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const override{
         backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
     //! \brief Converts the deal data to complex and performs double-complex forward transform.
-    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<double>(indata[i]);
         forward(outdata, workspace);
     }
     //! \brief Performs backward double-complex transform and truncates the complex part of the result.
-    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const{
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const override{
         backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
 
     //! \brief Returns the size of the box.
-    int box_size() const{ return total_size; }
+    int box_size() const override{ return total_size; }
     //! \brief Return the size of the needed workspace.
-    size_t workspace_size() const{ return 0; }
+    size_t workspace_size() const override{ return 0; }
 
 private:
     //! \brief Helper template to create the plan.
@@ -507,8 +469,12 @@ private:
  * and only the unique (non-conjugate) coefficients are computed.
  * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
  */
-class onemkl_executor_r2c{
+class onemkl_executor_r2c : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
     /*!
      * \brief Constructor defines the box and the dimension of reduction.
      *
@@ -532,28 +498,28 @@ public:
     {}
 
     //! \brief Forward transform, single precision.
-    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const override{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(splan, const_cast<float*>(indata + i * rblock_stride), reinterpret_cast<float*>(outdata + i * cblock_stride));
         q.wait();
     }
     //! \brief Backward transform, single precision.
-    void backward(std::complex<float> const indata[], float outdata[], std::complex<float>*) const{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float>*) const override{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
         q.wait();
     }
     //! \brief Forward transform, double precision.
-    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const override{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_forward(dplan, const_cast<double*>(indata + i * rblock_stride), reinterpret_cast<double*>(outdata + i * cblock_stride));
         q.wait();
     }
     //! \brief Backward transform, double precision.
-    void backward(std::complex<double> const indata[], double outdata[], std::complex<double>*) const{
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double>*) const override{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
             oneapi::mkl::dft::compute_backward(dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
@@ -561,11 +527,11 @@ public:
     }
 
     //! \brief Returns the size of the box with real data.
-    int real_size() const{ return rsize; }
+    int box_size() const override{ return rsize; }
     //! \brief Returns the size of the box with complex coefficients.
-    int complex_size() const{ return csize; }
+    int complex_size() const override{ return csize; }
     //! \brief Return the size of the needed workspace.
-    size_t workspace_size() const{ return 0; }
+    size_t workspace_size() const override{ return 0; }
 
 private:
     //! \brief Helper template to initialize the plan.

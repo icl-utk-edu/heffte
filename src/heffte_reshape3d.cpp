@@ -217,16 +217,16 @@ template<typename device_type> void sync_if_not_default(device_type const *devic
     if (device->stream() != nullptr) device->synchronize_device();
 }
 
-template<typename backend_tag, template<typename device> class packer, typename index>
-reshape3d_alltoall<backend_tag, packer, index>::reshape3d_alltoall(
-                   typename backend::device_instance<backend_tag>::stream_type q,
+template<typename location_tag, template<typename device> class packer, typename index>
+reshape3d_alltoall<location_tag, packer, index>::reshape3d_alltoall(
+                   typename backend::device_instance<location_tag>::stream_type q,
                    int cinput_size, int coutput_size, bool gpu_aware, MPI_Comm ccomm,
                    std::vector<pack_plan_3d<index>> &&cpackplan, std::vector<pack_plan_3d<index>> &&cunpackplan,
                    std::vector<int> &&csend_offset, std::vector<int> &&crecv_offset,
                    int cnum_entries
                                                                   ) :
                    reshape3d_base<index>(cinput_size, coutput_size),
-                   backend::device_instance<backend_tag>(q),
+                   backend::device_instance<location_tag>(q),
                    comm(ccomm), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
                    use_gpu_aware( (disable_gpu_aware::value) ? false : gpu_aware ),
                    packplan(std::move(cpackplan)), unpackplan(std::move(cunpackplan)),
@@ -234,14 +234,14 @@ reshape3d_alltoall<backend_tag, packer, index>::reshape3d_alltoall(
                    num_entries(cnum_entries)
 {}
 
-template<typename backend_tag, template<typename device> class packer, typename index>
+template<typename location_tag, template<typename device> class packer, typename index>
 template<typename scalar_type>
-void reshape3d_alltoall<backend_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
+void reshape3d_alltoall<location_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
 
     scalar_type *send_buffer = workspace;
     scalar_type *recv_buffer = workspace + num_entries * packplan.size();
 
-    packer<typename backend::buffer_traits<backend_tag>::location> packit;
+    packer<location_tag> packit;
 
     int offset = 0;
 
@@ -256,7 +256,7 @@ void reshape3d_alltoall<backend_tag, packer, index>::apply_base(scalar_type cons
     this->synchronize_device();
 
     #ifdef Heffte_ENABLE_GPU
-    if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
+    if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
         scalar_type *temp = this->template cpu_send_buffer<scalar_type>(num_entries * packplan.size());
         gpu::transfer::unload(this->stream(), send_buffer, num_entries * packplan.size(), temp);
         send_buffer = temp;
@@ -271,7 +271,7 @@ void reshape3d_alltoall<backend_tag, packer, index>::apply_base(scalar_type cons
     }
 
     #ifdef Heffte_ENABLE_GPU
-    if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
+    if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
         scalar_type* temp = workspace + num_entries * packplan.size();
         gpu::transfer::load(this->stream(), recv_buffer, num_entries * packplan.size(), temp);
         recv_buffer = temp;
@@ -288,8 +288,8 @@ void reshape3d_alltoall<backend_tag, packer, index>::apply_base(scalar_type cons
     }
 }
 
-template<typename backend_tag, template<typename device> class packer, typename index> std::unique_ptr<reshape3d_alltoall<backend_tag, packer, index>>
-make_reshape3d_alltoall(typename backend::device_instance<backend_tag>::stream_type q,
+template<typename location_tag, template<typename device> class packer, typename index> std::unique_ptr<reshape3d_alltoall<location_tag, packer, index>>
+make_reshape3d_alltoall(typename backend::device_instance<location_tag>::stream_type q,
                         std::vector<box3d<index>> const &input_boxes, std::vector<box3d<index>> const &output_boxes,
                         bool uses_gpu_aware, MPI_Comm const comm){
     int const me = mpi::comm_rank(comm);
@@ -302,13 +302,13 @@ make_reshape3d_alltoall(typename backend::device_instance<backend_tag>::stream_t
     std::vector<int> send_offset, recv_offset;
 
     compute_overlap_map_all2all_pack<index, non_transpose>(group, input_boxes[me], output_boxes, send_offset, packplans);
-    if (std::is_same<packer<backend_tag>, direct_packer<backend_tag>>::value){
+    if (std::is_same<packer<location_tag>, direct_packer<location_tag>>::value){
         compute_overlap_map_all2all_pack<index, non_transpose>(group, output_boxes[me], input_boxes, recv_offset, unpackplans);
     }else{
         compute_overlap_map_all2all_pack<index, transpose>(group, output_boxes[me], input_boxes, recv_offset, unpackplans);
     }
 
-    return std::unique_ptr<reshape3d_alltoall<backend_tag, packer, index>>(new reshape3d_alltoall<backend_tag, packer, index>(
+    return std::unique_ptr<reshape3d_alltoall<location_tag, packer, index>>(new reshape3d_alltoall<location_tag, packer, index>(
         q, input_boxes[me].count(), output_boxes[me].count(),
         uses_gpu_aware, mpi::new_comm_from_group(group, comm),
         std::move(packplans), std::move(unpackplans), std::move(send_offset), std::move(recv_offset),
@@ -317,9 +317,9 @@ make_reshape3d_alltoall(typename backend::device_instance<backend_tag>::stream_t
 
 }
 
-template<typename backend_tag, template<typename device> class packer, typename index>
-reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
-                        typename backend::device_instance<backend_tag>::stream_type q,
+template<typename location_tag, template<typename device> class packer, typename index>
+reshape3d_alltoallv<location_tag, packer, index>::reshape3d_alltoallv(
+                        typename backend::device_instance<location_tag>::stream_type q,
                         int cinput_size, int coutput_size,
                         bool gpu_aware, MPI_Comm master_comm, std::vector<int> const &pgroup,
                         std::vector<int> &&csend_offset, std::vector<int> &&csend_size, std::vector<int> const &send_proc,
@@ -327,7 +327,7 @@ reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
                         std::vector<pack_plan_3d<index>> &&cpackplan, std::vector<pack_plan_3d<index>> &&cunpackplan
                                                                 ) :
     reshape3d_base<index>(cinput_size, coutput_size),
-    backend::device_instance<backend_tag>(q),
+    backend::device_instance<location_tag>(q),
     comm(mpi::new_comm_from_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     use_gpu_aware( (disable_gpu_aware::value) ? false : gpu_aware ),
     send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
@@ -339,14 +339,14 @@ reshape3d_alltoallv<backend_tag, packer, index>::reshape3d_alltoallv(
     recv(pgroup, recv_proc, recv_size)
 {}
 
-template<typename backend_tag, template<typename device> class packer, typename index>
+template<typename location_tag, template<typename device> class packer, typename index>
 template<typename scalar_type>
-void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
+void reshape3d_alltoallv<location_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
 
     scalar_type *send_buffer = workspace;
     scalar_type *recv_buffer = workspace + this->input_size;
 
-    packer<typename backend::buffer_traits<backend_tag>::location> packit;
+    packer<location_tag> packit;
 
     int offset = 0;
 
@@ -363,7 +363,7 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
 
     #ifdef Heffte_ENABLE_GPU
     // the device_synchronize() is needed to flush the kernels of the asynchronous packing
-    if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
+    if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
         scalar_type *temp = this->template cpu_send_buffer<scalar_type>(this->input_size);
         gpu::transfer::unload(this->stream(), send_buffer, this->input_size, temp);
         send_buffer = temp;
@@ -378,7 +378,7 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
     }
 
     #ifdef Heffte_ENABLE_GPU
-    if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
+    if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
         scalar_type* temp = workspace + this->input_size;
         gpu::transfer::load(this->stream(), recv_buffer, this->output_size, temp);
         recv_buffer = temp;
@@ -396,9 +396,9 @@ void reshape3d_alltoallv<backend_tag, packer, index>::apply_base(scalar_type con
     }
 }
 
-template<typename backend_tag, template<typename device> class packer, typename index>
-std::unique_ptr<reshape3d_alltoallv<backend_tag, packer, index>>
-make_reshape3d_alltoallv(typename backend::device_instance<backend_tag>::stream_type q,
+template<typename location_tag, template<typename device> class packer, typename index>
+std::unique_ptr<reshape3d_alltoallv<location_tag, packer, index>>
+make_reshape3d_alltoallv(typename backend::device_instance<location_tag>::stream_type q,
                          std::vector<box3d<index>> const &input_boxes,
                          std::vector<box3d<index>> const &output_boxes,
                          bool uses_gpu_aware,
@@ -429,14 +429,14 @@ make_reshape3d_alltoallv(typename backend::device_instance<backend_tag>::stream_
 
     if (nrecv > 0){ // if I need something from others, prepare the corresponding sizes and plans
         // the transpose logic is included in the unpack procedure, direct_packer does not transpose
-        if (std::is_same<packer<backend_tag>, direct_packer<backend_tag>>::value){
+        if (std::is_same<packer<location_tag>, direct_packer<location_tag>>::value){
             compute_overlap_map_direct_pack(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
         }else{
             compute_overlap_map_transpose_pack(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
         }
     }
 
-    return std::unique_ptr<reshape3d_alltoallv<backend_tag, packer, index>>(new reshape3d_alltoallv<backend_tag, packer, index>(
+    return std::unique_ptr<reshape3d_alltoallv<location_tag, packer, index>>(new reshape3d_alltoallv<location_tag, packer, index>(
         q, inbox.count(), outbox.count(),
         uses_gpu_aware, comm, a2a_group(send_proc, recv_proc, input_boxes, output_boxes),
         std::move(send_offset), std::move(send_size), send_proc,
@@ -445,9 +445,9 @@ make_reshape3d_alltoallv(typename backend::device_instance<backend_tag>::stream_
                                                        ));
 }
 
-template<typename backend_tag, template<typename device> class packer, typename index>
-reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
-                        typename backend::device_instance<backend_tag>::stream_type q,
+template<typename location_tag, template<typename device> class packer, typename index>
+reshape3d_pointtopoint<location_tag, packer, index>::reshape3d_pointtopoint(
+                        typename backend::device_instance<location_tag>::stream_type q,
                         int cinput_size, int coutput_size, reshape_algorithm alg, bool gpu_aware, MPI_Comm ccomm,
                         std::vector<int> &&csend_offset, std::vector<int> &&csend_size, std::vector<int> &&csend_proc,
                         std::vector<int> &&crecv_offset, std::vector<int> &&crecv_size, std::vector<int> &&crecv_proc,
@@ -455,7 +455,7 @@ reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
                         std::vector<pack_plan_3d<index>> &&cpackplan, std::vector<pack_plan_3d<index>> &&cunpackplan
                                                                 ) :
     reshape3d_base<index>(cinput_size, coutput_size),
-    backend::device_instance<backend_tag>(q),
+    backend::device_instance<location_tag>(q),
     comm(ccomm), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     self_to_self(not crecv_proc.empty() and (crecv_proc.back() == me)), // check whether we should include "me" in the communication scheme
     algorithm(alg),
@@ -478,16 +478,14 @@ reshape3d_pointtopoint<backend_tag, packer, index>::reshape3d_pointtopoint(
 }
 
 #ifdef Heffte_ENABLE_GPU
-template<typename backend_tag, template<typename device> class packer, typename index>
+template<typename location_tag, template<typename device> class packer, typename index>
 template<typename scalar_type>
-void reshape3d_pointtopoint<backend_tag, packer, index>::no_gpuaware_send_recv(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
+void reshape3d_pointtopoint<location_tag, packer, index>::no_gpuaware_send_recv(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
     scalar_type *send_buffer = workspace;
     scalar_type *recv_buffer = workspace + this->input_size;
 
     scalar_type *cpu_send = this->template cpu_send_buffer<scalar_type>(max_send_size);
     scalar_type *cpu_recv = this->template cpu_recv_buffer<scalar_type>(this->output_size);
-
-    using location_tag = typename backend::buffer_traits<backend_tag>::location;
 
     packer<location_tag> packit;
 
@@ -554,12 +552,12 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::no_gpuaware_send_recv(s
 }
 #endif
 
-template<typename backend_tag, template<typename device> class packer, typename index>
+template<typename location_tag, template<typename device> class packer, typename index>
 template<typename scalar_type>
-void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
+void reshape3d_pointtopoint<location_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
 
     #ifdef Heffte_ENABLE_GPU
-    if (backend::uses_gpu<backend_tag>::value and not use_gpu_aware){
+    if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
         no_gpuaware_send_recv(source, destination, workspace);
         return;
     }
@@ -568,7 +566,7 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
     scalar_type *send_buffer = workspace;
     scalar_type *recv_buffer = workspace + this->input_size;
 
-    packer<typename backend::buffer_traits<backend_tag>::location> packit;
+    packer<location_tag> packit;
 
     // queue the receive messages, using asynchronous receive
     for(size_t i=0; i<requests.size(); i++){
@@ -612,7 +610,7 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
         }
 
         #ifdef Heffte_ENABLE_ROCM // this synch is not needed under CUDA
-        if (backend::uses_gpu<backend_tag>::value)
+        if (std::is_same<location_tag, tag::gpu>::value)
             gpu::synchronize_default_stream();
         #endif
 
@@ -627,9 +625,9 @@ void reshape3d_pointtopoint<backend_tag, packer, index>::apply_base(scalar_type 
     this->synchronize_device();
 }
 
-template<typename backend_tag, template<typename device> class packer, typename index>
-std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer, index>>
-make_reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stream_type stream,
+template<typename location_tag, template<typename device> class packer, typename index>
+std::unique_ptr<reshape3d_pointtopoint<location_tag, packer, index>>
+make_reshape3d_pointtopoint(typename backend::device_instance<location_tag>::stream_type stream,
                          std::vector<box3d<index>> const &input_boxes,
                          std::vector<box3d<index>> const &output_boxes,
                          reshape_algorithm algorithm, bool uses_gpu_aware,
@@ -661,7 +659,7 @@ make_reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stre
 
     if (nrecv > 0){ // if I need something from others, prepare the corresponding sizes and plans
         // the transpose logic is included in the unpack procedure, direct_packer does not transpose
-        if (std::is_same<packer<backend_tag>, direct_packer<backend_tag>>::value){
+        if (std::is_same<packer<location_tag>, direct_packer<location_tag>>::value){
             compute_overlap_map_direct_pack(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
         }else{
             compute_overlap_map_transpose_pack(me, nprocs, output_boxes[me], input_boxes, recv_proc, recv_offset, recv_size, unpackplan);
@@ -672,7 +670,7 @@ make_reshape3d_pointtopoint(typename backend::device_instance<backend_tag>::stre
     for(size_t i=0; i<recv_size.size() - 1; i++)
         recv_loc.push_back(recv_loc.back() + recv_size[i]);
 
-    return std::unique_ptr<reshape3d_pointtopoint<backend_tag, packer, index>>(new reshape3d_pointtopoint<backend_tag, packer, index>(
+    return std::unique_ptr<reshape3d_pointtopoint<location_tag, packer, index>>(new reshape3d_pointtopoint<location_tag, packer, index>(
         stream, inbox.count(), outbox.count(), algorithm, uses_gpu_aware, comm,
         std::move(send_offset), std::move(send_size), std::move(send_proc),
         std::move(recv_offset), std::move(recv_size), std::move(recv_proc),
@@ -721,51 +719,13 @@ make_reshape3d_pointtopoint<some_backend, transpose_packer, index>(typename back
                                                                  std::vector<box3d<index>> const&, \
                                                                  std::vector<box3d<index>> const&, reshape_algorithm, bool, MPI_Comm const); \
 
-heffte_instantiate_reshape3d(backend::stock, int)
-heffte_instantiate_reshape3d(backend::stock, long long)
-heffte_instantiate_reshape3d(backend::stock_cos, int)
-heffte_instantiate_reshape3d(backend::stock_cos, long long)
-heffte_instantiate_reshape3d(backend::stock_sin, int)
-heffte_instantiate_reshape3d(backend::stock_sin, long long)
-#ifdef Heffte_ENABLE_FFTW
-heffte_instantiate_reshape3d(backend::fftw, int)
-heffte_instantiate_reshape3d(backend::fftw, long long)
-heffte_instantiate_reshape3d(backend::fftw_cos, int)
-heffte_instantiate_reshape3d(backend::fftw_cos, long long)
-heffte_instantiate_reshape3d(backend::fftw_sin, int)
-heffte_instantiate_reshape3d(backend::fftw_sin, long long)
+heffte_instantiate_reshape3d(tag::cpu, int)
+heffte_instantiate_reshape3d(tag::cpu, long long)
+
+#ifdef Heffte_ENABLE_GPU
+heffte_instantiate_reshape3d(tag::gpu, int)
+heffte_instantiate_reshape3d(tag::gpu, long long)
 #endif
-#ifdef Heffte_ENABLE_MKL
-heffte_instantiate_reshape3d(backend::mkl, int)
-heffte_instantiate_reshape3d(backend::mkl, long long)
-heffte_instantiate_reshape3d(backend::mkl_cos, int)
-heffte_instantiate_reshape3d(backend::mkl_cos, long long)
-heffte_instantiate_reshape3d(backend::mkl_sin, int)
-heffte_instantiate_reshape3d(backend::mkl_sin, long long)
-#endif
-#ifdef Heffte_ENABLE_CUDA
-heffte_instantiate_reshape3d(backend::cufft, int)
-heffte_instantiate_reshape3d(backend::cufft, long long)
-heffte_instantiate_reshape3d(backend::cufft_cos, int)
-heffte_instantiate_reshape3d(backend::cufft_cos, long long)
-heffte_instantiate_reshape3d(backend::cufft_sin, int)
-heffte_instantiate_reshape3d(backend::cufft_sin, long long)
-#endif
-#ifdef Heffte_ENABLE_ROCM
-heffte_instantiate_reshape3d(backend::rocfft, int)
-heffte_instantiate_reshape3d(backend::rocfft, long long)
-heffte_instantiate_reshape3d(backend::rocfft_cos, int)
-heffte_instantiate_reshape3d(backend::rocfft_cos, long long)
-heffte_instantiate_reshape3d(backend::rocfft_sin, int)
-heffte_instantiate_reshape3d(backend::rocfft_sin, long long)
-#endif
-#ifdef Heffte_ENABLE_ONEAPI
-heffte_instantiate_reshape3d(backend::onemkl, int)
-heffte_instantiate_reshape3d(backend::onemkl, long long)
-heffte_instantiate_reshape3d(backend::onemkl_cos, int)
-heffte_instantiate_reshape3d(backend::onemkl_cos, long long)
-heffte_instantiate_reshape3d(backend::onemkl_sin, int)
-heffte_instantiate_reshape3d(backend::onemkl_sin, long long)
-#endif
+
 
 }

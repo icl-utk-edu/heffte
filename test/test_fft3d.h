@@ -91,7 +91,7 @@ std::vector<scalar_type> rescale(box3d<index> const world, gpu::vector<scalar_ty
 template<typename backend_tag, typename precision_type, typename index>
 std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<precision_type> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
-    backend::device_instance<backend_tag> device;
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
     typename test_traits<backend_tag>::template container<std::complex<precision_type>> loaded_result(input.size());
     auto fft0 = make_executor<backend_tag>(device.stream(), world, 0);
     auto fft1 = make_executor<backend_tag>(device.stream(), world, 1);
@@ -106,7 +106,7 @@ std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, 
 template<typename backend_tag, typename precision_type, typename index>
 std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<std::complex<precision_type>> const &input){
     auto loaded_input = test_traits<backend_tag>::load(input);
-    backend::device_instance<backend_tag> device;
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
     for(int i=0; i<3; i++){
         auto fft = make_executor<backend_tag>(device.stream(), world, i);
         auto workspace = make_buffer_container<std::complex<precision_type>>(device.stream(), fft->workspace_size());

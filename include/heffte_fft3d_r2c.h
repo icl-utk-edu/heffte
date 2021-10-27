@@ -43,7 +43,7 @@ namespace heffte {
  * \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
  */
 template<typename backend_tag, typename index = int>
-class fft3d_r2c : public backend::device_instance<backend_tag>{
+class fft3d_r2c : public backend::device_instance<typename backend::buffer_traits<backend_tag>::location>{
 public:
     //! \brief FFT executor for the complex-to-complex dimensions.
     using backend_executor_c2c = typename one_dim_backend<backend_tag>::executor;
@@ -150,7 +150,8 @@ public:
                    or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), scaling);
+        auto workspace = make_buffer_container<output_type>(this->stream(), size_workspace());
+        forward(input, output, workspace.data(), scaling);
     }
 
     //! \brief Overload utilizing a user provided buffer.
@@ -160,7 +161,11 @@ public:
                    or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace), scaling);
+        compute_transform<location_tag, index>(this->stream(), convert_to_standard(input), convert_to_standard(output),
+                                               convert_to_standard(workspace),
+                                               executor_buffer_offset, size_comm_buffers(), forward_shaper,
+                                               forward_executors(), direction::forward);
+        apply_scale(direction::forward, scaling, output);
     }
 
     /*!
@@ -209,7 +214,8 @@ public:
                    or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), scaling);
+        auto workspace = make_buffer_container<input_type>(this->stream(), size_workspace());
+        backward(input, output, workspace.data(), scaling);
     }
 
     //! \brief Overload utilizing a user provided buffer.
@@ -219,7 +225,11 @@ public:
                    or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace), scaling);
+        compute_transform<location_tag, index>(this->stream(), convert_to_standard(input), convert_to_standard(output),
+                                               convert_to_standard(workspace),
+                                               executor_buffer_offset, size_comm_buffers(), backward_shaper,
+                                               backward_executors(), direction::backward);
+        apply_scale(direction::backward, scaling, output);
     }
 
     /*!
@@ -241,30 +251,54 @@ public:
 
 private:
     //! \brief Same as in the fft3d case.
-    fft3d_r2c(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
+    fft3d_r2c(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
+        pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
+        scale_factor(1.0 / static_cast<double>(plan.index_count))
+        #ifdef Heffte_ENABLE_MAGMA
+        , hmagma(this->stream())
+        #endif
+    {
+        setup(plan, comm);
+    }
 
     //! \brief Same as in the fft3d case.
-    fft3d_r2c(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
-              logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
+    fft3d_r2c(typename backend::device_instance<location_tag>::stream_type gpu_stream,
+              logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
+        backend::device_instance<location_tag>(gpu_stream),
+        pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
+        scale_factor(1.0 / static_cast<double>(plan.index_count))
+        #ifdef Heffte_ENABLE_MAGMA
+        , hmagma(this->stream())
+        #endif
+    {
+        setup(plan, comm);
+    }
 
     //! \brief Setup the executors and the reshapes.
-    void setup(logic_plan3d<index> const &plan, MPI_Comm const comm);
+    void setup(logic_plan3d<index> const &plan, MPI_Comm const comm){
+        for(int i=0; i<4; i++){
+            forward_shaper[i]    = make_reshape3d<backend_tag>(this->stream(), plan.in_shape[i], plan.out_shape[i], comm, plan.options);
+            backward_shaper[3-i] = make_reshape3d<backend_tag>(this->stream(), plan.out_shape[i], plan.in_shape[i], comm, plan.options);
+        }
 
-    template<typename scalar_type>
-    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
-        standard_transform(input, output, workspace.data(), scaling);
-    }
-    template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
-        standard_transform(input, output, workspace.data(), scaling);
-    }
+        executors[0] = make_executor_r2c<backend_tag>(this->stream(), plan.out_shape[0][mpi::comm_rank(comm)], plan.fft_direction[0]);
+        executors[1] = make_executor<backend_tag>(this->stream(), plan.out_shape[1][mpi::comm_rank(comm)], plan.fft_direction[1]);
+        executors[2] = make_executor<backend_tag>(this->stream(), plan.out_shape[2][mpi::comm_rank(comm)], plan.fft_direction[2]);
 
-    template<typename scalar_type>
-    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], std::complex<scalar_type> workspace[], scale) const;
-    template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], std::complex<scalar_type> workspace[], scale) const;
+        size_t executor_workspace_size = get_max_work_size(executors);
+        comm_buffer_offset = std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper));
+        size_buffer_work = comm_buffer_offset
+                        + get_max_box_size_r2c(executors) + executor_workspace_size;
+        executor_buffer_offset = (executor_workspace_size == 0) ? 0 : size_buffer_work - size_buffer_work;
+    }
+    //! \brief Return references to the executors in forward order.
+    std::array<executor_base*, 3> forward_executors() const{
+        return std::array<executor_base*, 3>{executors[0].get(), executors[1].get(), executors[2].get()};
+    }
+    //! \brief Return references to the executors in forward order.
+    std::array<executor_base*, 3> backward_executors() const{
+        return std::array<executor_base*, 3>{executors[2].get(), executors[1].get(), executors[0].get()};
+    }
 
     //! \brief Applies the scaling factor to the data.
     template<typename scalar_type>
@@ -272,7 +306,7 @@ private:
         if (scaling != scale::none){
             add_trace name("scale");
             #ifdef Heffte_ENABLE_MAGMA
-            if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
+            if (std::is_same<location_tag, tag::gpu>::value){
                 hmagma.scal((dir == direction::forward) ? size_outbox() : size_inbox(), get_scale_factor(scaling), data);
                 return;
             }
@@ -289,10 +323,9 @@ private:
     std::array<std::unique_ptr<reshape3d_base<index>>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base<index>>, 4> backward_shaper;
 
-    std::unique_ptr<backend_executor_r2c> executor_r2c;
-    std::array<std::unique_ptr<backend_executor_c2c>, 2> executor;
+    std::array<std::unique_ptr<executor_base>, 3> executors;
     #ifdef Heffte_ENABLE_MAGMA
-    gpu::magma_handle<typename backend::buffer_traits<backend_tag>::location> hmagma;
+    gpu::magma_handle<location_tag> hmagma;
     #endif
 
     // cache some values for faster read

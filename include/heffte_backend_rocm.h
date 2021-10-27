@@ -174,45 +174,7 @@ namespace backend{
      * \brief The ROCm backend uses a HIP stream.
      */
     template<>
-    struct device_instance<rocfft>{
-        //! \brief Constructor, sets up the stream.
-        device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        hipStream_t stream(){ return _stream; }
-        //! \brief Returns the nullptr (const case).
-        hipStream_t stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue.
-        void synchronize_device() const{ rocm::check_error(hipStreamSynchronize(_stream), "device sync"); }
-        //! \brief The CUDA stream to be used in all operations.
-        mutable hipStream_t _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = hipStream_t;
-    };
-    /*!
-     * \ingroup heffterocm
-     * \brief The ROCm backend uses a HIP stream.
-     */
-    template<>
-    struct device_instance<rocfft_cos>{
-        //! \brief Constructor, sets up the stream.
-        device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        hipStream_t stream(){ return _stream; }
-        //! \brief Returns the nullptr (const case).
-        hipStream_t stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue.
-        void synchronize_device() const{ rocm::check_error(hipStreamSynchronize(_stream), "device sync"); }
-        //! \brief The CUDA stream to be used in all operations.
-        mutable hipStream_t _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = hipStream_t;
-    };
-    /*!
-     * \ingroup heffterocm
-     * \brief The ROCm backend uses a HIP stream.
-     */
-    template<>
-    struct device_instance<rocfft_sin>{
+    struct device_instance<tag::gpu>{
         //! \brief Constructor, sets up the stream.
         device_instance(hipStream_t new_stream = nullptr) : _stream(new_stream){}
         //! \brief Returns the nullptr.
@@ -241,8 +203,10 @@ namespace backend{
      * \brief Specialization for the data operations in ROCm mode.
      */
     template<> struct data_manipulator<tag::gpu> {
+        //! \brief The stream type for the device.
+        using stream_type = hipStream_t;
         //! \brief Defines the backend_device.
-        using backend_device = backend::device_instance<typename default_backend<tag::gpu>::type>;
+        using backend_device = backend::device_instance<tag::gpu>;
         //! \brief Allocate memory.
         template<typename scalar_type>
         static scalar_type* allocate(hipStream_t stream, size_t num_entries){
@@ -520,8 +484,14 @@ private:
  * for the different types.
  * All input and output arrays must have size equal to the box.
  */
-class rocfft_executor{
+class rocfft_executor : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::complex_size;
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
     rocfft_executor(hipStream_t active_stream, box3d<index> const box, int dimension) :
@@ -614,33 +584,47 @@ public:
     }
 
     //! \brief Forward fft, float-complex case.
-    template<typename precision_type>
-    void forward(std::complex<precision_type> data[], std::complex<precision_type> *workspace) const{
-        execute<precision_type, direction::forward>(data, workspace);
+    void forward(std::complex<float> data[], std::complex<float> *workspace) const override{
+        execute<float, direction::forward>(data, workspace);
+    }
+    //! \brief Forward fft, double-complex case.
+    void forward(std::complex<double> data[], std::complex<double> *workspace) const override{
+        execute<double, direction::forward>(data, workspace);
     }
     //! \brief Backward fft, float-complex case.
-    template<typename precision_type>
-    void backward(std::complex<precision_type> data[], std::complex<precision_type> *workspace) const{
-        execute<precision_type, direction::backward>(data, workspace);
+    void backward(std::complex<float> data[], std::complex<float> *workspace) const override{
+        execute<float, direction::backward>(data, workspace);
+    }
+    //! \brief Backward fft, double-complex case.
+    void backward(std::complex<double> data[], std::complex<double> *workspace) const override{
+        execute<double, direction::backward>(data, workspace);
     }
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
-    template<typename precision_type>
-    void forward(precision_type const indata[], std::complex<precision_type> outdata[], std::complex<precision_type> *workspace) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
+        rocm::convert(stream, total_size, indata, outdata);
+        forward(outdata, workspace);
+    }
+    //! \brief Converts the deal data to complex and performs double-complex forward transform.
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
         rocm::convert(stream, total_size, indata, outdata);
         forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
-    template<typename precision_type>
-    void backward(std::complex<precision_type> indata[], precision_type outdata[], std::complex<precision_type> *workspace) const{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const override{
+        backward(indata, workspace);
+        rocm::convert(stream, total_size, indata, outdata);
+    }
+    //! \brief Performs backward double-complex transform and truncates the complex part of the result.
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const override{
         backward(indata, workspace);
         rocm::convert(stream, total_size, indata, outdata);
     }
 
     //! \brief Returns the size of the box.
-    int box_size() const{ return total_size; }
+    int box_size() const override{ return total_size; }
     //! \brief Return the size of the needed workspace.
-    size_t workspace_size() const{ return worksize; }
+    size_t workspace_size() const override{ return worksize; }
     //! \brief Computes the size of the needed workspace.
     size_t compute_workspace_size() const{
         make_plan(ccomplex_forward);
@@ -687,8 +671,12 @@ private:
  * and only the unique (non-conjugate) coefficients are computed.
  * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
  */
-class rocfft_executor_r2c{
+class rocfft_executor_r2c : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
     /*!
      * \brief Constructor defines the box and the dimension of reduction.
      *
@@ -727,7 +715,7 @@ public:
         if (wsize > 0)
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(workspace), wsize);
 
-        backend::buffer_traits<backend::rocfft>::container<precision_type> copy_indata(stream, indata, indata + real_size());
+        backend::buffer_traits<backend::rocfft>::container<precision_type> copy_indata(stream, indata, indata + box_size());
 
         for(int i=0; i<blocks; i++){
             void *rdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata.data() + i * rblock_stride));
@@ -740,7 +728,7 @@ public:
     }
     //! \brief Backward transform, single precision.
     template<typename precision_type>
-    void backward(std::complex<precision_type> const indata[], precision_type outdata[], std::complex<precision_type> *workspace) const{
+    void backward(std::complex<precision_type> indata[], precision_type outdata[], std::complex<precision_type> *workspace) const{
         if (std::is_same<precision_type, float>::value){
             make_plan(sbackward);
         }else{
@@ -766,13 +754,29 @@ public:
         }
         rocfft_execution_info_destroy(info);
     }
+    //! \brief Forward transform, single precision.
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
+        forward<float>(indata, outdata, workspace);
+    }
+    //! \brief Backward transform, single precision.
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const override{
+        backward<float>(indata, outdata, workspace);
+    }
+    //! \brief Forward transform, double precision.
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
+        forward<double>(indata, outdata, workspace);
+    }
+    //! \brief Backward transform, double precision.
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const override{
+        backward<double>(indata, outdata, workspace);
+    }
 
     //! \brief Returns the size of the box with real data.
-    int real_size() const{ return rsize; }
+    int box_size() const override{ return rsize; }
     //! \brief Returns the size of the box with complex coefficients.
-    int complex_size() const{ return csize; }
+    int complex_size() const override{ return csize; }
     //! \brief Return the size of the needed workspace.
-    size_t workspace_size() const{ return worksize; }
+    size_t workspace_size() const override{ return worksize; }
     //! \brief Computes the size of the needed workspace.
     size_t compute_workspace_size() const{
         make_plan(sforward);
