@@ -32,14 +32,12 @@ heffte_add_mpi_test(NAME heffte_reshape3d_np7  COMMAND test_reshape3d RANKS 7)
 heffte_add_mpi_test(NAME heffte_reshape3d_np12 COMMAND test_reshape3d RANKS 12)
 
 # test the complex-to-complex class
-add_executable(test_fft3d  test_fft3d.h test_fft3d.cpp)
-target_link_libraries(test_fft3d  Heffte)
-heffte_add_mpi_test(NAME heffte_fft3d_np1   COMMAND test_fft3d RANKS 1)
-heffte_add_mpi_test(NAME heffte_fft3d_np2   COMMAND test_fft3d RANKS 2)
-heffte_add_mpi_test(NAME heffte_fft2d_np4   COMMAND test_fft3d RANKS 4)
-heffte_add_mpi_test(NAME heffte_fft3d_np6   COMMAND test_fft3d RANKS 6)
-heffte_add_mpi_test(NAME heffte_fft3d_np8   COMMAND test_fft3d RANKS 8)
-heffte_add_mpi_test(NAME heffte_fft3d_np12  COMMAND test_fft3d RANKS 12)
+foreach(_heffte_num_procs 1 2 4 6 8 12)
+    add_executable(test_fft3d_np${_heffte_num_procs}  test_fft3d.h test_fft3d_np${_heffte_num_procs}.cpp)
+    target_link_libraries(test_fft3d_np${_heffte_num_procs}  Heffte)
+    heffte_add_mpi_test(NAME heffte_fft3d_np${_heffte_num_procs}  COMMAND  test_fft3d_np${_heffte_num_procs}  RANKS  ${_heffte_num_procs})
+endforeach()
+unset(_heffte_num_procs)
 
 # test the user-provided streams
 add_executable(test_streams  test_fft3d.h test_streams.cpp)
