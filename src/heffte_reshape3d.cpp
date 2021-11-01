@@ -667,8 +667,9 @@ make_reshape3d_pointtopoint(typename backend::device_instance<location_tag>::str
     }
 
     recv_loc.push_back(0);
-    for(size_t i=0; i<recv_size.size() - 1; i++)
-        recv_loc.push_back(recv_loc.back() + recv_size[i]);
+    if (not recv_size.empty())
+        for(size_t i=0; i<recv_size.size() - 1; i++)
+            recv_loc.push_back(recv_loc.back() + recv_size[i]);
 
     return std::unique_ptr<reshape3d_pointtopoint<location_tag, packer, index>>(new reshape3d_pointtopoint<location_tag, packer, index>(
         stream, inbox.count(), outbox.count(), algorithm, uses_gpu_aware, comm,
