@@ -321,14 +321,14 @@ template<typename location_tag, template<typename device> class packer, typename
 reshape3d_alltoallv<location_tag, packer, index>::reshape3d_alltoallv(
                         typename backend::device_instance<location_tag>::stream_type q,
                         int cinput_size, int coutput_size,
-                        bool gpu_aware, MPI_Comm master_comm, std::vector<int> const &pgroup,
+                        bool gpu_aware, MPI_Comm new_comm, std::vector<int> const &pgroup,
                         std::vector<int> &&csend_offset, std::vector<int> &&csend_size, std::vector<int> const &send_proc,
                         std::vector<int> &&crecv_offset, std::vector<int> &&crecv_size, std::vector<int> const &recv_proc,
                         std::vector<pack_plan_3d<index>> &&cpackplan, std::vector<pack_plan_3d<index>> &&cunpackplan
                                                                 ) :
     reshape3d_base<index>(cinput_size, coutput_size),
     backend::device_instance<location_tag>(q),
-    comm(mpi::new_comm_from_group(pgroup, master_comm)), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
+    comm(new_comm), me(mpi::comm_rank(comm)), nprocs(mpi::comm_size(comm)),
     use_gpu_aware( (disable_gpu_aware::value) ? false : gpu_aware ),
     send_offset(std::move(csend_offset)), send_size(std::move(csend_size)),
     recv_offset(std::move(crecv_offset)), recv_size(std::move(crecv_size)),
@@ -436,9 +436,16 @@ make_reshape3d_alltoallv(typename backend::device_instance<location_tag>::stream
         }
     }
 
-    return std::unique_ptr<reshape3d_alltoallv<location_tag, packer, index>>(new reshape3d_alltoallv<location_tag, packer, index>(
+    std::vector<int> pgroup = a2a_group(send_proc, recv_proc, input_boxes, output_boxes);
+
+    MPI_Comm new_comm = mpi::new_comm_from_group(pgroup, comm);
+
+    if (pgroup.empty())
+        return std::unique_ptr<reshape3d_alltoallv<location_tag, packer, index>>();
+    else
+        return std::unique_ptr<reshape3d_alltoallv<location_tag, packer, index>>(new reshape3d_alltoallv<location_tag, packer, index>(
         q, inbox.count(), outbox.count(),
-        uses_gpu_aware, comm, a2a_group(send_proc, recv_proc, input_boxes, output_boxes),
+        uses_gpu_aware, new_comm, pgroup,
         std::move(send_offset), std::move(send_size), send_proc,
         std::move(recv_offset), std::move(recv_size), recv_proc,
         std::move(packplan), std::move(unpackplan)

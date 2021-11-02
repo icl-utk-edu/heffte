@@ -551,7 +551,9 @@ template<typename> struct one_dim_backend{};
 template<typename backend_tag, typename index>
 static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<typename backend::buffer_traits<backend_tag>::location>::stream_type stream,
                                                                                   box3d<index> const box, int dimension){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dimension));
+    return (box.empty()) ?
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>() :
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dimension));
 }
 /*!
  * \ingroup fft3dbackend
@@ -560,7 +562,9 @@ static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_exe
 template<typename backend_tag, typename index>
 static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<typename backend::buffer_traits<backend_tag>::location>::stream_type stream,
                                                                                   box3d<index> const box, int dir1, int dir2){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dir1, dir2));
+    return (box.empty()) ?
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>() :
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dir1, dir2));
 }
 /*!
  * \ingroup fft3dbackend
@@ -569,7 +573,9 @@ static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_exe
 template<typename backend_tag, typename index>
 static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<typename backend::buffer_traits<backend_tag>::location>::stream_type stream,
                                                                                   box3d<index> const box){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box));
+    return (box.empty()) ?
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>() :
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box));
 }
 /*!
  * \ingroup fft3dbackend
@@ -578,7 +584,9 @@ static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_exe
 template<typename backend_tag, typename index>
 static std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c> make_executor_r2c(typename backend::device_instance<typename backend::buffer_traits<backend_tag>::location>::stream_type stream,
                                                                                           box3d<index> const box, int dimension){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c>(new typename one_dim_backend<backend_tag>::executor_r2c(stream, box, dimension));
+    return (box.empty()) ?
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c>() :
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c>(new typename one_dim_backend<backend_tag>::executor_r2c(stream, box, dimension));
 }
 
 /*!

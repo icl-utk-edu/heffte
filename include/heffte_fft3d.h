@@ -224,7 +224,7 @@ public:
      */
     fft3d(box3d<index> const inbox, box3d<index> const outbox, MPI_Comm const comm,
           plan_options const options = default_options<backend_tag>()) :
-        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, set_options<backend_tag>(options)), mpi::comm_rank(comm), comm){
+        fft3d(plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, set_options<backend_tag>(options), mpi::comm_rank(comm)), comm){
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
     /*!
@@ -247,7 +247,7 @@ public:
     fft3d(typename backend::device_instance<location_tag>::stream_type gpu_stream,
           box3d<index> const inbox, box3d<index> const outbox, MPI_Comm const comm,
           plan_options const options = default_options<backend_tag>()) :
-        fft3d(gpu_stream, plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, set_options<backend_tag>(options)), mpi::comm_rank(comm), comm){
+        fft3d(gpu_stream, plan_operations(mpi::gather_boxes(inbox, outbox, comm), -1, set_options<backend_tag>(options), mpi::comm_rank(comm)), comm){
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
 
@@ -474,9 +474,9 @@ private:
      * \param this_mpi_rank is the rank of this mpi process, i.e., mpi::comm_rank(comm)
      * \param comm is the communicator operating on the data
      */
-    fft3d(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm)  :
+    fft3d(logic_plan3d<index> const &plan, MPI_Comm const comm)  :
         backend::device_instance<location_tag>(),
-        pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
+        pinbox(new box3d<index>(plan.in_shape[0][plan.mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][plan.mpi_rank])),
         scale_factor(1.0 / static_cast<double>(plan.index_count))
         #ifdef Heffte_ENABLE_MAGMA
         , hmagma(this->stream())
@@ -487,9 +487,9 @@ private:
 
     //! \brief Same as the other case but accepts the gpu_stream too.
     fft3d(typename backend::device_instance<location_tag>::stream_type gpu_stream,
-          logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
+          logic_plan3d<index> const &plan, MPI_Comm const comm) :
         backend::device_instance<location_tag>(gpu_stream),
-        pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
+        pinbox(new box3d<index>(plan.in_shape[0][plan.mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][plan.mpi_rank])),
         scale_factor(1.0 / static_cast<double>(plan.index_count))
         #ifdef Heffte_ENABLE_MAGMA
         , hmagma(this->stream())
@@ -505,7 +505,7 @@ private:
             backward_shaper[3-i] = make_reshape3d<backend_tag>(this->stream(), plan.out_shape[i], plan.in_shape[i], comm, plan.options);
         }
 
-        int const my_rank = mpi::comm_rank(comm);
+        int const my_rank = plan.mpi_rank;
 
         if (has_executor3d<backend_tag>() and not forward_shaper[1] and not forward_shaper[2]){
             executors[0] = make_executor<backend_tag>(this->stream(), plan.out_shape[0][my_rank]);
@@ -529,9 +529,10 @@ private:
         comm_buffer_offset = std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper));
         // the last junk of (fft0->box_size() + 1) / 2 is used only when doing complex-to-real backward transform
         // maybe update the API to call for different size buffers for different complex/real types
+        int last_chunk = (executors[0] == nullptr) ? 0 : (((backward_shaper[3]) ? (executors[0]->box_size() + 1) / 2 : 0));
         size_buffer_work =  comm_buffer_offset + executor_workspace_size
                           + get_max_box_size(executors)
-                          + ((backward_shaper[3]) ? (executors[0]->box_size() + 1) / 2 : 0);
+                          + last_chunk;
         executor_buffer_offset = (executor_workspace_size == 0) ? 0 : size_buffer_work - executor_workspace_size;
     }
     //! \brief Return references to the executors in forward order.

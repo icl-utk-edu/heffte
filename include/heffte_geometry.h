@@ -87,11 +87,13 @@ struct box3d{
         (static_cast<long long>(size[0]) * static_cast<long long>(size[1]) * static_cast<long long>(size[2])); }
     //! \brief Creates a box that holds the intersection of this box and the \b other.
     box3d collide(box3d const other) const{
+        if (empty() or other.empty()) return box3d({0, 0, 0}, {-1, -1, -1});
         return box3d({std::max(low[0], other.low[0]), std::max(low[1], other.low[1]), std::max(low[2], other.low[2])},
                      {std::min(high[0], other.high[0]), std::min(high[1], other.high[1]), std::min(high[2], other.high[2])}, order);
     }
     //! \brief Returns the box that is reduced in the given dimension according to the real-to-complex symmetry.
     box3d r2c(int dimension) const{
+        if (empty()) return box3d({0, 0, 0}, {-1, -1, -1});
         switch(dimension){
             case 0: return box3d(low, {low[0] + size[0] / 2, high[1], high[2]}, order);
             case 1: return box3d(low, {high[0], low[1] + size[1] / 2, high[2]}, order);
@@ -169,6 +171,31 @@ inline int fft1d_get_stride(box3d<index> const box, int const dimension){
     if (dimension == box.order[1]) return box.osize(0);
     return box.osize(0) * box.osize(1);
 }
+
+/*!
+ * \ingroup fft3dgeometry
+ * \brief Keeps the local rank and the map from the global rank to the sub-ranks used in the work.
+ */
+struct rank_remap{
+    //! \brief Default constructor.
+    rank_remap() : mpi_rank(-1), size_subcomm(0){}
+    //! \brief Creates a new remap and initializes only the mpi_rank.
+    rank_remap(int rank) : mpi_rank(rank), size_subcomm(0){}
+    //! \brief The local rank.
+    int const mpi_rank;
+    //! \brief Global to local map.
+    std::vector<int> map;
+    //! \brief Build the map when using fixed number of sub-ranks.
+    void set_subranks(size_t all_ranks, int sub_ranks){
+        size_subcomm = sub_ranks;
+        map = std::vector<int>(all_ranks, -1);
+        for(int i=0; i<sub_ranks; i++) map[i] = i;
+    }
+    //! \brief The number of ranks in the sub-comm.
+    int size_subcomm;
+    //! \brief Inidcates whether the remap is empty.
+    bool empty() const{ return map.empty(); }
+};
 
 /*!
  * \ingroup fft3dgeometry
@@ -373,7 +400,7 @@ inline std::array<int, 3> make_procgrid2d(box3d<index> const world, int directio
  *          approximately the same number of indexes
  */
 template<typename index>
-inline std::vector<box3d<index>> split_world(box3d<index> const world, std::array<int, 3> const proc_grid){
+inline std::vector<box3d<index>> split_world(box3d<index> const world, std::array<int, 3> const proc_grid, rank_remap const &remap = rank_remap()){
 
     auto fast = [=](index i)->index{ return world.low[0] + i * (world.size[0] / proc_grid[0]) + std::min(i, (world.size[0] % proc_grid[0])); };
     auto mid  = [=](index i)->index{ return world.low[1] + i * (world.size[1] / proc_grid[1]) + std::min(i, (world.size[1] % proc_grid[1])); };
@@ -388,7 +415,17 @@ inline std::vector<box3d<index>> split_world(box3d<index> const world, std::arra
             }
         }
     }
-    return result;
+    if (remap.empty()){
+        return result;
+    }else{
+        std::vector<box3d<index>> remapped_result;
+        for(size_t i=0; i<remap.map.size(); i++)
+            remapped_result.push_back( (remap.map[i] == -1) ?
+                                       box3d<index>(std::array<index, 3>{0, 0, 0}, std::array<index, 3>{-1, -1, -1}, world.order) :
+                                       result[remap.map[i]]
+                            );
+        return remapped_result;
+    }
 }
 
 /*!
@@ -445,12 +482,21 @@ inline std::vector<box3d<index>> reorder(std::vector<box3d<index>> const &shape,
 template<typename index>
 inline std::vector<box3d<index>> maximize_overlap(std::vector<box3d<index>> const &new_boxes,
                                                   std::vector<box3d<index>> const &old_boxes,
-                                                  std::array<int, 3> const order){
+                                                  std::array<int, 3> const order,
+                                                  rank_remap const &remap){
     std::vector<box3d<index>> result;
     result.reserve(new_boxes.size());
     std::vector<bool> taken(new_boxes.size(), false);
+    if (not remap.empty()){
+        for(size_t i=0; i<remap.map.size(); i++)
+            if (remap.map[i] == -1) taken[i] = true;
+    }
 
     for(size_t i=0; i<new_boxes.size(); i++){
+        if (not remap.empty() and remap.map[i] == -1){
+            result.push_back(box3d<index>(new_boxes[i].low, new_boxes[i].high, order));
+            continue;
+        }
         // for each box in the result, find the box among the new_boxes
         // that has not been taken and has the largest overlap with the corresponding old box
         int max_overlap = -1;
@@ -517,7 +563,8 @@ inline std::vector<box3d<index>> make_pencils(box3d<index> const world,
                                               std::array<int, 2> const proc_grid,
                                               int const dimension,
                                               std::vector<box3d<index>> const &source,
-                                              std::array<int, 3> const order
+                                              std::array<int, 3> const order,
+                                              rank_remap const &remap = rank_remap()
                                              ){
     // trivial case, the grid is already in a pencil format
     if (is_pencils(world, source, dimension))
@@ -527,11 +574,11 @@ inline std::vector<box3d<index>> make_pencils(box3d<index> const world,
     // using two boxes corresponding to the two dimensions of proc-grid in both variants
     std::vector<box3d<index>> pencilsA =
         maximize_overlap(
-            split_world(world, make_procgrid2d(world, dimension, proc_grid)), source, order);
+            split_world(world, make_procgrid2d(world, dimension, proc_grid), remap), source, order, remap);
 
     std::vector<box3d<index>> pencilsB =
         maximize_overlap(
-            split_world(world, make_procgrid2d(world, dimension, std::array<int, 2>{proc_grid[1], proc_grid[0]})), source, order);
+            split_world(world, make_procgrid2d(world, dimension, std::array<int, 2>{proc_grid[1], proc_grid[0]}), remap), source, order, remap);
 
     return (count_connections(pencilsB, source) < count_connections(pencilsA, source)) ? pencilsB : pencilsA;
 }
@@ -546,31 +593,32 @@ template<typename index>
 inline std::vector<box3d<index>> make_slabs(box3d<index> const world, int num_slabs,
                                             int const dimension1, int const dimension2,
                                             std::vector<box3d<index>> const &source,
-                                            std::array<int, 3> const order
+                                            std::array<int, 3> const order,
+                                            rank_remap const &remap
                                            ){
     assert( dimension1 != dimension2 );
     std::vector<box3d<index>> slabs;
     if (dimension1 == 0){
         if (dimension2 == 1){
-            slabs = split_world(world, {1, 1, num_slabs});
+            slabs = split_world(world, {1, 1, num_slabs}, remap);
         }else{
-            slabs = split_world(world, {1, num_slabs, 1});
+            slabs = split_world(world, {1, num_slabs, 1}, remap);
         }
     }else if (dimension1 == 1){
         if (dimension2 == 0){
-            slabs = split_world(world, {1, 1, num_slabs});
+            slabs = split_world(world, {1, 1, num_slabs}, remap);
         }else{
-            slabs = split_world(world, {num_slabs, 1, 1});
+            slabs = split_world(world, {num_slabs, 1, 1}, remap);
         }
     }else{ // third dimension
         if (dimension2 == 0){
-            slabs = split_world(world, {1, num_slabs, 1});
+            slabs = split_world(world, {1, num_slabs, 1}, remap);
         }else{
-            slabs = split_world(world, {num_slabs, 1, 1});
+            slabs = split_world(world, {num_slabs, 1, 1}, remap);
         }
     }
 
-    return maximize_overlap(slabs, source, order);
+    return maximize_overlap(slabs, source, order, remap);
 }
 
 /*!

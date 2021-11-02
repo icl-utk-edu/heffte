@@ -103,11 +103,12 @@ struct plan_options{
         : use_reorder(default_plan_options<backend_tag>::use_reorder),
           algorithm(reshape_algorithm::alltoallv),
           use_pencils(true),
-          use_gpu_aware(true)
+          use_gpu_aware(true),
+          num_sub(-1)
     {}
     //! \brief Constructor, initializes each variable, primarily for internal use.
     plan_options(bool reorder, reshape_algorithm alg, bool pencils)
-        : use_reorder(reorder), algorithm(alg), use_pencils(pencils), use_gpu_aware(true)
+        : use_reorder(reorder), algorithm(alg), use_pencils(pencils), use_gpu_aware(true), num_sub(-1)
     {}
     //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
     bool use_reorder;
@@ -117,6 +118,13 @@ struct plan_options{
     bool use_pencils;
     //! \brief Defines whether to use MPI calls directly from the GPU or to move to the CPU first.
     bool use_gpu_aware;
+    //! \brief Defines the number of ranks to use for the internal reshapes, set to -1 to use all ranks.
+    void use_subcomm(int num_subranks){ num_sub = num_subranks; }
+    //! \brief Return the set number of sub-ranks.
+    int get_subranks() const{ return num_sub; }
+private:
+    // in future will also allow for the use of sub-communicator, that's why this needs to be private
+    int num_sub;
 };
 
 /*!
@@ -227,6 +235,8 @@ struct logic_plan3d{
     long long index_count;
     //! \brief Extra options used in the plan creation.
     plan_options const options;
+    //! \brief MPI rank used in the plan creation.
+    int const mpi_rank;
 };
 
 /*!
@@ -255,7 +265,7 @@ inline std::array<bool, 3> pencil_directions(box3d<index> const world, std::vect
  * \returns the plan for reshape and 1-D fft transformations
  */
 template<typename index>
-logic_plan3d<index> plan_operations(ioboxes<index> const &boxes, int r2c_direction, plan_options const options);
+logic_plan3d<index> plan_operations(ioboxes<index> const &boxes, int r2c_direction, plan_options const options, int const mpi_rank);
 
 }
 

@@ -75,8 +75,7 @@ public:
      */
     fft3d_r2c(box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
               plan_options const options = default_options<backend_tag>()) :
-        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, set_options<backend_tag, true>(options)),
-                  mpi::comm_rank(comm), comm){
+        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, set_options<backend_tag, true>(options), mpi::comm_rank(comm)), comm){
         assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
@@ -87,7 +86,7 @@ public:
               box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
               plan_options const options = default_options<backend_tag>()) :
         fft3d_r2c(gpu_stream,
-                  plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, set_options<backend_tag, true>(options)),
+                  plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, set_options<backend_tag, true>(options), mpi::comm_rank(comm)),
                   mpi::comm_rank(comm), comm){
         assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
@@ -251,8 +250,8 @@ public:
 
 private:
     //! \brief Same as in the fft3d case.
-    fft3d_r2c(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
-        pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
+    fft3d_r2c(logic_plan3d<index> const &plan, MPI_Comm const comm) :
+        pinbox(new box3d<index>(plan.in_shape[0][plan.mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][plan.mpi_rank])),
         scale_factor(1.0 / static_cast<double>(plan.index_count))
         #ifdef Heffte_ENABLE_MAGMA
         , hmagma(this->stream())
@@ -263,9 +262,9 @@ private:
 
     //! \brief Same as in the fft3d case.
     fft3d_r2c(typename backend::device_instance<location_tag>::stream_type gpu_stream,
-              logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm) :
+              logic_plan3d<index> const &plan, MPI_Comm const comm) :
         backend::device_instance<location_tag>(gpu_stream),
-        pinbox(new box3d<index>(plan.in_shape[0][this_mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][this_mpi_rank])),
+        pinbox(new box3d<index>(plan.in_shape[0][plan.mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][plan.mpi_rank])),
         scale_factor(1.0 / static_cast<double>(plan.index_count))
         #ifdef Heffte_ENABLE_MAGMA
         , hmagma(this->stream())

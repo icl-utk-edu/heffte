@@ -98,7 +98,8 @@ inline std::vector<box3d<index>> next_pencils_shape(box3d<index> const world,
                                                     bool const use_reorder,
                                                     box3d<index> const world_out,
                                                     std::vector<int> const test_directions,
-                                                    std::vector<box3d<index>> const &boxes_out){
+                                                    std::vector<box3d<index>> const &boxes_out,
+                                                    rank_remap const &remap){
     if (use_reorder){
         if (is_pencils(world_out, boxes_out, test_directions)){
             // the boxed_out form the required pencil geometry, but the order may be different
@@ -109,12 +110,12 @@ inline std::vector<box3d<index>> next_pencils_shape(box3d<index> const world,
             }
         }else{
             std::array<int, 3> order = new_order(source.front().order, dimension);
-            return make_pencils(world, proc_grid, dimension, source, order);
+            return make_pencils(world, proc_grid, dimension, source, order, remap);
         }
     }else{
         return (is_pencils(world_out, boxes_out, test_directions) ?
                     boxes_out :
-                    make_pencils(world, proc_grid, dimension, source, world.order));
+                    make_pencils(world, proc_grid, dimension, source, world.order, remap));
     }
 }
 
@@ -131,7 +132,8 @@ inline std::vector<box3d<index>> next_pencils_shape0(box3d<index> const world,
                                                      bool const use_reorder,
                                                      box3d<index> const world_out,
                                                      std::vector<int> const test_directions,
-                                                     std::vector<box3d<index>> const &boxes_out){
+                                                     std::vector<box3d<index>> const &boxes_out,
+                                                     rank_remap const &remap){
     if (r2c_direction != -1 and is_pencils(world_out, boxes_out, test_directions)){
         // shape0 will have to match the output boxes but before the r2c index shrink is applied
         std::vector<box3d<index>> non_r2c_boxes_out;
@@ -145,9 +147,9 @@ inline std::vector<box3d<index>> next_pencils_shape0(box3d<index> const world,
             for(auto const &b : boxes_out) non_r2c_boxes_out.push_back(
                 box3d<index>({b.low[0], b.low[1], world.low[2]}, {b.high[0], b.high[1], world.high[2]}, b.order));
         }
-        return next_pencils_shape(world, proc_grid, dimension, source, use_reorder, world, test_directions, non_r2c_boxes_out);
+        return next_pencils_shape(world, proc_grid, dimension, source, use_reorder, world, test_directions, non_r2c_boxes_out, remap);
     }else{
-        return next_pencils_shape(world, proc_grid, dimension, source, use_reorder, world_out, test_directions, boxes_out);
+        return next_pencils_shape(world, proc_grid, dimension, source, use_reorder, world_out, test_directions, boxes_out, remap);
     }
 }
 
@@ -160,9 +162,12 @@ inline std::vector<box3d<index>> next_pencils_shape0(box3d<index> const world,
  */
 template<typename index>
 logic_plan3d<index> plan_pencil_reshapes(box3d<index> world_in, box3d<index> world_out,
-                                         ioboxes<index> const &boxes, int r2c_direction, plan_options const opts){
+                                         ioboxes<index> const &boxes, int r2c_direction,
+                                         plan_options const opts, rank_remap const &remap){
     // the 2-d grid of pencils
-    std::array<int, 2> proc_grid = make_procgrid(static_cast<int>(boxes.in.size()));
+    std::array<int, 2> proc_grid = (remap.empty()) ?
+                                    make_procgrid(static_cast<int>(boxes.in.size())) :
+                                    make_procgrid(remap.size_subcomm);
 
     std::array<int, 3> fft_direction = {-1, -1, -1};
 
@@ -207,7 +212,7 @@ logic_plan3d<index> plan_pencil_reshapes(box3d<index> world_in, box3d<index> wor
     // if the final configuration uses pencils in all directions, just jump to that
     std::vector<box3d<index>> shape0 = next_pencils_shape0(world_in, proc_grid, fft_direction[0],
                                                            r2c_direction, boxes.in, opts.use_reorder,
-                                                           world_out, {0, 1, 2}, boxes.out);
+                                                           world_out, {0, 1, 2}, boxes.out, remap);
 
     // shape fft0 comes right after fft 0
     std::vector<box3d<index>> shape_fft0 = apply_r2c(shape0, r2c_direction);
@@ -230,17 +235,18 @@ logic_plan3d<index> plan_pencil_reshapes(box3d<index> world_in, box3d<index> wor
         fft_direction[2] = get_any_valid(fft_direction);
 
     std::vector<box3d<index>> shape1 = next_pencils_shape(world_out, proc_grid, fft_direction[1], shape_fft0, opts.use_reorder,
-                                                          world_out, {fft_direction[1], fft_direction[2]}, boxes.out);
+                                                          world_out, {fft_direction[1], fft_direction[2]}, boxes.out, remap);
 
     std::vector<box3d<index>> shape2 = next_pencils_shape(world_out, proc_grid, fft_direction[2], shape1, opts.use_reorder,
-                                                          world_out, {fft_direction[2]}, boxes.out);
+                                                          world_out, {fft_direction[2]}, boxes.out, remap);
 
     return {
         {boxes.in, shape_fft0, shape1, shape2},
         {shape0,   shape1,     shape2, boxes.out},
         fft_direction,
         world_in.count(),
-        opts
+        opts,
+        remap.mpi_rank
            };
 }
 
@@ -263,17 +269,18 @@ std::vector<box3d<index>> reorder_slabs(std::vector<box3d<index>> const &slabs, 
  */
 template<typename index>
 logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world_out,
-                                       ioboxes<index> const &boxes, int r2c_direction, plan_options const opts){
+                                       ioboxes<index> const &boxes, int r2c_direction,
+                                       plan_options const opts, rank_remap const &remap){
     // proposition: all possible slab decomposition uses pencils in x or y direction and for a 2D problem we can just use pencils
     // argument: suppose we have a 2D problem and suppose (w.l.o.g.) the index dimensions are x >> 1, y >> 1 and z == 1
     // every shape forming pencils in either x or y direction also forms slabs in either x-z or y-z plane
     // slabs in x-y plane means that the z direction has to be split across mpi-ranks but z does not divide unless using single rank
     // one rank is a trivial case where everything is pencil and slab at the same time
     // implicitly assumes: at each stage of reshape, each mpi-rank will contain at least one index
-    if (world_in.is2d()) return plan_pencil_reshapes(world_in, world_out, boxes, r2c_direction, opts);
+    if (world_in.is2d()) return plan_pencil_reshapes(world_in, world_out, boxes, r2c_direction, opts, remap);
 
     // the 2-d grid for the pencils dimension
-    int const num_procs = static_cast<int>(boxes.in.size());
+    int const num_procs = (remap.empty()) ? static_cast<int>(boxes.in.size()) : remap.size_subcomm;
     std::array<int, 2> proc_grid = make_procgrid(num_procs);
 
     std::array<int, 3> fft_direction = {-1, -1, -1};
@@ -305,11 +312,12 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
         std::vector<box3d<index>> shape_fft0 = apply_r2c(shape0, r2c_direction);
         std::vector<box3d<index>> shape1 = reorder_slabs(shape0, fft_direction[1], opts.use_reorder);
         std::vector<box3d<index>> shape2 = next_pencils_shape(world_out, proc_grid, fft_direction[2], shape1, opts.use_reorder,
-                                                       world_out, {fft_direction[2]}, boxes.out);
+                                                       world_out, {fft_direction[2]}, boxes.out, remap);
         return {
             {boxes.in, shape_fft0, shape1, shape2},
             {shape0,   shape1,     shape2, boxes.out},
-            fft_direction, world_in.count(), opts
+            fft_direction, world_in.count(), opts,
+            remap.mpi_rank
             };
     }
 
@@ -328,14 +336,15 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
         fft_direction[0] = get_any_valid(fft_direction);
 
         std::vector<box3d<index>> shape0 = next_pencils_shape(world_in, proc_grid, fft_direction[0], boxes.in, opts.use_reorder,
-                                                              world_out, {0, 1, 2}, boxes.out);
+                                                              world_out, {0, 1, 2}, boxes.out, remap);
         std::vector<box3d<index>> shape_fft0 = apply_r2c(shape0, r2c_direction);
         std::vector<box3d<index>> shape1 = reorder_slabs(boxes.out, fft_direction[1], opts.use_reorder);
         std::vector<box3d<index>> shape2 = reorder_slabs(shape1, fft_direction[2], opts.use_reorder);
         return {
             {boxes.in, shape_fft0, shape1, shape2},
             {shape0,   shape1,     shape2, boxes.out},
-            fft_direction, world_in.count(), opts
+            fft_direction, world_in.count(), opts,
+            remap.mpi_rank
             };
     }
 
@@ -358,16 +367,17 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
         fft_direction[2] = get_any_valid(fft_direction);
 
         std::vector<box3d<index>> shape0 = next_pencils_shape(world_in, proc_grid, fft_direction[0], boxes.in, opts.use_reorder,
-                                                              world_out, {0, 1, 2}, boxes.out);
+                                                              world_out, {0, 1, 2}, boxes.out, remap);
         std::vector<box3d<index>> shape_fft0 = apply_r2c(shape0, r2c_direction);
         std::vector<box3d<index>> slabs = make_slabs(world_out, num_procs, fft_direction[1], fft_direction[2],
-                                                     shape_fft0, world_out.order);
+                                                     shape_fft0, world_out.order, remap);
         std::vector<box3d<index>> shape1 = reorder_slabs(slabs, fft_direction[1], opts.use_reorder);
         std::vector<box3d<index>> shape2 = reorder_slabs(slabs, fft_direction[2], opts.use_reorder);
         return {
             {boxes.in, shape_fft0, shape1, shape2},
             {shape0,   shape1,     shape2, boxes.out},
-            fft_direction, world_in.count(), opts
+            fft_direction, world_in.count(), opts,
+            remap.mpi_rank
             };
     }
 
@@ -392,22 +402,29 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
     }
 
     // the fft_direction define the decomposition and shape2 will have an extra check to see if having a shape or just using the output
-    std::vector<box3d<index>> slabs = make_slabs(world_in, num_procs, fft_direction[0], fft_direction[1], boxes.in, world_in.order);
+    std::vector<box3d<index>> slabs = make_slabs(world_in, num_procs, fft_direction[0], fft_direction[1], boxes.in, world_in.order, remap);
 
     std::vector<box3d<index>> shape0 = reorder_slabs(slabs, fft_direction[0], opts.use_reorder);
     std::vector<box3d<index>> shape_fft0 = apply_r2c(shape0, r2c_direction);
     std::vector<box3d<index>> shape1 = reorder_slabs(shape0, fft_direction[1], opts.use_reorder);
     std::vector<box3d<index>> shape2 = next_pencils_shape(world_out, proc_grid, fft_direction[2], shape1, opts.use_reorder,
-                                                    world_out, {fft_direction[2]}, boxes.out);
+                                                    world_out, {fft_direction[2]}, boxes.out, remap);
     return {
         {boxes.in, shape_fft0, shape1, shape2},
         {shape0,   shape1,     shape2, boxes.out},
-        fft_direction, world_in.count(), opts
+        fft_direction, world_in.count(), opts,
+        remap.mpi_rank
         };
 }
 
 template<typename index>
-logic_plan3d<index> plan_operations(ioboxes<index> const &boxes, int r2c_direction, plan_options const opts){
+logic_plan3d<index> plan_operations(ioboxes<index> const &boxes, int r2c_direction, plan_options const opts, int const mpi_rank){
+
+    rank_remap remap(mpi_rank);
+    if (opts.get_subranks() > 0 and static_cast<size_t>(opts.get_subranks()) < boxes.in.size()){ // using sub-ranks
+        assert(opts.get_subranks() < static_cast<int>(boxes.in.size()));
+        remap.set_subranks(boxes.in.size(), opts.get_subranks());
+    }
 
     // form the two world boxes
     box3d<index> const world_in  = find_world(boxes.in);
@@ -425,15 +442,15 @@ logic_plan3d<index> plan_operations(ioboxes<index> const &boxes, int r2c_directi
     assert( order_is_identical(boxes.out) );
 
     if (opts.use_pencils){
-        return plan_pencil_reshapes(world_in, world_out, boxes, r2c_direction, opts);
+        return plan_pencil_reshapes(world_in, world_out, boxes, r2c_direction, opts, remap);
     }else{
-        return plan_slab_reshapes(world_in, world_out, boxes, r2c_direction, opts);
+        return plan_slab_reshapes(world_in, world_out, boxes, r2c_direction, opts, remap);
     }
 }
 
 //! \brief Instantiate for int.
-template logic_plan3d<int> plan_operations<int>(ioboxes<int> const&, int, plan_options const);
+template logic_plan3d<int> plan_operations<int>(ioboxes<int> const&, int, plan_options const, int const);
 //! \brief Instantiate for long long.
-template logic_plan3d<long long> plan_operations<long long>(ioboxes<long long> const&, int, plan_options const);
+template logic_plan3d<long long> plan_operations<long long>(ioboxes<long long> const&, int, plan_options const, int const);
 
 }

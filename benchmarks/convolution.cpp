@@ -66,7 +66,7 @@ void benchmark_convolution(std::array<int,3> size_fft, std::deque<std::string> c
     };
 
     // the call above uses the following plan, get it twice to give verbose info of the grid-shapes
-    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, -1, heffte::default_options<backend_tag>());
+    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, -1, heffte::default_options<backend_tag>(), me);
 
     // Locally initialize inputs
     auto X = make_data<BENCH_INPUT>(inboxes[me]);

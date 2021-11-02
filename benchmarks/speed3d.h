@@ -101,7 +101,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     };
 
     // the call above uses the following plan, get it twice to give verbose info of the grid-shapes
-    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, r2c_dir, heffte::default_options<backend_tag>());
+    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, r2c_dir, heffte::default_options<backend_tag>(), me);
 
     // Locally initialize input
     auto input = make_data<input_type>(inboxes[me]);
