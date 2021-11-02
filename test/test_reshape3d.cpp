@@ -5,7 +5,7 @@
        @date
 */
 
-#include "test_common.h"
+#include "test_fft3d.h"
 
 #ifdef Heffte_ENABLE_FFTW
 using default_cpu_backend = heffte::backend::fftw;
@@ -332,7 +332,95 @@ void test_reshape_transposed(MPI_Comm comm){
             }
         }
     }
+}
 
+template<int hfast, int hmid, int hslow, int pfast, int pmid, int pslow, typename scalar_type, typename location_tag, reshape_algorithm variant>
+void test_alltoone(MPI_Comm const comm){
+
+    using backend_tag = typename default_tag<location_tag>::backend_tag;
+
+    int const nprocs = mpi::comm_size(comm);
+    int const me = mpi::comm_rank(comm);
+
+    box3d<> const world = {{0, 0, 0}, {hfast, hmid, hslow}};
+    box3d<> const empty_box = {{0, 0, 0}, {-1, -1, -1}};
+
+    std::array<int,3> proc_i = {pfast, pmid, pslow};
+    std::vector<box3d<>> inboxes  = heffte::split_world(world, proc_i);
+
+    std::vector<box3d<>> outboxes;
+    outboxes.push_back(world);
+    for(int i=0; i<nprocs-1; i++) outboxes.push_back(empty_box);
+
+    heffte::plan_options options = heffte::default_options<backend::stock>();
+    options.algorithm = variant;
+    options.use_reorder = false;
+
+    backend::device_instance<location_tag> device;
+    auto reshape = make_reshape3d<backend_tag>(device.stream(), inboxes, outboxes, comm, options);
+
+    std::vector<scalar_type> world_vec(world.count());
+    std::iota(world_vec.begin(), world_vec.end(), 1.0);
+
+    std::vector<scalar_type> invec = get_subbox(world, inboxes[me], world_vec);
+
+    auto loaded_invec = test_traits<location_tag>::load(invec);
+    auto outvec = make_buffer_container<scalar_type>(device.stream(), reshape->size_output());
+    auto workspace = make_buffer_container<scalar_type>(device.stream(), reshape->size_workspace());
+
+    reshape->apply(loaded_invec.data(), outvec.data(), workspace.data());
+
+    if (me == 0){
+        tassert(approx(world_vec, outvec));
+    }else{
+        tassert(outvec.size() == 0);
+    }
+}
+
+template<typename location_tag, reshape_algorithm variant>
+void test_alltoone_variants(){
+    MPI_Comm const comm = MPI_COMM_WORLD;
+
+    current_test<float> test("-np " + std::to_string(mpi::comm_size(comm)) + "  " + get_description<variant>() + " all-2-1", comm);
+
+    switch(mpi::comm_size(comm)) {
+        case 4:
+            test_alltoone<15, 15, 10, 2, 2, 1, float, location_tag, variant>(comm);
+            test_alltoone<15, 15, 10, 1, 2, 2, float, location_tag, variant>(comm);
+            test_alltoone<15, 15, 10, 1, 1, 4, float, location_tag, variant>(comm);
+            test_alltoone<15, 1, 10, 1, 1, 4, float, location_tag, variant>(comm);
+            test_alltoone<15, 15, 10, 1, 1, 4, float, location_tag, variant>(comm);
+            test_alltoone<1, 15, 10, 1, 1, 4, float, location_tag, variant>(comm);
+            test_alltoone<1, 15, 10, 1, 2, 2, float, location_tag, variant>(comm);
+            test_alltoone<15, 15, 10, 2, 2, 1, float, location_tag, variant>(comm);
+            break;
+        case 12:
+            test_alltoone<15, 15, 10, 3, 4, 1, float, location_tag, variant>(comm);
+            test_alltoone<15, 25, 10, 1, 6, 2, float, location_tag, variant>(comm);
+            test_alltoone<25, 25, 10, 1, 3, 4, float, location_tag, variant>(comm);
+            test_alltoone<15, 1, 10, 3, 1, 4, float, location_tag, variant>(comm);
+            test_alltoone<15, 25, 10, 4, 1, 3, float, location_tag, variant>(comm);
+            test_alltoone<1, 15, 21, 1, 1, 12, float, location_tag, variant>(comm);
+            test_alltoone<1, 15, 10, 1, 3, 4, float, location_tag, variant>(comm);
+            test_alltoone<25, 15, 10, 4, 3, 1, float, location_tag, variant>(comm);
+            test_alltoone<9, 11, 5, 2, 3, 2, float, location_tag, variant>(comm);
+            test_alltoone<9, 11, 5, 1, 4, 3, float, location_tag, variant>(comm);
+        default:
+            break;
+    }
+}
+
+void test_alltoone_all(){
+    test_alltoone_variants<tag::cpu, reshape_algorithm::alltoall>();
+    test_alltoone_variants<tag::cpu, reshape_algorithm::alltoallv>();
+    test_alltoone_variants<tag::cpu, reshape_algorithm::p2p>();
+    test_alltoone_variants<tag::cpu, reshape_algorithm::p2p_plined>();
+    #ifdef Heffte_ENABLE_GPU
+    test_alltoone_variants<tag::gpu, reshape_algorithm::alltoall>();
+    test_alltoone_variants<tag::gpu, reshape_algorithm::alltoallv>();
+    test_alltoone_variants<tag::gpu, reshape_algorithm::p2p>();
+    test_alltoone_variants<tag::gpu, reshape_algorithm::p2p_plined>();
+    #endif
 }
 
 void perform_tests_cpu(){
@@ -437,6 +525,7 @@ void perform_all_tests(){
     perform_tests_cpu();
     perform_tests_gpu();
     perform_tests_reorder();
+    test_alltoone_all();
 }
 
 int main(int argc, char *argv[]){
