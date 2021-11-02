@@ -171,6 +171,21 @@ template<typename backend_tag> void* make_stream(backend_tag){ return nullptr; }
 void sync_stream(void*){}
 void free_stream(void*){}
 
+#ifdef Heffte_ENABLE_FFTW
+using cpu_backend = heffte::backend::fftw;
+#else
+#ifdef Heffte_ENABLE_MKL
+using cpu_backend = heffte::backend::mkl;
+#else
+using cpu_backend = heffte::backend::stock;
+#endif
+#endif
+
+template<typename location_tag>
+struct default_tag{
+    using backend_tag = cpu_backend;
+};
+
 #ifdef Heffte_ENABLE_CUDA
 using gpu_backend = heffte::backend::cufft;
 
@@ -203,6 +218,9 @@ void sync_stream(sycl::queue &stream){ stream.wait(); }
 void free_stream(sycl::queue&){}
 #endif
 #ifdef Heffte_ENABLE_GPU
+template<> struct default_tag<tag::gpu>{
+    using backend_tag = gpu_backend;
+};
 template<typename T>
 inline bool match(heffte::gpu::vector<T> const &a, std::vector<T> const &b){
     return match(heffte::gpu::transfer::unload(a), b);
