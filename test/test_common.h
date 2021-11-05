@@ -264,6 +264,22 @@ inline std::deque<std::string> arguments(int argc, char *argv[]){
     return args;
 }
 
+//! \brief Returns the integer for the subcomm option.
+int get_subcomm(std::deque<std::string> const &args){
+    auto iopt = args.begin();
+    while(iopt != args.end()){
+        if (*iopt == "-subcomm"){
+            if (++iopt != args.end()){
+                return std::stoi(*iopt);
+            }else{
+                throw std::runtime_error("-subcomm must be followed by an integer");
+            }
+        }
+        iopt++;
+    }
+    return -1;
+}
+
 //! \brief Sets the default options for the backend and then modifies those according to the passed arguments.
 template<typename backend_tag>
 heffte::plan_options args_to_options(std::deque<std::string> const &args){
@@ -289,6 +305,8 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
             options.use_gpu_aware = false;
         }
     }
+    int subcomm = get_subcomm(args);
+    if (subcomm != -1) options.use_subcomm(subcomm);
     return options;
 }
 
