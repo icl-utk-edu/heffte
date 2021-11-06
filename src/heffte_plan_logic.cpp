@@ -453,4 +453,35 @@ template logic_plan3d<int> plan_operations<int>(ioboxes<int> const&, int, plan_o
 //! \brief Instantiate for long long.
 template logic_plan3d<long long> plan_operations<long long>(ioboxes<long long> const&, int, plan_options const, int const);
 
+template<typename index>
+std::vector<std::array<int, 3>> compute_grids(logic_plan3d<index> const &plan){
+    std::vector<std::array<int, 3>> result;
+    for(int i=0; i<5; i++){
+        std::vector<std::array<index, 2>> intervals[3];
+        auto const &shape = (i < 4) ? plan.in_shape[i] : plan.out_shape[i-1];
+        for(auto const &b : shape){
+            for(int j=0; j<3; j++){
+                std::array<index, 2> range = {b.low[j], b.high[j]};
+                if (range != std::array<index, 2>{0, -1}){
+                    bool found = false;
+                    for(auto const &irange : intervals[j]){
+                        if (irange == range){
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (not found)
+                        intervals[j].push_back(range);
+                }
+            }
+        }
+        result.push_back(std::array<int, 3>{static_cast<int>(intervals[0].size()),
+            static_cast<int>(intervals[1].size()), static_cast<int>(intervals[2].size())});
+    }
+
+    return result;
+}
+
+template std::vector<std::array<int, 3>> compute_grids<int>(logic_plan3d<int> const&);
+template std::vector<std::array<int, 3>> compute_grids<long long>(logic_plan3d<long long> const&);
 }

@@ -267,6 +267,13 @@ inline std::array<bool, 3> pencil_directions(box3d<index> const world, std::vect
 template<typename index>
 logic_plan3d<index> plan_operations(ioboxes<index> const &boxes, int r2c_direction, plan_options const options, int const mpi_rank);
 
+/*!
+ * \ingroup fft3dplan
+ * \brief Assuming the shapes in the plan form grids, reverse engineer the grid dimensions (used in the benchmark).
+ */
+template<typename index>
+std::vector<std::array<int, 3>> compute_grids(logic_plan3d<index> const &plan);
+
 }
 
 #endif
