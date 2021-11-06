@@ -46,6 +46,12 @@ if (NOT Heffte_ENABLE_CUDA)
     heffte_add_mpi_test(NAME heffte_streams_np6 COMMAND test_streams RANKS 6) # will enable once Volta issue is fixed
 endif()
 
+# subcommunicator tests
+add_executable(test_subcomm  test_fft3d.h test_subcomm.cpp)
+target_link_libraries(test_subcomm  Heffte)
+heffte_add_mpi_test(NAME test_subcomm_np8   COMMAND test_subcomm RANKS  8)
+heffte_add_mpi_test(NAME test_subcomm_np12  COMMAND test_subcomm RANKS 12)
+
 # test the real-to-complex class
 add_executable(test_fft3d_r2c  test_fft3d.h test_fft3d_r2c.cpp)
 target_link_libraries(test_fft3d_r2c  Heffte)

@@ -411,7 +411,9 @@ size_t get_max_box_size(std::array<some_class, 3> const &executors){
  */
 template<typename some_class>
 size_t get_max_box_size_r2c(std::array<some_class, 3> const &executors){
-    return std::max(executors[0]->complex_size(), std::max(executors[1]->box_size(), executors[2]->box_size()));
+    size_t max_size = (executors[0]) ? executors[0]->complex_size() : 0;
+    max_size = std::max(max_size, (executors[1]) ? executors[1]->box_size() : static_cast<size_t>(0));
+    return std::max(max_size, (executors[2]) ? executors[2]->box_size() : static_cast<size_t>(0));
 }
 /*!
  * \ingroup fft3dmisc

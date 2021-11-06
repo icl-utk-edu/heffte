@@ -101,7 +101,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     };
 
     // the call above uses the following plan, get it twice to give verbose info of the grid-shapes
-    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, r2c_dir, heffte::default_options<backend_tag>());
+    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, r2c_dir, heffte::default_options<backend_tag>(), me);
 
     // Locally initialize input
     auto input = make_data<input_type>(inboxes[me]);
@@ -324,6 +324,7 @@ int main(int argc, char *argv[]){
                  << "         -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries \n"
                  << "         -ingrid x y z: specifies the processor grid to use in the input, x y z must be integers \n"
                  << "         -outgrid x y z: specifies the processor grid to use in the output, x y z must be integers \n"
+                 << "         -subcomm num_ranks: specifies the number of ranks to use in intermediate reshapes\n"
                  << "         -r2c_dir dir: specifies the r2c direction for the r2c tests, dir must be 0 1 or 2 \n"
                  << "         -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices\n"
                  << "         -nX: number of times to repeat the run, accepted variants are -n5 (default), -n10, -n50\n"

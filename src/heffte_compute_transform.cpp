@@ -211,7 +211,8 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
         if (executor[2] != nullptr) executor[2]->backward(temp_buffer, real_buffer, executor_workspace);
         }
         add_trace name("reshape");
-        shaper[3]->apply(real_buffer, output, reinterpret_cast<scalar_type*>(workspace + executor[2]->box_size()));
+        shaper[3]->apply(real_buffer, output, reinterpret_cast<scalar_type*>(workspace +
+                         ((executor[2] == nullptr) ? 0 : executor[2]->box_size()) ));
     }else{
         add_trace name("fft-1d");
         if (executor[2] != nullptr) executor[2]->backward(temp_buffer, output, executor_workspace);

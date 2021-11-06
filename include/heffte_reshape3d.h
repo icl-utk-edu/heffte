@@ -258,7 +258,7 @@ private:
      */
     reshape3d_alltoallv(typename backend::device_instance<location_tag>::stream_type q,
                         int input_size, int output_size,
-                        bool gpu_aware, MPI_Comm master_comm, std::vector<int> const &pgroup,
+                        bool gpu_aware, MPI_Comm new_comm, std::vector<int> const &pgroup,
                         std::vector<int> &&send_offset, std::vector<int> &&send_size, std::vector<int> const &send_proc,
                         std::vector<int> &&recv_offset, std::vector<int> &&recv_size, std::vector<int> const &recv_proc,
                         std::vector<pack_plan_3d<index>> &&packplan, std::vector<pack_plan_3d<index>> &&unpackplan);
