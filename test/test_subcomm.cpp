@@ -7,14 +7,12 @@
 
 #include "test_fft3d.h"
 
-template<typename backend_tag>
+template<typename backend_tag, bool empty_input_boxes = false>
 void test_subcomm_cases(MPI_Comm const comm){
     using location_tag = typename backend::buffer_traits<backend_tag>::location;
     using input_type  = double;
     using cinput_type = std::complex<double>;
     using output_type = std::complex<double>;
-    //using output_container  = typename heffte::fft3d<backend_tag>::template buffer_container<double>;
-    //using coutput_container = typename heffte::fft3d<backend_tag>::template buffer_container<std::complex<double>>;
 
     int const me        = mpi::comm_rank(comm);
     int const num_ranks = mpi::comm_size(comm);
@@ -26,6 +24,15 @@ void test_subcomm_cases(MPI_Comm const comm){
     std::array<int,3> proc_i = heffte::proc_setup_min_surface(world, num_ranks);
 
     std::vector<box3d<int>> inboxes  = heffte::split_world(world, proc_i);
+    box3d<int> inbox = [&]()->box3d<int>{
+        if (empty_input_boxes){
+            std::vector<box3d<int>> boxes6 = heffte::split_world(world, std::array<int, 3>{2, 3, 1});
+            return (me < 6) ? boxes6[me] : box3d<int>(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{-1, -1, -1});
+        }else{
+            return inboxes[me];
+        }
+    }();
+    box3d<int> outbox = inboxes[me];
 
     auto world_input = make_data<input_type>(world);
     auto world_fft = forward_fft<backend_tag>(world, world_input);
@@ -33,11 +40,11 @@ void test_subcomm_cases(MPI_Comm const comm){
     auto cworld_input = make_data<output_type>(world);
     auto cworld_fft   = forward_fft<backend_tag>(world, cworld_input);
 
-    auto local_input  = input_maker<backend_tag, input_type>::select(world, inboxes[me], world_input);
-    auto clocal_input = input_maker<backend_tag, cinput_type>::select(world, inboxes[me], cworld_input);
+    auto local_input  = input_maker<backend_tag, input_type>::select(world, inbox, world_input);
+    auto clocal_input = input_maker<backend_tag, cinput_type>::select(world, inbox, cworld_input);
 
-    auto local_ref   = get_subbox(world, inboxes[me], world_fft);
-    auto clocal_ref  = get_subbox(world, inboxes[me], cworld_fft);
+    auto local_ref   = get_subbox(world, outbox, world_fft);
+    auto clocal_ref  = get_subbox(world, outbox, cworld_fft);
 
     backend::device_instance<location_tag> device;
 
@@ -54,7 +61,7 @@ void test_subcomm_cases(MPI_Comm const comm){
                 options.use_reorder = (variant % 2 == 0);
                 options.algorithm = alg;
 
-                auto fft = make_fft3d<backend_tag>(inboxes[me], inboxes[me], comm, options);
+                auto fft = make_fft3d<backend_tag>(inbox, outbox, comm, options);
 
                 auto lresult = make_buffer_container<output_type>(device.stream(), fft.size_outbox());
                 auto lback   = make_buffer_container<input_type>(device.stream(), fft.size_inbox());
@@ -134,30 +141,34 @@ void test_subcomm_cases_r2c(MPI_Comm const comm){
     }
 }
 
+template<typename backend_tag>
+void test_all_subcases(MPI_Comm const comm){
+    constexpr bool use_empty_input_boxes = true;
+    constexpr bool no_empty_input_boxes = true;
+
+    test_subcomm_cases<backend_tag>(comm);
+    test_subcomm_cases_r2c<backend_tag>(comm);
+    if (mpi::comm_size(comm) == 8) test_subcomm_cases<backend_tag, true>(comm);
+}
+
 void perform_tests(MPI_Comm const comm){
     all_tests<> name("heffte::fft subcommunicators");
 
-    test_subcomm_cases<backend::stock>(comm);
-    test_subcomm_cases_r2c<backend::stock>(comm);
+    test_all_subcases<backend::stock>(comm);
     #ifdef Heffte_ENABLE_FFTW
-    test_subcomm_cases<backend::fftw>(comm);
-    test_subcomm_cases_r2c<backend::fftw>(comm);
+    test_all_subcases<backend::fftw>(comm);
     #endif
     #ifdef Heffte_ENABLE_MKL
-    test_subcomm_cases<backend::mkl>(comm);
-    test_subcomm_cases_r2c<backend::mkl>(comm);
+    test_all_subcases<backend::mkl>(comm);
     #endif
     #ifdef Heffte_ENABLE_CUDA
-    test_subcomm_cases<backend::cufft>(comm);
-    test_subcomm_cases_r2c<backend::cufft>(comm);
+    test_all_subcases<backend::cufft>(comm);
     #endif
     #ifdef Heffte_ENABLE_ROCM
-    test_subcomm_cases<backend::rocfft>(comm);
-    test_subcomm_cases_r2c<backend::rocfft>(comm);
+    test_all_subcases<backend::rocfft>(comm);
     #endif
     #ifdef Heffte_ENABLE_ONEAPI
-    test_subcomm_cases<backend::onemkl>(comm);
-    test_subcomm_cases_r2c<backend::onemkl>(comm);
+    test_all_subcases<backend::onemkl>(comm);
     #endif
 }
 
