@@ -65,7 +65,8 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
         scalar_type *effective_input = output;
         if (input != output){
             add_trace name("copy");
-            backend::data_manipulator<location_tag>::copy_n(stream, input, executor[0]->box_size(), temp_buffer);
+            if (executor[0] != nullptr)
+                backend::data_manipulator<location_tag>::copy_n(stream, input, executor[0]->box_size(), temp_buffer);
             effective_input = temp_buffer;
         }
         for(int i=0; i<last; i++)

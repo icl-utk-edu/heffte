@@ -86,22 +86,17 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
 
     heffte::plan_options options = args_to_options<backend_tag>(args);
 
-    std::array<int, 2> proc_grid = make_procgrid(nprocs);
-    // writes out the proc_grid in the given dimension
-    auto print_proc_grid = [&](int i){
-        switch(i){
-            case -1: cout << "(" << proc_i[0] << ", " << proc_i[1] << ", " << proc_i[2] << ")  "; break;
-            case  0: cout << "(" << 1 << ", " << proc_grid[0] << ", " << proc_grid[1] << ")  "; break;
-            case  1: cout << "(" << proc_grid[0] << ", " << 1 << ", " << proc_grid[1] << ")  "; break;
-            case  2: cout << "(" << proc_grid[0] << ", " << proc_grid[1] << ", " << 1 << ")  "; break;
-            case  3: cout << "(" << proc_o[0] << ", " << proc_o[1] << ", " << proc_o[2] << ")  "; break;
-            default:
-                throw std::runtime_error("printing incorrect direction");
-        }
-    };
-
     // the call above uses the following plan, get it twice to give verbose info of the grid-shapes
-    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, r2c_dir, heffte::default_options<backend_tag>(), me);
+    logic_plan3d<index> plan = plan_operations<index>({inboxes, outboxes}, r2c_dir, options, me);
+
+    // computes the grids
+    std::vector<std::array<int, 3>> grids = compute_grids(plan);
+
+    // writes out the proc_grid in the given iteration, skips if no reshape was applied
+    auto print_proc_grid = [&](int i){
+        if (i > 0 and grids[i] == grids[i-1]){  cout << "-  ";  return;  }
+        cout << "(" << grids[i][0] << ", " << grids[i][1] << ", " << grids[i][2] << ")  ";
+    };
 
     // Locally initialize input
     auto input = make_data<input_type>(inboxes[me]);
@@ -220,10 +215,8 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
         cout << "Size:      " << world.size[0] << "x" << world.size[1] << "x" << world.size[2] << "\n";
         cout << "MPI ranks: " << setw(4) << nprocs << "\n";
         cout << "Grids: ";
-        print_proc_grid(-1); // prints the initial grid
-        for(int i=0; i<3; i++) // if reshape was applied, show the new intermediate grid assuming pencil reshape
-            if (not match(plan.in_shape[i], plan.out_shape[i]) and not match(plan.out_shape[i], plan.out_shape[3])) print_proc_grid(i);
-        print_proc_grid(3); // print the final grid
+        for(int i=0; i<5; i++)
+            print_proc_grid(i);
         cout << "\n";
         cout << "Time per run: " << t_max << " (s)\n";
         cout << "Performance:  " << floprate << " GFlops/s\n";
