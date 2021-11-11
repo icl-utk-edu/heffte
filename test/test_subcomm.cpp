@@ -144,11 +144,11 @@ void test_subcomm_cases_r2c(MPI_Comm const comm){
 template<typename backend_tag>
 void test_all_subcases(MPI_Comm const comm){
     constexpr bool use_empty_input_boxes = true;
-    constexpr bool no_empty_input_boxes = true;
+    constexpr bool no_empty_input_boxes = false;
 
-    test_subcomm_cases<backend_tag>(comm);
+    test_subcomm_cases<backend_tag, no_empty_input_boxes>(comm);
     test_subcomm_cases_r2c<backend_tag>(comm);
-    if (mpi::comm_size(comm) == 8) test_subcomm_cases<backend_tag, true>(comm);
+    if (mpi::comm_size(comm) == 8) test_subcomm_cases<backend_tag, use_empty_input_boxes>(comm);
 }
 
 void perform_tests(MPI_Comm const comm){
