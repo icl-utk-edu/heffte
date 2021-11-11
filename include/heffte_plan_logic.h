@@ -104,11 +104,12 @@ struct plan_options{
           algorithm(reshape_algorithm::alltoallv),
           use_pencils(true),
           use_gpu_aware(true),
-          num_sub(-1)
+          num_sub(-1),
+          subcomm(MPI_COMM_NULL)
     {}
     //! \brief Constructor, initializes each variable, primarily for internal use.
     plan_options(bool reorder, reshape_algorithm alg, bool pencils)
-        : use_reorder(reorder), algorithm(alg), use_pencils(pencils), use_gpu_aware(true), num_sub(-1)
+        : use_reorder(reorder), algorithm(alg), use_pencils(pencils), use_gpu_aware(true), num_sub(-1), subcomm(MPI_COMM_NULL)
     {}
     //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
     bool use_reorder;
@@ -120,11 +121,24 @@ struct plan_options{
     bool use_gpu_aware;
     //! \brief Defines the number of ranks to use for the internal reshapes, set to -1 to use all ranks.
     void use_subcomm(int num_subranks){ num_sub = num_subranks; }
+    /*!
+     * \brief Set sub-communicator to use in the intermediate reshape operations.
+     *
+     * The ranks defined by \b comm must be a subset of the communicator that will be used
+     * in the future call to heffte::fft3d or heffte::fft3d_r2c.
+     * The ranks that are not associated with the comm should pass in MPI_COMM_NULL.
+     * The plan_options object will take a non-owning reference to \b comm
+     * but the reference will not be passed into heffte::fft3d or heffte::fft3d_r2c.
+     */
+    void use_subcomm(MPI_Comm comm){
+        num_sub = 1;
+        subcomm = comm;
+    }
     //! \brief Return the set number of sub-ranks.
     int get_subranks() const{ return num_sub; }
 private:
-    // in future will also allow for the use of sub-communicator, that's why this needs to be private
     int num_sub;
+    MPI_Comm subcomm;
 };
 
 /*!
