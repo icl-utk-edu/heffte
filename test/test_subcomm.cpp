@@ -56,7 +56,7 @@ void test_subcomm_cases(MPI_Comm const comm){
 
                 heffte::plan_options options = default_options<backend_tag>();
 
-                options.use_subcomm(num_subcomm);
+                options.use_num_subranks(num_subcomm);
                 options.use_pencils = (variant / 2 == 0);
                 options.use_reorder = (variant % 2 == 0);
                 options.algorithm = alg;
@@ -82,7 +82,7 @@ void test_subcomm_cases(MPI_Comm const comm){
         }
     }
 }
-template<typename backend_tag>
+template<typename backend_tag, bool use_communicator>
 void test_subcomm_cases_r2c(MPI_Comm const comm){
     using location_tag = typename backend::buffer_traits<backend_tag>::location;
     using input_type  = float;
@@ -94,6 +94,11 @@ void test_subcomm_cases_r2c(MPI_Comm const comm){
     current_test<double, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test subcommunicator", comm);
 
     box3d<> const world = {{0, 0, 0}, {23, 23, 23}};
+    MPI_Comm subcomm = MPI_COMM_NULL;
+    if (use_communicator){
+        assert(mpi::comm_size(comm) == 8);
+        subcomm = mpi::new_comm_from_group({1, 3, 5, 7}, comm);
+    }
 
     std::array<int,3> proc_i = heffte::proc_setup_min_surface(world, num_ranks);
 
@@ -120,7 +125,11 @@ void test_subcomm_cases_r2c(MPI_Comm const comm){
 
                 heffte::plan_options options = default_options<backend_tag>();
 
-                options.use_subcomm(num_subcomm);
+                if (use_communicator){
+                    options.use_num_subranks(num_subcomm);
+                }else{
+                    options.use_subcomm(subcomm);
+                }
                 options.use_pencils = (variant / 2 == 0);
                 options.use_reorder = (variant % 2 == 0);
                 options.algorithm = alg;
@@ -139,16 +148,23 @@ void test_subcomm_cases_r2c(MPI_Comm const comm){
         }
         }
     }
+    if (subcomm != MPI_COMM_NULL) mpi::comm_free(subcomm);
 }
 
 template<typename backend_tag>
 void test_all_subcases(MPI_Comm const comm){
     constexpr bool use_empty_input_boxes = true;
-    constexpr bool no_empty_input_boxes = true;
+    constexpr bool no_empty_input_boxes = false;
 
-    test_subcomm_cases<backend_tag>(comm);
-    test_subcomm_cases_r2c<backend_tag>(comm);
-    if (mpi::comm_size(comm) == 8) test_subcomm_cases<backend_tag, true>(comm);
+    constexpr bool use_subcomm = true;
+    constexpr bool use_num_subcomm = false;
+
+    test_subcomm_cases<backend_tag, no_empty_input_boxes>(comm);
+    test_subcomm_cases_r2c<backend_tag, use_num_subcomm>(comm);
+    if (mpi::comm_size(comm) == 8){
+        test_subcomm_cases<backend_tag, use_empty_input_boxes>(comm);
+        test_subcomm_cases_r2c<backend_tag, use_subcomm>(comm);
+    }
 }
 
 void perform_tests(MPI_Comm const comm){

@@ -96,6 +96,37 @@ enum class reshape_algorithm{
  * MPI calls from the GPU have faster throughput but larger latency, thus initiating
  * the calls from the CPU (e.g., setting use_gpu_aware to false) can be faster
  * when using smaller problems compared to the number of MPI ranks.
+ *
+ * \par Option use_subcomm or use_num_subranks
+ * Restricts the intermediate reshape and FFT operations to a subset of the ranks
+ * specified by the communicator given in the construction of heffte::fft3d and heffte::fft3d_r2c.
+ * By default, heFFTe will use all of the available MPI ranks but this is not always optimal
+ * (see the two examples below).
+ * The other options are defined as member variables, but the subcomm option is specified
+ * with member functions that accept either an integer or an MPI communicator.
+ * Using an integer will specify ranks \b 0 to \b num_subranks -1, while using a communicator
+ * can define an arbitrary subset. MPI ranks that don't belong to the subcomm should pass MPI_COMM_NULL.
+ * The plan_options class will hold a non-owning reference to the MPI subcomm
+ * but heffte::fft3d and heffte::fft3d_r2c will use the subcomm only in the constructors,
+ * i.e., the subcomm can be safely discarded/freed after the fft3d classes are constructed.
+ *
+ * \par
+ * For example, if the input and output shapes of the data do not form pencils in any direction
+ * (i.e., using a brick decomposition),
+ * then heFFTe has to perform 4 reshape operations (3 if using slabs) and if the problem size
+ * is small relative to the number of ranks this results in 4 sets of small messages which increases
+ * the latency and reduces performance.
+ * However, if the problem can fit on a single node (e.g., single GPU), then gathering all the data
+ * to a single rank then performing a single 3D FFT and scattering the data back will result
+ * in only 2 communications involving the small messages. Thus, so long as the two operations
+ * are less expensive than the 4, using a subcomm will result in an overall performance boost.
+ *
+ * \par
+ * Similar to the previous example, if we are using a CPU backend with multiple MPI ranks per node,
+ * then reducing the MPI ranks to one-per-node can effectively coalesce smaller messages from multiple
+ * ranks to larger messages and thus reduce latency. If the CPU backend supports multi-threading,
+ * then all CPU cores can still be used by calls from the single rank without reduction of performance.
+ *
  */
 struct plan_options{
     //! \brief Constructor, initializes all options with the default values for the given backend tag.
@@ -104,11 +135,12 @@ struct plan_options{
           algorithm(reshape_algorithm::alltoallv),
           use_pencils(true),
           use_gpu_aware(true),
-          num_sub(-1)
+          num_sub(-1),
+          subcomm(MPI_COMM_NULL)
     {}
     //! \brief Constructor, initializes each variable, primarily for internal use.
     plan_options(bool reorder, reshape_algorithm alg, bool pencils)
-        : use_reorder(reorder), algorithm(alg), use_pencils(pencils), use_gpu_aware(true), num_sub(-1)
+        : use_reorder(reorder), algorithm(alg), use_pencils(pencils), use_gpu_aware(true), num_sub(-1), subcomm(MPI_COMM_NULL)
     {}
     //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
     bool use_reorder;
@@ -119,12 +151,28 @@ struct plan_options{
     //! \brief Defines whether to use MPI calls directly from the GPU or to move to the CPU first.
     bool use_gpu_aware;
     //! \brief Defines the number of ranks to use for the internal reshapes, set to -1 to use all ranks.
-    void use_subcomm(int num_subranks){ num_sub = num_subranks; }
+    void use_num_subranks(int num_subranks){ num_sub = num_subranks; }
+    /*!
+     * \brief Set sub-communicator to use in the intermediate reshape operations.
+     *
+     * The ranks defined by \b comm must be a subset of the communicator that will be used
+     * in the future call to heffte::fft3d or heffte::fft3d_r2c.
+     * The ranks that are not associated with the comm should pass in MPI_COMM_NULL.
+     * The plan_options object will take a non-owning reference to \b comm
+     * but the reference will not be passed into heffte::fft3d or heffte::fft3d_r2c.
+     *
+     * This method takes precedence over use_num_subranks() if both methods are called.
+     * Avoid calling both methods.
+     */
+    void use_subcomm(MPI_Comm comm){
+        num_sub = 1;
+        subcomm = comm;
+    }
     //! \brief Return the set number of sub-ranks.
     int get_subranks() const{ return num_sub; }
 private:
-    // in future will also allow for the use of sub-communicator, that's why this needs to be private
     int num_sub;
+    MPI_Comm subcomm;
 };
 
 /*!

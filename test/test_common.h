@@ -306,7 +306,7 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
         }
     }
     int subcomm = get_subcomm(args);
-    if (subcomm != -1) options.use_subcomm(subcomm);
+    if (subcomm != -1) options.use_num_subranks(subcomm);
     return options;
 }
 

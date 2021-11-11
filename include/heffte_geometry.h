@@ -191,6 +191,12 @@ struct rank_remap{
         map = std::vector<int>(all_ranks, -1);
         for(int i=0; i<sub_ranks; i++) map[i] = i;
     }
+    //! \brief Build the map when using user provided sub-communicator.
+    void set_subranks(MPI_Comm global, MPI_Comm subcomm){
+        int subcomm_rank = (subcomm == MPI_COMM_NULL) ? -1 : mpi::comm_rank(subcomm);
+        map = std::vector<int>(mpi::comm_size(global));
+        MPI_Allgather(&subcomm_rank, 1, MPI_INT, map.data(), 1, MPI_INT, global);
+    }
     //! \brief The number of ranks in the sub-comm.
     int size_subcomm;
     //! \brief Inidcates whether the remap is empty.
