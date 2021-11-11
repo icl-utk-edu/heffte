@@ -97,7 +97,7 @@ enum class reshape_algorithm{
  * the calls from the CPU (e.g., setting use_gpu_aware to false) can be faster
  * when using smaller problems compared to the number of MPI ranks.
  *
- * \par Option use_subcomm
+ * \par Option use_subcomm or use_num_subranks
  * Restricts the intermediate reshape and FFT operations to a subset of the ranks
  * specified by the communicator given in the construction of heffte::fft3d and heffte::fft3d_r2c.
  * By default, heFFTe will use all of the available MPI ranks but this is not always optimal
@@ -151,7 +151,7 @@ struct plan_options{
     //! \brief Defines whether to use MPI calls directly from the GPU or to move to the CPU first.
     bool use_gpu_aware;
     //! \brief Defines the number of ranks to use for the internal reshapes, set to -1 to use all ranks.
-    void use_subcomm(int num_subranks){ num_sub = num_subranks; }
+    void use_num_subranks(int num_subranks){ num_sub = num_subranks; }
     /*!
      * \brief Set sub-communicator to use in the intermediate reshape operations.
      *
@@ -160,6 +160,9 @@ struct plan_options{
      * The ranks that are not associated with the comm should pass in MPI_COMM_NULL.
      * The plan_options object will take a non-owning reference to \b comm
      * but the reference will not be passed into heffte::fft3d or heffte::fft3d_r2c.
+     *
+     * This method takes precedence over use_num_subranks() if both methods are called.
+     * Avoid calling both methods.
      */
     void use_subcomm(MPI_Comm comm){
         num_sub = 1;

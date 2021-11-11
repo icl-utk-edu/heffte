@@ -56,7 +56,7 @@ void test_subcomm_cases(MPI_Comm const comm){
 
                 heffte::plan_options options = default_options<backend_tag>();
 
-                options.use_subcomm(num_subcomm);
+                options.use_num_subranks(num_subcomm);
                 options.use_pencils = (variant / 2 == 0);
                 options.use_reorder = (variant % 2 == 0);
                 options.algorithm = alg;
@@ -126,7 +126,7 @@ void test_subcomm_cases_r2c(MPI_Comm const comm){
                 heffte::plan_options options = default_options<backend_tag>();
 
                 if (use_communicator){
-                    options.use_subcomm(num_subcomm);
+                    options.use_num_subranks(num_subcomm);
                 }else{
                     options.use_subcomm(subcomm);
                 }
