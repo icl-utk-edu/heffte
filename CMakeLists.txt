@@ -207,7 +207,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h DESTINATION in
 
 # package-config
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file("HeffteConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY ExactVersion)
+write_basic_package_version_file("HeffteConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
 configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cmake"
                               "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfig.cmake"
                               INSTALL_DESTINATION "lib/Heffte/")
