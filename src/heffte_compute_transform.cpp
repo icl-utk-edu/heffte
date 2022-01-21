@@ -48,7 +48,7 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
         // move input -> output and apply all ffts
         // use either zeroth shaper or simple copy (or nothing in case of in-place transform)
         if (last == 0){
-            shaper[0]->apply(input, output, workspace);
+            shaper[0]->apply(1, input, output, workspace);
         }else if (input != output){
             int valid_executor = (executor[0] != nullptr) ? 0 : ((executor[1] != nullptr) ? 1 : 2);
             backend::data_manipulator<location_tag>::copy_n(stream, input, executor[valid_executor]->box_size(), output);
@@ -72,7 +72,7 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
         for(int i=0; i<last; i++)
             apply_fft(i, effective_input);
         { add_trace name("reshape");
-        shaper[last]->apply(effective_input, output, workspace);
+        shaper[last]->apply(1, effective_input, output, workspace);
         }
         for(int i=last; i<3; i++)
             apply_fft(i, output);
@@ -85,7 +85,7 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
     if (shaper[0] or input != output){
         if (shaper[0]){
             add_trace name("reshape");
-            shaper[0]->apply(input, temp_buffer, workspace);
+            shaper[0]->apply(1, input, temp_buffer, workspace);
         }else{
             add_trace name("copy");
             backend::data_manipulator<location_tag>::copy_n(stream, input, executor[0]->box_size(), temp_buffer);
@@ -98,7 +98,7 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
             apply_fft(active_shaper++, output);
         }
         { add_trace name("reshape");
-        shaper[active_shaper]->apply(output, temp_buffer, workspace);
+        shaper[active_shaper]->apply(1, output, temp_buffer, workspace);
         }
         active_shaper += 1;
     }
@@ -107,12 +107,12 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
     for(int i=active_shaper; i<last; i++){
         if (shaper[i]){
             add_trace name("reshape");
-            shaper[i]->apply(temp_buffer, temp_buffer, workspace);
+            shaper[i]->apply(1, temp_buffer, temp_buffer, workspace);
         }
         apply_fft(i, temp_buffer);
     }
     { add_trace name("reshape");
-    shaper[last]->apply(temp_buffer, output, workspace);
+    shaper[last]->apply(1, temp_buffer, output, workspace);
     }
 
     for(int i=last; i<3; i++)
@@ -136,7 +136,7 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
     scalar_type const *effective_input = input; // either input or the result of reshape operation 0
     if (shaper[0]){
         add_trace name("reshape");
-        shaper[0]->apply(input, reshaped_input, reinterpret_cast<scalar_type*>(workspace + get_max_box_size(executor)));
+        shaper[0]->apply(1, input, reshaped_input, reinterpret_cast<scalar_type*>(workspace + get_max_box_size(executor)));
         effective_input = reshaped_input;
     }
 
@@ -157,13 +157,13 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
     for(int i=1; i<last; i++){
         if (shaper[i]){
             add_trace name("reshape");
-            shaper[i]->apply(temp_buffer, temp_buffer, workspace);
+            shaper[i]->apply(1, temp_buffer, temp_buffer, workspace);
         }
         add_trace name("fft-1d");
         if (executor[i] != nullptr) executor[i]->forward(temp_buffer, executor_workspace);
     }
     { add_trace name("reshape");
-    shaper[last]->apply(temp_buffer, output, workspace);
+    shaper[last]->apply(1, temp_buffer, output, workspace);
     }
 
     for(int i=last; i<3; i++){
@@ -186,7 +186,7 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
 
     if (shaper[0]){
         add_trace name("reshape");
-        shaper[0]->apply(input, temp_buffer, workspace);
+        shaper[0]->apply(1, input, temp_buffer, workspace);
     }else{
         add_trace name("copy");
         int valid_executor = (executor[0] != nullptr) ? 0 : ((executor[1] != nullptr) ? 1 : 2);
@@ -199,7 +199,7 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
         }
         if (shaper[i+1]){
             add_trace name("reshape");
-            shaper[i+1]->apply(temp_buffer, temp_buffer, workspace);
+            shaper[i+1]->apply(1, temp_buffer, temp_buffer, workspace);
         }
     }
 
@@ -212,7 +212,7 @@ void compute_transform(typename backend::data_manipulator<location_tag>::stream_
         if (executor[2] != nullptr) executor[2]->backward(temp_buffer, real_buffer, executor_workspace);
         }
         add_trace name("reshape");
-        shaper[3]->apply(real_buffer, output, reinterpret_cast<scalar_type*>(workspace +
+        shaper[3]->apply(1, real_buffer, output, reinterpret_cast<scalar_type*>(workspace +
                          ((executor[2] == nullptr) ? 0 : executor[2]->box_size()) ));
     }else{
         add_trace name("fft-1d");

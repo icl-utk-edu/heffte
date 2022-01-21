@@ -123,11 +123,11 @@ void test_cpu(MPI_Comm const comm){
     if (std::is_same<scalar_type, float>::value){
         // sometimes, run two tests to make sure there is no internal corruption
         // there is no need to do that for every data type
-        reshape->apply(input_data.data(), output_data.data(), workspace.data());
+        reshape->apply(1, input_data.data(), output_data.data(), workspace.data());
         output_data = std::vector<scalar_type>(rotate_boxes[me].count());
-        reshape->apply(input_data.data(), output_data.data(), workspace.data());
+        reshape->apply(1, input_data.data(), output_data.data(), workspace.data());
     }else{
-        reshape->apply(input_data.data(), output_data.data(), workspace.data());
+        reshape->apply(1, input_data.data(), output_data.data(), workspace.data());
     }
 
 //     mpi::dump(0, input_data,     "input");
@@ -178,11 +178,11 @@ void test_gpu(MPI_Comm const comm){
     if (std::is_same<scalar_type, float>::value){
         // sometimes, run two tests to make sure there is no internal corruption
         // there is no need to do that for every data type
-        reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
+        reshape->apply(1, cuinput_data.data(), output_data.data(), workspace.data());
         output_data = gpu::vector<scalar_type>(rotate_boxes[me].count());
-        reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
+        reshape->apply(1, cuinput_data.data(), output_data.data(), workspace.data());
     }else{
-        reshape->apply(cuinput_data.data(), output_data.data(), workspace.data());
+        reshape->apply(1, cuinput_data.data(), output_data.data(), workspace.data());
     }
 
     //auto ramout = cuda::unload(output_data);
@@ -218,14 +218,14 @@ void test_direct_reordered(MPI_Comm const comm){
         auto reshape = make_reshape3d_alltoallv<tag::cpu>(nullptr, inboxes, outboxes, false, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
-        reshape->apply(input.data(), result.data(), workspace.data());
+        reshape->apply(1, input.data(), result.data(), workspace.data());
 
         tassert(match(result, reference));
     }{
         auto reshape = make_reshape3d_pointtopoint<tag::cpu>(nullptr, inboxes, outboxes, reshape_algorithm::p2p, false, comm);
         std::vector<scalar_type> result(ordered_outboxes[me].count());
         std::vector<scalar_type> workspace(reshape->size_workspace());
-        reshape->apply(input.data(), result.data(), workspace.data());
+        reshape->apply(1, input.data(), result.data(), workspace.data());
 
         tassert(match(result, reference));
     }
@@ -240,7 +240,7 @@ void test_direct_reordered(MPI_Comm const comm){
         auto cuinput = gpu::transfer().load(input);
         gpu::vector<scalar_type> curesult(ordered_outboxes[me].count());
 
-        reshape->apply(cuinput.data(), curesult.data(), workspace.data());
+        reshape->apply(1, cuinput.data(), curesult.data(), workspace.data());
 
         tassert(match(curesult, reference));
     }{
@@ -251,7 +251,7 @@ void test_direct_reordered(MPI_Comm const comm){
         auto cuinput = gpu::transfer().load(input);
         gpu::vector<scalar_type> curesult(ordered_outboxes[me].count());
 
-        reshape->apply(cuinput.data(), curesult.data(), workspace.data());
+        reshape->apply(1, cuinput.data(), curesult.data(), workspace.data());
         tassert(match(curesult, reference));
     }}
     #endif
@@ -297,11 +297,11 @@ void test_reshape_transposed(MPI_Comm comm){
                     std::max(std::max(mpi_tanspose_shaper->size_workspace(), mpi_direct_shaper->size_workspace()), cpu_transpose_shaper->size_workspace())
                 );
 
-                mpi_direct_shaper->apply(input.data(), result.data(), workspace.data());
-                cpu_transpose_shaper->apply(result.data(), reference.data(), workspace.data());
+                mpi_direct_shaper->apply(1, input.data(), result.data(), workspace.data());
+                cpu_transpose_shaper->apply(1, result.data(), reference.data(), workspace.data());
 
                 std::fill(result.begin(), result.end(), 0.0); // clear the temporary
-                mpi_tanspose_shaper->apply(input.data(), result.data(), workspace.data());
+                mpi_tanspose_shaper->apply(1, input.data(), result.data(), workspace.data());
 
                 tassert(match(result, reference));
 
@@ -321,11 +321,11 @@ void test_reshape_transposed(MPI_Comm comm){
                     std::max(std::max(cumpi_tanspose_shaper->size_workspace(), cumpi_direct_shaper->size_workspace()), cuda_transpose_shaper->size_workspace())
                 );
 
-                cumpi_direct_shaper->apply(cuinput.data(), curesult.data(), cuworkspace.data());
-                cuda_transpose_shaper->apply(curesult.data(), cureference.data(), cuworkspace.data());
+                cumpi_direct_shaper->apply(1, cuinput.data(), curesult.data(), cuworkspace.data());
+                cuda_transpose_shaper->apply(1, curesult.data(), cureference.data(), cuworkspace.data());
 
                 curesult = gpu::vector<scalar_type>(outboxes[me].count());
-                cumpi_tanspose_shaper->apply(cuinput.data(), curesult.data(), cuworkspace.data());
+                cumpi_tanspose_shaper->apply(1, cuinput.data(), curesult.data(), cuworkspace.data());
 
                 tassert(match(curesult, gpu::transfer().unload(cureference)));
                 #endif
@@ -368,7 +368,7 @@ void test_alltoone(MPI_Comm const comm){
     auto outvec = make_buffer_container<scalar_type>(device.stream(), reshape->size_output());
     auto workspace = make_buffer_container<scalar_type>(device.stream(), reshape->size_workspace());
 
-    reshape->apply(loaded_invec.data(), outvec.data(), workspace.data());
+    reshape->apply(1, loaded_invec.data(), outvec.data(), workspace.data());
 
     if (me == 0){
         tassert(approx(world_vec, outvec));

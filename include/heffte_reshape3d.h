@@ -64,13 +64,13 @@ public:
     //! \brief Default virtual destructor.
     virtual ~reshape3d_base() = default;
     //! \brief Apply the reshape, single precision.
-    virtual void apply(float const source[], float destination[], float workspace[]) const = 0;
+    virtual void apply(int batch_size, float const source[], float destination[], float workspace[]) const = 0;
     //! \brief Apply the reshape, double precision.
-    virtual void apply(double const source[], double destination[], double workspace[]) const = 0;
+    virtual void apply(int batch_size, double const source[], double destination[], double workspace[]) const = 0;
     //! \brief Apply the reshape, single precision complex.
-    virtual void apply(std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const = 0;
+    virtual void apply(int batch_size, std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const = 0;
     //! \brief Apply the reshape, double precision complex.
-    virtual void apply(std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const = 0;
+    virtual void apply(int batch_size, std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const = 0;
 
     //! \brief Returns the input size.
     index size_intput() const{ return input_size; }
@@ -139,19 +139,19 @@ public:
     make_reshape3d_alltoall(typename backend::device_instance<b>::stream_type, std::vector<box3d<i>> const&, std::vector<box3d<i>> const&, bool, MPI_Comm const);
 
     //! \brief Apply the reshape operations, single precision overload.
-    void apply(float const source[], float destination[], float workspace[]) const override final{
+    void apply(int batch_size, float const source[], float destination[], float workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision overload.
-    void apply(double const source[], double destination[], double workspace[]) const override final{
+    void apply(int batch_size, double const source[], double destination[], double workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, single precision complex overload.
-    void apply(std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
+    void apply(int batch_size, std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision complex overload.
-    void apply(std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
+    void apply(int batch_size, std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
 
@@ -232,19 +232,19 @@ public:
     make_reshape3d_alltoallv(typename backend::device_instance<b>::stream_type, std::vector<box3d<i>> const&, std::vector<box3d<i>> const&, bool, MPI_Comm const);
 
     //! \brief Apply the reshape operations, single precision overload.
-    void apply(float const source[], float destination[], float workspace[]) const override final{
+    void apply(int batch_size, float const source[], float destination[], float workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision overload.
-    void apply(double const source[], double destination[], double workspace[]) const override final{
+    void apply(int batch_size, double const source[], double destination[], double workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, single precision complex overload.
-    void apply(std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
+    void apply(int batch_size, std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision complex overload.
-    void apply(std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
+    void apply(int batch_size, std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
 
@@ -347,19 +347,19 @@ public:
     make_reshape3d_pointtopoint(typename backend::device_instance<b>::stream_type, std::vector<box3d<i>> const&, std::vector<box3d<i>> const&, reshape_algorithm, bool, MPI_Comm const);
 
     //! \brief Apply the reshape operations, single precision overload.
-    void apply(float const source[], float destination[], float workspace[]) const override final{
+    void apply(int batch_size, float const source[], float destination[], float workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision overload.
-    void apply(double const source[], double destination[], double workspace[]) const override final{
+    void apply(int batch_size, double const source[], double destination[], double workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, single precision complex overload.
-    void apply(std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
+    void apply(int batch_size, std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision complex overload.
-    void apply(std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
+    void apply(int batch_size, std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
         apply_base(source, destination, workspace);
     }
 
@@ -452,19 +452,19 @@ public:
         {}
 
     //! \brief Apply the reshape operations, single precision overload.
-    void apply(float const source[], float destination[], float workspace[]) const override final{
+    void apply(int batch_size, float const source[], float destination[], float workspace[]) const override final{
         transpose(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision overload.
-    void apply(double const source[], double destination[], double workspace[]) const override final{
+    void apply(int batch_size, double const source[], double destination[], double workspace[]) const override final{
         transpose(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, single precision complex overload.
-    void apply(std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
+    void apply(int batch_size, std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
         transpose(source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision complex overload.
-    void apply(std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
+    void apply(int batch_size, std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
         transpose(source, destination, workspace);
     }
 
