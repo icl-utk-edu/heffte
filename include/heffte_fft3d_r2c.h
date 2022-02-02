@@ -180,6 +180,16 @@ public:
                                                forward_executors(), direction::forward);
         apply_scale(batch_size, direction::forward, scaling, output);
     }
+    //! \brief Overload utilizing a batch transform using internally allocated workspace.
+    template<typename input_type, typename output_type>
+    void forward(int batch_size, input_type const input[], output_type output[], scale scaling = scale::none) const{
+        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
+                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        auto workspace = make_buffer_container<output_type>(this->stream(), batch_size * size_workspace());
+        forward(batch_size, input, output, workspace.data(), scaling);
+    }
 
     /*!
      * \brief Vector variant of forward() using input and output buffer_container classes.
@@ -257,6 +267,16 @@ public:
                                                executor_buffer_offset, size_comm_buffers(), backward_shaper,
                                                backward_executors(), direction::backward);
         apply_scale(batch_size, direction::backward, scaling, output);
+    }
+    //! \brief Overload that performs a batch transform using internally allocated workspace.
+    template<typename input_type, typename output_type>
+    void backward(int batch_size, input_type const input[], output_type output[], scale scaling = scale::none) const{
+        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
+                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        auto workspace = make_buffer_container<input_type>(this->stream(), batch_size * size_workspace());
+        backward(batch_size, input, output, workspace.data(), scaling);
     }
 
     /*!

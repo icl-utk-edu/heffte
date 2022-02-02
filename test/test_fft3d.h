@@ -498,10 +498,10 @@ void test_batch_cases(MPI_Comm const comm){
             fft.backward(batch_size, lresult.data(), lback.data(), workspace.data(), heffte::scale::full);
             tassert(approx(local_input, lback));
 
-            fft.forward(batch_size, clocal_input.data(), lresult.data(), workspace.data());
+            fft.forward(batch_size, clocal_input.data(), lresult.data());
             tassert(approx(lresult, clocal_ref));
 
-            fft.backward(batch_size, lresult.data(), clback.data(), workspace.data(), heffte::scale::full);
+            fft.backward(batch_size, lresult.data(), clback.data(), heffte::scale::full);
             tassert(approx(clocal_input, clback));
         }
     }
