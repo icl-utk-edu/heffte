@@ -20,6 +20,7 @@ void test_fft3d_cases(MPI_Comm const comm){
     test_fft3d_vectors<backend_tag, std::complex<double>, 16, 15, 15>(comm);
     test_fft3d_vectors<backend_tag, std::complex<float>, 16, 0, 15>(comm); // effectively 2D
     test_fft3d_vectors<backend_tag, std::complex<double>, 16, 0, 15>(comm);
+    test_batch_cases<backend_tag>(comm);
 }
 
 void perform_tests(MPI_Comm const comm){

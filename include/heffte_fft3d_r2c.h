@@ -160,7 +160,7 @@ public:
                    or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        compute_transform<location_tag, index>(this->stream(), convert_to_standard(input), convert_to_standard(output),
+        compute_transform<location_tag, index>(this->stream(), 1, convert_to_standard(input), convert_to_standard(output),
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), forward_shaper,
                                                forward_executors(), direction::forward);
@@ -224,7 +224,7 @@ public:
                    or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        compute_transform<location_tag, index>(this->stream(), convert_to_standard(input), convert_to_standard(output),
+        compute_transform<location_tag, index>(this->stream(), 1, convert_to_standard(input), convert_to_standard(output),
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), backward_shaper,
                                                backward_executors(), direction::backward);

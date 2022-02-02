@@ -47,6 +47,7 @@ namespace heffte {
      */
     template<typename location_tag, typename index, typename scalar_type>
     void compute_transform(typename backend::data_manipulator<location_tag>::stream_type stream,
+                        int const batch_size,
                         scalar_type const input[], scalar_type output[], scalar_type workspace[],
                         size_t executor_buffer_offset, size_t size_comm_buffers,
                         std::array<std::unique_ptr<reshape3d_base<index>>, 4> const &shaper,
@@ -70,6 +71,7 @@ namespace heffte {
      */
     template<typename location_tag, typename index, typename scalar_type>
     void compute_transform(typename backend::data_manipulator<location_tag>::stream_type stream,
+                        int const batch_size,
                         scalar_type const input[], std::complex<scalar_type> output[],
                         std::complex<scalar_type> workspace[],
                         size_t executor_buffer_offset, size_t size_comm_buffers,
@@ -93,6 +95,7 @@ namespace heffte {
      */
     template<typename location_tag, typename index, typename scalar_type>
     void compute_transform(typename backend::data_manipulator<location_tag>::stream_type stream,
+                        int const batch_size,
                         std::complex<scalar_type> const input[], scalar_type output[],
                         std::complex<scalar_type> workspace[],
                         size_t executor_buffer_offset, size_t size_comm_buffers,
