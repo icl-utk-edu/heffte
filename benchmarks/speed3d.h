@@ -134,7 +134,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     }
     #endif
 
-    typename heffte::fft3d<backend_tag>::template buffer_container<output_type> output(fft.size_outbox());
+    typename heffte::fft3d<backend_tag>::template buffer_container<output_type> output(batch_size * fft.size_outbox());
     output_type *output_array = output.data();
     input_type *result = input.data();
     #endif
@@ -159,14 +159,12 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
             fft.backward(output_array, input_array, workspace.data());
         }
     }else{
-        #ifndef BENCH_R2C
         for(int i = 0; i < ntest; ++i) {
             heffte::add_trace("mark forward begin with batch: " + std::to_string(batch_size));
             fft.forward(batch_size, input_array, output_array, workspace.data(), scale::full);
             heffte::add_trace("mark backward begin");
             fft.backward(batch_size, output_array, input_array, workspace.data());
         }
-        #endif
     }
     #ifdef Heffte_ENABLE_GPU
     if (backend::uses_gpu<backend_tag>::value)
