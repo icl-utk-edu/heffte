@@ -66,12 +66,14 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
 
     int const r2c_dir = [&]()->int{
         #ifdef BENCH_R2C
-        int r = get_r2c_directoin(args);
+        int r = get_int_arg("-r2c_dir", args);
         return (r == -1) ? 0 : r;
         #else
         return -1;
         #endif
     }();
+
+    int const batch_size = get_int_arg("-batch", args, 1);
 
     std::vector<box3d<index>> inboxes  = heffte::split_world(world, proc_i);
     std::vector<box3d<index>> outboxes = heffte::split_world((r2c_dir == -1) ? world : world.r2c(r2c_dir), proc_o);
@@ -99,13 +101,13 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     };
 
     // Locally initialize input
-    auto input = make_data<input_type>(inboxes[me]);
+    auto input = make_data<input_type>(batch_size, inboxes[me]);
     auto reference_input = input; // safe a copy for error checking
 
     // define allocation for in-place transform
     #if defined(BENCH_C2C) || defined(BENCH_R2R)
     auto fft = make_fft3d<backend_tag>(inboxes[me], outboxes[me], fft_comm, options);
-    std::vector<output_type> output(std::max(fft.size_outbox(), fft.size_inbox()));
+    std::vector<output_type> output(batch_size * std::max(fft.size_outbox(), fft.size_inbox()));
     std::copy(input.begin(), input.end(), output.begin());
 
     output_type *output_array = output.data();
@@ -132,13 +134,13 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     }
     #endif
 
-    typename heffte::fft3d<backend_tag>::template buffer_container<output_type> output(fft.size_outbox());
+    typename heffte::fft3d<backend_tag>::template buffer_container<output_type> output(batch_size * fft.size_outbox());
     output_type *output_array = output.data();
     input_type *result = input.data();
     #endif
 
     // Define workspace array
-    typename heffte::fft3d<backend_tag>::template buffer_container<output_type> workspace(fft.size_workspace());
+    typename heffte::fft3d<backend_tag>::template buffer_container<output_type> workspace(batch_size * fft.size_workspace());
 
     // Warmup
     heffte::add_trace("mark warmup begin");
@@ -149,11 +151,20 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     int const ntest = nruns(args);
     MPI_Barrier(fft_comm);
     double t = -MPI_Wtime();
-    for(int i = 0; i < ntest; ++i) {
-        heffte::add_trace("mark forward begin");
-        fft.forward(input_array, output_array, workspace.data(), scale::full);
-        heffte::add_trace("mark backward begin");
-        fft.backward(output_array, input_array, workspace.data());
+    if (batch_size == 1){
+        for(int i = 0; i < ntest; ++i) {
+            heffte::add_trace("mark forward begin");
+            fft.forward(input_array, output_array, workspace.data(), scale::full);
+            heffte::add_trace("mark backward begin");
+            fft.backward(output_array, input_array, workspace.data());
+        }
+    }else{
+        for(int i = 0; i < ntest; ++i) {
+            heffte::add_trace("mark forward begin with batch: " + std::to_string(batch_size));
+            fft.forward(batch_size, input_array, output_array, workspace.data(), scale::full);
+            heffte::add_trace("mark backward begin");
+            fft.backward(batch_size, output_array, input_array, workspace.data());
+        }
     }
     #ifdef Heffte_ENABLE_GPU
     if (backend::uses_gpu<backend_tag>::value)
@@ -203,7 +214,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     if(me==0){
         t_max = t_max / (2.0 * ntest);
         double const fftsize  = static_cast<double>(world.count());
-        double const floprate = 5.0 * fftsize * std::log(fftsize) * 1e-9 / std::log(2.0) / t_max;
+        double const floprate = 5.0 * batch_size * fftsize * std::log(fftsize) * 1e-9 / std::log(2.0) / t_max;
         long long mem_usage = static_cast<long long>(fft.size_inbox()) + static_cast<long long>(fft.size_outbox())
                             + static_cast<long long>(fft.size_workspace());
         mem_usage *= sizeof(output_type);
@@ -318,6 +329,7 @@ int main(int argc, char *argv[]){
                  << "         -ingrid x y z: specifies the processor grid to use in the input, x y z must be integers \n"
                  << "         -outgrid x y z: specifies the processor grid to use in the output, x y z must be integers \n"
                  << "         -subcomm num_ranks: specifies the number of ranks to use in intermediate reshapes\n"
+                 << "         -batch batch_size: specifies the size of the batch to use in the benchmark\n"
                  << "         -r2c_dir dir: specifies the r2c direction for the r2c tests, dir must be 0 1 or 2 \n"
                  << "         -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices\n"
                  << "         -nX: number of times to repeat the run, accepted variants are -n5 (default), -n10, -n50\n"

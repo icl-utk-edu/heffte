@@ -236,10 +236,10 @@ reshape3d_alltoall<location_tag, packer, index>::reshape3d_alltoall(
 
 template<typename location_tag, template<typename device> class packer, typename index>
 template<typename scalar_type>
-void reshape3d_alltoall<location_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
+void reshape3d_alltoall<location_tag, packer, index>::apply_base(int batch_size, scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
 
     scalar_type *send_buffer = workspace;
-    scalar_type *recv_buffer = workspace + num_entries * packplan.size();
+    scalar_type *recv_buffer = workspace + batch_size * num_entries * packplan.size();
 
     packer<location_tag> packit;
 
@@ -247,9 +247,14 @@ void reshape3d_alltoall<location_tag, packer, index>::apply_base(scalar_type con
 
     { add_trace name("packing");
         for(size_t i=0; i<packplan.size(); i++){
-            if (packplan[i].size[0] > 0)
-                packit.pack(this->stream(), packplan[i], source + send_offset[i], send_buffer + offset);
-            offset += num_entries;
+            if (packplan[i].size[0] > 0){
+                for(int j=0; j<batch_size; j++){
+                    packit.pack(this->stream(), packplan[i], source + send_offset[i] + j * this->input_size, send_buffer + offset);
+                    offset += num_entries;
+                }
+            }else{
+                offset += batch_size * num_entries;
+            }
         }
     }
 
@@ -257,23 +262,23 @@ void reshape3d_alltoall<location_tag, packer, index>::apply_base(scalar_type con
 
     #ifdef Heffte_ENABLE_GPU
     if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
-        scalar_type *temp = this->template cpu_send_buffer<scalar_type>(num_entries * packplan.size());
-        gpu::transfer::unload(this->stream(), send_buffer, num_entries * packplan.size(), temp);
+        scalar_type *temp = this->template cpu_send_buffer<scalar_type>(batch_size * num_entries * packplan.size());
+        gpu::transfer::unload(this->stream(), send_buffer, batch_size * num_entries * packplan.size(), temp);
         send_buffer = temp;
-        recv_buffer = this->template cpu_recv_buffer<scalar_type>(num_entries * packplan.size());
+        recv_buffer = this->template cpu_recv_buffer<scalar_type>(batch_size * num_entries * packplan.size());
     }
     #endif
 
     { add_trace name("all2all");
-        MPI_Alltoall(send_buffer, num_entries, mpi::type_from<scalar_type>(),
-                     recv_buffer, num_entries, mpi::type_from<scalar_type>(),
+        MPI_Alltoall(send_buffer, batch_size * num_entries, mpi::type_from<scalar_type>(),
+                     recv_buffer, batch_size * num_entries, mpi::type_from<scalar_type>(),
                      comm);
     }
 
     #ifdef Heffte_ENABLE_GPU
     if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
-        scalar_type* temp = workspace + num_entries * packplan.size();
-        gpu::transfer::load(this->stream(), recv_buffer, num_entries * packplan.size(), temp);
+        scalar_type* temp = workspace + batch_size * num_entries * packplan.size();
+        gpu::transfer::load(this->stream(), recv_buffer, batch_size * num_entries * packplan.size(), temp);
         recv_buffer = temp;
     }
     #endif
@@ -281,9 +286,16 @@ void reshape3d_alltoall<location_tag, packer, index>::apply_base(scalar_type con
     offset = 0;
     { add_trace name("unpacking");
         for(size_t i=0; i<unpackplan.size(); i++){
-            if (unpackplan[i].size[0] > 0)
-                packit.unpack(this->stream(), unpackplan[i], recv_buffer + offset, destination + recv_offset[i]);
-            offset += num_entries;
+            if (unpackplan[i].size[0] > 0){
+                for(int j=0; j<batch_size; j++){
+                    packit.unpack(this->stream(), unpackplan[i],
+                                  recv_buffer + offset,
+                                  destination + recv_offset[i] + j * this->output_size);
+                    offset += num_entries;
+                }
+            }else{
+                offset += batch_size * num_entries;
+            }
         }
     }
 }
@@ -341,10 +353,10 @@ reshape3d_alltoallv<location_tag, packer, index>::reshape3d_alltoallv(
 
 template<typename location_tag, template<typename device> class packer, typename index>
 template<typename scalar_type>
-void reshape3d_alltoallv<location_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
+void reshape3d_alltoallv<location_tag, packer, index>::apply_base(int batch_size, scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
 
     scalar_type *send_buffer = workspace;
-    scalar_type *recv_buffer = workspace + this->input_size;
+    scalar_type *recv_buffer = workspace + batch_size * this->input_size;
 
     packer<location_tag> packit;
 
@@ -353,8 +365,12 @@ void reshape3d_alltoallv<location_tag, packer, index>::apply_base(scalar_type co
     { add_trace name("packing");
     for(auto isend : send.map){
         if (isend >= 0){ // something to send
-            packit.pack(this->stream(), packplan[isend], source + send_offset[isend], send_buffer + offset);
-            offset += send_size[isend];
+            for(int j=0; j<batch_size; j++){
+                packit.pack(this->stream(), packplan[isend],
+                            source + send_offset[isend] + j * this->input_size,
+                            send_buffer + offset);
+                offset += send_size[isend];
+            }
         }
     }
     }
@@ -364,23 +380,39 @@ void reshape3d_alltoallv<location_tag, packer, index>::apply_base(scalar_type co
     #ifdef Heffte_ENABLE_GPU
     // the device_synchronize() is needed to flush the kernels of the asynchronous packing
     if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
-        scalar_type *temp = this->template cpu_send_buffer<scalar_type>(this->input_size);
-        gpu::transfer::unload(this->stream(), send_buffer, this->input_size, temp);
+        scalar_type *temp = this->template cpu_send_buffer<scalar_type>(batch_size * this->input_size);
+        gpu::transfer::unload(this->stream(), send_buffer, batch_size * this->input_size, temp);
         send_buffer = temp;
-        recv_buffer = this->template cpu_recv_buffer<scalar_type>(this->output_size);
+        recv_buffer = this->template cpu_recv_buffer<scalar_type>(batch_size * this->output_size);
     }
     #endif
 
     { add_trace name("all2allv");
-    MPI_Alltoallv(send_buffer, send.counts.data(), send.displacements.data(), mpi::type_from<scalar_type>(),
-                  recv_buffer, recv.counts.data(), recv.displacements.data(), mpi::type_from<scalar_type>(),
-                  comm);
+        if (batch_size == 1){
+            MPI_Alltoallv(send_buffer, send.counts.data(), send.displacements.data(), mpi::type_from<scalar_type>(),
+                          recv_buffer, recv.counts.data(), recv.displacements.data(), mpi::type_from<scalar_type>(),
+                          comm);
+        }else{
+            std::vector<int> send_counts = send.counts;
+            std::vector<int> send_displacements = send.displacements;
+            std::vector<int> recv_counts = recv.counts;
+            std::vector<int> recv_displacements = recv.displacements;
+            for(size_t i=0; i<send_counts.size(); i++){
+                send_counts[i] *= batch_size;
+                send_displacements[i] *= batch_size;
+                recv_counts[i] *= batch_size;
+                recv_displacements[i] *= batch_size;
+            }
+            MPI_Alltoallv(send_buffer, send_counts.data(), send_displacements.data(), mpi::type_from<scalar_type>(),
+                          recv_buffer, recv_counts.data(), recv_displacements.data(), mpi::type_from<scalar_type>(),
+                          comm);
+        }
     }
 
     #ifdef Heffte_ENABLE_GPU
     if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
-        scalar_type* temp = workspace + this->input_size;
-        gpu::transfer::load(this->stream(), recv_buffer, this->output_size, temp);
+        scalar_type* temp = workspace + batch_size * this->input_size;
+        gpu::transfer::load(this->stream(), recv_buffer, batch_size * this->output_size, temp);
         recv_buffer = temp;
     }
     #endif
@@ -389,8 +421,12 @@ void reshape3d_alltoallv<location_tag, packer, index>::apply_base(scalar_type co
     { add_trace name("unpacking");
     for(auto irecv : recv.map){
         if (irecv >= 0){ // something received
-            packit.unpack(this->stream(), unpackplan[irecv], recv_buffer + offset, destination + recv_offset[irecv]);
-            offset += recv_size[irecv];
+            for(int j=0; j<batch_size; j++){
+                packit.unpack(this->stream(), unpackplan[irecv],
+                              recv_buffer + offset,
+                              destination + recv_offset[irecv] + j * this->output_size);
+                offset += recv_size[irecv];
+            }
         }
     }
     }
@@ -487,19 +523,20 @@ reshape3d_pointtopoint<location_tag, packer, index>::reshape3d_pointtopoint(
 #ifdef Heffte_ENABLE_GPU
 template<typename location_tag, template<typename device> class packer, typename index>
 template<typename scalar_type>
-void reshape3d_pointtopoint<location_tag, packer, index>::no_gpuaware_send_recv(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
+void reshape3d_pointtopoint<location_tag, packer, index>::no_gpuaware_send_recv(int batch_size, scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
     scalar_type *send_buffer = workspace;
-    scalar_type *recv_buffer = workspace + this->input_size;
+    scalar_type *recv_buffer = workspace + batch_size * this->input_size;
 
-    scalar_type *cpu_send = this->template cpu_send_buffer<scalar_type>(max_send_size);
-    scalar_type *cpu_recv = this->template cpu_recv_buffer<scalar_type>(this->output_size);
+    scalar_type *cpu_send = this->template cpu_send_buffer<scalar_type>(batch_size * max_send_size);
+    scalar_type *cpu_recv = this->template cpu_recv_buffer<scalar_type>(batch_size * this->output_size);
 
     packer<location_tag> packit;
 
     // queue the receive messages, using asynchronous receive
     for(size_t i=0; i<requests.size(); i++){
-        heffte::add_trace name("irecv " + std::to_string(recv_size[i]) + " from " + std::to_string(recv_proc[i]));
-        MPI_Irecv(cpu_recv + recv_loc[i], recv_size[i], mpi::type_from<scalar_type>(), recv_proc[i], 0, comm, &requests[i]);
+        heffte::add_trace name("irecv " + std::to_string(batch_size * recv_size[i]) + " from " + std::to_string(recv_proc[i]));
+        MPI_Irecv(cpu_recv + batch_size * recv_loc[i], batch_size * recv_size[i], mpi::type_from<scalar_type>(),
+                  recv_proc[i], 0, comm, &requests[i]);
     }
 
     // perform the send commands, using blocking send
@@ -507,37 +544,50 @@ void reshape3d_pointtopoint<location_tag, packer, index>::no_gpuaware_send_recv(
         size_t offset = 0;
         for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
             { heffte::add_trace name("packing");
-            packit.pack(this->stream(), packplan[i], source + send_offset[i], send_buffer + offset);
+                for(int j=0; j<batch_size; j++){
+                    packit.pack(this->stream(), packplan[i], source + j * this->input_size + send_offset[i],
+                                send_buffer + offset + j * send_size[i]);
+                }
             }
 
-            gpu::transfer::unload(this->stream(), send_buffer + offset, send_size[i], cpu_send + offset);
+            gpu::transfer::unload(this->stream(), send_buffer + offset, batch_size * send_size[i], cpu_send + offset);
 
             { heffte::add_trace name("isend " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
-            MPI_Isend(cpu_send + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm, &isends[i]);
+            MPI_Isend(cpu_send + offset, batch_size * send_size[i], mpi::type_from<scalar_type>(),
+                      send_proc[i], 0, comm, &isends[i]);
             }
-            offset += send_size[i];
+            offset += batch_size * send_size[i];
         }
     }else{
         for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
             { heffte::add_trace name("packing");
-            packit.pack(this->stream(), packplan[i], source + send_offset[i], send_buffer);
+                for(int j=0; j<batch_size; j++){
+                    packit.pack(this->stream(), packplan[i], source + j * this->input_size + send_offset[i],
+                                send_buffer + j * send_size[i]);
+                }
             }
 
-            gpu::transfer::unload(this->stream(), send_buffer, send_size[i], cpu_send);
+            gpu::transfer::unload(this->stream(), send_buffer, batch_size * send_size[i], cpu_send);
 
-            { heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
-            MPI_Send(cpu_send, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
+            { heffte::add_trace name("send " + std::to_string(batch_size * send_size[i]) + " for " + std::to_string(send_proc[i]));
+            MPI_Send(cpu_send, batch_size * send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
             }
         }
     }
 
     if (self_to_self){ // if using self-to-self, do not invoke an MPI command
         { heffte::add_trace name("self packing");
-        packit.pack(this->stream(), packplan.back(), source + send_offset.back(), recv_buffer + recv_loc.back());
+            for(int j=0; j<batch_size; j++){
+                packit.pack(this->stream(), packplan.back(), source + send_offset.back() + j * this->input_size,
+                            recv_buffer + batch_size * recv_loc.back() + j * send_size.back());
+            }
         }
 
         { heffte::add_trace name("self unpacking");
-        packit.unpack(this->stream(), unpackplan.back(), recv_buffer + recv_loc.back(), destination + recv_offset.back());
+            for(int j=0; j<batch_size; j++){
+                packit.unpack(this->stream(), unpackplan.back(), recv_buffer + batch_size * recv_loc.back() + j * send_size.back(),
+                              destination + j * this->output_size + recv_offset.back());
+            }
         }
     }
 
@@ -546,9 +596,13 @@ void reshape3d_pointtopoint<location_tag, packer, index>::no_gpuaware_send_recv(
         { heffte::add_trace name("waitany");
         MPI_Waitany(requests.size(), requests.data(), &irecv, MPI_STATUS_IGNORE);
         }
-        gpu::transfer::load(this->stream(), cpu_recv + recv_loc[irecv], recv_size[irecv], recv_buffer + recv_loc[irecv]);
+        gpu::transfer::load(this->stream(), cpu_recv + batch_size * recv_loc[irecv], batch_size * recv_size[irecv],
+                            recv_buffer + batch_size * recv_loc[irecv]);
         { heffte::add_trace name("unpacking from " + std::to_string(recv_proc[irecv]));
-        packit.unpack(this->stream(), unpackplan[irecv], recv_buffer + recv_loc[irecv], destination + recv_offset[irecv]);
+            for(int j=0; j<batch_size; j++){
+                packit.unpack(this->stream(), unpackplan[irecv], recv_buffer + batch_size * recv_loc[irecv] + j * recv_size[irecv],
+                              destination + j * this->output_size + recv_offset[irecv]);
+            }
         }
     }
 
@@ -561,52 +615,64 @@ void reshape3d_pointtopoint<location_tag, packer, index>::no_gpuaware_send_recv(
 
 template<typename location_tag, template<typename device> class packer, typename index>
 template<typename scalar_type>
-void reshape3d_pointtopoint<location_tag, packer, index>::apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
+void reshape3d_pointtopoint<location_tag, packer, index>::apply_base(int batch_size, scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const{
 
     #ifdef Heffte_ENABLE_GPU
     if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
-        no_gpuaware_send_recv(source, destination, workspace);
+        no_gpuaware_send_recv(batch_size, source, destination, workspace);
         return;
     }
     #endif
 
     scalar_type *send_buffer = workspace;
-    scalar_type *recv_buffer = workspace + this->input_size;
+    scalar_type *recv_buffer = workspace + batch_size * this->input_size;
 
     packer<location_tag> packit;
 
     // queue the receive messages, using asynchronous receive
     for(size_t i=0; i<requests.size(); i++){
-        heffte::add_trace name("irecv " + std::to_string(recv_size[i]) + " from " + std::to_string(recv_proc[i]));
-        MPI_Irecv(recv_buffer + recv_loc[i], recv_size[i], mpi::type_from<scalar_type>(), recv_proc[i], 0, comm, &requests[i]);
+        heffte::add_trace name("irecv " + std::to_string(batch_size * recv_size[i]) + " from " + std::to_string(recv_proc[i]));
+        MPI_Irecv(recv_buffer + batch_size * recv_loc[i], batch_size * recv_size[i], mpi::type_from<scalar_type>(),
+                  recv_proc[i], 0, comm, &requests[i]);
     }
 
     // perform the send commands, using blocking send
     size_t offset = 0;
     for(size_t i=0; i<send_proc.size() + ((self_to_self) ? -1 : 0); i++){
         { heffte::add_trace name("packing");
-        packit.pack(this->stream(), packplan[i], &source[send_offset[i]], send_buffer + offset);
+            for(int j=0; j<batch_size; j++){
+                packit.pack(this->stream(), packplan[i], source + j * this->input_size + send_offset[i],
+                            send_buffer + offset + j * send_size[i]);
+            }
         }
 
         this->synchronize_device();
 
         if (algorithm == reshape_algorithm::p2p_plined){
-            heffte::add_trace name("isend " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
-            MPI_Isend(send_buffer + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm, &isends[i]);
+            heffte::add_trace name("isend " + std::to_string(batch_size * send_size[i]) + " for " + std::to_string(send_proc[i]));
+            MPI_Isend(send_buffer + offset, batch_size * send_size[i], mpi::type_from<scalar_type>(),
+                      send_proc[i], 0, comm, &isends[i]);
         }else{
-            heffte::add_trace name("send " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
-            MPI_Send(send_buffer + offset, send_size[i], mpi::type_from<scalar_type>(), send_proc[i], 0, comm);
+            heffte::add_trace name("send " + std::to_string(batch_size* send_size[i]) + " for " + std::to_string(send_proc[i]));
+            MPI_Send(send_buffer + offset, batch_size * send_size[i], mpi::type_from<scalar_type>(),
+                     send_proc[i], 0, comm);
         }
-        offset += send_size[i];
+        offset += batch_size * send_size[i];
     }
 
     if (self_to_self){ // if using self-to-self, do not invoke an MPI command
         { heffte::add_trace name("self packing");
-        packit.pack(this->stream(), packplan.back(), source + send_offset.back(), recv_buffer + recv_loc.back());
+            for(int j=0; j<batch_size; j++){
+                packit.pack(this->stream(), packplan.back(), source + send_offset.back() + j * this->input_size,
+                            recv_buffer + batch_size * recv_loc.back() + j * send_size.back());
+            }
         }
 
         { heffte::add_trace name("self unpacking");
-        packit.unpack(this->stream(), unpackplan.back(), recv_buffer + recv_loc.back(), destination + recv_offset.back());
+            for(int j=0; j<batch_size; j++){
+                packit.unpack(this->stream(), unpackplan.back(), recv_buffer + batch_size * recv_loc.back() + j * send_size.back(),
+                              destination + j * this->output_size + recv_offset.back());
+            }
         }
     }
 
@@ -622,7 +688,10 @@ void reshape3d_pointtopoint<location_tag, packer, index>::apply_base(scalar_type
         #endif
 
         { heffte::add_trace name("unpacking from " + std::to_string(irecv));
-        packit.unpack(this->stream(), unpackplan[irecv], recv_buffer + recv_loc[irecv], destination + recv_offset[irecv]);
+            for(int j=0; j<batch_size; j++){
+                packit.unpack(this->stream(), unpackplan[irecv], recv_buffer + batch_size * recv_loc[irecv] + j * recv_size[irecv],
+                              destination + j * this->output_size + recv_offset[irecv]);
+            }
         }
     }
 
@@ -688,14 +757,14 @@ make_reshape3d_pointtopoint(typename backend::device_instance<location_tag>::str
 }
 
 #define heffte_instantiate_reshape3d_algorithm(alg, make_alg, some_backend, index) \
-template void alg<some_backend, direct_packer, index>::apply_base<float>(float const[], float[], float[]) const; \
-template void alg<some_backend, direct_packer, index>::apply_base<double>(double const[], double[], double[]) const; \
-template void alg<some_backend, direct_packer, index>::apply_base<std::complex<float>>(std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
-template void alg<some_backend, direct_packer, index>::apply_base<std::complex<double>>(std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
-template void alg<some_backend, transpose_packer, index>::apply_base<float>(float const[], float[], float[]) const; \
-template void alg<some_backend, transpose_packer, index>::apply_base<double>(double const[], double[], double[]) const; \
-template void alg<some_backend, transpose_packer, index>::apply_base<std::complex<float>>(std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
-template void alg<some_backend, transpose_packer, index>::apply_base<std::complex<double>>(std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
+template void alg<some_backend, direct_packer, index>::apply_base<float>(int, float const[], float[], float[]) const; \
+template void alg<some_backend, direct_packer, index>::apply_base<double>(int, double const[], double[], double[]) const; \
+template void alg<some_backend, direct_packer, index>::apply_base<std::complex<float>>(int, std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
+template void alg<some_backend, direct_packer, index>::apply_base<std::complex<double>>(int, std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
+template void alg<some_backend, transpose_packer, index>::apply_base<float>(int, float const[], float[], float[]) const; \
+template void alg<some_backend, transpose_packer, index>::apply_base<double>(int, double const[], double[], double[]) const; \
+template void alg<some_backend, transpose_packer, index>::apply_base<std::complex<float>>(int, std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
+template void alg<some_backend, transpose_packer, index>::apply_base<std::complex<double>>(int, std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
  \
 template std::unique_ptr<alg<some_backend, direct_packer, index>> \
 make_alg<some_backend, direct_packer, index>(typename backend::device_instance<some_backend>::stream_type, std::vector<box3d<index>> const&, \
@@ -709,14 +778,14 @@ make_alg<some_backend, transpose_packer, index>(typename backend::device_instanc
 heffte_instantiate_reshape3d_algorithm(reshape3d_alltoall, make_reshape3d_alltoall, some_backend, index) \
 heffte_instantiate_reshape3d_algorithm(reshape3d_alltoallv, make_reshape3d_alltoallv, some_backend, index) \
  \
-template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<float>(float const[], float[], float[]) const; \
-template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<double>(double const[], double[], double[]) const; \
-template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<std::complex<float>>(std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
-template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<std::complex<double>>(std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
-template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::apply_base<float>(float const[], float[], float[]) const; \
-template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::apply_base<double>(double const[], double[], double[]) const; \
-template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::apply_base<std::complex<float>>(std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
-template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::apply_base<std::complex<double>>(std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
+template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<float>(int, float const[], float[], float[]) const; \
+template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<double>(int, double const[], double[], double[]) const; \
+template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<std::complex<float>>(int, std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
+template void reshape3d_pointtopoint<some_backend, direct_packer, index>::apply_base<std::complex<double>>(int, std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
+template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::apply_base<float>(int, float const[], float[], float[]) const; \
+template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::apply_base<double>(int, double const[], double[], double[]) const; \
+template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::apply_base<std::complex<float>>(int, std::complex<float> const[], std::complex<float>[], std::complex<float>[]) const; \
+template void reshape3d_pointtopoint<some_backend, transpose_packer, index>::apply_base<std::complex<double>>(int, std::complex<double> const[], std::complex<double> [], std::complex<double> []) const; \
  \
 template std::unique_ptr<reshape3d_pointtopoint<some_backend, direct_packer, index>> \
 make_reshape3d_pointtopoint<some_backend, direct_packer, index>(typename backend::device_instance<some_backend>::stream_type, \

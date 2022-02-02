@@ -370,19 +370,19 @@ std::array<int, 3> get_grid(std::deque<std::string> const &args, std::string con
     throw std::runtime_error(opt + " not found");
 }
 
-int get_r2c_directoin(std::deque<std::string> const &args){
+int get_int_arg(std::string const &name, std::deque<std::string> const &args, int default_value = -1){
     auto iopt = args.begin();
     while(iopt != args.end()){
-        if (*iopt == "-r2c_dir"){
+        if (*iopt == name){
             if (++iopt != args.end()){
                 return std::stoi(*iopt);
             }else{
-                throw std::runtime_error("-r2c_dir must be followed by an integer");
+                throw std::runtime_error(name + " must be followed by an integer");
             }
         }
         iopt++;
     }
-    return -1;
+    return default_value;
 }
 
 int nruns(std::deque<std::string> const &args){

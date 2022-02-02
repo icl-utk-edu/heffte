@@ -190,6 +190,24 @@ enum class scale{
  * <tr><td> forward(a, b, scaling::symmetric) </tr><td> forward(a, b, scaling::symmetric) </td></tr>
  * <tr><td> forward(a, b, scaling::full) </tr><td> forward(a, b, scaling::none) </td></tr>
  * </table>
+ *
+ * \par Batch FFTs
+ * If multiple signals with the same distribution across the MPI-ranks need to be transformed,
+ * then heFFTe can perform batch operations. Observe the following scenario where we take multiple
+ * FFT operations on different signals stored contiguously:
+ * \code
+ * std::vector<std::complex<double>> workspace(fft.size_workspace());
+ * for(int i=0; i<batch_size; i++)
+ *      fft.forward(input + i * fft.size_inbox(), output + i * fft.size_outbox(), workspace.data());
+ * \endcode
+ * This can be done with the following call:
+ * \code
+ * std::vector<std::complex<double>> workspace(batch_size * fft.size_workspace());
+ * fft.forward(batch_size, input, output, workspace.data());
+ * \endcode
+ * The advantage of the batch operations is that communication buffers can be lumped together
+ * which reduces the latency when working with small signals. However, note the increased size
+ * of the workspace.
  */
 template<typename backend_tag, typename index = int>
 class fft3d : public backend::device_instance<typename backend::buffer_traits<backend_tag>::location>{
@@ -331,11 +349,41 @@ public:
         static_assert(backend::check_types<backend_tag, input_type, output_type>::value,
                       "Using either an unknown complex type or an incompatible pair of types!");
 
-        compute_transform<location_tag, index>(this->stream(), convert_to_standard(input), convert_to_standard(output),
+        compute_transform<location_tag, index>(this->stream(), 1, convert_to_standard(input), convert_to_standard(output),
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), forward_shaper,
                                                forward_executors(), direction::forward);
-        apply_scale(direction::forward, scaling, output);
+        apply_scale(1, direction::forward, scaling, output);
+    }
+    /*!
+     * \brief An overload allowing for a batch of FFTs to be performed in a single command.
+     *
+     * The inputs are the same as the overload that utilizes a workspace with the added \b batch_size.
+     * The size of the workspace must be a batch_size * size_workspace()
+     */
+    template<typename input_type, typename output_type>
+    void forward(int const batch_size, input_type const input[], output_type output[],
+                 output_type workspace[], scale scaling = scale::none) const{
+        static_assert(backend::check_types<backend_tag, input_type, output_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
+
+        compute_transform<location_tag, index>(this->stream(), batch_size, convert_to_standard(input), convert_to_standard(output),
+                                               convert_to_standard(workspace),
+                                               executor_buffer_offset, size_comm_buffers(), forward_shaper,
+                                               forward_executors(), direction::forward);
+        apply_scale(batch_size, direction::forward, scaling, output);
+    }
+    /*!
+     * \brief An overload that allocates workspace internally.
+     */
+    template<typename input_type, typename output_type>
+    void forward(int const batch_size, input_type const input[], output_type output[], scale scaling = scale::none) const{
+        static_assert(backend::check_types<backend_tag, input_type, output_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
+
+        auto workspace = make_buffer_container<typename transform_output<typename define_standard_type<output_type>::type, backend_tag>::type>(this->stream(), batch_size * size_workspace());
+
+        forward(batch_size, input, output, workspace.data(), scaling);
     }
 
     /*!
@@ -407,11 +455,37 @@ public:
         static_assert(backend::check_types<backend_tag, output_type, input_type>::value,
                       "Using either an unknown complex type or an incompatible pair of types!");
 
-        compute_transform<location_tag, index>(this->stream(), convert_to_standard(input), convert_to_standard(output),
+        compute_transform<location_tag, index>(this->stream(), 1, convert_to_standard(input), convert_to_standard(output),
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), backward_shaper,
                                                backward_executors(), direction::backward);
-        apply_scale(direction::backward, scaling, output);
+        apply_scale(1, direction::backward, scaling, output);
+    }
+    /*!
+     * \brief Overload for batch transforms, see the corresponding overload of forward().
+     */
+    template<typename input_type, typename output_type>
+    void backward(int const batch_size, input_type const input[], output_type output[],
+                  input_type workspace[], scale scaling = scale::none) const{
+        static_assert(backend::check_types<backend_tag, output_type, input_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
+
+        compute_transform<location_tag, index>(this->stream(), batch_size, convert_to_standard(input), convert_to_standard(output),
+                                               convert_to_standard(workspace),
+                                               executor_buffer_offset, size_comm_buffers(), backward_shaper,
+                                               backward_executors(), direction::backward);
+        apply_scale(batch_size, direction::backward, scaling, output);
+    }
+    /*!
+     * \brief Overload for batch transforms with internally allocated workspace.
+     */
+    template<typename input_type, typename output_type>
+    void backward(int const batch_size, input_type const input[], output_type output[], scale scaling = scale::none) const{
+        static_assert(backend::check_types<backend_tag, output_type, input_type>::value,
+                      "Using either an unknown complex type or an incompatible pair of types!");
+
+        auto workspace = make_buffer_container<typename transform_output<input_type, backend_tag>::type>(this->stream(), batch_size * size_workspace());
+        backward(batch_size, input, output, workspace.data(), scaling);
     }
 
     /*!
@@ -546,18 +620,19 @@ private:
 
     //! \brief Applies the scaling factor to the data.
     template<typename scalar_type>
-    void apply_scale(direction dir, scale scaling, scalar_type data[]) const{
+    void apply_scale(int const batch_size, direction dir, scale scaling, scalar_type data[]) const{
         if (scaling != scale::none){
             add_trace name("scale");
             #ifdef Heffte_ENABLE_MAGMA
             if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
-                hmagma.scal((dir == direction::forward) ? size_outbox() : size_inbox(), get_scale_factor(scaling), data);
+                hmagma.scal(batch_size * ((dir == direction::forward) ? size_outbox() : size_inbox()),
+                            get_scale_factor(scaling), data);
                 return;
             }
             #endif
             data_scaling::apply(
                 this->stream(),
-                (dir == direction::forward) ? size_outbox() : size_inbox(),
+                batch_size * ((dir == direction::forward) ? size_outbox() : size_inbox()),
                 data, get_scale_factor(scaling));
         }
     }
