@@ -329,6 +329,7 @@ int main(int argc, char *argv[]){
                  << "         -ingrid x y z: specifies the processor grid to use in the input, x y z must be integers \n"
                  << "         -outgrid x y z: specifies the processor grid to use in the output, x y z must be integers \n"
                  << "         -subcomm num_ranks: specifies the number of ranks to use in intermediate reshapes\n"
+                 << "         -batch batch_size: specifies the size of the batch to use in the benchmark\n"
                  << "         -r2c_dir dir: specifies the r2c direction for the r2c tests, dir must be 0 1 or 2 \n"
                  << "         -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices\n"
                  << "         -nX: number of times to repeat the run, accepted variants are -n5 (default), -n10, -n50\n"
