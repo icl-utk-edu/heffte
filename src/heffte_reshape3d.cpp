@@ -397,7 +397,7 @@ void reshape3d_alltoallv<location_tag, packer, index>::apply_base(int batch_size
             std::vector<int> send_displacements = send.displacements;
             std::vector<int> recv_counts = recv.counts;
             std::vector<int> recv_displacements = recv.displacements;
-            for(int i=0; i<send_counts.size(); i++){
+            for(size_t i=0; i<send_counts.size(); i++){
                 send_counts[i] *= batch_size;
                 send_displacements[i] *= batch_size;
                 recv_counts[i] *= batch_size;
