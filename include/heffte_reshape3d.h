@@ -140,24 +140,24 @@ public:
 
     //! \brief Apply the reshape operations, single precision overload.
     void apply(int batch_size, float const source[], float destination[], float workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision overload.
     void apply(int batch_size, double const source[], double destination[], double workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, single precision complex overload.
     void apply(int batch_size, std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision complex overload.
     void apply(int batch_size, std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
 
     //! \brief Templated reshape3d_alltoallv::apply() algorithm for all scalar types.
     template<typename scalar_type>
-    void apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
+    void apply_base(int batch_size, scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
 
     //! \brief The size of the workspace must include padding.
     size_t size_workspace() const override { return 2 * num_entries * packplan.size(); }
@@ -233,24 +233,24 @@ public:
 
     //! \brief Apply the reshape operations, single precision overload.
     void apply(int batch_size, float const source[], float destination[], float workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision overload.
     void apply(int batch_size, double const source[], double destination[], double workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, single precision complex overload.
     void apply(int batch_size, std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision complex overload.
     void apply(int batch_size, std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
 
     //! \brief Templated reshape3d_alltoallv::apply() algorithm for all scalar types.
     template<typename scalar_type>
-    void apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
+    void apply_base(int batch_size, scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
 
 private:
     /*!
@@ -348,28 +348,28 @@ public:
 
     //! \brief Apply the reshape operations, single precision overload.
     void apply(int batch_size, float const source[], float destination[], float workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision overload.
     void apply(int batch_size, double const source[], double destination[], double workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, single precision complex overload.
     void apply(int batch_size, std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision complex overload.
     void apply(int batch_size, std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
-        apply_base(source, destination, workspace);
+        apply_base(batch_size, source, destination, workspace);
     }
 
     //! \brief Templated reshape3d_pointtopoint::apply() algorithm for all scalar types.
     template<typename scalar_type>
-    void apply_base(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
+    void apply_base(int batch_size, scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
 
     //! \brief Templated reshape3d_pointtopoint::apply() algorithm that does not use GPU-Aware MPI.
     template<typename scalar_type>
-    void no_gpuaware_send_recv(scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
+    void no_gpuaware_send_recv(int batch_size, scalar_type const source[], scalar_type destination[], scalar_type workspace[]) const;
 
 private:
     /*!
@@ -453,29 +453,33 @@ public:
 
     //! \brief Apply the reshape operations, single precision overload.
     void apply(int batch_size, float const source[], float destination[], float workspace[]) const override final{
-        transpose(source, destination, workspace);
+        transpose(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision overload.
     void apply(int batch_size, double const source[], double destination[], double workspace[]) const override final{
-        transpose(source, destination, workspace);
+        transpose(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, single precision complex overload.
     void apply(int batch_size, std::complex<float> const source[], std::complex<float> destination[], std::complex<float> workspace[]) const override final{
-        transpose(source, destination, workspace);
+        transpose(batch_size, source, destination, workspace);
     }
     //! \brief Apply the reshape operations, double precision complex overload.
     void apply(int batch_size, std::complex<double> const source[], std::complex<double> destination[], std::complex<double> workspace[]) const override final{
-        transpose(source, destination, workspace);
+        transpose(batch_size, source, destination, workspace);
     }
 
 private:
     template<typename scalar_type>
-    void transpose(scalar_type const *source, scalar_type *destination, scalar_type *workspace) const{
+    void transpose(int batch_size, scalar_type const *source, scalar_type *destination, scalar_type *workspace) const{
         if (source == destination){ // in-place transpose will need workspace
-            backend::data_manipulator<location_tag>::copy_n(this->stream(), source, this->size_intput(), workspace);
-            transpose_packer<location_tag>().unpack(this->stream(), plan, workspace, destination);
+            backend::data_manipulator<location_tag>::copy_n(this->stream(), source, batch_size * this->input_size, workspace);
+            for(int j=0; j<batch_size; j++)
+                transpose_packer<location_tag>().unpack(this->stream(), plan, workspace + j * this->input_size,
+                                                        destination + j * this->input_size);
         }else{
-            transpose_packer<location_tag>().unpack(this->stream(), plan, source, destination);
+            for(int j=0; j<batch_size; j++)
+                transpose_packer<location_tag>().unpack(this->stream(), plan, source + j * this->input_size,
+                                                        destination + j * this->input_size);
         }
     }
 

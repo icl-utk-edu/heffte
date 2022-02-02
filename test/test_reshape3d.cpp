@@ -135,6 +135,25 @@ void test_cpu(MPI_Comm const comm){
 //     mpi::dump(0, reference_data, "reference");
 
     tassert(match(output_data, reference_data));
+
+    // do the same with a batch of 3
+    int const batch_size = 4;
+    std::vector<scalar_type> batch_input = input_data;
+    std::vector<scalar_type> batch_reference = reference_data;
+    for(int i=0; i<batch_size-1; i++){
+        batch_input.insert(batch_input.end(), input_data.begin(), input_data.end());
+        batch_reference.insert(batch_reference.end(), reference_data.begin(), reference_data.end());
+        for(size_t j=batch_input.size() - input_data.size(); j < batch_input.size(); j++)
+            batch_input[j] *= (i + 2);
+        for(size_t j=batch_reference.size() - reference_data.size(); j < batch_reference.size(); j++)
+            batch_reference[j] *= (i + 2);
+    }
+    output_data = std::vector<scalar_type>(batch_size * rotate_boxes[me].count());
+
+    workspace.resize(batch_size * reshape->size_workspace());
+    reshape->apply(batch_size, batch_input.data(), output_data.data(), workspace.data());
+
+    tassert(match(output_data, batch_reference));
 }
 
 #ifdef Heffte_ENABLE_GPU
