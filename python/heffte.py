@@ -89,11 +89,12 @@ libheffte.heffte_size_workspace.restype = c_int
 
 
 class backend:
+    stock = 0
     fftw = 1
     mkl = 2
     cufft = 10
     rocm = 11
-    valid = [1, 2, 10, 11]
+    valid = [0, 1, 2, 10, 11]
 
 class scale:
     none = 0
@@ -195,7 +196,7 @@ class heffte_fft_plan:
 
     def forward(self, inarray, outarray, scaling = scale.none):
 
-        if scaling not in [0, 1, 2]:
+        if scaling not in (0, 1, 2):
             raise heffte_input_error("forward() called with invalid scaling")
 
         if inarray.size != self.size_inbox() or outarray.size != self.size_outbox():
