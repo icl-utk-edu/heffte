@@ -79,6 +79,25 @@ libheffte.heffte_backward_z2d.restype = None
 libheffte.heffte_backward_z2z.argtypes = [LP_plan, c_void_p, c_void_p, c_int]
 libheffte.heffte_backward_z2z.restype = None
 
+# forward and backward (buffered)
+libheffte.heffte_forward_s2c_buffered.argtypes = [LP_plan, POINTER(c_float), c_void_p, c_void_p, c_int]
+libheffte.heffte_forward_s2c_buffered.restype = None
+libheffte.heffte_forward_c2c_buffered.argtypes = [LP_plan, c_void_p, c_void_p, c_void_p, c_int]
+libheffte.heffte_forward_c2c_buffered.restype = None
+libheffte.heffte_forward_d2z_buffered.argtypes = [LP_plan, POINTER(c_double), c_void_p, c_void_p, c_int]
+libheffte.heffte_forward_d2z_buffered.restype = None
+libheffte.heffte_forward_z2z_buffered.argtypes = [LP_plan, c_void_p, c_void_p, c_void_p, c_int]
+libheffte.heffte_forward_z2z_buffered.restype = None
+
+libheffte.heffte_backward_c2s_buffered.argtypes = [LP_plan, c_void_p, POINTER(c_float), c_void_p, c_int]
+libheffte.heffte_backward_c2s_buffered.restype = None
+libheffte.heffte_backward_c2c_buffered.argtypes = [LP_plan, c_void_p, c_void_p, c_void_p, c_int]
+libheffte.heffte_backward_c2c_buffered.restype = None
+libheffte.heffte_backward_z2d_buffered.argtypes = [LP_plan, c_void_p, POINTER(c_double), c_void_p, c_int]
+libheffte.heffte_backward_z2d_buffered.restype = None
+libheffte.heffte_backward_z2z_buffered.argtypes = [LP_plan, c_void_p, c_void_p, c_void_p, c_int]
+libheffte.heffte_backward_z2z_buffered.restype = None
+
 # read meta-data
 libheffte.heffte_size_inbox.argtypes = [LP_plan]
 libheffte.heffte_size_inbox.restype = c_int
@@ -89,11 +108,12 @@ libheffte.heffte_size_workspace.restype = c_int
 
 
 class backend:
+    stock = 0
     fftw = 1
     mkl = 2
     cufft = 10
     rocm = 11
-    valid = [1, 2, 10, 11]
+    valid = [0, 1, 2, 10, 11]
 
 class scale:
     none = 0
@@ -195,7 +215,7 @@ class heffte_fft_plan:
 
     def forward(self, inarray, outarray, scaling = scale.none):
 
-        if scaling not in [0, 1, 2]:
+        if scaling not in (0, 1, 2):
             raise heffte_input_error("forward() called with invalid scaling")
 
         if inarray.size != self.size_inbox() or outarray.size != self.size_outbox():
@@ -236,12 +256,64 @@ class heffte_fft_plan:
         else:
             raise heffte_input_error("forward() called with wrong inarray.dtype, use float32, float64, complex64, or complex128")
 
+    def forward_buffered(self, inarray, outarray, workspace, scaling = scale.none):
+
+        if scaling not in (0, 1, 2):
+            raise heffte_input_error("forward() called with invalid scaling")
+
+        if inarray.size != self.size_inbox() or outarray.size != self.size_outbox():
+            raise heffte_input_error("forward() called with invalid array size")
+
+        if workspace.size < self.size_workspace():
+            raise heffte_input_error("forward() called with insufficient workspace size")
+
+        if self.use_r2c:
+            if inarray.dtype == np.complex64 or inarray.dtype == np.complex128:
+                raise heffte_input_error("forward() called with r2c can use only real inarray types")
+
+        if (inarray.dtype == np.float32 or inarray.dtype == np.complex64) and workspace.dtype != np.complex64:
+            raise heffte_input_error("forward() called with incorrect workspace type, must be complex64")
+        if (inarray.dtype == np.float64 or inarray.dtype == np.complex128) and workspace.dtype != np.complex128:
+            raise heffte_input_error("forward() called with incorrect workspace type, must be complex128")
+
+        if inarray.dtype == np.float32:
+            if outarray.dtype != np.complex64:
+                raise heffte_input_error("forward() with inarray.dtype == float32 needs outarray.dtype == complex64")
+            libheffte.heffte_forward_s2c_buffered(self.plan,
+                                                  self._get_ctypes_data(inarray, POINTER(c_float)),
+                                                  self._get_ctypes_data(outarray, c_void_p),
+                                                  self._get_ctypes_data(workspace, c_void_p),
+                                                  scaling)
+        elif inarray.dtype == np.complex64:
+            if outarray.dtype != np.complex64:
+                raise heffte_input_error("forward() with inarray.dtype == complex64 needs outarray.dtype == complex64")
+            libheffte.heffte_forward_c2c_buffered(self.plan,
+                                                  self._get_ctypes_data(inarray, c_void_p),
+                                                  self._get_ctypes_data(outarray, c_void_p),
+                                                  self._get_ctypes_data(workspace, c_void_p),
+                                                  scaling)
+        elif inarray.dtype == np.float64:
+            if outarray.dtype != np.complex128:
+                raise heffte_input_error("forward() with inarray.dtype == float64 needs outarray.dtype == complex128")
+            libheffte.heffte_forward_d2z_buffered(self.plan,
+                                                  self._get_ctypes_data(inarray, POINTER(c_double)),
+                                                  self._get_ctypes_data(outarray, c_void_p),
+                                                  self._get_ctypes_data(workspace, c_void_p),
+                                                  scaling)
+        elif inarray.dtype == np.complex128:
+            if outarray.dtype != np.complex128:
+                raise heffte_input_error("forward() with inarray.dtype == complex128 needs outarray.dtype == complex128")
+            libheffte.heffte_forward_z2z_buffered(self.plan,
+                                                  self._get_ctypes_data(inarray, c_void_p),
+                                                  self._get_ctypes_data(outarray, c_void_p),
+                                                  self._get_ctypes_data(workspace, c_void_p),
+                                                  scaling)
+        else:
+            raise heffte_input_error("forward() called with wrong inarray.dtype, use float32, float64, complex64, or complex128")
+
     def backward(self, inarray, outarray, scaling = scale.none):
 
-        #if (type(inarray) is not np.ndarray) or (type(outarray) is not np.ndarray):
-        #    raise heffte_input_error("backward() accepts only numpy.ndarray objects as inarray and outarray")
-
-        if scaling not in [0, 1, 2]:
+        if scaling not in (0, 1, 2):
             raise heffte_input_error("backward() called with invalid scaling")
 
         if inarray.size != self.size_inbox() or outarray.size != self.size_outbox():
@@ -282,6 +354,57 @@ class heffte_fft_plan:
         else:
             raise heffte_input_error("backward() called with wrong outarray.dtype, use float32, float64, complex64, or complex128")
 
+    def backward_buffered(self, inarray, outarray, workspace, scaling = scale.none):
+
+        if scaling not in (0, 1, 2):
+            raise heffte_input_error("backward() called with invalid scaling")
+
+        if inarray.size != self.size_inbox() or outarray.size != self.size_outbox():
+            raise heffte_input_error("backward() called with invalid array size")
+
+        if self.use_r2c:
+            if outarray.dtype == np.complex64 or outarray.dtype == np.complex128:
+                raise heffte_input_error("backward() called with r2c can use only real outarray types")
+
+        if (outarray.dtype == np.float32 or outarray.dtype == np.complex64) and workspace.dtype != np.complex64:
+            raise heffte_input_error("backward() called with incorrect workspace type, must be complex64")
+        if (outarray.dtype == np.float64 or outarray.dtype == np.complex128) and workspace.dtype != np.complex128:
+            raise heffte_input_error("backward() called with incorrect workspace type, must be complex128")
+
+        if outarray.dtype == np.float32:
+            if inarray.dtype != np.complex64:
+                raise heffte_input_error("backward() with outarray.dtype == float32 needs inarray.dtype == complex64")
+            libheffte.heffte_backward_c2s_buffered(self.plan,
+                                                   self._get_ctypes_data(inarray, c_void_p),
+                                                   self._get_ctypes_data(outarray, POINTER(c_float)),
+                                                   self._get_ctypes_data(workspace, c_void_p),
+                                                   scaling)
+        elif outarray.dtype == np.complex64:
+            if inarray.dtype != np.complex64:
+                raise heffte_input_error("backward() with outarray.dtype == complex64 needs inarray.dtype == complex64")
+            libheffte.heffte_backward_c2c_buffered(self.plan,
+                                                   self._get_ctypes_data(inarray, c_void_p),
+                                                   self._get_ctypes_data(outarray, c_void_p),
+                                                   self._get_ctypes_data(workspace, c_void_p),
+                                                   scaling)
+        elif outarray.dtype == np.float64:
+            if inarray.dtype != np.complex128:
+                raise heffte_input_error("backward() with outarray.dtype == float64 needs inarray.dtype == complex128")
+            libheffte.heffte_backward_z2d_buffered(self.plan,
+                                                   self._get_ctypes_data(inarray, c_void_p),
+                                                   self._get_ctypes_data(outarray, POINTER(c_double)),
+                                                   self._get_ctypes_data(workspace, c_void_p),
+                                                   scaling)
+        elif outarray.dtype == np.complex128:
+            if inarray.dtype != np.complex128:
+                raise heffte_input_error("backward() with outarray.dtype == complex128 needs inarray.dtype == complex128")
+            libheffte.heffte_backward_z2z_buffered(self.plan,
+                                                   self._get_ctypes_data(inarray, c_void_p),
+                                                   self._get_ctypes_data(outarray, c_void_p),
+                                                   self._get_ctypes_data(workspace, c_void_p),
+                                                   scaling)
+        else:
+            raise heffte_input_error("backward() called with wrong outarray.dtype, use float32, float64, complex64, or complex128")
 
     def size_inbox(self):
         '''

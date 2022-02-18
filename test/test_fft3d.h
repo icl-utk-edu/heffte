@@ -26,10 +26,19 @@ std::vector<scalar_type> make_data(box3d<index> const world){
         r = static_cast<scalar_type>(unif(park_miller));
     return result;
 }
+template<typename scalar_type, typename index>
+std::vector<scalar_type> make_data(int num_batch, box3d<index> const world){
+    std::minstd_rand park_miller(4242);
+    std::uniform_real_distribution<double> unif(0.0, 1.0);
+
+    std::vector<scalar_type> result(num_batch * world.count());
+    for(auto &r : result)
+        r = static_cast<scalar_type>(unif(park_miller));
+    return result;
+}
 
 template<typename scalar_type>
-std::vector<scalar_type> get_subbox(box3d<> const world, box3d<> const box, std::vector<scalar_type> const &input){
-    std::vector<scalar_type> result(box.count());
+void get_subbox_array(box3d<> const world, box3d<> const box, scalar_type const *input, scalar_type *result){
     int const mid_world = world.size[0];
     int const slow_world = world.size[0] * world.size[1];
     int const mid_box = box.size[0];
@@ -41,6 +50,21 @@ std::vector<scalar_type> get_subbox(box3d<> const world, box3d<> const box, std:
                     = input[k * slow_world + j * mid_world + i];
             }
         }
+    }
+}
+
+template<typename scalar_type>
+std::vector<scalar_type> get_subbox(box3d<> const world, box3d<> const box, std::vector<scalar_type> const &input){
+    std::vector<scalar_type> result(box.count());
+    get_subbox_array(world, box, input.data(), result.data());
+    return result;
+}
+
+template<typename scalar_type>
+std::vector<scalar_type> get_subboxes(int num_batch, box3d<> const world, box3d<> const box, std::vector<scalar_type> const &input){
+    std::vector<scalar_type> result(num_batch * box.count());
+    for(int j=0; j<num_batch; j++){
+        get_subbox_array(world, box, input.data() + j * world.count(), result.data() + j * box.count());
     }
     return result;
 }
@@ -72,6 +96,10 @@ struct input_maker{
     static std::vector<scalar_type> select(box3d<> const world, box3d<> const box, std::vector<scalar_type> const &input){
         return get_subbox(world, box, input);
     }
+    static std::vector<scalar_type> select(int num_batch, box3d<> const world, box3d<> const box,
+                                           std::vector<scalar_type> const &input){
+        return get_subboxes(num_batch, world, box, input);
+    }
 };
 
 #ifdef Heffte_ENABLE_GPU
@@ -81,6 +109,11 @@ struct input_maker<backend_tag, scalar_type, typename std::enable_if<backend::us
     static gpu::vector<scalar_type> select(box3d<index> const world, box3d<index> const box, std::vector<scalar_type> const &input){
         return gpu::transfer().load(get_subbox(world, box, input));
     }
+    template<typename index>
+    static gpu::vector<scalar_type> select(int num_batch, box3d<index> const world, box3d<index> const box,
+                                           std::vector<scalar_type> const &input){
+        return gpu::transfer().load(get_subboxes(num_batch, world, box, input));
+    }
 };
 template<typename scalar_type, typename index>
 std::vector<scalar_type> rescale(box3d<index> const world, gpu::vector<scalar_type> const &data, scale scaling){
@@ -89,21 +122,35 @@ std::vector<scalar_type> rescale(box3d<index> const world, gpu::vector<scalar_ty
 #endif
 
 template<typename backend_tag, typename precision_type, typename index>
-std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<precision_type> const &input){
+std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world,
+                                                      std::vector<precision_type> const &input, int batch_size = 1){
     auto loaded_input = test_traits<backend_tag>::load(input);
-    backend::device_instance<backend_tag> device;
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
     typename test_traits<backend_tag>::template container<std::complex<precision_type>> loaded_result(input.size());
-    make_executor<backend_tag>(device.stream(), world, 0)->forward(loaded_input.data(), loaded_result.data());
-    for(int i=1; i<3; i++)
-        make_executor<backend_tag>(device.stream(), world, i)->forward(loaded_result.data());
+    auto fft0 = make_executor<backend_tag>(device.stream(), world, 0);
+    auto fft1 = make_executor<backend_tag>(device.stream(), world, 1);
+    auto fft2 = make_executor<backend_tag>(device.stream(), world, 2);
+    auto workspace = make_buffer_container<std::complex<precision_type>>(device.stream(),
+                        get_max_work_size(std::array<typename one_dim_backend<backend_tag>::executor*, 3>{fft0.get(), fft1.get(), fft2.get()}));
+    for(int j=0; j<batch_size; j++){
+        fft0->forward(loaded_input.data() + j * world.count(), loaded_result.data() + j * world.count(), workspace.data());
+        fft1->forward(loaded_result.data() + j * world.count(), workspace.data());
+        fft2->forward(loaded_result.data() + j * world.count(), workspace.data());
+    }
     return test_traits<backend_tag>::unload(loaded_result);
 }
 template<typename backend_tag, typename precision_type, typename index>
-std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world, std::vector<std::complex<precision_type>> const &input){
+std::vector<std::complex<precision_type>> forward_fft(box3d<index> const world,
+                                                      std::vector<std::complex<precision_type>> const &input, int batch_size = 1){
     auto loaded_input = test_traits<backend_tag>::load(input);
-    backend::device_instance<backend_tag> device;
-    for(int i=0; i<3; i++)
-        make_executor<backend_tag>(device.stream(), world, i)->forward(loaded_input.data());
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
+    for(int i=0; i<3; i++){
+        auto fft = make_executor<backend_tag>(device.stream(), world, i);
+        auto workspace = make_buffer_container<std::complex<precision_type>>(device.stream(), fft->workspace_size());
+        for(int j=0; j<batch_size; j++){
+            fft->forward(loaded_input.data() + j * world.count(), workspace.data());
+        }
+    }
     return test_traits<backend_tag>::unload(loaded_input);
 }
 
@@ -389,6 +436,75 @@ void test_fft3d_arrays(MPI_Comm comm){
         tassert(approx(get_complex_subbox(world, boxes[me], world_input), cbackward_result));
     }
     } // different option variants
+}
+
+template<typename backend_tag>
+void test_batch_cases(MPI_Comm const comm){
+    using location_tag = typename backend::buffer_traits<backend_tag>::location;
+    using input_type  = double;
+    using cinput_type = std::complex<double>;
+    using output_type = std::complex<double>;
+
+    int const me        = mpi::comm_rank(comm);
+    int const num_ranks = mpi::comm_size(comm);
+    int const batch_size = 5;
+
+    current_test<double, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test batch transform", comm);
+
+    box3d<> const  world = {{0, 0, 0}, {7, 8, 9}};
+
+    std::array<int,3> proc_i = heffte::proc_setup_min_surface(world, num_ranks);
+
+    std::vector<box3d<int>> inboxes  = heffte::split_world(world, proc_i);
+    box3d<int> inbox  = inboxes[me];
+    box3d<int> outbox = inboxes[me];
+
+    auto world_input = make_data<input_type>(batch_size, world);
+    auto world_fft = forward_fft<backend_tag>(world, world_input, batch_size);
+
+    auto cworld_input = make_data<output_type>(batch_size, world);
+    auto cworld_fft   = forward_fft<backend_tag>(world, cworld_input, batch_size);
+
+    auto local_input  = input_maker<backend_tag, input_type>::select(batch_size, world, inbox, world_input);
+    auto clocal_input = input_maker<backend_tag, cinput_type>::select(batch_size, world, inbox, cworld_input);
+
+    auto local_ref   = get_subboxes(batch_size, world, outbox, world_fft);
+    auto clocal_ref  = get_subboxes(batch_size, world, outbox, cworld_fft);
+
+    backend::device_instance<location_tag> device;
+
+    for(int variant=0; variant<4; variant++){
+        for(auto const &alg : std::vector<reshape_algorithm>{
+            reshape_algorithm::alltoall, reshape_algorithm::alltoallv,
+            reshape_algorithm::p2p, reshape_algorithm::p2p_plined}){
+
+            heffte::plan_options options = default_options<backend_tag>();
+
+            options.use_pencils = (variant / 2 == 0);
+            options.use_reorder = (variant % 2 == 0);
+            options.algorithm = alg;
+
+            auto fft = make_fft3d<backend_tag>(inbox, outbox, comm, options);
+
+            auto lresult = make_buffer_container<output_type>(device.stream(), batch_size * fft.size_outbox());
+            auto lback   = make_buffer_container<input_type>(device.stream(), batch_size * fft.size_inbox());
+            auto clback  = make_buffer_container<output_type>(device.stream(), batch_size * fft.size_inbox());
+
+            auto workspace  = make_buffer_container<output_type>(device.stream(), batch_size * fft.size_workspace());
+
+            fft.forward(batch_size, local_input.data(), lresult.data(), workspace.data());
+            tassert(approx(lresult, local_ref));
+
+            fft.backward(batch_size, lresult.data(), lback.data(), workspace.data(), heffte::scale::full);
+            tassert(approx(local_input, lback));
+
+            fft.forward(batch_size, clocal_input.data(), lresult.data());
+            tassert(approx(lresult, clocal_ref));
+
+            fft.backward(batch_size, lresult.data(), clback.data(), heffte::scale::full);
+            tassert(approx(clocal_input, clback));
+        }
+    }
 }
 
 #endif

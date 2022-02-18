@@ -158,10 +158,33 @@ struct test_traits{
     template<typename T>
     static std::vector<T> unload(container<T> const &x){ return x; }
 };
+template<>
+struct test_traits<tag::cpu, void>{
+    template<typename T> using container = std::vector<T>;
+    template<typename T>
+    static container<T> load(std::vector<T> const &x){ return x; }
+    template<typename T>
+    static std::vector<T> unload(container<T> const &x){ return x; }
+};
 
 template<typename backend_tag> void* make_stream(backend_tag){ return nullptr; } // CPU case
 void sync_stream(void*){}
 void free_stream(void*){}
+
+#ifdef Heffte_ENABLE_FFTW
+using cpu_backend = heffte::backend::fftw;
+#else
+#ifdef Heffte_ENABLE_MKL
+using cpu_backend = heffte::backend::mkl;
+#else
+using cpu_backend = heffte::backend::stock;
+#endif
+#endif
+
+template<typename location_tag>
+struct default_tag{
+    using backend_tag = cpu_backend;
+};
 
 #ifdef Heffte_ENABLE_CUDA
 using gpu_backend = heffte::backend::cufft;
@@ -195,9 +218,16 @@ void sync_stream(sycl::queue &stream){ stream.wait(); }
 void free_stream(sycl::queue&){}
 #endif
 #ifdef Heffte_ENABLE_GPU
+template<> struct default_tag<tag::gpu>{
+    using backend_tag = gpu_backend;
+};
 template<typename T>
 inline bool match(heffte::gpu::vector<T> const &a, std::vector<T> const &b){
     return match(heffte::gpu::transfer::unload(a), b);
+}
+template<typename T>
+inline bool approx(std::vector<T> const &a, heffte::gpu::vector<T> const &b, double correction = 1.0){
+    return approx(a, heffte::gpu::transfer().unload(b), correction);
 }
 template<typename T>
 inline bool approx(heffte::gpu::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
@@ -215,6 +245,14 @@ struct test_traits<backend_tag, typename std::enable_if<backend::uses_gpu<backen
     template<typename T>
     static std::vector<T> unload(container<T> const &x){ return gpu::transfer().unload(x); }
 };
+template<>
+struct test_traits<tag::gpu, void>{
+    template<typename T> using container = gpu::vector<T>;
+    template<typename T>
+    static container<T> load(std::vector<T> const &x){ return gpu::transfer().load(x); }
+    template<typename T>
+    static std::vector<T> unload(container<T> const &x){ return gpu::transfer().unload(x); }
+};
 #endif
 
 //! \brief Converts a set of c-style strings into a single collection (deque) of c++ strings.
@@ -224,6 +262,22 @@ inline std::deque<std::string> arguments(int argc, char *argv[]){
         args.push_back(std::string(argv[i]));
     }
     return args;
+}
+
+//! \brief Returns the integer for the subcomm option.
+int get_subcomm(std::deque<std::string> const &args){
+    auto iopt = args.begin();
+    while(iopt != args.end()){
+        if (*iopt == "-subcomm"){
+            if (++iopt != args.end()){
+                return std::stoi(*iopt);
+            }else{
+                throw std::runtime_error("-subcomm must be followed by an integer");
+            }
+        }
+        iopt++;
+    }
+    return -1;
 }
 
 //! \brief Sets the default options for the backend and then modifies those according to the passed arguments.
@@ -251,6 +305,8 @@ heffte::plan_options args_to_options(std::deque<std::string> const &args){
             options.use_gpu_aware = false;
         }
     }
+    int subcomm = get_subcomm(args);
+    if (subcomm != -1) options.use_num_subranks(subcomm);
     return options;
 }
 
@@ -312,6 +368,21 @@ std::array<int, 3> get_grid(std::deque<std::string> const &args, std::string con
         iopt++;
     }
     throw std::runtime_error(opt + " not found");
+}
+
+int get_int_arg(std::string const &name, std::deque<std::string> const &args, int default_value = -1){
+    auto iopt = args.begin();
+    while(iopt != args.end()){
+        if (*iopt == name){
+            if (++iopt != args.end()){
+                return std::stoi(*iopt);
+            }else{
+                throw std::runtime_error(name + " must be followed by an integer");
+            }
+        }
+        iopt++;
+    }
+    return default_value;
 }
 
 int nruns(std::deque<std::string> const &args){

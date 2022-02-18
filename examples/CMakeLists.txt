@@ -1,4 +1,7 @@
 
+add_executable(heffte_example_r2r heffte_example_r2r.cpp)
+target_link_libraries(heffte_example_r2r Heffte)
+
 if (Heffte_ENABLE_FFTW)
     add_executable(heffte_example_fftw heffte_example_fftw.cpp)
     target_link_libraries(heffte_example_fftw Heffte)
@@ -16,6 +19,11 @@ endif()
 if (Heffte_ENABLE_CUDA)
     add_executable(heffte_example_cuda heffte_example_cuda.cpp)
     target_link_libraries(heffte_example_cuda Heffte)
+endif()
+
+if (Heffte_ENABLE_ONEAPI)
+    add_executable(heffte_example_sycl heffte_example_sycl.cpp)
+    target_link_libraries(heffte_example_sycl Heffte)
 endif()
 
 if (Heffte_ENABLE_FFTW AND CMAKE_C_COMPILER)

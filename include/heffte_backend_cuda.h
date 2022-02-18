@@ -114,12 +114,16 @@ namespace cuda {
      * \brief Implementation of Cosine Transform pre-post processing methods using CUDA.
      */
     struct cos_pre_pos_processor{
+        //! \brief Pre-process in the forward transform.
         template<typename precision>
         static void pre_forward(cudaStream_t, int length, precision const input[], precision fft_signal[]);
+        //! \brief Post-process in the forward transform.
         template<typename precision>
         static void post_forward(cudaStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        //! \brief Pre-process in the inverse transform.
         template<typename precision>
         static void pre_backward(cudaStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
     };
@@ -128,12 +132,16 @@ namespace cuda {
      * \brief Implementation of Sine Transform pre-post processing methods using CUDA.
      */
     struct sin_pre_pos_processor{
+        //! \brief Pre-process in the forward transform.
         template<typename precision>
         static void pre_forward(cudaStream_t, int length, precision const input[], precision fft_signal[]);
+        //! \brief Post-process in the forward transform.
         template<typename precision>
         static void post_forward(cudaStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        //! \brief Pre-process in the inverse transform.
         template<typename precision>
         static void pre_backward(cudaStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
     };
@@ -161,45 +169,7 @@ namespace backend{
      * \brief The CUDA backend uses a CUDA stream.
      */
     template<>
-    struct device_instance<cufft>{
-        //! \brief Constructor, sets up the stream.
-        device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        cudaStream_t stream(){ return _stream; }
-        //! \brief Returns the nullptr (const case).
-        cudaStream_t stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue, no-op in the CPU case.
-        void synchronize_device() const{ cuda::check_error(cudaStreamSynchronize(_stream), "device sync"); }
-        //! \brief The CUDA stream to be used in all operations.
-        mutable cudaStream_t _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = cudaStream_t;
-    };
-    /*!
-     * \ingroup hefftecuda
-     * \brief The CUDA backend uses a CUDA stream.
-     */
-    template<>
-    struct device_instance<cufft_cos>{
-        //! \brief Constructor, sets up the stream.
-        device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
-        //! \brief Returns the nullptr.
-        cudaStream_t stream(){ return _stream; }
-        //! \brief Returns the nullptr (const case).
-        cudaStream_t stream() const{ return _stream; }
-        //! \brief Syncs the execution with the queue, no-op in the CPU case.
-        void synchronize_device() const{ cuda::check_error(cudaStreamSynchronize(_stream), "device sync"); }
-        //! \brief The CUDA stream to be used in all operations.
-        mutable cudaStream_t _stream;
-        //! \brief The type for the internal stream.
-        using stream_type = cudaStream_t;
-    };
-    /*!
-     * \ingroup hefftecuda
-     * \brief The CUDA backend uses a CUDA stream.
-     */
-    template<>
-    struct device_instance<cufft_sin>{
+    struct device_instance<tag::gpu>{
         //! \brief Constructor, sets up the stream.
         device_instance(cudaStream_t new_stream = nullptr) : _stream(new_stream){}
         //! \brief Returns the nullptr.
@@ -228,8 +198,10 @@ namespace backend{
      * \brief Specialization for the data operations in CUDA mode.
      */
     template<> struct data_manipulator<tag::gpu> {
+        //! \brief The stream type for the device.
+        using stream_type = cudaStream_t;
         //! \brief Defines the backend_device.
-        using backend_device = backend::device_instance<backend::cufft>;
+        using backend_device = backend::device_instance<tag::gpu>;
         //! \brief Allocate memory.
         template<typename scalar_type>
         static scalar_type* allocate(cudaStream_t stream, size_t num_entries){
@@ -425,8 +397,14 @@ private:
  * for the different types.
  * All input and output arrays must have size equal to the box.
  */
-class cufft_executor{
+class cufft_executor : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::complex_size;
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
     cufft_executor(cudaStream_t active_stream, box3d<index> const box, int dimension) :
@@ -477,7 +455,7 @@ public:
     {}
 
     //! \brief Forward fft, float-complex case.
-    void forward(std::complex<float> data[]) const{
+    void forward(std::complex<float> data[], std::complex<float>*) const override{
         make_plan(ccomplex_plan);
         for(int i=0; i<blocks; i++){
             cufftComplex* block_data = reinterpret_cast<cufftComplex*>(data + i * block_stride);
@@ -485,7 +463,7 @@ public:
         }
     }
     //! \brief Backward fft, float-complex case.
-    void backward(std::complex<float> data[]) const{
+    void backward(std::complex<float> data[], std::complex<float>*) const override{
         make_plan(ccomplex_plan);
         for(int i=0; i<blocks; i++){
             cufftComplex* block_data = reinterpret_cast<cufftComplex*>(data + i * block_stride);
@@ -493,7 +471,7 @@ public:
         }
     }
     //! \brief Forward fft, double-complex case.
-    void forward(std::complex<double> data[]) const{
+    void forward(std::complex<double> data[], std::complex<double>*) const override{
         make_plan(zcomplex_plan);
         for(int i=0; i<blocks; i++){
             cufftDoubleComplex* block_data = reinterpret_cast<cufftDoubleComplex*>(data + i * block_stride);
@@ -501,7 +479,7 @@ public:
         }
     }
     //! \brief Backward fft, double-complex case.
-    void backward(std::complex<double> data[]) const{
+    void backward(std::complex<double> data[], std::complex<double>*) const override{
         make_plan(zcomplex_plan);
         for(int i=0; i<blocks; i++){
             cufftDoubleComplex* block_data = reinterpret_cast<cufftDoubleComplex*>(data + i * block_stride);
@@ -510,28 +488,30 @@ public:
     }
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
-    void forward(float const indata[], std::complex<float> outdata[]) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
         cuda::convert(stream, total_size, indata, outdata);
-        forward(outdata);
+        forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
-    void backward(std::complex<float> indata[], float outdata[]) const{
-        backward(indata);
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const{
+        backward(indata, workspace);
         cuda::convert(stream, total_size, indata, outdata);
     }
     //! \brief Converts the deal data to complex and performs double-complex forward transform.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
         cuda::convert(stream, total_size, indata, outdata);
-        forward(outdata);
+        forward(outdata, workspace);
     }
     //! \brief Performs backward double-complex transform and truncates the complex part of the result.
-    void backward(std::complex<double> indata[], double outdata[]) const{
-        backward(indata);
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const override{
+        backward(indata, workspace);
         cuda::convert(stream, total_size, indata, outdata);
     }
 
     //! \brief Returns the size of the box.
-    int box_size() const{ return total_size; }
+    int box_size() const override{ return total_size; }
+    //! \brief Return the size of the needed workspace.
+    size_t workspace_size() const override{ return 0; }
 
 private:
     //! \brief Helper template to create the plan.
@@ -612,8 +592,12 @@ private:
  * and only the unique (non-conjugate) coefficients are computed.
  * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
  */
-class cufft_executor_r2c{
+class cufft_executor_r2c : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
     /*!
      * \brief Constructor defines the box and the dimension of reduction.
      *
@@ -635,7 +619,7 @@ public:
     {}
 
     //! \brief Forward transform, single precision.
-    void forward(float const indata[], std::complex<float> outdata[]) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const override{
         make_plan(sforward, direction::forward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -654,7 +638,7 @@ public:
         }
     }
     //! \brief Backward transform, single precision.
-    void backward(std::complex<float> const indata[], float outdata[]) const{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float>*) const override{
         make_plan(sbackward, direction::backward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -671,7 +655,7 @@ public:
         }
     }
     //! \brief Forward transform, double precision.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const override{
         make_plan(dforward, direction::forward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -689,7 +673,7 @@ public:
         }
     }
     //! \brief Backward transform, double precision.
-    void backward(std::complex<double> const indata[], double outdata[]) const{
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double>*) const override{
         make_plan(dbackward, direction::backward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -707,9 +691,11 @@ public:
     }
 
     //! \brief Returns the size of the box with real data.
-    int real_size() const{ return rsize; }
+    int box_size() const override{ return rsize; }
     //! \brief Returns the size of the box with complex coefficients.
-    int complex_size() const{ return csize; }
+    int complex_size() const override{ return csize; }
+    //! \brief Return the size of the needed workspace.
+    size_t workspace_size() const override{ return 0; }
 
 private:
     //! \brief Helper template to initialize the plan.
@@ -741,12 +727,6 @@ template<> struct one_dim_backend<backend::cufft>{
     using executor_r2c = cufft_executor_r2c;
 };
 
-struct cuda_buffer_factory{
-    template<typename scalar_type>
-    static backend::buffer_traits<backend::cufft>::container<scalar_type>
-    make(cudaStream_t stream, size_t size){ return backend::buffer_traits<backend::cufft>::container<scalar_type>(stream, size); }
-};
-
 /*!
  * \ingroup hefftecuda
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
@@ -755,7 +735,7 @@ struct cuda_buffer_factory{
  */
 template<> struct one_dim_backend<backend::cufft_cos>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::cufft, cuda::cos_pre_pos_processor, cuda_buffer_factory>;
+    using executor = real2real_executor<backend::cufft, cuda::cos_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };
@@ -767,7 +747,7 @@ template<> struct one_dim_backend<backend::cufft_cos>{
  */
 template<> struct one_dim_backend<backend::cufft_sin>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::cufft, cuda::sin_pre_pos_processor, cuda_buffer_factory>;
+    using executor = real2real_executor<backend::cufft, cuda::sin_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };

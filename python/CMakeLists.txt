@@ -31,6 +31,7 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/heffte_config.cmake.py"  "${CMAKE_CU
 
 # add testing files to the CMake build folder
 foreach(_pyheffte_file heffte.py
+                       pyheffte_test_stock.py
                        pyheffte_test_fftw.py
                        pyheffte_test_gpu.py)
     add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${_pyheffte_file}"
@@ -45,6 +46,7 @@ add_custom_target(heffte_python_testing ALL DEPENDS "${pyheffte_testing_files}")
 unset(pyheffte_testing_files)
 
 # add tests for the heFFTe python module
+heffte_add_python_test(NAME pyheffte_stock  COMMAND pyheffte_test_stock.py  RANKS 2)
 if (Heffte_ENABLE_FFTW)
     heffte_add_python_test(NAME pyheffte_fftw  COMMAND pyheffte_test_fftw.py  RANKS 2)
 endif()

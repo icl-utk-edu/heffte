@@ -28,16 +28,17 @@ namespace heffte {
  * The bandwidth-bound case hits pretty close to the maximum throughput of the MPI interconnect
  * while the latency-bound case is more affected by the latency of the large number of small communications.
  * As a short-hand we can call these small-problems (latency-bound) or large-problems (bandwidth-bound),
- * although the specific cut-off point is dependent on the backend (and the version of the backend),
+ * although the specific cutoff point is dependent on the backend (and the version of the backend),
  * the version of MPI, the machine interconnect, and the specific optimizations that have been implemented in MPI.
  *
  * There is a plan of adding an auto-tuning framework in heFFTe to help users select the best
  * possible set of options; however, currently the users have to manually find the best option for their hardware.
  * The expected "best" algorithm is:
  * \code
- *      reshape_algorithm::alltoallv          : for largest problems
- *      reshape_algorithm::p2p_plined
- *      reshape_algorithm::p2p                : for smallest problems
+ *      reshape_algorithm::alltoallv          : for larger FFT, many MPI ranks
+ *      reshape_algorithm::alltoall           : for smaller FFT, many MPI ranks
+ *      reshape_algorithm::p2p_plined         : for larger FFT, fewer MPI ranks
+ *      reshape_algorithm::p2p                : for smaller FFT, fewer MPI ranks
  * \endcode
  *
  * Note that in the GPU case, the above algorithms are also affected by the GPU latency
@@ -45,7 +46,7 @@ namespace heffte {
  * variable of the heffte::plan_options.
  */
 enum class reshape_algorithm{
-    //! \brief Using the MPI_Alltoallv options, no padding on the data.
+    //! \brief Using the MPI_Alltoallv options, no padding on the data (default option).
     alltoallv = 0,
     //! \brief Using the MPI_Alltoall options, with padding on the data.
     alltoall = 3,
@@ -62,9 +63,70 @@ enum class reshape_algorithm{
  * Example usage:
  * \code
  *  heffte::plan_options options = heffte::default_options<heffte::backend::fftw>();
- *  options.use_alltoall = false; // forces the use of point-to-point communication
+ *  options.algorithm = reshape_algorithm::p2p; // forces the use of point-to-point communication
  *  heffte::fft3d<heffte::backend::fftw> fft3d(inbox, outbox, comm, options);
  * \endcode
+ *
+ * \par Option use_reorder
+ * Controls whether the backends should be called with strided or contiguous data.
+ * If the option is enabled then during the reshape operations heFFTe will reorder
+ * the data so that the backend is called for contiguous batch of 1D FFTs.
+ * Otherwise the strided call will be performed. Depending on the size and
+ * the specific backend (or version of the backend), one or the other may improve performance.
+ * The reorder is applied during the unpacking stage of an MPI communication and
+ * will be applied even if no MPI communication is used.
+ * Note that some backends don't currently support strided transforms, e.g.,
+ * the Sine and Cosine transforms, in which case this option will have no effect.
+ *
+ * \par Option algorithm
+ * Specifies the combination of MPI calls to use in the communication.
+ * See `heffte::reshape_algorithm` for details.
+ *
+ * \par Option use_pencils
+ * Indicates whether the intermediate steps of the computation should be done
+ * either in pencil or slab format. Slabs work better for problems with fewer
+ * MPI ranks, while pencils work better when the number ranks increases.
+ * The specific cutoff depends on the hardware and MPI implementation.
+ * Note that is the input or output shape of the data is in slab format,
+ * then this option will be ignored.
+ *
+ * \par Option use_gpu_aware
+ * Applied only when using one of the GPU backends, indicates whether MPI communication
+ * should be initiated from the GPU device or if the data has to be moved the CPU first.
+ * MPI calls from the GPU have faster throughput but larger latency, thus initiating
+ * the calls from the CPU (e.g., setting use_gpu_aware to false) can be faster
+ * when using smaller problems compared to the number of MPI ranks.
+ *
+ * \par Option use_subcomm or use_num_subranks
+ * Restricts the intermediate reshape and FFT operations to a subset of the ranks
+ * specified by the communicator given in the construction of heffte::fft3d and heffte::fft3d_r2c.
+ * By default, heFFTe will use all of the available MPI ranks but this is not always optimal
+ * (see the two examples below).
+ * The other options are defined as member variables, but the subcomm option is specified
+ * with member functions that accept either an integer or an MPI communicator.
+ * Using an integer will specify ranks \b 0 to \b num_subranks -1, while using a communicator
+ * can define an arbitrary subset. MPI ranks that don't belong to the subcomm should pass MPI_COMM_NULL.
+ * The plan_options class will hold a non-owning reference to the MPI subcomm
+ * but heffte::fft3d and heffte::fft3d_r2c will use the subcomm only in the constructors,
+ * i.e., the subcomm can be safely discarded/freed after the fft3d classes are constructed.
+ *
+ * \par
+ * For example, if the input and output shapes of the data do not form pencils in any direction
+ * (i.e., using a brick decomposition),
+ * then heFFTe has to perform 4 reshape operations (3 if using slabs) and if the problem size
+ * is small relative to the number of ranks this results in 4 sets of small messages which increases
+ * the latency and reduces performance.
+ * However, if the problem can fit on a single node (e.g., single GPU), then gathering all the data
+ * to a single rank then performing a single 3D FFT and scattering the data back will result
+ * in only 2 communications involving the small messages. Thus, so long as the two operations
+ * are less expensive than the 4, using a subcomm will result in an overall performance boost.
+ *
+ * \par
+ * Similar to the previous example, if we are using a CPU backend with multiple MPI ranks per node,
+ * then reducing the MPI ranks to one-per-node can effectively coalesce smaller messages from multiple
+ * ranks to larger messages and thus reduce latency. If the CPU backend supports multi-threading,
+ * then all CPU cores can still be used by calls from the single rank without reduction of performance.
+ *
  */
 struct plan_options{
     //! \brief Constructor, initializes all options with the default values for the given backend tag.
@@ -72,11 +134,13 @@ struct plan_options{
         : use_reorder(default_plan_options<backend_tag>::use_reorder),
           algorithm(reshape_algorithm::alltoallv),
           use_pencils(true),
-          use_gpu_aware(true)
+          use_gpu_aware(true),
+          num_sub(-1),
+          subcomm(MPI_COMM_NULL)
     {}
     //! \brief Constructor, initializes each variable, primarily for internal use.
     plan_options(bool reorder, reshape_algorithm alg, bool pencils)
-        : use_reorder(reorder), algorithm(alg), use_pencils(pencils), use_gpu_aware(true)
+        : use_reorder(reorder), algorithm(alg), use_pencils(pencils), use_gpu_aware(true), num_sub(-1), subcomm(MPI_COMM_NULL)
     {}
     //! \brief Defines whether to transpose the data on reshape or to use strided 1-D ffts.
     bool use_reorder;
@@ -86,6 +150,29 @@ struct plan_options{
     bool use_pencils;
     //! \brief Defines whether to use MPI calls directly from the GPU or to move to the CPU first.
     bool use_gpu_aware;
+    //! \brief Defines the number of ranks to use for the internal reshapes, set to -1 to use all ranks.
+    void use_num_subranks(int num_subranks){ num_sub = num_subranks; }
+    /*!
+     * \brief Set sub-communicator to use in the intermediate reshape operations.
+     *
+     * The ranks defined by \b comm must be a subset of the communicator that will be used
+     * in the future call to heffte::fft3d or heffte::fft3d_r2c.
+     * The ranks that are not associated with the comm should pass in MPI_COMM_NULL.
+     * The plan_options object will take a non-owning reference to \b comm
+     * but the reference will not be passed into heffte::fft3d or heffte::fft3d_r2c.
+     *
+     * This method takes precedence over use_num_subranks() if both methods are called.
+     * Avoid calling both methods.
+     */
+    void use_subcomm(MPI_Comm comm){
+        num_sub = 1;
+        subcomm = comm;
+    }
+    //! \brief Return the set number of sub-ranks.
+    int get_subranks() const{ return num_sub; }
+private:
+    int num_sub;
+    MPI_Comm subcomm;
 };
 
 /*!
@@ -196,6 +283,8 @@ struct logic_plan3d{
     long long index_count;
     //! \brief Extra options used in the plan creation.
     plan_options const options;
+    //! \brief MPI rank used in the plan creation.
+    int const mpi_rank;
 };
 
 /*!
@@ -224,7 +313,14 @@ inline std::array<bool, 3> pencil_directions(box3d<index> const world, std::vect
  * \returns the plan for reshape and 1-D fft transformations
  */
 template<typename index>
-logic_plan3d<index> plan_operations(ioboxes<index> const &boxes, int r2c_direction, plan_options const options);
+logic_plan3d<index> plan_operations(ioboxes<index> const &boxes, int r2c_direction, plan_options const options, int const mpi_rank);
+
+/*!
+ * \ingroup fft3dplan
+ * \brief Assuming the shapes in the plan form grids, reverse engineer the grid dimensions (used in the benchmark).
+ */
+template<typename index>
+std::vector<std::array<int, 3>> compute_grids(logic_plan3d<index> const &plan);
 
 }
 

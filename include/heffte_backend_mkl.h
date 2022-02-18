@@ -105,8 +105,8 @@ struct plan_mkl{
      *
      * \param size1 is the number of entries in a 2-D transform, direction 1
      * \param size2 is the number of entries in a 2-D transform, direction 2
+     * \param embed is the size of the leading dimensions of the data array
      * \param howmanyffts is the number of transforms in the batch
-     * \param stride is the distance between entries of the same transform
      * \param dist is the distance between the first entries of consecutive sequences
      */
     plan_mkl(size_t size1, size_t size2, std::array<MKL_LONG, 2> const &embed, size_t howmanyffts, size_t dist) : plan(nullptr){
@@ -165,8 +165,14 @@ struct plan_mkl{
  * for the different types.
  * All input and output arrays must have size equal to the box.
  */
-class mkl_executor{
+class mkl_executor : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::complex_size;
     //! \brief Constructor, specifies the box and dimension.
     template<typename index>
     mkl_executor(void*, box3d<index> const box, int dimension) :
@@ -216,7 +222,7 @@ public:
     {}
 
     //! \brief Forward fft, float-complex case.
-    void forward(std::complex<float> data[]) const{
+    void forward(std::complex<float> data[], std::complex<float>*) const override{
         make_plan(cplan);
         for(int i=0; i<blocks; i++){
             float _Complex* block_data = reinterpret_cast<float _Complex*>(data + i * block_stride);
@@ -224,7 +230,7 @@ public:
         }
     }
     //! \brief Backward fft, float-complex case.
-    void backward(std::complex<float> data[]) const{
+    void backward(std::complex<float> data[], std::complex<float>*) const override{
         make_plan(cplan);
         for(int i=0; i<blocks; i++){
             float _Complex* block_data = reinterpret_cast<float _Complex*>(data + i * block_stride);
@@ -232,7 +238,7 @@ public:
         }
     }
     //! \brief Forward fft, double-complex case.
-    void forward(std::complex<double> data[]) const{
+    void forward(std::complex<double> data[], std::complex<double>*) const override{
         make_plan(zplan);
         for(int i=0; i<blocks; i++){
             double _Complex* block_data = reinterpret_cast<double _Complex*>(data + i * block_stride);
@@ -240,7 +246,7 @@ public:
         }
     }
     //! \brief Backward fft, double-complex case.
-    void backward(std::complex<double> data[]) const{
+    void backward(std::complex<double> data[], std::complex<double>*) const override{
         make_plan(zplan);
         for(int i=0; i<blocks; i++){
             double _Complex* block_data = reinterpret_cast<double _Complex*>(data + i * block_stride);
@@ -249,28 +255,30 @@ public:
     }
 
     //! \brief Converts the deal data to complex and performs float-complex forward transform.
-    void forward(float const indata[], std::complex<float> outdata[]) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<float>(indata[i]);
-        forward(outdata);
+        forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
-    void backward(std::complex<float> indata[], float outdata[]) const{
-        backward(indata);
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const override{
+        backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
     //! \brief Converts the deal data to complex and performs double-complex forward transform.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<double>(indata[i]);
-        forward(outdata);
+        forward(outdata, workspace);
     }
     //! \brief Performs backward double-complex transform and truncates the complex part of the result.
-    void backward(std::complex<double> indata[], double outdata[]) const{
-        backward(indata);
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const override{
+        backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
 
     //! \brief Returns the size of the box.
-    int box_size() const{ return total_size; }
+    int box_size() const override{ return total_size; }
+    //! \brief Return the size of the needed workspace.
+    size_t workspace_size() const override{ return 0; }
 
 private:
     //! \brief Helper template to create the plan.
@@ -348,8 +356,12 @@ struct plan_mkl_r2c{
  * and only the unique (non-conjugate) coefficients are computed.
  * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
  */
-class mkl_executor_r2c{
+class mkl_executor_r2c : public executor_base{
 public:
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::forward;
+    //! \brief Bring forth method that have not been overloaded.
+    using executor_base::backward;
     /*!
      * \brief Constructor defines the box and the dimension of reduction.
      *
@@ -370,7 +382,7 @@ public:
     {}
 
     //! \brief Forward transform, single precision.
-    void forward(float const indata[], std::complex<float> outdata[]) const{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const override{
         make_plan(sforward);
         for(int i=0; i<blocks; i++){
             float *rdata = const_cast<float*>(indata + i * rblock_stride);
@@ -379,7 +391,7 @@ public:
         }
     }
     //! \brief Backward transform, single precision.
-    void backward(std::complex<float> const indata[], float outdata[]) const{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float>*) const override{
         make_plan(sbackward);
         for(int i=0; i<blocks; i++){
             float _Complex* cdata = const_cast<float _Complex*>(reinterpret_cast<float _Complex const*>(indata + i * cblock_stride));
@@ -387,7 +399,7 @@ public:
         }
     }
     //! \brief Forward transform, double precision.
-    void forward(double const indata[], std::complex<double> outdata[]) const{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const override{
         make_plan(dforward);
         for(int i=0; i<blocks; i++){
             double *rdata = const_cast<double*>(indata + i * rblock_stride);
@@ -396,7 +408,7 @@ public:
         }
     }
     //! \brief Backward transform, double precision.
-    void backward(std::complex<double> const indata[], double outdata[]) const{
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double>*) const override{
         make_plan(dbackward);
         for(int i=0; i<blocks; i++){
             double _Complex* cdata = const_cast<double _Complex*>(reinterpret_cast<double _Complex const*>(indata + i * cblock_stride));
@@ -405,9 +417,11 @@ public:
     }
 
     //! \brief Returns the size of the box with real data.
-    int real_size() const{ return rsize; }
+    int box_size() const override{ return rsize; }
     //! \brief Returns the size of the box with complex coefficients.
-    int complex_size() const{ return csize; }
+    int complex_size() const override{ return csize; }
+    //! \brief Return the size of the needed workspace.
+    size_t workspace_size() const override{ return 0; }
 
 private:
     //! \brief Helper template to initialize the plan.
@@ -444,7 +458,7 @@ template<> struct one_dim_backend<backend::mkl>{
  */
 template<> struct one_dim_backend<backend::mkl_cos>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::mkl, cpu_cos_pre_pos_processor, cpu_buffer_factory>;
+    using executor = real2real_executor<backend::mkl, cpu_cos_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };
@@ -456,7 +470,7 @@ template<> struct one_dim_backend<backend::mkl_cos>{
  */
 template<> struct one_dim_backend<backend::mkl_sin>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::mkl, cpu_sin_pre_pos_processor, cpu_buffer_factory>;
+    using executor = real2real_executor<backend::mkl, cpu_sin_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };

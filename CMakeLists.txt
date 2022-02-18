@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project("Heffte" VERSION 2.1.0 LANGUAGES CXX)
+project("Heffte" VERSION 2.2.0 LANGUAGES CXX)
 
 option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            OFF)
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
@@ -54,6 +54,18 @@ if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set (CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "default install path" FORCE )
 endif()
 
+# try to find git and if available, set the hit-hash into the header
+find_package(Git)
+# do not set the hash if git is missing or
+# if we are generating files for simple GNU Make compatibility
+if (Git_FOUND)
+    execute_process(COMMAND ${GIT_EXECUTABLE} log --pretty=format:%H -n 1
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                    OUTPUT_VARIABLE   Heffte_GIT_HASH)
+else()
+    set(Heffte_GIT_HASH "Unknown, CMake could not find git.")
+endif()
+
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/heffte_config.cmake.h"
                "${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h")
 
@@ -75,6 +87,7 @@ set(Heffte_common_sources
     include/heffte_plan_logic.h
     include/heffte_pack3d.h
     include/heffte_reshape3d.h
+    include/heffte_compute_transform.h
     include/heffte_fft3d.h
     include/heffte_fft3d_r2c.h
     include/heffte_r2r_executor.h
@@ -87,8 +100,7 @@ set(Heffte_common_sources
     src/heffte_plan_logic.cpp
     src/heffte_magma_helpers.cpp
     src/heffte_reshape3d.cpp
-    src/heffte_fft3d.cpp
-    src/heffte_fft3d_r2c.cpp
+    src/heffte_compute_transform.cpp
     )
 
 if (Heffte_ENABLE_ROCM)
@@ -147,12 +159,8 @@ if (Heffte_ENABLE_ONEAPI)
 endif()
 
 if (Heffte_ENABLE_MAGMA)
-    if (NOT Heffte_ENABLE_CUDA AND NOT Heffte_ENABLE_ROCM)
-        message(FATAL_ERROR "MAGMA helpers work only with a GPU backend, e.g., CUDA or ROCM")
-    endif()
     find_package(HeffteMAGMA REQUIRED)
-    list(FILTER CUDA_CUBLAS_LIBRARIES EXCLUDE REGEX "-NOTFOUND$") # work-around CMake 3.10 + CUDA 10
-    target_link_libraries(Heffte Heffte::MAGMA ${CUDA_CUBLAS_LIBRARIES})
+    target_link_libraries(Heffte Heffte::MAGMA)
 endif()
 
 # other target properties
@@ -199,7 +207,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h DESTINATION in
 
 # package-config
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file("HeffteConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY ExactVersion)
+write_basic_package_version_file("HeffteConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
 configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cmake"
                               "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfig.cmake"
                               INSTALL_DESTINATION "lib/Heffte/")
@@ -208,10 +216,19 @@ configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cm
 ######################
 # EXAMPLES and TESTS #
 ######################
-add_subdirectory(benchmarks)
-add_subdirectory(examples)
-enable_testing()
-add_subdirectory(test)
+if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
+    add_subdirectory(benchmarks)
+    add_subdirectory(examples)
+    enable_testing()
+    add_subdirectory(test)
+else()
+    if (CUDA_INCLUDE_DIRS)
+        # cuda_add_library() apparently adds the includes as private
+        target_include_directories(Heffte PUBLIC ${CUDA_INCLUDE_DIRS})
+    endif()
+    add_library(Heffte::Heffte INTERFACE IMPORTED GLOBAL)
+    target_link_libraries(Heffte::Heffte INTERFACE Heffte)
+endif()
 if (Heffte_ENABLE_FORTRAN)
     add_subdirectory(fortran)
 endif()

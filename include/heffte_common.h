@@ -63,6 +63,8 @@ namespace backend {
     * \brief Common data-transfer operations on the cpu.
     */
     template<> struct data_manipulator<tag::cpu> {
+        //! \brief The stream type for the device.
+        using stream_type = void*;
         //! \brief Wrapper around std::copy_n().
         template<typename source_type, typename destination_type>
         static void copy_n(void*, source_type const source[], size_t num_entries, destination_type destination[]){
@@ -334,6 +336,17 @@ namespace backend {
 
     /*!
      * \ingroup fft3dbackend
+     * \brief Indicates the name of the location tag.
+     */
+    template<> inline std::string name<tag::cpu>(){ return "cpu"; }
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Indicates the name of the location tag.
+     */
+    template<> inline std::string name<tag::gpu>(){ return "gpu"; }
+
+    /*!
+     * \ingroup fft3dbackend
      * \brief Holds the auxiliary variables needed by each backend.
      *
      * The idea is similar to <a href="https://en.cppreference.com/w/cpp/language/crtp">CRTP</a>
@@ -467,6 +480,46 @@ namespace backend {
 
 /*!
  * \ingroup fft3dbackend
+ * \brief Base class for all backend executors.
+ */
+class executor_base{
+public:
+    //! \brief Virtual destructor.
+    virtual ~executor_base() = default;
+    //! \brief Forward r2r, single precision.
+    virtual void forward(float[], float*) const{}
+    //! \brief Forward r2r, double precision.
+    virtual void forward(double[], double*) const{}
+    //! \brief Backward r2r, single precision.
+    virtual void backward(float[], float*) const{}
+    //! \brief Backward r2r, double precision.
+    virtual void backward(double[], double*) const{}
+    //! \brief Forward FFT, single precision.
+    virtual void forward(std::complex<float>[], std::complex<float>*) const{}
+    //! \brief Forward FFT, double precision.
+    virtual void forward(std::complex<double>[], std::complex<double>*) const{}
+    //! \brief Backward FFT, single precision.
+    virtual void backward(std::complex<float>[], std::complex<float>*) const{}
+    //! \brief Backward FFT, double precision.
+    virtual void backward(std::complex<double>[], std::complex<double>*) const{}
+    //! \brief Forward FFT real-to-complex, single precision.
+    virtual void forward(float const[], std::complex<float>[], std::complex<float>*) const{}
+    //! \brief Forward FFT real-to-complex, double precision.
+    virtual void forward(double const[], std::complex<double>[], std::complex<double>*) const{}
+    //! \brief Backward FFT real-to-complex, single precision.
+    virtual void backward(std::complex<float>[], float[], std::complex<float>*) const{}
+    //! \brief Backward FFT real-to-complex, double precision.
+    virtual void backward(std::complex<double>[], double[], std::complex<double>*) const{}
+    //! \brief Return the size of the box.
+    virtual int box_size() const{ return 0; }
+    //! \brief Return the workspace of the size.
+    virtual size_t workspace_size() const{ return 0; }
+    //! \brief Return the size of the complex-box (r2c executors).
+    virtual int complex_size() const{ return box_size(); }
+};
+
+/*!
+ * \ingroup fft3dbackend
  * \brief Factory method to create new buffer container for the CPU backends.
  */
 template<typename scalar_type>
@@ -496,36 +549,44 @@ template<typename> struct one_dim_backend{};
  * \brief Factory method to construct an executor for the FFT backend.
  */
 template<typename backend_tag, typename index>
-static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<typename backend::buffer_traits<backend_tag>::location>::stream_type stream,
                                                                                   box3d<index> const box, int dimension){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dimension));
+    return (box.empty()) ?
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>() :
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dimension));
 }
 /*!
  * \ingroup fft3dbackend
  * \brief Factory method to construct an executor for the FFT backend, 2D variant.
  */
 template<typename backend_tag, typename index>
-static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<typename backend::buffer_traits<backend_tag>::location>::stream_type stream,
                                                                                   box3d<index> const box, int dir1, int dir2){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dir1, dir2));
+    return (box.empty()) ?
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>() :
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box, dir1, dir2));
 }
 /*!
  * \ingroup fft3dbackend
  * \brief Factory method to construct an executor for the FFT backend, 3D variant.
  */
 template<typename backend_tag, typename index>
-static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<backend_tag>::stream_type stream,
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor> make_executor(typename backend::device_instance<typename backend::buffer_traits<backend_tag>::location>::stream_type stream,
                                                                                   box3d<index> const box){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box));
+    return (box.empty()) ?
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>() :
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor>(new typename one_dim_backend<backend_tag>::executor(stream, box));
 }
 /*!
  * \ingroup fft3dbackend
  * \brief Factory method to construct an executor for the FFT backend, r2c variant.
  */
 template<typename backend_tag, typename index>
-static std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c> make_executor_r2c(typename backend::device_instance<backend_tag>::stream_type stream,
+static std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c> make_executor_r2c(typename backend::device_instance<typename backend::buffer_traits<backend_tag>::location>::stream_type stream,
                                                                                           box3d<index> const box, int dimension){
-    return std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c>(new typename one_dim_backend<backend_tag>::executor_r2c(stream, box, dimension));
+    return (box.empty()) ?
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c>() :
+        std::unique_ptr<typename one_dim_backend<backend_tag>::executor_r2c>(new typename one_dim_backend<backend_tag>::executor_r2c(stream, box, dimension));
 }
 
 /*!

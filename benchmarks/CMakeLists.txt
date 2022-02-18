@@ -11,3 +11,5 @@ endmacro()
 
 heffte_add_benchmark(speed3d_c2c)
 heffte_add_benchmark(speed3d_r2c)
+heffte_add_benchmark(speed3d_r2r)
+heffte_add_benchmark(convolution)

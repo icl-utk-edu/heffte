@@ -43,7 +43,7 @@ namespace heffte {
  * \ref HeffteFFT3DCompatibleTypes "the table of compatible types".
  */
 template<typename backend_tag, typename index = int>
-class fft3d_r2c : public backend::device_instance<backend_tag>{
+class fft3d_r2c : public backend::device_instance<typename backend::buffer_traits<backend_tag>::location>{
 public:
     //! \brief FFT executor for the complex-to-complex dimensions.
     using backend_executor_c2c = typename one_dim_backend<backend_tag>::executor;
@@ -75,8 +75,7 @@ public:
      */
     fft3d_r2c(box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
               plan_options const options = default_options<backend_tag>()) :
-        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, set_options<backend_tag, true>(options)),
-                  mpi::comm_rank(comm), comm){
+        fft3d_r2c(plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, set_options<backend_tag, true>(options), mpi::comm_rank(comm)), comm){
         assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
     }
@@ -87,7 +86,7 @@ public:
               box3d<index> const inbox, box3d<index> const outbox, int r2c_direction, MPI_Comm const comm,
               plan_options const options = default_options<backend_tag>()) :
         fft3d_r2c(gpu_stream,
-                  plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, set_options<backend_tag, true>(options)),
+                  plan_operations(mpi::gather_boxes(inbox, outbox, comm), r2c_direction, set_options<backend_tag, true>(options), mpi::comm_rank(comm)),
                   mpi::comm_rank(comm), comm){
         assert(r2c_direction == 0 or r2c_direction == 1 or r2c_direction == 2);
         static_assert(backend::is_enabled<backend_tag>::value, "The requested backend is invalid or has not been enabled.");
@@ -127,13 +126,9 @@ public:
     //! \brief Returns the outbox.
     box3d<index> outbox() const{ return *poutbox; }
     //! \brief Returns the workspace size that will be used, size is measured in complex numbers.
-    size_t size_workspace() const{
-        return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper))
-               + get_max_size(executor_r2c, executor);
-
-    }
+    size_t size_workspace() const{ return size_buffer_work; }
     //! \brief Returns the size used by the communication workspace buffers (internal use).
-    size_t size_comm_buffers() const{ return std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper)); }
+    size_t size_comm_buffers() const{ return comm_buffer_offset; }
 
     /*!
      * \brief Performs a forward Fourier transform using two arrays.
@@ -154,7 +149,8 @@ public:
                    or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), scaling);
+        auto workspace = make_buffer_container<output_type>(this->stream(), size_workspace());
+        forward(input, output, workspace.data(), scaling);
     }
 
     //! \brief Overload utilizing a user provided buffer.
@@ -164,7 +160,35 @@ public:
                    or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace), scaling);
+        compute_transform<location_tag, index>(this->stream(), 1, convert_to_standard(input), convert_to_standard(output),
+                                               convert_to_standard(workspace),
+                                               executor_buffer_offset, size_comm_buffers(), forward_shaper,
+                                               forward_executors(), direction::forward);
+        apply_scale(1, direction::forward, scaling, output);
+    }
+    //! \brief Overload utilizing a batch transform.
+    template<typename input_type, typename output_type>
+    void forward(int batch_size, input_type const input[], output_type output[],
+                 output_type workspace[], scale scaling = scale::none) const{
+        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
+                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        compute_transform<location_tag, index>(this->stream(), batch_size, convert_to_standard(input), convert_to_standard(output),
+                                               convert_to_standard(workspace),
+                                               executor_buffer_offset, size_comm_buffers(), forward_shaper,
+                                               forward_executors(), direction::forward);
+        apply_scale(batch_size, direction::forward, scaling, output);
+    }
+    //! \brief Overload utilizing a batch transform using internally allocated workspace.
+    template<typename input_type, typename output_type>
+    void forward(int batch_size, input_type const input[], output_type output[], scale scaling = scale::none) const{
+        static_assert((std::is_same<input_type, float>::value and is_ccomplex<output_type>::value)
+                   or (std::is_same<input_type, double>::value and is_zcomplex<output_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        auto workspace = make_buffer_container<output_type>(this->stream(), batch_size * size_workspace());
+        forward(batch_size, input, output, workspace.data(), scaling);
     }
 
     /*!
@@ -213,7 +237,8 @@ public:
                    or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), scaling);
+        auto workspace = make_buffer_container<input_type>(this->stream(), size_workspace());
+        backward(input, output, workspace.data(), scaling);
     }
 
     //! \brief Overload utilizing a user provided buffer.
@@ -223,7 +248,35 @@ public:
                    or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
                 "Using either an unknown complex type or an incompatible pair of types!");
 
-        standard_transform(convert_to_standard(input), convert_to_standard(output), convert_to_standard(workspace), scaling);
+        compute_transform<location_tag, index>(this->stream(), 1, convert_to_standard(input), convert_to_standard(output),
+                                               convert_to_standard(workspace),
+                                               executor_buffer_offset, size_comm_buffers(), backward_shaper,
+                                               backward_executors(), direction::backward);
+        apply_scale(1, direction::backward, scaling, output);
+    }
+    //! \brief Overload that performs a batch transform.
+    template<typename input_type, typename output_type>
+    void backward(int batch_size, input_type const input[], output_type output[],
+                  input_type workspace[], scale scaling = scale::none) const{
+        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
+                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        compute_transform<location_tag, index>(this->stream(), batch_size, convert_to_standard(input), convert_to_standard(output),
+                                               convert_to_standard(workspace),
+                                               executor_buffer_offset, size_comm_buffers(), backward_shaper,
+                                               backward_executors(), direction::backward);
+        apply_scale(batch_size, direction::backward, scaling, output);
+    }
+    //! \brief Overload that performs a batch transform using internally allocated workspace.
+    template<typename input_type, typename output_type>
+    void backward(int batch_size, input_type const input[], output_type output[], scale scaling = scale::none) const{
+        static_assert((std::is_same<output_type, float>::value and is_ccomplex<input_type>::value)
+                   or (std::is_same<output_type, double>::value and is_zcomplex<input_type>::value),
+                "Using either an unknown complex type or an incompatible pair of types!");
+
+        auto workspace = make_buffer_container<input_type>(this->stream(), batch_size * size_workspace());
+        backward(batch_size, input, output, workspace.data(), scaling);
     }
 
     /*!
@@ -245,45 +298,69 @@ public:
 
 private:
     //! \brief Same as in the fft3d case.
-    fft3d_r2c(logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
+    fft3d_r2c(logic_plan3d<index> const &plan, MPI_Comm const comm) :
+        pinbox(new box3d<index>(plan.in_shape[0][plan.mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][plan.mpi_rank])),
+        scale_factor(1.0 / static_cast<double>(plan.index_count))
+        #ifdef Heffte_ENABLE_MAGMA
+        , hmagma(this->stream())
+        #endif
+    {
+        setup(plan, comm);
+    }
 
     //! \brief Same as in the fft3d case.
-    fft3d_r2c(typename backend::device_instance<backend_tag>::stream_type gpu_stream,
-              logic_plan3d<index> const &plan, int const this_mpi_rank, MPI_Comm const comm);
+    fft3d_r2c(typename backend::device_instance<location_tag>::stream_type gpu_stream,
+              logic_plan3d<index> const &plan, MPI_Comm const comm) :
+        backend::device_instance<location_tag>(gpu_stream),
+        pinbox(new box3d<index>(plan.in_shape[0][plan.mpi_rank])), poutbox(new box3d<index>(plan.out_shape[3][plan.mpi_rank])),
+        scale_factor(1.0 / static_cast<double>(plan.index_count))
+        #ifdef Heffte_ENABLE_MAGMA
+        , hmagma(this->stream())
+        #endif
+    {
+        setup(plan, comm);
+    }
 
     //! \brief Setup the executors and the reshapes.
-    void setup(logic_plan3d<index> const &plan, MPI_Comm const comm);
+    void setup(logic_plan3d<index> const &plan, MPI_Comm const comm){
+        for(int i=0; i<4; i++){
+            forward_shaper[i]    = make_reshape3d<backend_tag>(this->stream(), plan.in_shape[i], plan.out_shape[i], comm, plan.options);
+            backward_shaper[3-i] = make_reshape3d<backend_tag>(this->stream(), plan.out_shape[i], plan.in_shape[i], comm, plan.options);
+        }
 
-    template<typename scalar_type>
-    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
-        standard_transform(input, output, workspace.data(), scaling);
-    }
-    template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], scale scaling) const{
-        auto workspace = make_buffer_container<std::complex<scalar_type>>(this->stream(), size_workspace());
-        standard_transform(input, output, workspace.data(), scaling);
-    }
+        executors[0] = make_executor_r2c<backend_tag>(this->stream(), plan.out_shape[0][mpi::comm_rank(comm)], plan.fft_direction[0]);
+        executors[1] = make_executor<backend_tag>(this->stream(), plan.out_shape[1][mpi::comm_rank(comm)], plan.fft_direction[1]);
+        executors[2] = make_executor<backend_tag>(this->stream(), plan.out_shape[2][mpi::comm_rank(comm)], plan.fft_direction[2]);
 
-    template<typename scalar_type>
-    void standard_transform(scalar_type const input[], std::complex<scalar_type> output[], std::complex<scalar_type> workspace[], scale) const;
-    template<typename scalar_type>
-    void standard_transform(std::complex<scalar_type> const input[], scalar_type output[], std::complex<scalar_type> workspace[], scale) const;
+        size_t executor_workspace_size = get_max_work_size(executors);
+        comm_buffer_offset = std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper));
+        size_buffer_work = comm_buffer_offset
+                        + get_max_box_size_r2c(executors) + executor_workspace_size;
+        executor_buffer_offset = (executor_workspace_size == 0) ? 0 : size_buffer_work - size_buffer_work;
+    }
+    //! \brief Return references to the executors in forward order.
+    std::array<executor_base*, 3> forward_executors() const{
+        return std::array<executor_base*, 3>{executors[0].get(), executors[1].get(), executors[2].get()};
+    }
+    //! \brief Return references to the executors in forward order.
+    std::array<executor_base*, 3> backward_executors() const{
+        return std::array<executor_base*, 3>{executors[2].get(), executors[1].get(), executors[0].get()};
+    }
 
     //! \brief Applies the scaling factor to the data.
     template<typename scalar_type>
-    void apply_scale(direction dir, scale scaling, scalar_type data[]) const{
+    void apply_scale(int const batch_size, direction dir, scale scaling, scalar_type data[]) const{
         if (scaling != scale::none){
             add_trace name("scale");
             #ifdef Heffte_ENABLE_MAGMA
-            if (std::is_same<typename backend::buffer_traits<backend_tag>::location, tag::gpu>::value){
-                hmagma.scal((dir == direction::forward) ? size_outbox() : size_inbox(), get_scale_factor(scaling), data);
+            if (std::is_same<location_tag, tag::gpu>::value){
+                hmagma.scal(batch_size * (dir == direction::forward) ? size_outbox() : size_inbox(), get_scale_factor(scaling), data);
                 return;
             }
             #endif
             data_scaling::apply(
                 this->stream(),
-                (dir == direction::forward) ? size_outbox() : size_inbox(),
+                batch_size * ((dir == direction::forward) ? size_outbox() : size_inbox()),
                 data, get_scale_factor(scaling));
         }
     }
@@ -293,11 +370,13 @@ private:
     std::array<std::unique_ptr<reshape3d_base<index>>, 4> forward_shaper;
     std::array<std::unique_ptr<reshape3d_base<index>>, 4> backward_shaper;
 
-    std::unique_ptr<backend_executor_r2c> executor_r2c;
-    std::array<std::unique_ptr<backend_executor_c2c>, 2> executor;
+    std::array<std::unique_ptr<executor_base>, 3> executors;
     #ifdef Heffte_ENABLE_MAGMA
-    gpu::magma_handle<typename backend::buffer_traits<backend_tag>::location> hmagma;
+    gpu::magma_handle<location_tag> hmagma;
     #endif
+
+    // cache some values for faster read
+    size_t size_buffer_work, comm_buffer_offset, executor_buffer_offset;
 };
 
 /*!

@@ -24,7 +24,7 @@ class complex_allocator_t {
         typedef F& reference;
         typedef const F& const_reference;
         typedef size_t size_type;
-        typedef ptrdiff_t difference_type;
+        typedef std::ptrdiff_t difference_type;
 
         //! \brief Defining rebind for the allocator
         template <class U>

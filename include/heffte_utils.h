@@ -399,7 +399,7 @@ int count_active(std::array<std::unique_ptr<some_class>, 4> const &shaper){
  * \brief Returns the max of the box_size() for each of the executors.
  */
 template<typename some_class>
-size_t get_max_size(std::array<some_class*, 3> const executors){
+size_t get_max_box_size(std::array<some_class, 3> const &executors){
     size_t max_size = (executors[0]) ? executors[0]->box_size() : 0;
     max_size = std::max(max_size, (executors[1]) ? executors[1]->box_size() : static_cast<size_t>(0));
     return std::max(max_size, (executors[2]) ? executors[2]->box_size() : static_cast<size_t>(0));
@@ -409,9 +409,30 @@ size_t get_max_size(std::array<some_class*, 3> const executors){
  * \ingroup fft3dmisc
  * \brief Returns the max of the box_size() for each of the executors.
  */
+template<typename some_class>
+size_t get_max_box_size_r2c(std::array<some_class, 3> const &executors){
+    size_t max_size = (executors[0]) ? executors[0]->complex_size() : 0;
+    max_size = std::max(max_size, (executors[1]) ? executors[1]->box_size() : static_cast<size_t>(0));
+    return std::max(max_size, (executors[2]) ? executors[2]->box_size() : static_cast<size_t>(0));
+}
+/*!
+ * \ingroup fft3dmisc
+ * \brief Returns the max of the workspace_size() for each of the executors.
+ */
+template<typename some_class>
+size_t get_max_work_size(std::array<some_class, 3> const &executors){
+    size_t max_size = (executors[0]) ? executors[0]->workspace_size() : 0;
+    max_size = std::max(max_size, (executors[1]) ? executors[1]->workspace_size() : static_cast<size_t>(0));
+    return std::max(max_size, (executors[2]) ? executors[2]->workspace_size() : static_cast<size_t>(0));
+}
+
+/*!
+ * \ingroup fft3dmisc
+ * \brief Returns the max of the workspace_size() for each of the executors.
+ */
 template<typename some_class_r2c, typename some_class>
-size_t get_max_size(some_class_r2c const &executors_r2c, std::array<some_class, 2> const &executors){
-    return std::max(executors_r2c->complex_size(), std::max(executors[0]->box_size(), executors[1]->box_size()));
+size_t get_max_work_size(some_class_r2c const &executors_r2c, std::array<some_class, 2> const &executors){
+    return std::max(executors_r2c->workspace_size(), std::max(executors[0]->workspace_size(), executors[1]->workspace_size()));
 }
 
 }
