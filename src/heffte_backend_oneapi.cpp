@@ -11,7 +11,6 @@
 #ifdef Heffte_ENABLE_ONEAPI
 
 #include <CL/sycl.hpp>
-#include <CL/sycl/usm.hpp>
 #include "oneapi/mkl.hpp"
 
 namespace heffte {
