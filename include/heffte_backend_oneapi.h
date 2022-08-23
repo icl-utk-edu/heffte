@@ -14,7 +14,6 @@
 #include "heffte_backend_vector.h"
 
 #include <CL/sycl.hpp>
-#include <CL/sycl/usm.hpp>
 #include "oneapi/mkl.hpp"
 #include "oneapi/mkl/dfti.hpp"
 
@@ -593,7 +592,7 @@ template<> struct one_dim_backend<backend::onemkl_cos>{
  */
 template<> struct one_dim_backend<backend::onemkl_sin>{
     //! \brief Defines the complex-to-complex executor.
-    using executor = real2real_executor<backend::onemkl, oapi::sin_pre_pos_processor>;;
+    using executor = real2real_executor<backend::onemkl, oapi::sin_pre_pos_processor>;
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = onemkl_executor_r2c;
 };
