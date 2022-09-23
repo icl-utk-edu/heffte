@@ -737,6 +737,7 @@ public:
 
         rocfft_execution_info info;
         rocfft_execution_info_create(&info);
+        rocfft_execution_info_set_stream(info, stream);
 
         size_t wsize = (std::is_same<precision_type, float>::value) ? sbackward->size_work() : dbackward->size_work();
         if (wsize > 0)
