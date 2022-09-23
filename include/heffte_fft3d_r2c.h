@@ -336,7 +336,7 @@ private:
         comm_buffer_offset = std::max(get_workspace_size(forward_shaper), get_workspace_size(backward_shaper));
         size_buffer_work = comm_buffer_offset
                         + get_max_box_size_r2c(executors) + executor_workspace_size;
-        executor_buffer_offset = (executor_workspace_size == 0) ? 0 : size_buffer_work - size_buffer_work;
+        executor_buffer_offset = (executor_workspace_size == 0) ? 0 : size_buffer_work - executor_workspace_size;
     }
     //! \brief Return references to the executors in forward order.
     std::array<executor_base*, 3> forward_executors() const{

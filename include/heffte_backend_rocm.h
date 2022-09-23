@@ -715,10 +715,12 @@ public:
         if (wsize > 0)
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(workspace), wsize);
 
-        backend::buffer_traits<backend::rocfft>::container<precision_type> copy_indata(stream, indata, indata + box_size());
+        precision_type *copy_indata = reinterpret_cast<precision_type*>(
+            reinterpret_cast<unsigned char *>(workspace) + wsize);
+        backend::data_manipulator<tag::gpu>::copy_n(stream, indata, box_size(), copy_indata);
 
         for(int i=0; i<blocks; i++){
-            void *rdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata.data() + i * rblock_stride));
+            void *rdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata + i * rblock_stride));
             void *cdata = reinterpret_cast<void*>(outdata + i * cblock_stride);
             rocm::check_error( rocfft_execute(
                 (std::is_same<precision_type, float>::value) ? *sforward : *dforward,
@@ -743,11 +745,12 @@ public:
         if (wsize > 0)
             rocfft_execution_info_set_work_buffer(info, reinterpret_cast<void*>(workspace), wsize);
 
-        backend::buffer_traits<backend::rocfft>::container<std::complex<precision_type>>
-                copy_indata(stream, indata, indata + complex_size());
+        std::complex<precision_type> *copy_indata = reinterpret_cast<std::complex<precision_type>*>(
+            reinterpret_cast<unsigned char *>(workspace) + wsize);
+        backend::data_manipulator<tag::gpu>::copy_n(stream, indata, complex_size(), copy_indata);
 
         for(int i=0; i<blocks; i++){
-            void *cdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata.data() + i * cblock_stride));
+            void *cdata = const_cast<void*>(reinterpret_cast<void const*>(copy_indata + i * cblock_stride));
             void *rdata = reinterpret_cast<void*>(outdata + i * rblock_stride);
             rocm::check_error( rocfft_execute(
                 (std::is_same<precision_type, float>::value) ? *sbackward : *dbackward,
@@ -784,10 +787,10 @@ public:
         make_plan(dforward);
         make_plan(sbackward);
         make_plan(dbackward);
+        // Temporary copies have to be made, request that from user in addition, to what rocFFT requires.
         return
-        std::max( std::max(sforward->size_work(), sbackward->size_work()) / sizeof(std::complex<float>),
-                  std::max(dforward->size_work(), dbackward->size_work()) / sizeof(std::complex<double>) ) + 1;
-        return 0;
+        std::max( std::max(sforward->size_work() + box_size() * sizeof(float),  sbackward->size_work() + complex_size() * sizeof(std::complex<float>))  / sizeof(std::complex<float>),
+                  std::max(dforward->size_work() + box_size() * sizeof(double), dbackward->size_work() + complex_size() * sizeof(std::complex<double>)) / sizeof(std::complex<double>) ) + 1;
     }
 
 private:
