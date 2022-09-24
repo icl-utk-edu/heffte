@@ -190,7 +190,7 @@ template<typename scalar> inline MPI_Datatype type_from(){
     // note that "!std::is_same<scalar, scalar>::value" is always false,
     // but will not be checked until the template is instantiated
     static_assert(!std::is_same<scalar, scalar>::value, "The C++ type has unknown MPI equivalent.");
-    return MPI_BYTE; // come compilers complain about lack of return statement.
+    return MPI_BYTE; // some compilers complain about lack of return statement.
 }
 /*!
  * \ingroup hefftempi
