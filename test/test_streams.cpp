@@ -15,6 +15,8 @@ void test_fft3d_queues(MPI_Comm const comm){
         case 6:
             test_fft3d_queues<backend_tag, std::complex<float>, 11, 11, 20>(comm);
             test_fft3d_queues<backend_tag, std::complex<double>, 11, 11, 20>(comm);
+            test_fft3d_r2c_queues<backend_tag, float, 16, 11, 13>(comm);
+            test_fft3d_r2c_queues<backend_tag, double, 16, 11, 9>(comm);
             break;
         default:
             throw std::runtime_error("No test for the given number of ranks!");
