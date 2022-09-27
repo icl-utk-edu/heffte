@@ -19,7 +19,7 @@
  * Thus, packing and unpacking operations are needed to copy the sub-box into contiguous arrays.
  * Furthermore, some backends (e.g., fftw3) work much faster with contiguous FFT
  * transforms, thus it is beneficial to transpose the data between backend calls.
- * Combing unpack and transpose operations reduces data movement.
+ * Combining unpack and transpose operations reduces data movement.
  */
 
 namespace heffte {

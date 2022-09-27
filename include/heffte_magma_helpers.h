@@ -43,7 +43,7 @@ namespace gpu {
     struct magma_handle<tag::gpu>{
         //! \brief Constructor, calls magma_init() and creates a new queue on the given stream.
         magma_handle(void* gpu_stream);
-        //! \brief Destructor, cleans the queue and calls magma_finaliza().
+        //! \brief Destructor, cleans the queue and calls magma_finalize().
         ~magma_handle();
         //! \brief Wrapper around magma_sscal()
         void scal(int num_entries, double scale_factor, float *data) const;

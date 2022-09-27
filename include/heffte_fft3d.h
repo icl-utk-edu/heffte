@@ -51,7 +51,7 @@ namespace heffte {
  *
  * The main class and specializations define a member type that defines the output complex number
  * (with the appropriate precision) for the given input template parameter.
- * This struct handles the complex to complex transforms.
+ * This struct handles the complex-to-complex transforms.
  *
  * \tparam scalar_type defines the input to a discrete Fourier transform algorithm
  */
@@ -78,7 +78,7 @@ template<> struct fft_output<double>{
 
 /*!
  * \ingroup fft3dcomplex
- * \brief Defines the relationship between pairs of input-output types in a general transform algorithms.
+ * \brief Defines the relationship between pairs of input-output types in a general transform algorithm.
  *
  * Handles the case where we differentiate between the standard FFT transform and the Cosine Transform.
  */
@@ -688,7 +688,7 @@ using fft2d = fft3d<backend_tag, index>;
  *
  * \par Types
  * The Sine and Cosine transforms operate with real types, float and double for the two supported precisions.
- * Similarly the size of the workspace vector is measured in the corresponding real units.
+ * Similarly, the size of the workspace vector is measured in the corresponding real units.
  *
  * \par Memory Requirements
  * In the current implementation, the real transforms require more additional workspace memory,

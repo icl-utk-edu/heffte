@@ -397,7 +397,7 @@ fft3d_r2c<backend_tag, index> make_fft3d_r2c(box3d<index> const inbox, box3d<ind
     static_assert(std::is_same<index, int>::value or std::is_same<index, long long>::value,
                   "heFFTe works with 'int' and 'long long' indexing only");
     static_assert(backend::is_enabled<backend_tag>::value,
-                  "the backend_tag is not valid, perhaps it needs to be enabled in the build system");
+                  "The backend_tag is not valid, perhaps it needs to be enabled in the build system");
     return fft3d_r2c<backend_tag, index>(inbox, outbox, r2c_direction, comm, options);
 }
 

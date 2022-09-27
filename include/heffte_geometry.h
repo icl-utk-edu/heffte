@@ -199,7 +199,7 @@ struct rank_remap{
     }
     //! \brief The number of ranks in the sub-comm.
     int size_subcomm;
-    //! \brief Inidcates whether the remap is empty.
+    //! \brief Indicates whether the remap is empty.
     bool empty() const{ return map.empty(); }
 };
 
@@ -315,7 +315,7 @@ inline std::vector<std::array<int, 2>> get_factors(int const n){
  * \brief Get the surface area of a processor grid.
  *
  * For a three dimensional grid with size dims[0] by dims[1] by 1,
- * return the surface area.
+ * returns the surface area.
  * Useful for optimizing average communication cost.
  */
 inline int get_area(std::array<int, 2> const &dims){ return dims[0] * dims[1] + dims[0] + dims[1]; }
@@ -399,8 +399,8 @@ inline std::array<int, 3> make_procgrid2d(box3d<index> const world, int directio
  * \brief Splits the world box into a set of boxes that will be assigned to a process in the process grid.
  *
  * \param world is a box describing all indexes of consideration,
- *              here there is no assumption on the lower or upper bound of the world
- * \param proc_grid describes a the number of boxes in each dimension
+ *              there is no assumption on the lower or upper bound of the world
+ * \param proc_grid describes the number of boxes in each dimension
  *
  * \returns a list of non-overlapping boxes with union that fills the world where each box contains
  *          approximately the same number of indexes
@@ -545,10 +545,10 @@ inline long long count_connections(std::vector<box3d<index>> const &new_boxes, s
 
 /*!
  * \ingroup fft3dgeometry
- * \brief Breaks the wold into a grid of pencils and orders the pencils to the ranks that will minimize communication
+ * \brief Breaks the world into a grid of pencils and orders the pencils to the ranks that will minimize communication
  *
  * A pencil is a box with one dimension that matches the entire world,
- * a pencils grid is a two dimensional grid of boxes that captures a three dimensional world box.
+ * a pencils grid is a two-dimensional grid of boxes that captures a three dimensional world box.
  *
  * This calls heffte::split_world() and then rearranges the list so that performing a reshape operation
  * from the source to the resulting list will minimize communication.
@@ -591,7 +591,7 @@ inline std::vector<box3d<index>> make_pencils(box3d<index> const world,
 
 /*!
  * \ingroup fft3dgeometry
- * \brief Breaks the wold into a set of slabs that span the given dimensions
+ * \brief Breaks the world into a set of slabs that span the given dimensions
  *
  * The method is near identical to make_pencils, but the slabs span two dimensions.
  */
