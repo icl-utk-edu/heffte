@@ -608,8 +608,6 @@ void reshape3d_pointtopoint<location_tag, packer, index>::no_gpuaware_send_recv(
 
     if (algorithm == reshape_algorithm::p2p_plined)
         MPI_Waitall(isends.size(), isends.data(), MPI_STATUS_IGNORE);
-
-    this->synchronize_device();
 }
 #endif
 
@@ -697,8 +695,6 @@ void reshape3d_pointtopoint<location_tag, packer, index>::apply_base(int batch_s
 
     if (algorithm == reshape_algorithm::p2p_plined)
         MPI_Waitall(isends.size(), isends.data(), MPI_STATUS_IGNORE);
-
-    this->synchronize_device();
 }
 
 template<typename location_tag, template<typename device> class packer, typename index>
