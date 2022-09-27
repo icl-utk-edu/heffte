@@ -26,8 +26,8 @@ endif()
 
 heffte_add_mpi_test(NAME example_r2r      COMMAND  examples/heffte_example_r2r      RANKS 4)
 
-if (Heffte_CUDA_FOUND)
-    heffte_add_mpi_test(NAME example_cuda     COMMAND  examples/heffte_example_cuda     RANKS 2)
+if (Heffte_CUDA_FOUND OR Heffte_ROCM_FOUND)
+    heffte_add_mpi_test(NAME example_gpu      COMMAND  examples/heffte_example_gpu     RANKS 2)
 endif()
 
 if (Heffte_ONEAPI_FOUND)
