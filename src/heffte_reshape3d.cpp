@@ -532,6 +532,9 @@ void reshape3d_pointtopoint<location_tag, packer, index>::no_gpuaware_send_recv(
 
     packer<location_tag> packit;
 
+    // synchronize before starting the receives, because kernels from an other reshape might
+    // still be running, using the workspace
+    this->synchronize_device();
     // queue the receive messages, using asynchronous receive
     for(size_t i=0; i<requests.size(); i++){
         heffte::add_trace name("irecv " + std::to_string(batch_size * recv_size[i]) + " from " + std::to_string(recv_proc[i]));
@@ -627,6 +630,9 @@ void reshape3d_pointtopoint<location_tag, packer, index>::apply_base(int batch_s
 
     packer<location_tag> packit;
 
+    // synchronize before starting the receives, because otherwise kernels could be still using
+    // the workspace
+    this->synchronize_device();
     // queue the receive messages, using asynchronous receive
     for(size_t i=0; i<requests.size(); i++){
         heffte::add_trace name("irecv " + std::to_string(batch_size * recv_size[i]) + " from " + std::to_string(recv_proc[i]));
