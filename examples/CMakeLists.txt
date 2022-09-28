@@ -16,9 +16,9 @@ if (Heffte_ENABLE_FFTW)
     target_link_libraries(heffte_example_r2c Heffte)
 endif()
 
-if (Heffte_ENABLE_CUDA)
-    add_executable(heffte_example_cuda heffte_example_cuda.cpp)
-    target_link_libraries(heffte_example_cuda Heffte)
+if (Heffte_ENABLE_CUDA OR Heffte_ENABLE_ROCM OR Heffte_ENABLE_ONEAPI)
+    add_executable(heffte_example_gpu heffte_example_gpu.cpp)
+    target_link_libraries(heffte_example_gpu Heffte)
 endif()
 
 if (Heffte_ENABLE_ONEAPI)

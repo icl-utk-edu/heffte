@@ -21,9 +21,9 @@ endif()
 add_executable(heffte_example_r2r heffte_example_r2r.cpp)
 target_link_libraries(heffte_example_r2r Heffte::Heffte)
 
-if (Heffte_CUDA_FOUND)
-    add_executable(heffte_example_cuda heffte_example_cuda.cpp)
-    target_link_libraries(heffte_example_cuda Heffte::Heffte)
+if (Heffte_CUDA_FOUND OR Heffte_ROCM_FOUND OR Heffte_ONEAPI_FOUND)
+    add_executable(heffte_example_gpu heffte_example_gpu.cpp)
+    target_link_libraries(heffte_example_gpu Heffte::Heffte)
 endif()
 
 if (Heffte_ONEAPI_FOUND)
