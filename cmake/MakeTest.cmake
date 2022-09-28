@@ -19,12 +19,12 @@ add_subdirectory("@CMAKE_INSTALL_PREFIX@/share/heffte/examples" examples)
 
 if (Heffte_FFTW_FOUND)
     heffte_add_mpi_test(NAME example_fftw     COMMAND  examples/heffte_example_fftw     RANKS 2)
-    heffte_add_mpi_test(NAME example_options  COMMAND  examples/heffte_example_options  RANKS 2)
-    heffte_add_mpi_test(NAME example_vectors  COMMAND  examples/heffte_example_vectors  RANKS 2)
-    heffte_add_mpi_test(NAME example_r2c      COMMAND  examples/heffte_example_r2c      RANKS 2)
 endif()
 
 heffte_add_mpi_test(NAME example_r2r      COMMAND  examples/heffte_example_r2r      RANKS 4)
+heffte_add_mpi_test(NAME example_options  COMMAND  examples/heffte_example_options  RANKS 2)
+heffte_add_mpi_test(NAME example_vectors  COMMAND  examples/heffte_example_vectors  RANKS 2)
+heffte_add_mpi_test(NAME example_r2c      COMMAND  examples/heffte_example_r2c      RANKS 2)
 
 if (Heffte_CUDA_FOUND OR Heffte_ROCM_FOUND)
     heffte_add_mpi_test(NAME example_gpu      COMMAND  examples/heffte_example_gpu     RANKS 2)

@@ -11,8 +11,13 @@
  */
 void compute_dft(MPI_Comm comm){
 
+    // select the default CPU backend, first available in the following order MKL, FFTW, Stock
+    using backend_tag = heffte::backend::default_backend<heffte::tag::cpu>::type;
+
     int me; // this process rank within the comm
     MPI_Comm_rank(comm, &me);
+
+    if (me == 0) std::cout << "using backend: " << heffte::backend::name<backend_tag>() << "\n";
 
     int num_ranks; // total number of ranks in the comm
     MPI_Comm_size(comm, &num_ranks);
@@ -44,7 +49,7 @@ void compute_dft(MPI_Comm comm){
                                 );
 
     // at this stage we can manually adjust some HeFFTe options
-    heffte::plan_options options = heffte::default_options<heffte::backend::fftw>();
+    heffte::plan_options options = heffte::default_options<backend_tag>();
 
     // use strided 1-D FFT operations
     // some backends work just as well when the entries of the data are not contiguous
@@ -63,7 +68,7 @@ void compute_dft(MPI_Comm comm){
     options.use_pencils = true;
 
     // define the heffte class and the input and output geometry
-    heffte::fft3d<heffte::backend::fftw> fft(inbox, outbox, comm, options);
+    heffte::fft3d<backend_tag> fft(inbox, outbox, comm, options);
 
     // vectors with the correct sizes to store the input and output data
     // taking the size of the input and output boxes

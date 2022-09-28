@@ -50,6 +50,15 @@ namespace backend{
 //         using location = tag::cpu;
 //         template<typename T> using container = std::vector<T>;
 //     };
+#ifndef Heffte_ENABLE_MKL
+    /*!
+     * \ingroup hefftefftw
+     * \brief Make FFTW the default CPU backend, if MKL is not enabled.
+     */
+    template<> struct default_backend<tag::cpu> {
+        using type = fftw;
+    };
+#endif
 }
 
 /*!

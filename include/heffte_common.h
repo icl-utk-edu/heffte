@@ -374,11 +374,12 @@ namespace backend {
      * \ingroup fft3dbackend
      * \brief Defines inverse mapping from the location tag to a default backend tag.
      *
-     * Defines a default backend for a given location tag.
+     * Defines a default backend for a given location tag, the backend assumes FFT transform,
+     * not a sine or cosine variant.
      */
     template<typename location_tag> struct default_backend{
-        //! \brief Defaults to the same label.
-        using type = location_tag;
+        //! \brief Defaults to the stock backend.
+        using type = stock;
     };
 
     /*!

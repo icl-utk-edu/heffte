@@ -42,6 +42,13 @@ namespace backend{
      * \brief Indicate that the MKL Sine Transform backend has been enabled.
      */
     template<> struct is_enabled<mkl_sin> : std::true_type{};
+    /*!
+     * \ingroup hefftemkl
+     * \brief Make MKL the default CPU backend.
+     */
+    template<> struct default_backend<tag::cpu> {
+        using type = mkl;
+    };
 }
 
 /*!

@@ -15,6 +15,9 @@
  */
 void compute_dft(MPI_Comm comm){
 
+    // select the default CPU backend, first available in the following order MKL, FFTW, Stock
+    using backend_tag = heffte::backend::default_backend<heffte::tag::cpu>::type;
+
     // wrapper around MPI_Comm_rank() and MPI_Comm_size(), using this is optional
     int const me        = heffte::mpi::comm_rank(comm);
     int const num_ranks = heffte::mpi::comm_size(comm);
@@ -23,6 +26,8 @@ void compute_dft(MPI_Comm comm){
         if (me == 0) std::cout << " heffte_example_vectors should use less than 10 ranks, exiting \n";
         return;
     }
+
+    if (me == 0) std::cout << "using backend: " << heffte::backend::name<backend_tag>() << "\n";
 
     // using problem with size 10x20x30 problem
     heffte::box3d<> all_indexes({0, 0, 0}, {9, 19, 29});
@@ -36,13 +41,13 @@ void compute_dft(MPI_Comm comm){
     heffte::box3d<> const outbox = all_boxes[me]; // same inbox and outbox
 
     // at this stage we can manually adjust some HeFFTe options
-    heffte::plan_options options = heffte::default_options<heffte::backend::fftw>();
+    heffte::plan_options options = heffte::default_options<backend_tag>();
 
     // using slab decomposition
     options.use_pencils = false;
 
     // define the heffte class and the input and output geometry
-    heffte::fft3d<heffte::backend::fftw> fft(inbox, outbox, comm, options);
+    heffte::fft3d<backend_tag> fft(inbox, outbox, comm, options);
 
     // vectors with the correct sizes to store the input and output data
     std::vector<double> input(fft.size_inbox());
