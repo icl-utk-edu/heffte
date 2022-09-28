@@ -15,6 +15,9 @@
  */
 void compute_dft(MPI_Comm comm){
 
+    // select the default CPU backend, first available in the following order MKL, FFTW, Stock
+    using backend_tag = heffte::backend::default_backend<heffte::tag::cpu>::type;
+
     // wrapper around MPI_Comm_rank() and MPI_Comm_size(), using this is optional
     int const me        = heffte::mpi::comm_rank(comm);
     int const num_ranks = heffte::mpi::comm_size(comm);
@@ -23,6 +26,8 @@ void compute_dft(MPI_Comm comm){
         if (me == 0) std::cout << " heffte_example_r2c should use less than 10 ranks, exiting \n";
         return;
     }
+
+    if (me == 0) std::cout << "using backend: " << heffte::backend::name<backend_tag>() << "\n";
 
     // the dimension where the data will shrink
     int r2c_direction = 0;
@@ -52,7 +57,7 @@ void compute_dft(MPI_Comm comm){
     heffte::box3d<> const outbox = complex_boxes[me];
 
     // define the heffte class and the input and output geometry
-    heffte::fft3d_r2c<heffte::backend::fftw> fft(inbox, outbox, r2c_direction, comm);
+    heffte::fft3d_r2c<backend_tag> fft(inbox, outbox, r2c_direction, comm);
 
     // vectors with the correct sizes to store the input and output data
     std::vector<float> input(fft.size_inbox());

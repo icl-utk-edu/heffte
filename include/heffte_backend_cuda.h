@@ -46,17 +46,17 @@ namespace cuda {
      * \ingroup hefftecuda
      * \brief Checks the status of a CUDA command and in case of a failure, converts it to a C++ exception.
      */
-    inline void check_error(cudaError_t status, std::string const &function_name){
+    inline void check_error(cudaError_t status, const char *function_name){
         if (status != cudaSuccess)
-            throw std::runtime_error(function_name + " failed with message: " + cudaGetErrorString(status));
+            throw std::runtime_error(std::string(function_name) + " failed with message: " + cudaGetErrorString(status));
     }
     /*!
      * \ingroup hefftecuda
      * \brief Checks the status of a cufft command and in case of a failure, converts it to a C++ exception.
      */
-    inline void check_error(cufftResult status, std::string const &function_name){
+    inline void check_error(cufftResult status, const char *function_name){
         if (status != CUFFT_SUCCESS)
-            throw std::runtime_error(function_name + " failed with error code: " + std::to_string(status));
+            throw std::runtime_error(std::string(function_name) + " failed with error code: " + std::to_string(status));
     }
     /*!
      * \ingroup hefftecuda

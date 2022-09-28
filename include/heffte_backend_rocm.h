@@ -48,17 +48,17 @@ namespace rocm {
      * \ingroup heffterocm
      * \brief Checks the status of a ROCm command and in case of a failure, converts it to a C++ exception.
      */
-    inline void check_error(hipError_t status, std::string const &function_name){
+    inline void check_error(hipError_t status, const char *function_name){
         if (status != hipSuccess)
-            throw std::runtime_error(function_name + " failed with message: " + std::string(hipGetErrorString(status)));
+            throw std::runtime_error(std::string(function_name) + " failed with message: " + std::string(hipGetErrorString(status)));
     }
     /*!
      * \ingroup heffterocm
      * \brief Checks the status of a cufft command and in case of a failure, converts it to a C++ exception.
      */
-    inline void check_error(rocfft_status status, std::string const &function_name){
+    inline void check_error(rocfft_status status, const char *function_name){
         if (status != rocfft_status_success)
-            throw std::runtime_error(function_name + " failed with error code: " + std::to_string(status));
+            throw std::runtime_error(std::string(function_name) + " failed with error code: " + std::to_string(status));
     }
 
     /*!
