@@ -122,15 +122,27 @@ endif()
 
 # build CPU libheffte, the CUDA test comes first to use cuda_add_library() vs add_library()
 if (Heffte_ENABLE_CUDA)
-    find_package(CUDA REQUIRED)
+    if (CMAKE_VERSION VERSION_LESS 3.17)
+        find_package(CUDA REQUIRED)
 
-    list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
-    cuda_add_library(Heffte ${Heffte_common_sources}
-                            include/heffte_backend_cuda.h
-                            src/heffte_backend_cuda.cu)
+        list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
+        cuda_add_library(Heffte ${Heffte_common_sources}
+                                include/heffte_backend_cuda.h
+                                src/heffte_backend_cuda.cu)
 
-    cuda_add_cufft_to_target(Heffte)
-    target_include_directories(Heffte PUBLIC $<INSTALL_INTERFACE:${CUDA_INCLUDE_DIRS}>)
+        cuda_add_cufft_to_target(Heffte)
+        target_include_directories(Heffte PUBLIC $<INSTALL_INTERFACE:${CUDA_INCLUDE_DIRS}>)
+    else()
+        enable_language(CUDA)
+        find_package(CUDAToolkit REQUIRED)
+        list(APPEND Heffte_common_sources
+             include/heffte_backend_cuda.h
+             src/heffte_backend_cuda.cu
+            )
+        set_source_files_properties(include/heffte_backend_cuda.h src/heffte_backend_cuda.cu PROPERTIES LANGUAGE CUDA)
+        add_library(Heffte ${Heffte_common_sources})
+        target_link_libraries(Heffte CUDA::cufft CUDA::cudart)
+    endif()
 else()
     add_library(Heffte ${Heffte_common_sources})
 endif()
