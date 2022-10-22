@@ -15,8 +15,8 @@ could be cleanly implemented in the rigid Makefile.
 
 | Compiler | Tested versions |
 |----|----|
-| gcc      | 6 - 10          |
-| clang    | 4 - 10          |
+| gcc      | 7 - 11          |
+| clang    | 5 - 14          |
 | icc      | 18              |
 | dpcpp    | 2021.2          |
 | OpenMPI  | 4.0.3           |
@@ -29,8 +29,8 @@ Tested backend libraries:
 | fftw3          | 3.3.7 - 3.3.10  |
 | mkl            | 2016            |
 | oneapi/onemkl  | 2021.4          |
-| cuda/cufft     | 9.0 - 11        |
-| rocm/rocfft    | 4.0 - 4.3       |
+| cuda/cufft     | 10 - 11         |
+| rocm/rocfft    | 4.0 - 5.6       |
 
 The listed tested versions are part of the continuous integration and nightly build systems,
 but heFFTe may yet work with other compilers and backend versions.
