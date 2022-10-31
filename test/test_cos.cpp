@@ -13,7 +13,7 @@ void test_cosine_transform(MPI_Comm comm){
 
     int const me = mpi::comm_rank(comm);
     int const num_ranks = mpi::comm_size(comm);
-    assert(num_ranks == 4);
+    assert(num_ranks == 1 or num_ranks == 2 or num_ranks == 4);
     current_test<scalar_type, using_mpi, backend_tag> name(std::string("-np ") + std::to_string(num_ranks) + "  test cosine", comm);
 
     box3d<> const world = {{0, 0, 0}, {1, 2, 3}};
@@ -27,7 +27,15 @@ void test_cosine_transform(MPI_Comm comm){
     std::vector<scalar_type>{2.4e+03, -6.7882250993908571e+01, -2.2170250336881628e+02, 0.0, 0.0, 0.0, -9.0844474461089760e+02, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -6.4561180200187039e+01, 0.0, 0.0, 0.0, 0.0, 0.0} :
     std::vector<scalar_type>{7.3910362600902943e+02, -4.1810014876044050e+01, -1.0241320258448191e+02, 0.0, 3.6955181300451477e+02, -2.0905007438022025e+01, -3.8400000000000006e+02, 0.0, 0.0, 0.0, -1.9200000000000003e+02, 0.0, 3.0614674589207186e+02, -1.7318275204678301e+01, -4.2420937476555700e+01, 0.0, 1.5307337294603599e+02, -8.6591376023391504e+00, -2.7152900397563417e+02, 0.0, 0.0, 0.0, -1.3576450198781720e+02, 0.0};
 
-    std::vector<box3d<>> boxes = heffte::split_world(world, std::array<int, 3>{1, 2, 2});
+    std::vector<box3d<>> boxes = [&]()->std::vector<box3d<>>{
+            if (num_ranks == 1){
+                return heffte::split_world(world, std::array<int, 3>{1, 1, 1});
+            }else if (num_ranks == 2){
+                return heffte::split_world(world, std::array<int, 3>{2, 1, 1});
+            }else{
+                return heffte::split_world(world, std::array<int, 3>{1, 2, 2});
+            }
+        }();
     assert(boxes.size() == static_cast<size_t>(num_ranks));
     auto local_input = input_maker<backend_tag, scalar_type>::select(world, boxes[me], world_input);
     auto reference = get_subbox(world, boxes[me], world_result);

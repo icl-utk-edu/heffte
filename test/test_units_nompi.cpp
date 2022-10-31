@@ -296,32 +296,39 @@ void test_1d_r2r(){
 
     backend::device_instance<typename backend::buffer_traits<cos_tag>::location> device;
 
+    scalar_type box_scale = 1.0 / static_cast<scalar_type>(4 * box.size[0]);
+    scalar_type box5_scale = 1.0 / static_cast<scalar_type>(4 * box5.size[0]);
+    if (std::is_same<cos_tag, backend::fftw_cos>::value or std::is_same<cos_tag, backend::fftw_sin>::value) {
+        box_scale = 1.0 / static_cast<scalar_type>(2 * box.size[0]);
+        box5_scale = 1.0 / static_cast<scalar_type>(2 * box5.size[0]);
+    }
+
     {
     current_test<scalar_type, using_nompi> name(backend::name<cos_tag>() + " one-dimension");
     test_real_rule<location_tag, scalar_type>(device.stream(),
                                               heffte::make_executor<cos_tag>(device.stream(), box, 0), 6,
                                               std::vector<scalar_type>{1.0, 2.0, 3.0, 4.0},
                                               std::vector<scalar_type>{2.0000000000000000e+01, -6.3086440597978992e+00, 0.0000000000000000e+00, -4.4834152916796510e-01},
-                                              1.0 / static_cast<scalar_type>(4 * box.size[0]));
+                                              box_scale);
 
     test_real_rule<location_tag, scalar_type>(device.stream(),
                                               heffte::make_executor<cos_tag>(device.stream(), box5, 0), 3,
                                               std::vector<scalar_type>{1.0, 2.0, 3.0, 4.0, 5.0},
                                               std::vector<scalar_type>{30.0, -9.9595931395311208, 0.0, -8.9805595315917053e-01, 0.0},
-                                              1.0 / static_cast<scalar_type>(4 * box5.size[0]));
+                                              box5_scale);
     }{
     current_test<scalar_type, using_nompi> name(backend::name<sin_tag>() + " one-dimension");
     test_real_rule<location_tag, scalar_type>(device.stream(),
                                               heffte::make_executor<sin_tag>(device.stream(), box, 0), 6,
                                               std::vector<scalar_type>{1.0, 2.0, 3.0, 4.0},
                                               std::vector<scalar_type>{1.3065629648763766e+01, -5.6568542494923806e+00, 5.4119610014619699e+00, -4.0e+00},
-                                              1.0 / static_cast<scalar_type>(4 * box.size[0]));
+                                              box_scale);
 
     test_real_rule<location_tag, scalar_type>(device.stream(),
                                               heffte::make_executor<sin_tag>(device.stream(), box5, 0), 3,
                                               std::vector<scalar_type>{1.0, 2.0, 3.0, 4.0, 5.0},
                                               std::vector<scalar_type>{1.9416407864998735e+01, -8.5065080835203979e+00, 7.4164078649987371e+00, -5.2573111211913348e+00, 6.0e+00},
-                                              1.0 / static_cast<scalar_type>(4 * box5.size[0]));
+                                              box5_scale);
     }
 }
 

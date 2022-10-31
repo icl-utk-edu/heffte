@@ -482,6 +482,193 @@ private:
 };
 
 /*!
+ * \internal
+ * \ingroup hefftefftw
+ * \brief Wrapper for the single/double precision plan, make and destroy (double precision).
+ *
+ * \endinternal
+ */
+template<typename>
+struct fftw_r2r_types {
+    //! \brief Plan type.
+    using plan_type = fftw_plan;
+    //! \brief Make the plan.
+    template<typename... vars> static plan_type plan_many(vars... args){ return fftw_plan_many_r2r(args...); }
+    //! \brief Destructor.
+    static void plan_destroy(plan_type p){ fftw_destroy_plan(p); }
+};
+/*!
+ * \internal
+ * \ingroup hefftefftw
+ * \brief Wrapper for the single/double precision plan, make and destroy (single precision).
+ *
+ * \endinternal
+ */
+template<> struct fftw_r2r_types<float> {
+    //! \brief Plan type.
+    using plan_type = fftwf_plan;
+    //! \brief Make the plan.
+    template<typename... vars> static plan_type plan_many(vars... args){ return fftwf_plan_many_r2r(args...); }
+    //! \brief Destructor.
+    static void plan_destroy(plan_type p){ fftwf_destroy_plan(p); }
+};
+/*!
+ * \ingroup hefftefftw
+ * \brief Wrapper for the r2r plan to allow for RAII style of management.
+ *
+ * The plan handles scalar_type as float/double, the preprocessor defines whether to use sin/cos transform,
+ * and direction.
+ */
+template<typename scalar_type, typename preprocessor, direction dir>
+struct plan_fftw_r2r{
+    //! \brief Identical to the float-complex specialization.
+    plan_fftw_r2r(int size, int howmanyffts, int stride, int dist){
+        auto kind = make_kind_array<1>();
+        plan = fftw_r2r_types<scalar_type>::plan_many(1, &size, howmanyffts, nullptr, nullptr, stride, dist,
+                                                      nullptr, nullptr, stride, dist, kind.data(), FFTW_ESTIMATE);
+    }
+    //! \brief Identical to the float-complex specialization.
+    plan_fftw_r2r(int size1, int size2, std::array<int, 2> const &embed, int howmanyffts, int stride, int dist){
+        std::array<int, 2> size = {size2, size1};
+        auto kind = make_kind_array<2>();
+
+        if (embed[0] == 0 and embed[1] == 0){
+            plan = fftw_r2r_types<scalar_type>::plan_many(2, size.data(), howmanyffts, nullptr, nullptr, stride, dist,
+                                                          nullptr, nullptr, stride, dist, kind.data(), FFTW_ESTIMATE);
+        }else{
+            plan = fftw_r2r_types<scalar_type>::plan_many(2, size.data(), howmanyffts, nullptr, embed.data(), stride, dist,
+                                                          nullptr, embed.data(), stride, dist, kind.data(), FFTW_ESTIMATE);
+        }
+    }
+    //! \brief Identical to the float-complex specialization.
+    plan_fftw_r2r(int size1, int size2, int size3){
+        std::array<int, 3> size = {size3, size2, size1};
+        auto kind = make_kind_array<3>();
+        plan = fftw_r2r_types<scalar_type>::plan_many(3, size.data(), 1, nullptr, nullptr, 1, 1, nullptr, nullptr, 1, 1, kind.data(), FFTW_ESTIMATE);
+    }
+    //! \brief Make the array with the kind of the transform.
+    template<size_t dims> static std::array<fftw_r2r_kind, dims> make_kind_array() {
+        std::array<fftw_r2r_kind, dims> kind;
+        if (std::is_same<preprocessor, cpu_cos_pre_pos_processor>::value) {
+            kind[0] = (dir == direction::forward) ? FFTW_REDFT10 : FFTW_REDFT01;
+        } else { // sin transform
+            kind[0] = (dir == direction::forward) ? FFTW_RODFT10 : FFTW_RODFT01;
+        }
+        for(size_t i=1; i<kind.size(); i++) kind[i] = kind[0];
+        return kind;
+    }
+    //! \brief Identical to the other specialization.
+    ~plan_fftw_r2r(){ fftw_r2r_types<scalar_type>::plan_destroy(plan); }
+    //! \brief Automatically converts to the correct plan type.
+    operator typename fftw_r2r_types<scalar_type>::plan_type() const{ return plan; }
+    //! \brief The actual fftw plan.
+    typename fftw_r2r_types<scalar_type>::plan_type plan;
+};
+template<typename prepost_processor> struct real2real_executor<backend::fftw, prepost_processor> : public executor_base{
+    //! \brief Construct a plan for batch 1D transforms.
+    template<typename index>
+    real2real_executor(void*, box3d<index> const box, int dimension) :
+        size(box.size[dimension]), size2(0),
+        howmanyffts(fft1d_get_howmany(box, dimension)),
+        stride(fft1d_get_stride(box, dimension)),
+        dist((dimension == box.order[0]) ? size : 1),
+        blocks((dimension == box.order[1]) ? box.osize(2) : 1),
+        block_stride(box.osize(0) * box.osize(1)),
+        total_size(box.count()),
+        embed({0, 0})
+    {}
+    //! \brief Construct a plan for batch 2D transforms, not implemented currently.
+    template<typename index>
+    real2real_executor(void*, box3d<index> const box, int dir1, int dir2) :
+        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        blocks(1), block_stride(0), total_size(box.count()), embed({0, 0})
+    {
+        int odir1 = box.find_order(dir1);
+        int odir2 = box.find_order(dir2);
+
+        if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            stride = 1;
+            dist = size * size2;
+            howmanyffts = box.size[2];
+        }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            stride = box.size[0];
+            dist = 1;
+            howmanyffts = box.size[0];
+        }else{ // case of directions (0, 2)
+            stride = 1;
+            dist = size;
+            embed = {static_cast<int>(box.size[2]), static_cast<int>(box.size[1] * box.size[0])};
+            howmanyffts = box.size[1];
+        }
+    }
+    //! \brief Construct a plan for a single 3D transform, not implemented currently.
+    template<typename index>
+    real2real_executor(void*, box3d<index> const box) :
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        stride(0), dist(0),
+        blocks(1), block_stride(0),
+        total_size(box.count()),
+        embed({0, 0})
+    {}
+
+    //! \brief Returns the size of the box.
+    int box_size() const override{ return total_size; }
+    //! \brief Returns the size of the box.
+    size_t workspace_size() const override{
+        return 0;
+    }
+    //! \brief Forward r2r, single precision.
+    virtual void forward(float data[], float*) const override{
+        make_plan(sforward);
+        for(int i=0; i<blocks; i++){
+            fftwf_execute_r2r(*sforward, data + i * block_stride, data + i * block_stride);
+        }
+    }
+    //! \brief Forward r2r, double precision.
+    virtual void forward(double data[], double*) const override{
+        make_plan(dforward);
+        for(int i=0; i<blocks; i++){
+            fftw_execute_r2r(*dforward, data + i * block_stride, data + i * block_stride);
+        }
+    }
+    //! \brief Backward r2r, single precision.
+    virtual void backward(float data[], float*) const override{
+        make_plan(sbackward);
+        for(int i=0; i<blocks; i++){
+            fftwf_execute_r2r(*sbackward, data + i * block_stride, data + i * block_stride);
+        }
+    }
+    //! \brief Backward r2r, double precision.
+    virtual void backward(double data[], double*) const override{
+        make_plan(dbackward);
+        for(int i=0; i<blocks; i++){
+            fftw_execute_r2r(*dbackward, data + i * block_stride, data + i * block_stride);
+        }
+    }
+
+private:
+    //! \brief Helper template to initialize the plan.
+    template<typename scalar_type, direction dir>
+    void make_plan(std::unique_ptr<plan_fftw_r2r<scalar_type, prepost_processor, dir>> &plan) const{
+        if (not plan){
+            if (dist == 0)
+                plan = std::unique_ptr<plan_fftw_r2r<scalar_type, prepost_processor, dir>>(new plan_fftw_r2r<scalar_type, prepost_processor, dir>(size, size2, howmanyffts));
+            else if (size2 == 0)
+                plan = std::unique_ptr<plan_fftw_r2r<scalar_type, prepost_processor, dir>>(new plan_fftw_r2r<scalar_type, prepost_processor, dir>(size, howmanyffts, stride, dist));
+            else
+                plan = std::unique_ptr<plan_fftw_r2r<scalar_type, prepost_processor, dir>>(new plan_fftw_r2r<scalar_type, prepost_processor, dir>(size, size2, embed, howmanyffts, stride, dist));
+        }
+    }
+
+    int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
+    std::array<int, 2> embed;
+    mutable std::unique_ptr<plan_fftw_r2r<float, prepost_processor, direction::forward>> sforward;
+    mutable std::unique_ptr<plan_fftw_r2r<double, prepost_processor, direction::forward>> dforward;
+    mutable std::unique_ptr<plan_fftw_r2r<float, prepost_processor, direction::backward>> sbackward;
+    mutable std::unique_ptr<plan_fftw_r2r<double, prepost_processor, direction::backward>> dbackward;
+};
+
+/*!
  * \ingroup hefftefftw
  * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
  *

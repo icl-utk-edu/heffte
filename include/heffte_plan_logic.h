@@ -206,13 +206,11 @@ inline std::ostream & operator << (std::ostream &os, plan_options const options)
 template<typename backend_tag, bool use_r2c = false>
 plan_options set_options(plan_options opts){
     if (std::is_same<backend_tag, backend::stock_cos>::value
-        or std::is_same<backend_tag, backend::fftw_cos>::value
         or std::is_same<backend_tag, backend::mkl_cos>::value
         or std::is_same<backend_tag, backend::cufft_cos>::value
         or std::is_same<backend_tag, backend::rocfft_cos>::value
         or std::is_same<backend_tag, backend::onemkl_cos>::value
         or std::is_same<backend_tag, backend::stock_sin>::value
-        or std::is_same<backend_tag, backend::fftw_sin>::value
         or std::is_same<backend_tag, backend::mkl_sin>::value
         or std::is_same<backend_tag, backend::cufft_sin>::value
         or std::is_same<backend_tag, backend::rocfft_sin>::value

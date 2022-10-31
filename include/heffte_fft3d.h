@@ -519,7 +519,12 @@ public:
         if (backend::uses_fft_types<backend_tag>::value){
             return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor;
         }else{
-            return (scaling == scale::symmetric) ? std::sqrt(scale_factor / 64.0) : scale_factor / 64.0;
+            if (std::is_same<backend_tag, backend::fftw_cos>::value or
+                std::is_same<backend_tag, backend::fftw_sin>::value) {
+                return (scaling == scale::symmetric) ? std::sqrt(scale_factor / 8.0) : scale_factor / 8.0;
+            }else{
+                return (scaling == scale::symmetric) ? std::sqrt(scale_factor / 64.0) : scale_factor / 64.0;
+            }
         }
     }
 

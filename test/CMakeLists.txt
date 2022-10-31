@@ -64,7 +64,10 @@ heffte_add_mpi_test(NAME heffte_fft3d_r2c_np12  COMMAND test_fft3d_r2c RANKS 12)
 
 add_executable(test_cos_transform  test_fft3d.h test_cos.cpp)
 target_link_libraries(test_cos_transform  Heffte)
-heffte_add_mpi_test(NAME test_cos_np4   COMMAND  test_cos_transform RANKS 4)
+foreach(_heffte_num_procs 1 2 4)
+    heffte_add_mpi_test(NAME test_cos_np${_heffte_num_procs}   COMMAND  test_cos_transform RANKS ${_heffte_num_procs})
+endforeach()
+unset(_heffte_num_procs)
 
 # test the 32 and 64 bit integers
 add_executable(test_longlong  test_fft3d.h test_longlong.cpp)
