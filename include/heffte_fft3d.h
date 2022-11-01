@@ -103,6 +103,33 @@ struct transform_output<scalar_type, backend_tag, typename std::enable_if<not ba
     using type = scalar_type;
 };
 
+/*!
+ * \ingroup fft3dcomplex
+ * \brief Defines the relationship between pairs of input-output types in a general transform algorithm.
+ *
+ * Handles the case where we differentiate between the standard FFT transform and the Cosine Transform.
+ */
+template<typename scalar_type, typename backend_tag, typename = void>
+struct transform_real_type{};
+/*!
+ * \ingroup fft3dcomplex
+ * \brief Specialization for standard FFT.
+ */
+template<typename scalar_type, typename backend_tag>
+struct transform_real_type<scalar_type, backend_tag, typename std::enable_if<backend::uses_fft_types<backend_tag>::value>::type>{
+    //! \brief The output type corresponding to the scalar_type and backend_tag (FFT case).
+    using type = typename define_standard_type<scalar_type>::type::value_type;
+};
+/*!
+ * \ingroup fft3dcomplex
+ * \brief Specialization for Cosine Transform.
+ */
+template<typename scalar_type, typename backend_tag>
+struct transform_real_type<scalar_type, backend_tag, typename std::enable_if<not backend::uses_fft_types<backend_tag>::value>::type>{
+    //! \brief The output type corresponding to the scalar_type and backend_tag (r2r Transform case).
+    using type = scalar_type;
+};
+
 
 /*!
  * \ingroup fft3d
@@ -223,7 +250,7 @@ public:
      */
     template<typename T> using buffer_container = typename backend::buffer_traits<backend_tag>::template container<T>;
     //! \brief Container of real values corresponding to the complex type T.
-    template<typename T> using real_buffer_container = buffer_container<typename define_standard_type<T>::type::value_type>;
+    template<typename T> using real_buffer_container = buffer_container<typename transform_real_type<T, backend_tag>::type>;
     //! \brief Container of the output type corresponding to T, see \ref HeffteFFT3DCompatibleTypes "the table of compatible input and output types".
     template<typename T> using output_buffer_container = buffer_container<typename transform_output<T, backend_tag>::type>;
 
@@ -493,7 +520,7 @@ public:
      */
     template<typename scalar_type>
     buffer_container<scalar_type> backward(buffer_container<scalar_type> const &input, scale scaling = scale::none){
-        static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
+        static_assert(not backend::uses_fft_types<backend_tag>::value or is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
         if (input.size() < static_cast<size_t>(size_outbox()))
             throw std::invalid_argument("The input vector is smaller than size_outbox(), i.e., not enough entries provided to fill the outbox.");
@@ -507,9 +534,9 @@ public:
      */
     template<typename scalar_type>
     real_buffer_container<scalar_type> backward_real(buffer_container<scalar_type> const &input, scale scaling = scale::none){
-        static_assert(is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
+        static_assert(not backend::uses_fft_types<backend_tag>::value or is_ccomplex<scalar_type>::value or is_zcomplex<scalar_type>::value,
                       "Either calling backward() with non-complex input or using an unknown complex type.");
-        auto result = make_buffer_container<typename define_standard_type<scalar_type>::type::value_type>(this->stream(), size_inbox());
+        auto result = make_buffer_container<typename transform_real_type<scalar_type, backend_tag>::type>(this->stream(), size_inbox());
         backward(input.data(), result.data(), scaling);
         return result;
     }

@@ -8,6 +8,23 @@
 #include "test_fft3d.h"
 
 template<typename backend_tag, typename scalar_type>
+using rcontainer = typename heffte::rtransform<backend_tag>::template buffer_container<scalar_type>;
+
+template<typename backend_tag>
+void check_cpu_compile_types(){
+    // this code will never run, but should compile
+    std::unique_ptr<heffte::rtransform<backend_tag>> transform;
+    static_assert(std::is_same<decltype(transform->backward(std::declval<rcontainer<backend_tag, float>>())), rcontainer<backend_tag, float>>::value,
+                  "r2r backward has incorrect type");
+    static_assert(std::is_same<decltype(transform->backward(std::declval<rcontainer<backend_tag, double>>())), rcontainer<backend_tag, double>>::value,
+                  "r2r backward has incorrect type");
+    static_assert(std::is_same<decltype(transform->backward_real(std::declval<rcontainer<backend_tag, float>>())), rcontainer<backend_tag, float>>::value,
+                  "r2r backward has incorrect type");
+    static_assert(std::is_same<decltype(transform->backward_real(std::declval<rcontainer<backend_tag, double>>())), rcontainer<backend_tag, double>>::value,
+                  "r2r backward has incorrect type");
+}
+
+template<typename backend_tag, typename scalar_type>
 void test_cosine_transform(MPI_Comm comm){
     using tvector = typename heffte::fft3d<backend_tag>::template buffer_container<scalar_type>; // std::vector or cuda::vector
 
@@ -59,6 +76,8 @@ void test_cosine_transform(MPI_Comm comm){
 void perform_tests(MPI_Comm const comm){
     all_tests<> name("cosine transforms");
 
+    check_cpu_compile_types<backend::stock_cos>();
+    check_cpu_compile_types<backend::stock_sin>();
     test_cosine_transform<backend::stock_cos, float>(comm);
     test_cosine_transform<backend::stock_cos, double>(comm);
     test_cosine_transform<backend::stock_sin, float>(comm);
@@ -76,6 +95,8 @@ void perform_tests(MPI_Comm const comm){
     test_cosine_transform<backend::mkl_sin, double>(comm);
     #endif
     #ifdef Heffte_ENABLE_CUDA
+    check_cpu_compile_types<backend::cufft_cos>();
+    check_cpu_compile_types<backend::cufft_sin>();
     test_cosine_transform<backend::cufft_cos, float>(comm);
     test_cosine_transform<backend::cufft_cos, double>(comm);
     test_cosine_transform<backend::cufft_sin, float>(comm);
