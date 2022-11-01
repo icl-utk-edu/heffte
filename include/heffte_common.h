@@ -600,13 +600,11 @@ constexpr bool has_executor2d(){
     // most backends are OK with the variants for 2D and 3D (stock isn't)
     return not (std::is_same<backend_tag, backend::stock>::value
             or std::is_same<backend_tag, backend::stock_cos>::value
-            or std::is_same<backend_tag, backend::fftw_cos>::value
             or std::is_same<backend_tag, backend::mkl_cos>::value
             or std::is_same<backend_tag, backend::cufft_cos>::value
             or std::is_same<backend_tag, backend::rocfft_cos>::value
             or std::is_same<backend_tag, backend::onemkl_cos>::value
             or std::is_same<backend_tag, backend::stock_sin>::value
-            or std::is_same<backend_tag, backend::fftw_sin>::value
             or std::is_same<backend_tag, backend::mkl_sin>::value
             or std::is_same<backend_tag, backend::cufft_sin>::value
             or std::is_same<backend_tag, backend::rocfft_sin>::value
@@ -621,13 +619,11 @@ template<typename backend_tag>
 constexpr bool has_executor3d(){
     return not (std::is_same<backend_tag, backend::stock>::value
             or std::is_same<backend_tag, backend::stock_cos>::value
-            or std::is_same<backend_tag, backend::fftw_cos>::value
             or std::is_same<backend_tag, backend::mkl_cos>::value
             or std::is_same<backend_tag, backend::cufft_cos>::value
             or std::is_same<backend_tag, backend::rocfft_cos>::value
             or std::is_same<backend_tag, backend::onemkl_cos>::value
             or std::is_same<backend_tag, backend::stock_sin>::value
-            or std::is_same<backend_tag, backend::fftw_sin>::value
             or std::is_same<backend_tag, backend::mkl_sin>::value
             or std::is_same<backend_tag, backend::cufft_sin>::value
             or std::is_same<backend_tag, backend::rocfft_sin>::value
