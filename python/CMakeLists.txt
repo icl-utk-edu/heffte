@@ -1,13 +1,13 @@
 
 macro(heffte_add_python_test)
     cmake_parse_arguments(_heffte "" "NAME;COMMAND;RANKS" "" ${ARGN} )
-    add_test(${_heffte_NAME} ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${_heffte_RANKS} ${MPIEXEC_PREFLAGS} ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/${_heffte_COMMAND} ${MPIEXEC_POSTFLAGS})
+    add_test(${_heffte_NAME} ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${_heffte_RANKS} ${MPIEXEC_PREFLAGS} ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/${_heffte_COMMAND} ${MPIEXEC_POSTFLAGS})
     unset(_heffte_NAME)
     unset(_heffte_RANKS)
     unset(_heffte_COMMAND)
 endmacro()
 
-find_package(PythonInterp REQUIRED)
+find_package(Python 3.0 COMPONENTS Interpreter)
 
 if (NOT BUILD_SHARED_LIBS)
     message(FATAL_ERROR "The heFFTe python wrappers require shared libraries, please set BUILD_SHARED_LIBS=ON")

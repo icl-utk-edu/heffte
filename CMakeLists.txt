@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.19)
 
 project("Heffte" VERSION 2.3.0 LANGUAGES CXX)
 
@@ -33,6 +33,13 @@ endif()
 if (Heffte_ENABLE_FORTRAN)
     enable_language(Fortran)
     set(Heffte_langs "${Heffte_langs} Fortran")
+endif()
+
+if (Heffte_ENABLE_CUDA AND NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+    set(CMAKE_CUDA_ARCHITECTURES "OFF" CACHE STRING "CUDA architectures to compile, e.g., -DCMAKE_CUDA_ARCHITECTURES=70;72")
+endif()
+if (Heffte_ENABLE_ROCM AND NOT DEFINED CMAKE_HIP_ARCHITECTURES)
+    set(CMAKE_HIP_ARCHITECTURES "OFF" CACHE STRING "HIP architectures to compile, e.g., -DCMAKE_HIP_ARCHITECTURES=803;900")
 endif()
 
 # oneAPI requires regular MKL as a CPU backend
@@ -75,7 +82,7 @@ find_package(MPI REQUIRED) # always a dependency
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # libheffte source files list (does not include the cuda kernels)
-set(Heffte_common_sources
+add_library(Heffte
     include/heffte.h
     include/heffte_c.h
     include/heffte_utils.h
@@ -101,51 +108,13 @@ set(Heffte_common_sources
     src/heffte_magma_helpers.cpp
     src/heffte_reshape3d.cpp
     src/heffte_compute_transform.cpp
+    $<$<BOOL:${Heffte_ENABLE_CUDA}>:include/heffte_backend_cuda.h>
+    $<$<BOOL:${Heffte_ENABLE_CUDA}>:src/heffte_backend_cuda.cu>
+    $<$<BOOL:${Heffte_ENABLE_ROCM}>:include/heffte_backend_rocm.h>
+    $<$<BOOL:${Heffte_ENABLE_ROCM}>:src/heffte_backend_rocm.hip.cpp>
+    $<$<BOOL:${Heffte_ENABLE_ONEAPI}>:include/heffte_backend_oneapi.h>
+    $<$<BOOL:${Heffte_ENABLE_ONEAPI}>:src/heffte_backend_oneapi.cpp>
     )
-
-if (Heffte_ENABLE_ROCM)
-    list(APPEND Heffte_common_sources
-         include/heffte_backend_rocm.h
-         src/heffte_backend_rocm.hip.cpp
-         )
-
-    set(Heffte_ROCM_FLAGS "" CACHE STRING "added flags specific to the rocFFT backend")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Heffte_ROCM_FLAGS}")
-endif()
-
-if (Heffte_ENABLE_ONEAPI)
-    list(APPEND Heffte_common_sources
-         include/heffte_backend_oneapi.h
-         src/heffte_backend_oneapi.cpp
-         )
-endif()
-
-# build CPU libheffte, the CUDA test comes first to use cuda_add_library() vs add_library()
-if (Heffte_ENABLE_CUDA)
-    if (CMAKE_VERSION VERSION_LESS 3.17)
-        find_package(CUDA REQUIRED)
-
-        list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
-        cuda_add_library(Heffte ${Heffte_common_sources}
-                                include/heffte_backend_cuda.h
-                                src/heffte_backend_cuda.cu)
-
-        cuda_add_cufft_to_target(Heffte)
-        target_include_directories(Heffte PUBLIC $<INSTALL_INTERFACE:${CUDA_INCLUDE_DIRS}>)
-    else()
-        enable_language(CUDA)
-        find_package(CUDAToolkit REQUIRED)
-        list(APPEND Heffte_common_sources
-             include/heffte_backend_cuda.h
-             src/heffte_backend_cuda.cu
-            )
-        set_source_files_properties(include/heffte_backend_cuda.h src/heffte_backend_cuda.cu PROPERTIES LANGUAGE CUDA)
-        add_library(Heffte ${Heffte_common_sources})
-        target_link_libraries(Heffte CUDA::cufft CUDA::cudart)
-    endif()
-else()
-    add_library(Heffte ${Heffte_common_sources})
-endif()
 
 # handle other dependencies
 target_link_libraries(Heffte MPI::MPI_CXX)
@@ -160,9 +129,25 @@ if (Heffte_ENABLE_MKL)
     target_link_libraries(Heffte Heffte::MKL)
 endif()
 
+# build CPU libheffte, the CUDA test comes first to use cuda_add_library() vs add_library()
+if (Heffte_ENABLE_CUDA)
+    enable_language(CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    set_source_files_properties(include/heffte_backend_cuda.h src/heffte_backend_cuda.cu PROPERTIES LANGUAGE CUDA)
+    target_link_libraries(Heffte CUDA::cufft CUDA::cudart)
+endif()
+
 if (Heffte_ENABLE_ROCM)
-    find_package(HeffteRocFFT REQUIRED)
-    target_link_libraries(Heffte roc::rocfft)
+    if (EXISTS /opt/rocm)
+        list (APPEND CMAKE_PREFIX_PATH /opt/rocm/hip /opt/rocm)
+    endif()
+    if (CMAKE_VERSION VERSION_LESS 3.21)
+        message(FATAL_ERROR "heFFTe HIP/ROCm GPU backend requires CMake version 3.21 or newer")
+    endif()
+    enable_language(HIP)
+    find_package(rocfft REQUIRED)
+    set_source_files_properties(include/heffte_backend_rocm.h src/heffte_backend_rocm.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_link_libraries(Heffte roc::rocfft hip::host)
 endif()
 
 if (Heffte_ENABLE_ONEAPI)
