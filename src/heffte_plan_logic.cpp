@@ -243,6 +243,7 @@ logic_plan3d<index> plan_pencil_reshapes(box3d<index> world_in, box3d<index> wor
     return {
         {boxes.in, shape_fft0, shape1, shape2},
         {shape0,   shape1,     shape2, boxes.out},
+        world_in.size,
         fft_direction,
         world_in.count(),
         opts,
@@ -316,7 +317,7 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
         return {
             {boxes.in, shape_fft0, shape1, shape2},
             {shape0,   shape1,     shape2, boxes.out},
-            fft_direction, world_in.count(), opts,
+            world_in.size, fft_direction, world_in.count(), opts,
             remap.mpi_rank
             };
     }
@@ -343,7 +344,7 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
         return {
             {boxes.in, shape_fft0, shape1, shape2},
             {shape0,   shape1,     shape2, boxes.out},
-            fft_direction, world_in.count(), opts,
+            world_in.size, fft_direction, world_in.count(), opts,
             remap.mpi_rank
             };
     }
@@ -376,7 +377,7 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
         return {
             {boxes.in, shape_fft0, shape1, shape2},
             {shape0,   shape1,     shape2, boxes.out},
-            fft_direction, world_in.count(), opts,
+            world_in.size, fft_direction, world_in.count(), opts,
             remap.mpi_rank
             };
     }
@@ -412,7 +413,7 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
     return {
         {boxes.in, shape_fft0, shape1, shape2},
         {shape0,   shape1,     shape2, boxes.out},
-        fft_direction, world_in.count(), opts,
+        world_in.size, fft_direction, world_in.count(), opts,
         remap.mpi_rank
         };
 }

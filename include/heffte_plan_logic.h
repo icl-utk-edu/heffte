@@ -275,6 +275,8 @@ struct logic_plan3d{
     std::vector<box3d<index>> in_shape[4];
     //! \brief Holds the output shapes for the 4 forward reshapes (backwards reverses in and out).
     std::vector<box3d<index>> out_shape[4];
+    //! \brief Sizes for the 1-D transforms.
+    std::array<index, 3> fft_sizes;
     //! \brief Direction of the 1-D FFT transforms.
     std::array<int, 3> fft_direction;
     //! \brief The total number of indexes in all directions.

@@ -107,6 +107,16 @@ namespace backend {
      * \brief Type-tag for the Sine Transform using the FFTW backend
      */
     struct fftw_sin{};
+    /*!
+     * \ingroup hefftefftw
+     * \brief Type-tag for the Cosine Transform type 1 using the FFTW backend
+     */
+    struct fftw_cos1{};
+    /*!
+     * \ingroup hefftefftw
+     * \brief Type-tag for the Sine Transform type 1 using the FFTW backend
+     */
+    struct fftw_sin1{};
 
     /*!
      * \ingroup hefftestock
@@ -248,12 +258,22 @@ namespace backend {
      * \ingroup hefftefftw
      * \brief Returns the human readable name of the FFTW backend.
      */
-    template<> inline std::string name<fftw_cos>(){ return "fftw-cos"; }
+    template<> inline std::string name<fftw_cos>(){ return "fftw-cos-type-II"; }
     /*!
      * \ingroup hefftefftw
      * \brief Returns the human readable name of the FFTW backend.
      */
-    template<> inline std::string name<fftw_sin>(){ return "fftw-sin"; }
+    template<> inline std::string name<fftw_sin>(){ return "fftw-sin-type-II"; }
+    /*!
+     * \ingroup hefftefftw
+     * \brief Returns the human readable name of the FFTW backend.
+     */
+    template<> inline std::string name<fftw_cos1>(){ return "fftw-cos-type-I"; }
+    /*!
+     * \ingroup hefftefftw
+     * \brief Returns the human readable name of the FFTW backend.
+     */
+    template<> inline std::string name<fftw_sin1>(){ return "fftw-sin-type-I"; }
 
     /*!
      * \ingroup hefftestock
@@ -408,14 +428,24 @@ namespace backend {
 
     /*!
      * \ingroup fft3dbackend
-     * \brief Sets the cos() transform types.
+     * \brief Sets the cos() transform C++ types.
      */
     template<> struct uses_fft_types<fftw_cos> : std::false_type{};
     /*!
      * \ingroup fft3dbackend
-     * \brief Sets the sin() transform types.
+     * \brief Sets the sin() transform C++ types.
      */
     template<> struct uses_fft_types<fftw_sin> : std::false_type{};
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Sets the cos() transform C++ types.
+     */
+    template<> struct uses_fft_types<fftw_cos1> : std::false_type{};
+    /*!
+     * \ingroup fft3dbackend
+     * \brief Sets the sin() transform C++ types.
+     */
+    template<> struct uses_fft_types<fftw_sin1> : std::false_type{};
     /*!
      * \ingroup hefftestock
      * \brief Sets the cos() transform types.
