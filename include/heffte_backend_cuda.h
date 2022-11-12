@@ -804,7 +804,7 @@ namespace data_scaling {
     void apply(cudaStream_t stream, index num_entries, std::complex<precision_type> *data, double scale_factor){
         apply<precision_type>(stream, 2*num_entries, reinterpret_cast<precision_type*>(data), scale_factor);
     }
-};
+}
 
 /*!
  * \ingroup hefftecuda

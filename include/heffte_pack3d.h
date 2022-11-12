@@ -230,7 +230,7 @@ namespace data_scaling {
     void apply(index num_entries, scalar_type *data, double scale_factor){
         apply(nullptr, num_entries, data, scale_factor);
     }
-};
+}
 
 }
 
