@@ -543,16 +543,7 @@ public:
 
     //! \brief Returns the scale factor for the given scaling.
     double get_scale_factor(scale scaling) const{
-        if (backend::uses_fft_types<backend_tag>::value){
-            return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor;
-        }else{
-            if (std::is_same<backend_tag, backend::fftw_cos>::value or
-                std::is_same<backend_tag, backend::fftw_sin>::value) {
-                return (scaling == scale::symmetric) ? std::sqrt(scale_factor / 8.0) : scale_factor / 8.0;
-            }else{
-                return (scaling == scale::symmetric) ? std::sqrt(scale_factor / 64.0) : scale_factor / 64.0;
-            }
-        }
+        return (scaling == scale::symmetric) ? std::sqrt(scale_factor) : scale_factor;
     }
 
     //! \brief Returns the workspace size that will be used, size is measured in complex numbers.
@@ -640,6 +631,19 @@ private:
                           + get_max_box_size(executors)
                           + last_chunk;
         executor_buffer_offset = (executor_workspace_size == 0) ? 0 : size_buffer_work - executor_workspace_size;
+
+        if (not backend::uses_fft_types<backend_tag>::value){
+            if (std::is_same<backend_tag, backend::fftw_cos>::value or
+                std::is_same<backend_tag, backend::fftw_sin>::value) {
+                scale_factor /= 8.0;
+            }else if (std::is_same<backend_tag, backend::fftw_cos1>::value) {
+                scale_factor = 1.0 / (8.0 * (plan.fft_sizes[0] - 1) * (plan.fft_sizes[1] - 1) * (plan.fft_sizes[2] - 1));
+            }else if (std::is_same<backend_tag, backend::fftw_sin1>::value) {
+                scale_factor = 1.0 / (8.0 * (plan.fft_sizes[0] + 1) * (plan.fft_sizes[1] + 1) * (plan.fft_sizes[2] + 1));
+            }else{
+                scale_factor /= 64.0;
+            }
+        }
     }
     //! \brief Return references to the executors in forward order.
     std::array<executor_base*, 3> forward_executors() const{

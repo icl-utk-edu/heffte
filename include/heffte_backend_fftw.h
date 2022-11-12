@@ -43,6 +43,16 @@ namespace backend{
      * \brief Indicate that the cos() transform using the FFTW backend has been enabled.
      */
     template<> struct is_enabled<fftw_sin> : std::true_type{};
+    /*!
+     * \ingroup hefftefftw
+     * \brief Indicate that the cos() transform type II using the FFTW backend has been enabled.
+     */
+    template<> struct is_enabled<fftw_cos1> : std::true_type{};
+    /*!
+     * \ingroup hefftefftw
+     * \brief Indicate that the cos() transform type II using the FFTW backend has been enabled.
+     */
+    template<> struct is_enabled<fftw_sin1> : std::true_type{};
 
 // Specialization is not necessary since the default behavior assumes CPU parameters.
 //     template<>
@@ -551,8 +561,12 @@ struct plan_fftw_r2r{
         std::array<fftw_r2r_kind, dims> kind;
         if (std::is_same<preprocessor, cpu_cos_pre_pos_processor>::value) {
             kind[0] = (dir == direction::forward) ? FFTW_REDFT10 : FFTW_REDFT01;
-        } else { // sin transform
+        } else if (std::is_same<preprocessor, cpu_sin_pre_pos_processor>::value) { // sin transform
             kind[0] = (dir == direction::forward) ? FFTW_RODFT10 : FFTW_RODFT01;
+        } else if (std::is_same<preprocessor, cpu_cos1_pre_pos_processor>::value) {
+            kind[0] = FFTW_REDFT00;
+        } else if (std::is_same<preprocessor, cpu_sin1_pre_pos_processor>::value) { // sin transform
+            kind[0] = FFTW_RODFT00;
         }
         for(size_t i=1; i<kind.size(); i++) kind[i] = kind[0];
         return kind;
@@ -705,6 +719,30 @@ template<> struct one_dim_backend<backend::fftw_sin>{
     //! \brief There is no real-to-complex variant.
     using executor_r2c = void;
 };
+/*!
+ * \ingroup hefftefftw
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::fftw_cos1>{
+    //! \brief Defines the real-to-real executor.
+    using executor = real2real_executor<backend::fftw, cpu_cos1_pre_pos_processor>;
+    //! \brief There is no real-to-complex variant.
+    using executor_r2c = void;
+};
+/*!
+ * \ingroup hefftefftw
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::fftw_sin1>{
+    //! \brief Defines the real-to-real executor.
+    using executor = real2real_executor<backend::fftw, cpu_sin1_pre_pos_processor>;
+    //! \brief There is no real-to-complex variant.
+    using executor_r2c = void;
+};
 
 /*!
  * \ingroup hefftefftw
@@ -728,6 +766,22 @@ template<> struct default_plan_options<backend::fftw_cos>{
  * \brief Sets the default options for the fftw backend.
  */
 template<> struct default_plan_options<backend::fftw_sin>{
+    //! \brief The reshape operations will also reorder the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup hefftefftw
+ * \brief Sets the default options for the fftw backend.
+ */
+template<> struct default_plan_options<backend::fftw_cos1>{
+    //! \brief The reshape operations will also reorder the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup hefftefftw
+ * \brief Sets the default options for the fftw backend.
+ */
+template<> struct default_plan_options<backend::fftw_sin1>{
     //! \brief The reshape operations will also reorder the data.
     static const bool use_reorder = true;
 };

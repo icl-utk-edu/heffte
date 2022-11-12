@@ -124,6 +124,9 @@ struct cpu_sin_pre_pos_processor{
     }
 };
 
+struct cpu_cos1_pre_pos_processor{};
+struct cpu_sin1_pre_pos_processor{};
+
 /*!
  * \ingroup fft3dr2r
  * \brief Template algorithm for the Sine and Cosine transforms.
