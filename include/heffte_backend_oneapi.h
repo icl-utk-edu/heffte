@@ -49,9 +49,9 @@ namespace oapi {
     //! \brief Creates a new SYCL queue, try to use the GPU but if an issue is encountered then default to the CPU.
     inline sycl::queue make_sycl_queue(){
         try{
-            return sycl::queue(sycl::gpu_selector());
+            return sycl::queue{ sycl::gpu_selector_v };
         }catch(sycl::exception const&){
-            return sycl::queue(sycl::cpu_selector());
+            return sycl::queue{ sycl::cpu_selector_v };
         }
     }
 
