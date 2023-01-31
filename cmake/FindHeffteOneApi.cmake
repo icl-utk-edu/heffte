@@ -14,8 +14,8 @@ get_filename_component(heffte_oneapi_root ${heffte_oneapi_root} DIRECTORY)  # co
 
 set(Heffte_ONEMKL_ROOT "$ENV{MKLROOT}" CACHE PATH "The root folder for the Intel OneMKL framework installation")
 
-heffte_find_libraries(REQUIRED libmkl_sycl.a
-                      OPTIONAL libmkl_intel_lp64.a libmkl_intel_thread.a libmkl_core.a
+heffte_find_libraries(REQUIRED mkl_sycl
+                      OPTIONAL mkl_intel_lp64 mkl_intel_thread mkl_core
                       PREFIX ${Heffte_ONEMKL_ROOT}
                       LIST onemkl)
 heffte_find_libraries(OPTIONAL OpenCL
