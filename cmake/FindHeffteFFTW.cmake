@@ -73,7 +73,7 @@ if (NOT FFTW_LIBRARIES)
         PREFIX ${FFTW_ROOT}
         VAR FFTW_LIBRARIES
         REQUIRED "fftw3" "fftw3f"
-        OPTIONAL "fftw3_threads" "fftw3f_threads" "fftw3_omp" "fftw3f_omp"
+        OPTIONAL "fftw3_omp" "fftw3f_omp" "fftw3_threads" "fftw3f_threads"
                                )
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         find_package(OpenMP REQUIRED)
