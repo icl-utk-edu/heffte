@@ -40,6 +40,20 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     MPI_Comm_rank(fft_comm, &me);
     MPI_Comm_size(fft_comm, &nprocs);
 
+    #ifdef Heffte_ENABLE_FFTW
+    if (std::is_same<backend_tag, backend::fftw>::value
+        or std::is_same<backend_tag, backend::fftw_cos>::value
+        or std::is_same<backend_tag, backend::fftw_sin>::value
+        or std::is_same<backend_tag, backend::fftw_cos1>::value
+        or std::is_same<backend_tag, backend::fftw_sin1>::value){
+        if (fftw_init_threads() == 0)
+            std::cout << "FFTW could not init threads for mpi rank: " << me << std::endl;
+        const char *omp_num_threads = std::getenv("OMP_NUM_THREADS");
+        if (omp_num_threads != nullptr)
+            fftw_plan_with_nthreads(std::stoi(omp_num_threads));
+    }
+    #endif
+
     // Create input and output boxes on local processor
     box3d<index> const world = {{0, 0, 0}, {size_fft[0]-1, size_fft[1]-1, size_fft[2]-1}};
 
