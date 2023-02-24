@@ -18,7 +18,7 @@ could be cleanly implemented in the rigid Makefile.
 | gcc      | 7 - 11          |
 | clang    | 5 - 14          |
 | icc      | 18              |
-| dpcpp    | 2021.2          |
+| dpcpp    | 2023.0          |
 | OpenMPI  | 4.0.3           |
 
 Tested backend libraries:
@@ -28,7 +28,7 @@ Tested backend libraries:
 | stock          | all             |
 | fftw3          | 3.3.7 - 3.3.10  |
 | mkl            | 2016            |
-| oneapi/onemkl  | 2021.4          |
+| oneapi/onemkl  | 2023.0          |
 | cuda/cufft     | 10 - 11         |
 | rocm/rocfft    | 4.0 - 5.6       |
 
@@ -113,7 +113,7 @@ The `MKL_ROOT` default to the environment variable `MKLROOT` (chosen by Intel). 
 
 * **oneMKL** the [Intel oneMKL Library](https://spec.oneapi.com/versions/latest/elements/oneMKL/source/index.html) provides optimized FFT implementation targeting Intel GPUs and can be enabled within heFFTe with:
 ```
-    -D CMAKE_CXX_COMPILER=dpcpp
+    -D CMAKE_CXX_COMPILER=<path-to-compiler>/bin/icpx
     -D Heffte_ENABLE_ONEAPI=ON
     -D Heffte_ONEMKL_ROOT=<path-to-onemkl-installation>
 ```
@@ -121,13 +121,15 @@ The `Heffte_ONEMKL_ROOT` defaults to the environment variable `ONEAPI_ROOT`. The
 
 * **CUFFT:** the [Nvidia CUDA framework](https://developer.nvidia.com/cuda-zone) provides a GPU accelerated FFT library [cuFFT](https://docs.nvidia.com/cuda/cufft/index.html), which can be enabled in heFFTe with:
 ```
+    -D CMAKE_CUDA_COMPILER=<path-to-nvcc>/bin/nvcc
     -D Heffte_ENABLE_CUDA=ON
-    -D CUDA_TOOLKIT_ROOT_DIR=<path-to-cuda-installation>
+    -D CUDAToolkit_ROOT=<path-to-cuda-installation>
 ```
+The `CMAKE_CUDA_COMPILER` is usually enough for a standard CUDA installation.
 
 * **ROCFFT:**  the [AMD ROCm framework](https://github.com/RadeonOpenCompute/ROCm) provides a GPU accelerated FFT library [rocFFT](https://github.com/ROCmSoftwarePlatform/rocFFT), which can be enabled in heFFTe with:
 ```
-    -D CMAKE_CXX_COMPILER=hipcc
+    -D CMAKE_CXX_COMPILER=<path-to-compiler>/bin/clang++
     -D Heffte_ENABLE_ROCM=ON
 ```
 
@@ -136,7 +138,7 @@ The `Heffte_ONEMKL_ROOT` defaults to the environment variable `ONEAPI_ROOT`. The
 
 ### GPU-Aware MPI
 
-Different implementations of MPI can provide GPU-Aware capabilities, where data can be send/received directly in GPU memory. OpenMPI provided CUDA aware capabilities if compiled with the corresponding options, e.g., see [CUDA-Aware OpenMPI](https://www.open-mpi.org/faq/?category=buildcuda). Both CUDA and ROCm support such API; however, the specific implementation available to the user may not be available for various reasons, e.g., insufficient hardware support. HeFFTe can be compiled without GPU-Aware capabilities with the CMake option:
+Different implementations of MPI can provide GPU-Aware capabilities, where data can be send/received directly in GPU memory. OpenMPI provided CUDA aware capabilities if compiled with the corresponding options, e.g., see [CUDA-Aware OpenMPI](https://www.open-mpi.org/faq/?category=buildcuda). CUDA, ROCm and OneAPI support such API; however, the specific implementation available to the user may not be available for various reasons, e.g., insufficient hardware support. HeFFTe can be compiled without GPU-Aware capabilities with the CMake option:
 ```
     -D Heffte_DISABLE_GPU_AWARE_MPI=ON
 ```
@@ -164,31 +166,6 @@ The package-config also provides a set of components corresponding to the differ
 ```
     FFTW MKL CUDA ROCM ONEAPI PYTHON Fortran GPUAWARE
 ```
-
-
-### GNU Make Installation
-HeFFTe supports a GNU Make build engine, where dependencies and compilers
-are set manually in the included Makefile.
-Selecting the backends is done with:
-```
-    make backends=fftw,cufft
-```
-The `backends` should be separated by commas and must have correctly selected
-compilers, includes, and libraries. Additional options are available, see
-```
-    make help
-```
-and see also the comments inside the Makefile.
-
-Testing is invoked with:
-```
-    make ctest
-```
-The library will be build in `./lib/`
-
-The GNU Make build engine does not support all options, e.g., MAGMA or disabling the GPU-Aware calls,
-but is provided for testing and debugging purposes.
-
 
 ### Known Issues
 
