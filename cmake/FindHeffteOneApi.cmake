@@ -18,16 +18,6 @@ heffte_find_libraries(REQUIRED mkl_sycl
                       OPTIONAL mkl_intel_lp64 mkl_intel_thread mkl_core
                       PREFIX ${Heffte_ONEMKL_ROOT}
                       LIST onemkl)
-heffte_find_libraries(OPTIONAL OpenCL
-                      PREFIX ${heffte_oneapi_root}/lib/
-                      LIST opencl)
-
-if (heffte_opencl)
-    list(APPEND heffte_onemkl ${heffte_opencl})
-else()
-    # if we fail to find libOpenCL.so, then hope the compiler knows where it is
-    list(APPEND heffte_onemkl "-lOpenCL")
-endif()
 
 find_package_handle_standard_args(HeffteOneApi DEFAULT_MSG heffte_onemkl)
 

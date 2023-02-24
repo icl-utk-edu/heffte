@@ -153,6 +153,8 @@ endif()
 if (Heffte_ENABLE_ONEAPI)
     find_package(HeffteOneApi REQUIRED)
     target_link_libraries(Heffte Heffte::OneMKL)
+    target_compile_options(Heffte PUBLIC -fsycl)
+    target_link_options(Heffte PUBLIC -fsycl)
 endif()
 
 if (Heffte_ENABLE_MAGMA)
