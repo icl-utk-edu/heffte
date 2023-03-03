@@ -18,7 +18,7 @@ VARIANTS=""
 
 [ "$STAGE" = "test" ] && RUNTEST="--test=root"
 
-if [ "$STAGE" = "build" ]; then
+if [ "$STAGE" != "smoketest" ]; then
    spack uninstall -a -y heffte || true
 fi
 spack dev-build -q --fresh $RUNTEST heffte@master $VARIANTS
