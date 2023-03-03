@@ -21,7 +21,7 @@ VARIANTS=""
 if [ "$STAGE" = "build" ]; then
    spack uninstall -a -y heffte || true
 fi
-spack dev-build -q --fresh --overwrite -y $RUNTEST heffte@master $VARIANTS
+spack dev-build -q --fresh $RUNTEST heffte@master $VARIANTS
 if [ "$STAGE" = "smoketest" ]; then
    spack load --first openmpi
    spack test run heffte
