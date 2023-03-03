@@ -13,6 +13,7 @@ elif [ "$BACKEND" == "FFTW" ]; then
    module load fftw
    fftw-wisdom
 elif [[ "$BACKEND" == "ONEAPI" || "$BACKEND" == "gpu_intel" ]]; then
+   module load intel-oneapi-mkl
    module load intel-oneapi-compilers
    BACKEND="ONEAPI"
    ARGS+=" -D CMAKE_CXX_COMPILER=icpx -D Heffte_ONEMKL_ROOT=$MKLROOT"
