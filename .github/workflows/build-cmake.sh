@@ -7,20 +7,20 @@ source $(dirname $0)/init.sh
 
 ARGS="-DCMAKE_INSTALL_PREFIX=install"
 if [ "$BACKEND" = "MKL" ]; then
-   module load intel-mkl
+   module try-load intel-mkl
    [ -z "$MKLROOT" ] && echo "Error loading MKL!" && exit 1
 elif [ "$BACKEND" = "FFTW" ]; then
-   module load fftw
+   module try-load fftw
    fftw-wisdom
 elif [[ "$BACKEND" == "ONEAPI" || "$BACKEND" == "gpu_intel" ]]; then
-   module load intel-oneapi-mkl
-   module load intel-oneapi-compilers
+   module try-load intel-oneapi-mkl
+   module try-load intel-oneapi-compilers
    BACKEND="ONEAPI"
    ARGS+=" -D CMAKE_CXX_COMPILER=icpx -D Heffte_ONEMKL_ROOT=$MKLROOT"
    [ -z "$MKLROOT" ] && echo "Error loading OneAPI-MKL!" && exit 1
 elif [ "$BACKEND" = "gpu_nvidia" ]; then
    BACKEND="CUDA"
-   module load cuda
+   module try-load cuda
    which nvcc
 elif [ "$BACKEND" = "gpu_amd" ]; then
    BACKEND="ROCM"

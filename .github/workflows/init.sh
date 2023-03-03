@@ -6,6 +6,7 @@ shopt -s expand_aliases
 
 alias print=echo
 
-module load cmake
-module load openmpi
+module try-load gcc@8
+module try-load cmake
+module try-load openmpi
 
