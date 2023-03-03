@@ -13,10 +13,9 @@ elif [ "$BACKEND" == "FFTW" ]; then
    module load fftw
    fftw-wisdom
 elif [[ "$BACKEND" == "ONEAPI" || "$BACKEND" == "gpu_intel" ]]; then
-   BACKEND="ONEAPI"
-   ARGS+=" -D CMAKE_CXX_COMPILER=dpcpp -D Heffte_ONEMKL_ROOT=$MKLROOT"
-   module load intel-oneapi-mkl
    module load intel-oneapi-compilers
+   BACKEND="ONEAPI"
+   ARGS+=" -D CMAKE_CXX_COMPILER=icpx -D Heffte_ONEMKL_ROOT=$MKLROOT"
    [ -z "$MKLROOT" ] && echo "Error loading OneAPI-MKL!" && exit 1
 elif [ "$BACKEND" == "gpu_nvidia" ]; then
    BACKEND="CUDA"
