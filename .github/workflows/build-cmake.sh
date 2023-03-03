@@ -1,9 +1,9 @@
 #!/bin/bash -e
 
-BACKEND=$1
+STAGE=$1
+BACKEND=$2
 
-mydir=$(dirname $0)
-source $mydir/init.sh
+source $(dirname $0)/init.sh
 
 ARGS="-DCMAKE_INSTALL_PREFIX=install"
 if [ "$BACKEND" = "MKL" ]; then
@@ -31,20 +31,17 @@ else
    BACKEND=AVX
 fi
 
-print "======================================== Setup build"
-rm -rf build install
+[ "$STAGE" = "build" ] rm -rf build install || true
 mkdir -p build
 cd build
 
-cmake $ARGS -DHeffte_ENABLE_$BACKEND=ON ..
-
-print "======================================== Build"
-make -j4
-
-print "======================================== Install"
-make install
-ls -l install/lib*/libheffte.so
-
-print "======================================== Tests"
-make test
+if [ "$STAGE" = "build" ]; then
+   cmake $ARGS -DHeffte_ENABLE_$BACKEND=ON ..
+   make install
+   ls -l install/lib*/libheffte.so
+elif [ "$STAGE" = "test" ]; then
+   make test
+elif [ "$STAGE" = "smoketest" ]; then
+   echo Smoke test not implemented
+fi
 

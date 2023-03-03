@@ -23,7 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: .github/workflows/build-${{matrix.maker}}.sh ${{matrix.backend}}
+        run: .github/workflows/build-${{matrix.maker}}.sh build ${{matrix.backend}}
+      - name: Test
+        run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.backend}}
+      - name: SmokeTest
+        run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.backend}}
   heffte_gpu:
     strategy:
       matrix:
