@@ -37,6 +37,7 @@ cd build
 
 if [ "$STAGE" = "build" ]; then
    cmake $ARGS -DHeffte_ENABLE_$BACKEND=ON ..
+   make -j4
    make install
    ls -l install/lib*/libheffte.so
 elif [ "$STAGE" = "test" ]; then
