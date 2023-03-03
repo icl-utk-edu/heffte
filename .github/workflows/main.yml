@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ master, gragghia_ci ]
+    branches: [ master, gragghia/* ]
   pull_request:
     branches: [ master ]
 
