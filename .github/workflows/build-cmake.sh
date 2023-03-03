@@ -14,7 +14,7 @@ elif [ "$BACKEND" == "FFTW" ]; then
    fftw-wisdom
 elif [[ "$BACKEND" == "ONEAPI" || "$BACKEND" == "gpu_intel" ]]; then
    BACKEND="ONEAPI"
-   ARGS="-D CMAKE_CXX_COMPILER=dpcpp -D Heffte_ONEMKL_ROOT=$MKLROOT"
+   ARGS+=" -D CMAKE_CXX_COMPILER=dpcpp -D Heffte_ONEMKL_ROOT=$MKLROOT"
    module load intel-oneapi-mkl
    module load intel-oneapi-compilers
    [ -z "$MKLROOT" ] && echo "Error loading OneAPI-MKL!" && exit 1
@@ -32,7 +32,7 @@ else
 fi
 
 print "======================================== Setup build"
-rm -rf build
+rm -rf build install
 mkdir -p build
 cd build
 
@@ -43,7 +43,7 @@ make -j4
 
 print "======================================== Install"
 make install
-ls -R install
+ls -l install/lib*/libheffte.so
 
 print "======================================== Tests"
 make test
