@@ -37,4 +37,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: .github/workflows/build-${{matrix.maker}}.sh ${{matrix.device}}
+        run: .github/workflows/build-${{matrix.maker}}.sh build ${{matrix.device}}
+      - name: Test
+        run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.device}}
+      - name: SmokeTest
+        run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.device}}
