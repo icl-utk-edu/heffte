@@ -31,7 +31,7 @@ else
    BACKEND=AVX
 fi
 
-[ "$STAGE" = "build" ] rm -rf build install || true
+[ "$STAGE" = "build" ] && rm -rf build install || true
 mkdir -p build
 cd build
 
