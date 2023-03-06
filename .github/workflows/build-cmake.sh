@@ -43,7 +43,7 @@ if [ "$STAGE" = "build" ]; then
    make install
    ls -l install/lib*/libheffte.so
 elif [ "$STAGE" = "test" ]; then
-   make ctest -V
+   ctest -V
 elif [ "$STAGE" = "smoketest" ]; then
    make test_install
 fi
