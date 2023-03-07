@@ -5,8 +5,13 @@ trap 'echo "# $BASH_COMMAND"' DEBUG
 shopt -s expand_aliases
 
 alias print=echo
+alias load="spack load --first"
 
-module try-load gcc@8
-module try-load cmake
-module try-load openmpi
-
+load gcc@8
+load cmake
+if [[ "$BACKEND" == "ROCM" || "$BACKEND" == "gpu_amd" ]]; then
+   MPI="mpich+rocm"
+else
+   MPI="mpich+cuda"
+fi
+load $MPI
