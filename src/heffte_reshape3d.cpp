@@ -375,10 +375,10 @@ void reshape3d_alltoallv<location_tag, packer, index>::apply_base(int batch_size
     }
     }
 
+    // the synchronize_device() is needed to flush the kernels of the asynchronous packing
     this->synchronize_device();
 
     #ifdef Heffte_ENABLE_GPU
-    // the device_synchronize() is needed to flush the kernels of the asynchronous packing
     if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
         scalar_type *temp = this->template cpu_send_buffer<scalar_type>(batch_size * this->input_size);
         gpu::transfer::unload(this->stream(), send_buffer, batch_size * this->input_size, temp);

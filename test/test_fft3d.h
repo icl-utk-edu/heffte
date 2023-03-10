@@ -277,13 +277,14 @@ void test_fft3d_queues(MPI_Comm comm){
 
         sync_stream(stream);
         heffte::fft3d<backend_tag> fft(stream, inbox, outbox, comm, options);
-        sync_stream(stream);
 
         auto result = fft.forward(local_input, fscale[i]);
+        sync_stream(stream);
         tassert(approx(result, reference_fft));
 
         auto backward_cresult = fft.backward(result, bscale[i]);
         auto backward_scaled_cresult = rescale(world, backward_cresult, scale::none);
+        sync_stream(stream);
         tassert(approx(local_input, backward_scaled_cresult));
     }
     } // different option variants
@@ -337,13 +338,14 @@ void test_fft3d_r2c_queues(MPI_Comm comm){
 
             sync_stream(stream);
             heffte::fft3d_r2c<backend_tag> fft(stream, inbox, outbox, dim, comm, options);
-            sync_stream(stream);
 
             auto result = fft.forward(local_input, fscale[i]);
+            sync_stream(stream);
             tassert(approx(result, reference_fft, correction));
 
             auto backward_result = fft.backward(result, bscale[i]);
             auto backward_scaled_result = rescale(rworld, backward_result, scale::none);
+            sync_stream(stream);
             tassert(approx(local_input, backward_scaled_result));
         }
     }
