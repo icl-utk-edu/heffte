@@ -10,13 +10,13 @@ git clone https://github.com/spack/spack ../spack || true
 source ../spack/share/spack/setup-env.sh
 
 VARIANTS=""
-if [ "$BACKEND" = "FFTW" ];
+if [ "$BACKEND" = "FFTW" ]; then
    VARIANTS="+fftw"
-elif [ "$BACKEND" = "MKL" ]
+elif [ "$BACKEND" = "MKL" ]; then
    VARIANTS="+mkl"
-elif [ "$BACKEND" = "gpu_nvidia" ]
+elif [ "$BACKEND" = "gpu_nvidia" ]; then
    VARIANTS="+cuda cuda_arch=70 ^cuda@11.4.3"
-elif [ "$BACKEND" = "gpu_amd"    ]
+elif [ "$BACKEND" = "gpu_amd" ]; then
    VARIANTS="+rocm amdgpu_target=gfx90a ^hip@5.1.3"
 fi
 
