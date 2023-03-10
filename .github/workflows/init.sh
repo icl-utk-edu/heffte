@@ -7,7 +7,9 @@ shopt -s expand_aliases
 alias print=echo
 alias load="spack load --first"
 
-load gcc@8
+COMPILER=gcc@9.5.0
+
+load $COMPILER
 load cmake
 MPI="openmpi"
 if [ "$BACKEND" = "gpu_amd" ]; then
@@ -15,4 +17,4 @@ if [ "$BACKEND" = "gpu_amd" ]; then
 elif [ "$BACKEND" = "gpu_nvidia" ]
    MPI="mpich+cuda"
 fi
-load $MPI
+load $MPI %$COMPILER
