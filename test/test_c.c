@@ -17,7 +17,6 @@
 #include <cuda.h>
 #endif
 #ifdef Heffte_ENABLE_ROCM
-#define __HIP_PLATFORM_HCC__
 #include <hip/hip_runtime.h>
 #endif
 
@@ -332,8 +331,7 @@ void perform_tests_gpu(int backend, MPI_Comm const comm){
     hassert( gpuMalloc((void**) &cuda_zoutput, 64 * sizeof(double)) == gpuSuccess );
     double *cuda_dresult;
     hassert( gpuMalloc((void**) &cuda_dresult, 64 * sizeof(double)) == gpuSuccess );
-    double *cuda_workspace;
-    hassert( gpuMalloc((void**) &cuda_workspace, 2 * 96 * sizeof(double)) == gpuSuccess );
+    double *cuda_workspace = NULL;
 
     int full_low[3] = {0, 0, 0};
     int full_high[3] = {3, 3, 3};
@@ -358,7 +356,10 @@ void perform_tests_gpu(int backend, MPI_Comm const comm){
 
     hassert(heffte_size_inbox(plan) == 32);
     hassert(heffte_size_outbox(plan) == 32);
-    hassert(heffte_size_workspace(plan) == 96);
+    #ifdef Heffte_ENABLE_CUDA
+    hassert(heffte_size_workspace(plan) == 96); // the number if different for ROCm due to the rocfft workspace
+    #endif
+    hassert( gpuMalloc((void**) &cuda_workspace, 2 * heffte_size_workspace(plan) * sizeof(double)) == gpuSuccess );
     hassert(heffte_get_backend(plan) == backend);
     hassert(!heffte_is_r2c(plan));
 
@@ -392,7 +393,10 @@ void perform_tests_gpu(int backend, MPI_Comm const comm){
 
     hassert(heffte_size_inbox(plan) == 32);
     hassert(heffte_size_outbox(plan) == ((me == 0) ? 32 : 16));
+    #ifdef Heffte_ENABLE_CUDA
     hassert(heffte_size_workspace(plan) == ((me == 0) ? 96 : 88));
+    #endif
+    hassert( gpuMalloc((void**) &cuda_workspace, 2 * heffte_size_workspace(plan) * sizeof(double)) == gpuSuccess );
     hassert(heffte_get_backend(plan) == backend);
     hassert(heffte_is_r2c(plan));
 
@@ -443,7 +447,7 @@ int main(int argc, char **argv){
 
     if (me == 0){
         printf("\n------------------------------------------------------------------------------\n");
-        printf("                       Testing HeFFTe C binding\n");
+        printf("                       Testing heFFTe C binding\n");
         printf("------------------------------------------------------------------------------\n\n");
     }
 
@@ -468,7 +472,7 @@ int main(int argc, char **argv){
 
     if (me == 0){
         printf("\n------------------------------------------------------------------------------\n");
-        printf("                       HeFFTe C binding: ALL GOOD\n");
+        printf("                       heFFTe C binding: ALL GOOD\n");
         printf("------------------------------------------------------------------------------\n\n");
     }
 
