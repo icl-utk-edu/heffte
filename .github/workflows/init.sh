@@ -9,9 +9,10 @@ alias load="spack load --first"
 
 load gcc@8
 load cmake
-if [[ "$BACKEND" == "ROCM" || "$BACKEND" == "gpu_amd" ]]; then
+MPI="openmpi"
+if [ "$BACKEND" = "gpu_amd" ]; then
    MPI="mpich+rocm"
-else
+elif [ "$BACKEND" = "gpu_nvidia" ]
    MPI="mpich+cuda"
 fi
 load $MPI

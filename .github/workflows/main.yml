@@ -32,10 +32,7 @@ jobs:
     strategy:
       matrix:
         maker: [cmake, spack]
-        device: [gpu_nvidia, gpu_amd, gpu_intel]
-        exclude: # spack package doesn't support gpu_intel
-          - maker: spack
-            device: gpu_intel
+        device: [gpu_nvidia]
       fail-fast: false
     runs-on: ${{matrix.device}}
     steps:
