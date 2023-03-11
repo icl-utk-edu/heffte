@@ -42,9 +42,7 @@ unset(_heffte_num_procs)
 # test the user-provided streams
 add_executable(test_streams  test_fft3d.h test_streams.cpp)
 target_link_libraries(test_streams  Heffte)
-if (NOT Heffte_ENABLE_CUDA)
-    heffte_add_mpi_test(NAME heffte_streams_np6 COMMAND test_streams RANKS 6) # will enable once Volta issue is fixed
-endif()
+heffte_add_mpi_test(NAME heffte_streams_np6 COMMAND test_streams RANKS 6) # will enable once Volta issue is fixed
 
 # subcommunicator tests
 add_executable(test_subcomm  test_fft3d.h test_subcomm.cpp)

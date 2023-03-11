@@ -205,8 +205,9 @@ namespace backend{
         //! \brief Allocate memory.
         template<typename scalar_type>
         static scalar_type* allocate(cudaStream_t stream, size_t num_entries){
-            void *new_data;
-            if (stream != nullptr) cuda::check_error( cudaStreamSynchronize(stream), "cudaStreamSynchronize()");
+            void *new_data = nullptr;
+            // no idea why the synch below is needed
+            if (stream != nullptr) cuda::check_error( cudaDeviceSynchronize(), "cudaDeviceSynchronize()");
             cuda::check_error(cudaMalloc(&new_data, num_entries * sizeof(scalar_type)), "cudaMalloc()");
             return reinterpret_cast<scalar_type*>(new_data);
         }
@@ -214,7 +215,8 @@ namespace backend{
         template<typename scalar_type>
         static void free(cudaStream_t stream, scalar_type *pntr){
             if (pntr == nullptr) return;
-            if (stream != nullptr) cuda::check_error( cudaStreamSynchronize(stream), "cudaStreamSynchronize()");
+            // if using streams, flush kernels that may still be using the workspace buffers
+            if (stream != nullptr) cuda::check_error( cudaDeviceSynchronize(), "cudaDeviceSynchronize()");
             cuda::check_error(cudaFree(pntr), "cudaFree()");
         }
         //! \brief Equivalent to std::copy_n() but using CUDA arrays.
