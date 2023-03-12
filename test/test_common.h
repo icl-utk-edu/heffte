@@ -194,7 +194,7 @@ cudaStream_t make_stream(backend::cufft){
     cudaStreamCreateWithFlags(&result, cudaStreamNonBlocking);
     return result;
 }
-void sync_stream(cudaStream_t stream){ cudaStreamSynchronize(stream); }
+void sync_stream(cudaStream_t){ cudaDeviceSynchronize(); }
 void free_stream(cudaStream_t stream){ cudaStreamDestroy(stream); }
 #endif
 #ifdef Heffte_ENABLE_ROCM
@@ -205,7 +205,7 @@ hipStream_t make_stream(backend::rocfft){
     hipStreamCreateWithFlags(&result, hipStreamNonBlocking);
     return result;
 }
-void sync_stream(hipStream_t stream){ hipStreamSynchronize(stream); }
+void sync_stream(hipStream_t){ hipDeviceSynchronize(); }
 void free_stream(hipStream_t stream){ hipStreamDestroy(stream); }
 #endif
 #ifdef Heffte_ENABLE_ONEAPI

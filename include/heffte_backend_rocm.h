@@ -209,9 +209,8 @@ namespace backend{
         using backend_device = backend::device_instance<tag::gpu>;
         //! \brief Allocate memory.
         template<typename scalar_type>
-        static scalar_type* allocate(hipStream_t stream, size_t num_entries){
-            void *new_data;
-            if (stream != nullptr) rocm::check_error( hipStreamSynchronize(stream), "hipStreamSynchronize()");
+        static scalar_type* allocate(hipStream_t, size_t num_entries){
+            void *new_data = nullptr;
             rocm::check_error(hipMalloc(&new_data, num_entries * sizeof(scalar_type)), "hipMalloc()");
             return reinterpret_cast<scalar_type*>(new_data);
         }
@@ -219,7 +218,6 @@ namespace backend{
         template<typename scalar_type>
         static void free(hipStream_t stream, scalar_type *pntr){
             if (pntr == nullptr) return;
-            if (stream != nullptr) rocm::check_error( hipStreamSynchronize(stream), "hipStreamSynchronize()");
             rocm::check_error(hipFree(pntr), "hipFree()");
         }
         //! \brief Equivalent to std::copy_n() but using CUDA arrays.

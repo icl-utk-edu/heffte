@@ -204,19 +204,15 @@ namespace backend{
         using backend_device = backend::device_instance<tag::gpu>;
         //! \brief Allocate memory.
         template<typename scalar_type>
-        static scalar_type* allocate(cudaStream_t stream, size_t num_entries){
+        static scalar_type* allocate(cudaStream_t, size_t num_entries){
             void *new_data = nullptr;
-            // no idea why the synch below is needed
-            if (stream != nullptr) cuda::check_error( cudaDeviceSynchronize(), "cudaDeviceSynchronize()");
             cuda::check_error(cudaMalloc(&new_data, num_entries * sizeof(scalar_type)), "cudaMalloc()");
             return reinterpret_cast<scalar_type*>(new_data);
         }
         //! \brief Free memory.
         template<typename scalar_type>
-        static void free(cudaStream_t stream, scalar_type *pntr){
+        static void free(cudaStream_t, scalar_type *pntr){
             if (pntr == nullptr) return;
-            // if using streams, flush kernels that may still be using the workspace buffers
-            if (stream != nullptr) cuda::check_error( cudaDeviceSynchronize(), "cudaDeviceSynchronize()");
             cuda::check_error(cudaFree(pntr), "cudaFree()");
         }
         //! \brief Equivalent to std::copy_n() but using CUDA arrays.
