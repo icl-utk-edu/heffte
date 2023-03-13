@@ -17,7 +17,7 @@ elif [ "$BACKEND" = "FFTW" ]; then
 elif [[ "$BACKEND" == "ONEAPI" || "$BACKEND" == "gpu_intel" ]]; then
    load intel-oneapi-mkl
    load intel-oneapi-compilers
-   ARGS+=" -DHeffte_ENABLE_AVX=ON"
+   ARGS+=" -DHeffte_ENABLE_ONEAPI=ON"
    ARGS+=" -D CMAKE_CXX_COMPILER=icpx -D Heffte_ONEMKL_ROOT=$MKLROOT"
    [ -z "$MKLROOT" ] && echo "Error loading OneAPI-MKL!" && exit 1
 elif [ "$BACKEND" = "gpu_nvidia" ]; then
