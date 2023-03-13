@@ -27,5 +27,6 @@ if [ "$STAGE" = "smoketest" ]; then
    spack test run heffte
 else
    spack uninstall -a -y heffte || true
-   spack dev-build -q --fresh $RUNTEST heffte@master $VARIANTS ^$MPI
+   spack install --only=dependencies --fresh heffte@master $VARIANTS ^$MPI
+   spack dev-build -i --fresh $RUNTEST heffte@master $VARIANTS ^$MPI
 fi
