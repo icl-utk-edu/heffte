@@ -13,8 +13,8 @@ load $COMPILER
 load cmake
 MPI="openmpi"
 if [ "$BACKEND" = "gpu_amd" ]; then
-   MPI="mpich+rocm"
+   MPI+="+rocm"
 elif [ "$BACKEND" = "gpu_nvidia" ]; then
-   MPI="mpich+cuda"
+   MPI+="+cuda"
 fi
 load $MPI %$COMPILER
