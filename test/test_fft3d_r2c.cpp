@@ -315,6 +315,7 @@ int main(int argc, char *argv[]){
 
     MPI_Init(&argc, &argv);
 
+    gpu_warmup();
     perform_tests(MPI_COMM_WORLD);
 
     MPI_Finalize();

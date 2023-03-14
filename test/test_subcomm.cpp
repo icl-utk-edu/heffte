@@ -177,6 +177,7 @@ void perform_tests(MPI_Comm const comm){
     #ifdef Heffte_ENABLE_MKL
     test_all_subcases<backend::mkl>(comm);
     #endif
+    gpu_warmup();
     #ifdef Heffte_ENABLE_CUDA
     test_all_subcases<backend::cufft>(comm);
     #endif

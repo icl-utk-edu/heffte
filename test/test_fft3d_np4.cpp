@@ -29,6 +29,7 @@ void perform_tests(MPI_Comm const comm){
     #ifdef Heffte_ENABLE_MKL
     test_fft3d_cases<backend::mkl>(comm);
     #endif
+    gpu_warmup();
     #ifdef Heffte_ENABLE_CUDA
     test_fft3d_cases<backend::cufft>(comm);
     #endif

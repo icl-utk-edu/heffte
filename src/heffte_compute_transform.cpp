@@ -319,4 +319,47 @@ heffte_instantiate_transform(tag::gpu, int)
 heffte_instantiate_transform(tag::gpu, long long)
 #endif
 
+/*!
+ * \internal
+ * \brief Calls GPU FFT on each MPI rank sequentially.
+ *
+ * The initialization of the GPU plans, e.g., cuFFT or rocFFT, requires excessive amount of memory.
+ * Vendors have set it so that a lot of memory is used, limited only by the total available memory.
+ * This is manageable on one device, if the plan is created \b before GPU memory is allocated,
+ * or the allocated GPU memory is very little.
+ * However, then the GPU is oversubscribed and multiple MPI ranks are simultaneously initializing cuFFT,
+ * "out of memory" errors are likely to occur.
+ * As a workaround, this method will make a call to cuFFT/rocFFT/OneMKL on each MPI rank sequentially,
+ * i.e., only one rank will be initializing the library at a time.
+ *
+ * This is used in testing, when we run on machines with few GPUs and we oversubscribe,
+ * ideally the user user would never have to resort to such hacks.
+ *
+ * \endinternal
+ */
+void gpu_warmup(){
+#ifdef Heffte_ENABLE_GPU
+    using backend_tag = backend::default_backend<tag::gpu>::type;
+    backend::device_instance<tag::gpu> gpu;
+
+    for(int i=0; i<mpi::comm_size(MPI_COMM_WORLD); i++){
+
+        if (mpi::world_rank(i)){
+            box3d<int> world({0, 0, 0}, {7, 7, 7});
+            auto fft0 = make_executor<backend_tag>(gpu.stream(), world, 0);
+            auto fft1 = make_executor<backend_tag>(gpu.stream(), world, 1);
+            auto fft2 = make_executor<backend_tag>(gpu.stream(), world, 2);
+
+            auto input = gpu::transfer().load(std::vector<std::complex<double>>(world.count(), 0));
+            auto workspace = make_buffer_container<std::complex<double>>(gpu.stream(), std::max(fft0->workspace_size(), std::max(fft1->workspace_size(), fft2->workspace_size())));
+
+            fft0->forward(input.data(), workspace.data());
+            fft1->forward(input.data(), workspace.data());
+            fft2->forward(input.data(), workspace.data());
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+#endif
+}
+
 }
