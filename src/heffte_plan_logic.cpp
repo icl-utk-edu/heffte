@@ -302,6 +302,7 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
             if (j != r2c_direction and is_slab(world_in, boxes.in, r2c_direction, j)){
                 fft_direction[0] = r2c_direction;
                 fft_direction[1] = j;
+                break;
             }
         }
     }
@@ -311,7 +312,7 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
 
         std::vector<box3d<index>> shape0 = reorder_slabs(boxes.in, fft_direction[0], opts.use_reorder);
         std::vector<box3d<index>> shape_fft0 = apply_r2c(shape0, r2c_direction);
-        std::vector<box3d<index>> shape1 = reorder_slabs(shape0, fft_direction[1], opts.use_reorder);
+        std::vector<box3d<index>> shape1 = reorder_slabs(shape_fft0, fft_direction[1], opts.use_reorder);
         std::vector<box3d<index>> shape2 = next_pencils_shape(world_out, proc_grid, fft_direction[2], shape1, opts.use_reorder,
                                                        world_out, {fft_direction[2]}, boxes.out, remap);
         return {
@@ -407,7 +408,7 @@ logic_plan3d<index> plan_slab_reshapes(box3d<index> world_in, box3d<index> world
 
     std::vector<box3d<index>> shape0 = reorder_slabs(slabs, fft_direction[0], opts.use_reorder);
     std::vector<box3d<index>> shape_fft0 = apply_r2c(shape0, r2c_direction);
-    std::vector<box3d<index>> shape1 = reorder_slabs(shape0, fft_direction[1], opts.use_reorder);
+    std::vector<box3d<index>> shape1 = reorder_slabs(shape_fft0, fft_direction[1], opts.use_reorder);
     std::vector<box3d<index>> shape2 = next_pencils_shape(world_out, proc_grid, fft_direction[2], shape1, opts.use_reorder,
                                                     world_out, {fft_direction[2]}, boxes.out, remap);
     return {
