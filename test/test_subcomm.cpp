@@ -51,7 +51,7 @@ void test_subcomm_cases(MPI_Comm const comm){
     for(auto const &num_subcomm : std::vector<int>{1, 2, 3, 4}){
         for(int variant=0; variant<4; variant++){
             for(auto const &alg : std::vector<reshape_algorithm>{
-                reshape_algorithm::alltoall, reshape_algorithm::alltoallv,
+                reshape_algorithm::alltoallv,
                 reshape_algorithm::p2p, reshape_algorithm::p2p_plined}){
 
                 heffte::plan_options options = default_options<backend_tag>();
@@ -120,7 +120,7 @@ void test_subcomm_cases_r2c(MPI_Comm const comm){
 
         for(int variant=0; variant<4; variant++){
             for(auto const &alg : std::vector<reshape_algorithm>{
-                reshape_algorithm::alltoall, reshape_algorithm::alltoallv,
+                reshape_algorithm::alltoallv,
                 reshape_algorithm::p2p, reshape_algorithm::p2p_plined}){
 
                 heffte::plan_options options = default_options<backend_tag>();

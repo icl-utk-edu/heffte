@@ -305,26 +305,38 @@ make_reshape3d_alltoall(typename backend::device_instance<location_tag>::stream_
                         std::vector<box3d<index>> const &input_boxes, std::vector<box3d<index>> const &output_boxes,
                         bool uses_gpu_aware, MPI_Comm const comm){
     int const me = mpi::comm_rank(comm);
-    std::vector<int> group = a2a_group({me}, {me}, input_boxes, output_boxes);
 
-    constexpr bool transpose = true;
-    constexpr bool non_transpose = false;
+    std::vector<int> send_proc;
+    if (not input_boxes[me].empty()) send_proc.push_back(me);
+    std::vector<int> recv_proc;
+    if (not output_boxes[me].empty()) recv_proc.push_back(me);
+    std::vector<int> group = a2a_group(send_proc, recv_proc, input_boxes, output_boxes);
 
     std::vector<pack_plan_3d<index>> packplans, unpackplans;
     std::vector<int> send_offset, recv_offset;
 
-    compute_overlap_map_all2all_pack<index, non_transpose>(group, input_boxes[me], output_boxes, send_offset, packplans);
-    if (std::is_same<packer<location_tag>, direct_packer<location_tag>>::value){
-        compute_overlap_map_all2all_pack<index, non_transpose>(group, output_boxes[me], input_boxes, recv_offset, unpackplans);
-    }else{
-        compute_overlap_map_all2all_pack<index, transpose>(group, output_boxes[me], input_boxes, recv_offset, unpackplans);
+    if (not group.empty()){
+        constexpr bool transpose = true;
+        constexpr bool non_transpose = false;
+
+        compute_overlap_map_all2all_pack<index, non_transpose>(group, input_boxes[me], output_boxes, send_offset, packplans);
+        if (std::is_same<packer<location_tag>, direct_packer<location_tag>>::value){
+            compute_overlap_map_all2all_pack<index, non_transpose>(group, output_boxes[me], input_boxes, recv_offset, unpackplans);
+        }else{
+            compute_overlap_map_all2all_pack<index, transpose>(group, output_boxes[me], input_boxes, recv_offset, unpackplans);
+        }
     }
 
-    return std::unique_ptr<reshape3d_alltoall<location_tag, packer, index>>(new reshape3d_alltoall<location_tag, packer, index>(
-        q, input_boxes[me].count(), output_boxes[me].count(),
-        uses_gpu_aware, mpi::new_comm_from_group(group, comm),
-        std::move(packplans), std::move(unpackplans), std::move(send_offset), std::move(recv_offset),
-        get_max_size(group, input_boxes, output_boxes)
+    MPI_Comm new_comm = mpi::new_comm_from_group(group, comm);
+
+    if (group.empty())
+        return std::unique_ptr<reshape3d_alltoall<location_tag, packer, index>>();
+    else
+        return std::unique_ptr<reshape3d_alltoall<location_tag, packer, index>>(new reshape3d_alltoall<location_tag, packer, index>(
+            q, input_boxes[me].count(), output_boxes[me].count(),
+            uses_gpu_aware, new_comm,
+            std::move(packplans), std::move(unpackplans), std::move(send_offset), std::move(recv_offset),
+            get_max_size(group, input_boxes, output_boxes)
                                                        ));
 
 }
