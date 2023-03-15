@@ -186,8 +186,10 @@ logic_plan3d<index> plan_pencil_reshapes(box3d<index> world_in, box3d<index> wor
     // step 1 - b, check if the initial shape is slabs and select the second direction accordingly
     if (fft_direction[0] != -1 and is_pencils(world_in, boxes.in, fft_direction[0])){ // direction is pencil
         for(int i=0; i<3; i++){
-            if (i != fft_direction[0] and is_pencils(world_out, boxes.in, i))
+            if (i != fft_direction[0] and is_pencils(world_out, boxes.in, i)){
                 fft_direction[1] = i;
+                break;
+            }
         }
     }
 
