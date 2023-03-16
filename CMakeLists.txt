@@ -22,6 +22,8 @@ option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
 option(BUILD_SHARED_LIBS      "Builds shared libraries using CMake conventions"  ON)
 
+option(Heffte_SEQUENTIAL_TESTING  "Force all tests to run sequentially to avoid oversubscribing resources."  OFF)
+
 # add the file with common CMake helper macros
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/heffte_macros.cmake")
 

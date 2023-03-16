@@ -1,6 +1,7 @@
 macro(heffte_add_mpi_test)
     cmake_parse_arguments(_heffte "" "NAME;COMMAND;RANKS" "" ${ARGN} )
     add_test(${_heffte_NAME} ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${_heffte_RANKS} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${_heffte_COMMAND} ${MPIEXEC_POSTFLAGS})
+    set_tests_properties(${_heffte_NAME} PROPERTIES RUN_SERIAL ${Heffte_SEQUENTIAL_TESTING})
     unset(_heffte_NAME)
     unset(_heffte_RANKS)
     unset(_heffte_COMMAND)
@@ -18,11 +19,13 @@ target_link_libraries(sandbox  Heffte)
 add_executable(test_unit_nompi test_units_nompi.cpp)
 target_link_libraries(test_unit_nompi  Heffte)
 add_test(unit_tests_nompi  test_unit_nompi)
+set_tests_properties(unit_tests_nompi PROPERTIES RUN_SERIAL ${Heffte_SEQUENTIAL_TESTING})
 
 # no MPI test of different aspects of the stock implementations
 add_executable(test_unit_stock  test_units_stock.cpp)
 target_link_libraries(test_unit_stock  Heffte)
 add_test(unit_tests_stock  test_unit_stock)
+set_tests_properties(unit_tests_stock PROPERTIES RUN_SERIAL ${Heffte_SEQUENTIAL_TESTING})
 
 # test the reshape methods
 add_executable(test_reshape3d test_reshape3d.cpp)
