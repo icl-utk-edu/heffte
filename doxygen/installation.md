@@ -70,13 +70,14 @@ The standard CMake options are also accepted:
 
 Additional heFFTe options:
 ```
-    Heffte_ENABLE_ROCM=<ON/OFF>      (enable the rocFFT backend)
-    Heffte_ENABLE_ONEAPI=<ON/OFF>    (enable the oneMKL backend)
-    Heffte_ENABLE_MKL=<ON/OFF>       (enable the MKL backend)
-    Heffte_ENABLE_AVX512=<ON/OFF>    (enable AVX512 instructions in the stock backend)
-    MKL_ROOT=<path>                  (path to the MKL folder)
-    Heffte_ENABLE_DOXYGEN=<ON/OFF>   (build the documentation)
-    Heffte_ENABLE_TRACING=<ON/OFF>   (enable the even logging engine)
+    Heffte_ENABLE_ROCM=<ON/OFF>         (enable the rocFFT backend)
+    Heffte_ENABLE_ONEAPI=<ON/OFF>       (enable the oneMKL backend)
+    Heffte_ENABLE_MKL=<ON/OFF>          (enable the MKL backend)
+    Heffte_ENABLE_AVX512=<ON/OFF>       (enable AVX512 instructions in the stock backend)
+    MKL_ROOT=<path>                     (path to the MKL folder)
+    Heffte_ENABLE_DOXYGEN=<ON/OFF>      (build the documentation)
+    Heffte_ENABLE_TRACING=<ON/OFF>      (enable the even logging engine)
+    Heffte_SEQUENTIAL_TESTING=<ON/OFF>  (run all ctest sequentially)
 ```
 
 Additional language interfaces and helper methods:
@@ -174,3 +175,7 @@ The package-config also provides a set of components corresponding to the differ
     * the GPU handles used by MAGMA-CUDA and MAGMA-HIP are not destroyed on time
       (both backends seem to implement some garbage collection mechanism),
       thus even an 8GB GPU may run out of memory when using the 12 rank test
+    * running tests in parallel is forced on some systems, e.g., using `CTEST_PARALLEL_LEVEL`
+      such as spack systems, which causes oversubscription of resources
+      most notably GPU RAM but also CPU cores,
+      the work around is to force `Heffte_SEQUENTIAL_TESTING=ON`
