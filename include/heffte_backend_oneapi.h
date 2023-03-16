@@ -393,25 +393,25 @@ public:
         q.wait();
     }
 
-    //! \brief Converts the deal data to complex and performs float-complex forward transform.
+    //! \brief Converts the real data to complex and performs float-complex forward transform.
     void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
-        for(int i=0; i<total_size; i++) outdata[i] = std::complex<float>(indata[i]);
+        backend::data_manipulator<tag::gpu>::copy_n(q, indata, total_size, outdata);
         forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
     void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const override{
         backward(indata, workspace);
-        for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
+        backend::data_manipulator<tag::gpu>::copy_n(q, indata, total_size, outdata);
     }
-    //! \brief Converts the deal data to complex and performs double-complex forward transform.
+    //! \brief Converts the real data to complex and performs double-complex forward transform.
     void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
-        for(int i=0; i<total_size; i++) outdata[i] = std::complex<double>(indata[i]);
+        backend::data_manipulator<tag::gpu>::copy_n(q, indata, total_size, outdata);
         forward(outdata, workspace);
     }
     //! \brief Performs backward double-complex transform and truncates the complex part of the result.
     void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const override{
         backward(indata, workspace);
-        for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
+        backend::data_manipulator<tag::gpu>::copy_n(q, indata, total_size, outdata);
     }
 
     //! \brief Returns the size of the box.
