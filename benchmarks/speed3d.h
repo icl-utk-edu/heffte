@@ -65,7 +65,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     if (has_option(args, "-io_pencils")){
         std::array<int, 2> proc_grid = make_procgrid(nprocs);
         proc_i = {1, proc_grid[0], proc_grid[1]};
-        proc_o = {1, proc_grid[0], proc_grid[1]};
+        proc_o = {proc_grid[0], proc_grid[1], 1};
     }
 
     if (has_option(args, "-ingrid"))
