@@ -598,12 +598,12 @@ public:
         execute<double, direction::backward>(data, workspace);
     }
 
-    //! \brief Converts the deal data to complex and performs float-complex forward transform.
+    //! \brief Converts the real data to complex and performs float-complex forward transform.
     void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
         rocm::convert(stream, total_size, indata, outdata);
         forward(outdata, workspace);
     }
-    //! \brief Converts the deal data to complex and performs double-complex forward transform.
+    //! \brief Converts the real data to complex and performs double-complex forward transform.
     void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
         rocm::convert(stream, total_size, indata, outdata);
         forward(outdata, workspace);

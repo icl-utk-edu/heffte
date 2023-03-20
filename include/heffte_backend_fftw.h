@@ -294,7 +294,7 @@ public:
         }
     }
 
-    //! \brief Converts the deal data to complex and performs float-complex forward transform.
+    //! \brief Converts the real data to complex and performs float-complex forward transform.
     void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<float>(indata[i]);
         forward(outdata, workspace);
@@ -304,7 +304,7 @@ public:
         backward(indata, workspace);
         for(int i=0; i<total_size; i++) outdata[i] = std::real(indata[i]);
     }
-    //! \brief Converts the deal data to complex and performs double-complex forward transform.
+    //! \brief Converts the real data to complex and performs double-complex forward transform.
     void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
         for(int i=0; i<total_size; i++) outdata[i] = std::complex<double>(indata[i]);
         forward(outdata, workspace);
