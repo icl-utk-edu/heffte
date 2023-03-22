@@ -3,6 +3,8 @@
 STAGE=$1
 BACKEND=$2
 
+env
+
 source $(dirname $0)/init.sh
 
 ARGS="-DCMAKE_INSTALL_PREFIX=install"
