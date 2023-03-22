@@ -367,30 +367,58 @@ public:
     //! \brief Forward fft, float-complex case.
     void forward(std::complex<float> data[], std::complex<float>*) const override{
         if (not init_cplan) make_plan(cplan);
-        for(int i=0; i<blocks; i++)
-            oneapi::mkl::dft::compute_forward(cplan, data + i * block_stride);
-        q.wait();
+        if (blocks == 1){
+            oneapi::mkl::dft::compute_forward(cplan, data).wait();
+        }else{
+            std::vector<sycl::event> events;
+            for(int i=0; i<blocks; i++)
+                events.push_back(
+                    oneapi::mkl::dft::compute_forward(cplan, data + i * block_stride, events)
+                );
+            events.back().wait();
+        }
     }
     //! \brief Backward fft, float-complex case.
     void backward(std::complex<float> data[], std::complex<float>*) const override{
         if (not init_cplan) make_plan(cplan);
-        for(int i=0; i<blocks; i++)
-            oneapi::mkl::dft::compute_backward(cplan, data + i * block_stride);
-        q.wait();
+        if (blocks == 1){
+            oneapi::mkl::dft::compute_backward(cplan, data).wait();
+        }else{
+            std::vector<sycl::event> events;
+            for(int i=0; i<blocks; i++)
+                events.push_back(
+                    oneapi::mkl::dft::compute_backward(cplan, data + i * block_stride, events)
+                );
+            events.back().wait();
+        }
     }
     //! \brief Forward fft, double-complex case.
     void forward(std::complex<double> data[], std::complex<double>*) const override{
         if (not init_zplan) make_plan(zplan);
-        for(int i=0; i<blocks; i++)
-            oneapi::mkl::dft::compute_forward(zplan, data + i * block_stride);
-        q.wait();
+        if (blocks == 1){
+            oneapi::mkl::dft::compute_forward(zplan, data).wait();
+        }else{
+            std::vector<sycl::event> events;
+            for(int i=0; i<blocks; i++)
+                events.push_back(
+                    oneapi::mkl::dft::compute_forward(zplan, data + i * block_stride, events)
+                );
+            events.back().wait();
+        }
     }
     //! \brief Backward fft, double-complex case.
     void backward(std::complex<double> data[], std::complex<double>*) const override{
         if (not init_zplan) make_plan(zplan);
-        for(int i=0; i<blocks; i++)
-            oneapi::mkl::dft::compute_backward(zplan, data + i * block_stride);
-        q.wait();
+        if (blocks == 1){
+            oneapi::mkl::dft::compute_backward(zplan, data).wait();
+        }else{
+            std::vector<sycl::event> events;
+            for(int i=0; i<blocks; i++)
+                events.push_back(
+                    oneapi::mkl::dft::compute_backward(zplan, data + i * block_stride, events)
+                );
+            events.back().wait();
+        }
     }
 
     //! \brief Converts the real data to complex and performs float-complex forward transform.
@@ -443,7 +471,6 @@ private:
         }
 
         plan.commit(q);
-        q.wait();
 
         if (std::is_same<oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::SINGLE, oneapi::mkl::dft::domain::COMPLEX>, onemkl_plan_type>::value)
             init_cplan = true;
@@ -499,30 +526,58 @@ public:
     //! \brief Forward transform, single precision.
     void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const override{
         if (not init_splan) make_plan(splan);
-        for(int i=0; i<blocks; i++)
-            oneapi::mkl::dft::compute_forward(splan, const_cast<float*>(indata + i * rblock_stride), reinterpret_cast<float*>(outdata + i * cblock_stride));
-        q.wait();
+        if (blocks == 1){
+            oneapi::mkl::dft::compute_forward(splan, const_cast<float*>(indata), reinterpret_cast<float*>(outdata)).wait();
+        }else{
+            std::vector<sycl::event> events;
+            for(int i=0; i<blocks; i++)
+                events.push_back(
+                    oneapi::mkl::dft::compute_forward(splan, const_cast<float*>(indata + i * rblock_stride), reinterpret_cast<float*>(outdata + i * cblock_stride), events)
+                );
+            events.back().wait();
+        }
     }
     //! \brief Backward transform, single precision.
     void backward(std::complex<float> indata[], float outdata[], std::complex<float>*) const override{
         if (not init_splan) make_plan(splan);
-        for(int i=0; i<blocks; i++)
-            oneapi::mkl::dft::compute_backward(splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
-        q.wait();
+        if (blocks == 1){
+            oneapi::mkl::dft::compute_backward(splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata)), outdata).wait();
+        }else{
+            std::vector<sycl::event> events;
+            for(int i=0; i<blocks; i++)
+                events.push_back(
+                    oneapi::mkl::dft::compute_backward(splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata + i * cblock_stride)), outdata + i * rblock_stride)
+                );
+            events.back().wait();
+        }
     }
     //! \brief Forward transform, double precision.
     void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const override{
         if (not init_dplan) make_plan(dplan);
-        for(int i=0; i<blocks; i++)
-            oneapi::mkl::dft::compute_forward(dplan, const_cast<double*>(indata + i * rblock_stride), reinterpret_cast<double*>(outdata + i * cblock_stride));
-        q.wait();
+        if (blocks == 1){
+            oneapi::mkl::dft::compute_forward(dplan, const_cast<double*>(indata), reinterpret_cast<double*>(outdata)).wait();
+        }else{
+            std::vector<sycl::event> events;
+            for(int i=0; i<blocks; i++)
+                events.push_back(
+                    oneapi::mkl::dft::compute_forward(dplan, const_cast<double*>(indata + i * rblock_stride), reinterpret_cast<double*>(outdata + i * cblock_stride))
+                );
+            events.back().wait();
+        }
     }
     //! \brief Backward transform, double precision.
     void backward(std::complex<double> indata[], double outdata[], std::complex<double>*) const override{
         if (not init_dplan) make_plan(dplan);
-        for(int i=0; i<blocks; i++)
-            oneapi::mkl::dft::compute_backward(dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
-        q.wait();
+        if (blocks == 1){
+            oneapi::mkl::dft::compute_backward(dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata)), outdata).wait();
+        }else{
+            std::vector<sycl::event> events;
+            for(int i=0; i<blocks; i++)
+                events.push_back(
+                    oneapi::mkl::dft::compute_backward(dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata + i * cblock_stride)), outdata + i * rblock_stride, events)
+                );
+            events.back().wait();
+        }
     }
 
     //! \brief Returns the size of the box with real data.
@@ -550,7 +605,6 @@ private:
             init_splan = true;
         else
             init_dplan = true;
-        q.wait();
     }
 
     sycl::queue &q;
