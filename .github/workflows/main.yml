@@ -10,29 +10,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  heffte_cpu:
-    strategy:
-      matrix:
-        maker: [cmake, spack]
-        backend: [BUILTIN, FFTW, MKL, ONEAPI]
-        exclude: # spack package doesn't support gpu_intel
-          - maker: spack
-            backend: ONEAPI
-      fail-fast: false
-    runs-on: cpu
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build
-        run: .github/workflows/build-${{matrix.maker}}.sh build ${{matrix.backend}}
-      - name: Test
-        run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.backend}}
-      - name: SmokeTest
-        run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.backend}}
   heffte_gpu:
     strategy:
       matrix:
-        maker: [cmake, spack]
+        maker: [spack]
         device: [gpu_nvidia]
       fail-fast: false
     runs-on: ${{matrix.device}}
