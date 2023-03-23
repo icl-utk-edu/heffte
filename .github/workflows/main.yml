@@ -10,14 +10,45 @@ on:
   workflow_dispatch:
 
 jobs:
+  heffte_cpu:
+    strategy:
+      matrix:
+        maker: [cmake, spack]
+        backend: [BUILTIN, FFTW, MKL, ONEAPI]
+        exclude: # spack package doesn't support oneapi
+          - maker: spack
+            backend: ONEAPI
+      fail-fast: false
+    runs-on: cpu
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        run: .github/workflows/build-${{matrix.maker}}.sh build ${{matrix.backend}}
+      - name: Test
+        run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.backend}}
+      - name: SmokeTest
+        run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.backend}}
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: heffte ${{matrix.maker}} ${{matrix.device}}
+          path: |
+                *.txt
+                spack-build-*/CMakeFiles/*.log
+                build/CMakeFiles/*.log
+                .spack/test/*/*.txt
   heffte_gpu:
     strategy:
       matrix:
         maker: [cmake, spack]
-        device: [gpu_nvidia]
+        device: [gpu_nvidia, gpu_intel]
+        exclude: # spack package doesn't support gpu_intel
+          - maker: spack
+            device: gpu_intel
       fail-fast: false
     runs-on: ${{matrix.device}}
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
       - name: Build
@@ -26,11 +57,10 @@ jobs:
         run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.device}}
       - name: SmokeTest
         run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.device}}
-      - run: find .
       - uses: actions/upload-artifact@v3
         if: always()
         with:
-          name: build-logs ${{matrix.maker}} ${{matrix.device}}
+          name: heffte ${{matrix.maker}} ${{matrix.device}}
           path: |
                 *.txt
                 spack-build-*/CMakeFiles/*.log
