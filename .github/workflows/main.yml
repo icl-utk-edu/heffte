@@ -31,4 +31,4 @@ jobs:
           name: build-logs ${{matrix.maker}} ${{matrix.device}}
           path: |
                 "*.txt"
-                "build/CMakeFiles/*.log"
+                "CMakeFiles/*.log"
