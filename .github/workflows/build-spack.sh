@@ -3,13 +3,15 @@
 STAGE=$1
 BACKEND=$2
 
-env
-
 source $(dirname $0)/init.sh
 
 export HOME=`pwd`
 git clone https://github.com/spack/spack ../spack || true
-source ../spack/share/spack/setup-env.sh
+(
+   cd ../spack
+   git pull
+   source share/spack/setup-env.sh
+)
 
 VARIANTS=""
 if [ "$BACKEND" = "FFTW" ]; then

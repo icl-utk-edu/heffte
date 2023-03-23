@@ -11,7 +11,7 @@ COMPILER=gcc@9.5.0
 
 load $COMPILER
 load cmake
-MPI="openmpi"
+MPI="openmpi~rsh"
 if [ "$BACKEND" = "gpu_amd" ]; then
    MPI+="+rocm"
 elif [ "$BACKEND" = "gpu_nvidia" ]; then
