@@ -30,13 +30,14 @@ echo SPEC=$SPEC
 if [ "$STAGE" = "build" ]; then
    rm -rf .spack
    spack compiler find
-   spack uninstall -a -y heffte || true
    spack install --only=dependencies --fresh $SPEC
+   spack uninstall -a -y heffte || true
    spack dev-build -i --fresh $SPEC
 elif [ "$STAGE" = "test" ]; then
+   spack uninstall -a -y heffte || true
    spack dev-build -i --fresh --test=root $SPEC
-else
-   # STAGE = smoketest
-   #spack load --first $MPI %$COMPILER
+else # STAGE = smoketest
+   # Remove MPI load once spack package test() is corrected.
+   spack load --first $MPI %$COMPILER
    spack test run heffte
 fi
