@@ -13,7 +13,7 @@ jobs:
   heffte_gpu:
     strategy:
       matrix:
-        maker: [spack]
+        maker: [cmake, spack]
         device: [gpu_nvidia]
       fail-fast: false
     runs-on: ${{matrix.device}}
@@ -29,4 +29,4 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: build-logs
-          path: heffte/*.txt
+          path: *.txt
