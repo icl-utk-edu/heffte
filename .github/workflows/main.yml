@@ -32,6 +32,7 @@ jobs:
         with:
           name: build-logs ${{matrix.maker}} ${{matrix.device}}
           path: |
-                "*.txt"
-                CMakeFiles/*.log
+                *.txt
+                spack-build-*/CMakeFiles/*.log
                 build/CMakeFiles/*.log
+                .spack/test/*/*.txt
