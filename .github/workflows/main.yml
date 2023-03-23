@@ -26,8 +26,7 @@ jobs:
         run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.device}}
       - name: SmokeTest
         run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.device}}
-      - name: Archive log files
-        uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v3
         with:
           name: build-logs
-          path: *.txt
+          path: heffte/*.txt
