@@ -312,27 +312,54 @@ public:
         events.reserve(1);
     }
     //! Helper template for operator()
-    template <typename descriptor_type, typename... data_types>
-    using onemkl_dft_compute_function_type =
+    template <typename descriptor_type, typename data_type>
+    using onemkl_dft_in_place_compute_function_type =
         sycl::event (*)(descriptor_type&,
-                        data_types...,
+                        data_type*,
                         const std::vector<cl::sycl::event>&);
     /*! \brief Call the oneMKL compute_* function using an event chain
      *
      * The \c function is called with \c plan and \c in and the vector
      * of \c events as its dependencies. The returned event replaces
      * \c events, avoiding vector reallocations. The function may be
-     * either compute_forward or compute_backward in USM flavour,
-     * either in-place or out-of-place.
+     * either compute_forward or compute_backward in in-place USM
+     * flavour.
      *
      * Generally after a series of such calls, wait() should be called.
      */
-    template <typename descriptor_type, typename... data_types>
-    void operator()(onemkl_dft_compute_function_type<descriptor_type, data_types...> function,
+    template <typename descriptor_type, typename data_type>
+    void operator()(onemkl_dft_in_place_compute_function_type<descriptor_type, data_type> function,
                     descriptor_type& plan,
-                    data_types... data_args)
+                    data_type* inout)
     {
-        sycl::event e = function(plan, data_args..., events);
+        sycl::event e = function(plan, inout, events);
+        // Ensure the vector of events does not reallocate unnecessarily
+        events.resize(1);
+        std::swap(events[0], e);
+    }
+    //! Helper template for operator()
+    template <typename descriptor_type, typename input_type, typename output_type>
+    using onemkl_dft_out_of_place_compute_function_type =
+        sycl::event (*)(descriptor_type&,
+                        input_type*, output_type*,
+                        const std::vector<cl::sycl::event>&);
+    /*! \brief Call the oneMKL compute_* function using an event chain
+     *
+     * The \c function is called with \c plan and \c in and the vector
+     * of \c events as its dependencies. The returned event replaces
+     * \c events, avoiding vector reallocations. The function may be
+     * either compute_forward or compute_backward in out-of-place USM
+     * flavour.
+     *
+     * Generally after a series of such calls, wait() should be called.
+     */
+    template <typename descriptor_type, typename input_type, typename output_type>
+    void operator()(onemkl_dft_out_of_place_compute_function_type<descriptor_type, input_type, output_type> function,
+                    descriptor_type& plan,
+                    input_type* input,
+                    output_type* output)
+    {
+        sycl::event e = function(plan, input, output, events);
         // Ensure the vector of events does not reallocate unnecessarily
         events.resize(1);
         std::swap(events[0], e);
