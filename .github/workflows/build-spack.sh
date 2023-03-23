@@ -24,13 +24,16 @@ elif [ "$BACKEND" = "gpu_amd" ]; then
    VARIANTS="+rocm amdgpu_target=gfx90a ^hip@5.1.3"
 fi
 
-[ "$STAGE" = "test" ] && RUNTEST="--test=root"
-
-if [ "$STAGE" = "smoketest" ]; then
-   spack load --first $MPI
-   spack test run heffte
-else
+if [ "$STAGE" = "build" ]; then
+   rm -rf .spack
+   spack compiler find
    spack uninstall -a -y heffte || true
-   spack install --only=dependencies --fresh heffte@master $VARIANTS ^$MPI
-   spack dev-build -i --fresh $RUNTEST heffte@master $VARIANTS ^$MPI
+   spack install --only=dependencies --fresh heffte@master $VARIANTS %$COMPILER ^$MPI
+   spack dev-build -i --fresh heffte@master $VARIANTS %$COMPILER ^$MPI
+elif [ "$STAGE" = "test" ]; then
+   spack dev-build -i --fresh --test=root heffte@master $VARIANTS %$COMPILER ^$MPI
+else
+   # STAGE = smoketest
+   #spack load --first $MPI %$COMPILER
+   spack test run heffte
 fi

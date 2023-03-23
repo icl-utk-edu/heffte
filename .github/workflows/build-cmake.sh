@@ -5,6 +5,9 @@ BACKEND=$2
 
 source $(dirname $0)/init.sh
 
+load cmake
+load $MPI %$COMPILER
+
 ARGS="-DCMAKE_INSTALL_PREFIX=install"
 if [ "$BACKEND" = "MKL" ]; then
    ARGS+=" -DHeffte_ENABLE_MKL=ON"
@@ -41,7 +44,7 @@ if [ "$STAGE" = "build" ]; then
    cmake $ARGS ..
    make -j4
    make install
-   ls -l install/lib*/libheffte.so
+   ls -lR install/lib*/libheffte.so
 elif [ "$STAGE" = "test" ]; then
    ctest -V
 elif [ "$STAGE" = "smoketest" ]; then
