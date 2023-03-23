@@ -26,9 +26,12 @@ jobs:
         run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.device}}
       - name: SmokeTest
         run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.device}}
+      - run: find .
       - uses: actions/upload-artifact@v3
         with:
           name: build-logs ${{matrix.maker}} ${{matrix.device}}
+          if: always()
           path: |
                 "*.txt"
                 "CMakeFiles/*.log"
+                "build/CMakeFiles/*.log"
