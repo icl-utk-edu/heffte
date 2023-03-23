@@ -29,4 +29,4 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: build-logs
-          path: *.txt
+          path: "*.txt"
