@@ -10,8 +10,8 @@ git clone https://github.com/spack/spack ../spack || true
 (
    cd ../spack
    git pull
-   source share/spack/setup-env.sh
 )
+source ../spack/share/spack/setup-env.sh
 
 VARIANTS=""
 if [ "$BACKEND" = "FFTW" ]; then
