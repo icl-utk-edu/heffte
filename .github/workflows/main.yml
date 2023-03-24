@@ -34,6 +34,9 @@ jobs:
       matrix:
         maker: [cmake, spack]
         device: [gpu_nvidia, gpu_intel]
+        exclude: # spack package doesn't support gpu_intel
+          - maker: spack
+            device: gpu_intel
       fail-fast: false
     runs-on: ${{matrix.device}}
     timeout-minutes: 30
