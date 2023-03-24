@@ -296,61 +296,72 @@ namespace backend{
 
 /*!
  * \ingroup heffteoneapi
- * \brief Helper class to chain a series of DFT calls with sycl::event
+ * \brief Helper class to chain a series of compute calls with sycl::event
  *
- * The event dependencies can only be transferred to MKL in a
- * std::vector, so this class maintains a vector of events for the
- * purpose, so we minimize the amount of memory allocation needed.
+ * Event dependencies can only be transferred to MKL in a std::vector,
+ * even when there is only one. This class maintains a vector of
+ * events for the purpose, so we minimize the amount of memory
+ * allocation needed. The vector is private so that the invariant of 0
+ * or 1 elements is maintained.
+ *
+ * Getting the first work started as fast as possible is important in
+ * latency-sensitive cases. We don't want the SYCL runtime to have to
+ * add a dependency for a null or previously-expired event. So we want
+ * the vector of events in this class to be empty at that time. So
+ * before an event is kept the vector is empty, and after waiting it
+ * is emptied. This creates more work resizing the vector in each call
+ * to keep(), but that work is just pointer comparison and arithmetic,
+ * and often overlaps with the submitted computation.
+ *
+ * A typical use case looks like
+ *
+ *   event_chainer chainer;
+ *   // ...
+ *   foreach (auto& args : list_of_args) {
+ *     sycl::event e = submit_work_with_dependencies(args, chainer.get_events());
+ *     chainer.keep(e);
+ *   }
+ *   // ...
+ *   chainer.wait();
  */
 class event_chainer{
 public:
     //! Constructor
     event_chainer()
     {
-        // Generally only one event is ever in the chain, so we
-        // preallocate for it.
+        // Only 0 or 1 event is ever stored, so pre-allocate
         events.reserve(1);
     }
-    //! Helper template for operator()
-    template <typename descriptor_type, typename... data_types>
-    using onemkl_dft_compute_function_type =
-        sycl::event (*)(descriptor_type&,
-                        data_types...,
-                        const std::vector<cl::sycl::event>&);
-    /*! \brief Call the oneMKL compute_* function using an event chain
-     *
-     * The \c function is called with \c plan and \c in and the vector
-     * of \c events as its dependencies. The returned event replaces
-     * \c events, avoiding vector reallocations. The function may be
-     * either compute_forward or compute_backward in USM flavour,
-     * either in-place or out-of-place.
-     *
-     * Generally after a series of such calls, wait() should be called.
-     */
-    template <typename descriptor_type, typename... data_types>
-    void operator()(onemkl_dft_compute_function_type<descriptor_type, data_types...> function,
-                    descriptor_type& plan,
-                    data_types... data_args)
+    //! Getter for the vector of events
+    const std::vector<sycl::event>& get_events() const
     {
-        sycl::event e = function(plan, data_args..., events);
-        // Ensure the vector of events does not reallocate unnecessarily
-        events.resize(1);
-        std::swap(events[0], e);
+        return events;
     }
-    /*! \brief Wait on the vector of events
+    /*! \brief Replace any stored event with the \c newEvent
      *
-     * Once waited upon, the collection of events is emptied, so that
-     * the next call to operator() adds no dependencies for the
-     * associated compute operation. */
+     * This assumes that the old event is no longer needed, because
+     * it was either waited upon or used as a dependency for another
+     * operation.
+     */
+    void keep(sycl::event newEvent)
+    {
+        // Ensure the vector of events does not reallocate unnecessarily
+        if (events.empty()){
+            events.push_back(newEvent);
+        }else{
+            std::swap(events[0], newEvent);
+        }
+    }
+    /*! \brief Wait on the vector of events and then empty it */
     void wait()
     {
-        for (auto& event : events)
-        {
-            event.wait();
+        if (!events.empty()){
+            events[0].wait();
+            events.clear();
         }
-        events.clear();
     }
 private:
+    //! Vector, always contains either 0 or 1 events.
     std::vector<sycl::event> events;
 };
 
@@ -428,28 +439,28 @@ public:
     void forward(std::complex<float> data[], std::complex<float>*) const override{
         if (not init_cplan) make_plan(cplan);
         for(int i=0; i<blocks; i++)
-            chainer(oneapi::mkl::dft::compute_forward, cplan, data + i * block_stride);
+            chainer.keep(oneapi::mkl::dft::compute_forward(cplan, data + i * block_stride, chainer.get_events()));
         chainer.wait();
     }
     //! \brief Backward fft, float-complex case.
     void backward(std::complex<float> data[], std::complex<float>*) const override{
         if (not init_cplan) make_plan(cplan);
         for(int i=0; i<blocks; i++)
-            chainer(oneapi::mkl::dft::compute_backward, cplan, data + i * block_stride);
+            chainer.keep(oneapi::mkl::dft::compute_backward(cplan, data + i * block_stride, chainer.get_events()));
         chainer.wait();
     }
     //! \brief Forward fft, double-complex case.
     void forward(std::complex<double> data[], std::complex<double>*) const override{
         if (not init_zplan) make_plan(zplan);
         for(int i=0; i<blocks; i++)
-            chainer(oneapi::mkl::dft::compute_forward, zplan, data + i * block_stride);
+            chainer.keep(oneapi::mkl::dft::compute_forward(zplan, data + i * block_stride, chainer.get_events()));
         chainer.wait();
     }
     //! \brief Backward fft, double-complex case.
     void backward(std::complex<double> data[], std::complex<double>*) const override{
         if (not init_zplan) make_plan(zplan);
         for(int i=0; i<blocks; i++)
-            chainer(oneapi::mkl::dft::compute_backward, zplan, data + i * block_stride);
+            chainer.keep(oneapi::mkl::dft::compute_backward(zplan, data + i * block_stride, chainer.get_events()));
         chainer.wait();
     }
 
@@ -561,28 +572,28 @@ public:
     void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const override{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
-            chainer(oneapi::mkl::dft::compute_forward, splan, const_cast<float*>(indata + i * rblock_stride), reinterpret_cast<float*>(outdata + i * cblock_stride));
+            chainer.keep(oneapi::mkl::dft::compute_forward(splan, const_cast<float*>(indata + i * rblock_stride), reinterpret_cast<float*>(outdata + i * cblock_stride), chainer.get_events()));
         chainer.wait();
     }
     //! \brief Backward transform, single precision.
     void backward(std::complex<float> indata[], float outdata[], std::complex<float>*) const override{
         if (not init_splan) make_plan(splan);
         for(int i=0; i<blocks; i++)
-            chainer(oneapi::mkl::dft::compute_backward, splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
+            chainer.keep(oneapi::mkl::dft::compute_backward(splan, reinterpret_cast<float*>(const_cast<std::complex<float>*>(indata + i * cblock_stride)), outdata + i * rblock_stride, chainer.get_events()));
         chainer.wait();
     }
     //! \brief Forward transform, double precision.
     void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const override{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
-            chainer(oneapi::mkl::dft::compute_forward, dplan, const_cast<double*>(indata + i * rblock_stride), reinterpret_cast<double*>(outdata + i * cblock_stride));
+            chainer.keep(oneapi::mkl::dft::compute_forward(dplan, const_cast<double*>(indata + i * rblock_stride), reinterpret_cast<double*>(outdata + i * cblock_stride), chainer.get_events()));
         chainer.wait();
     }
     //! \brief Backward transform, double precision.
     void backward(std::complex<double> indata[], double outdata[], std::complex<double>*) const override{
         if (not init_dplan) make_plan(dplan);
         for(int i=0; i<blocks; i++)
-            chainer(oneapi::mkl::dft::compute_backward, dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata + i * cblock_stride)), outdata + i * rblock_stride);
+            chainer.keep(oneapi::mkl::dft::compute_backward(dplan, reinterpret_cast<double*>(const_cast<std::complex<double>*>(indata + i * cblock_stride)), outdata + i * rblock_stride, chainer.get_events()));
         chainer.wait();
     }
 
