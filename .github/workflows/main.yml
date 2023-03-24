@@ -33,7 +33,7 @@ jobs:
     strategy:
       matrix:
         maker: [cmake, spack]
-        device: [gpu_nvidia]
+        device: [gpu_nvidia, gpu_intel]
       fail-fast: false
     runs-on: ${{matrix.device}}
     timeout-minutes: 30
