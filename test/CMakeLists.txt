@@ -11,6 +11,10 @@ endmacro()
 add_executable(test_heffte_header  test_heffte_header.cpp)
 target_link_libraries(test_heffte_header  Heffte)
 
+# tests the consistency of the template types, it is a compile time test
+add_executable(test_heffte_templates  test_heffte_templates.cpp)
+target_link_libraries(test_heffte_templates  Heffte)
+
 # sandbox executable for testing purposes
 add_executable(sandbox  sandbox.cpp)
 target_link_libraries(sandbox  Heffte)

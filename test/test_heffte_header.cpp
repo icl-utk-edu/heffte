@@ -34,13 +34,21 @@ int main(int, char**){
     assert_move_and_not_copy<heffte::fft3d<heffte::backend::fftw>>();
     assert_move_and_not_copy<heffte::fft3d_r2c<heffte::backend::fftw>>();
     #endif
+    #ifdef Heffte_ENABLE_MKL
+    assert_move_and_not_copy<heffte::fft3d<heffte::backend::mkl>>();
+    assert_move_and_not_copy<heffte::fft3d_r2c<heffte::backend::mkl>>();
+    #endif
     #ifdef Heffte_ENABLE_CUDA
     assert_move_and_not_copy<heffte::fft3d<heffte::backend::cufft>>();
     assert_move_and_not_copy<heffte::fft3d_r2c<heffte::backend::cufft>>();
     #endif
-    #ifdef Heffte_ENABLE_MKL
-    assert_move_and_not_copy<heffte::fft3d<heffte::backend::mkl>>();
-    assert_move_and_not_copy<heffte::fft3d_r2c<heffte::backend::mkl>>();
+    #ifdef Heffte_ENABLE_ROCM
+    assert_move_and_not_copy<heffte::fft3d<heffte::backend::rocfft>>();
+    assert_move_and_not_copy<heffte::fft3d_r2c<heffte::backend::rocfft>>();
+    #endif
+    #ifdef Heffte_ENABLE_ONEAPI
+    assert_move_and_not_copy<heffte::fft3d<heffte::backend::onemkl>>();
+    assert_move_and_not_copy<heffte::fft3d_r2c<heffte::backend::onemkl>>();
     #endif
 
     return 0;
