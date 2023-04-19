@@ -356,7 +356,7 @@ public:
                       "Using either an unknown complex type or an incompatible pair of types!");
 
         auto workspace = make_buffer_container<typename transform_output<typename define_standard_type<output_type>::type, backend_tag>::type>(this->stream(), size_workspace());
-        forward(input, output, workspace.data(), scaling);
+        forward(convert_to_standard(input), convert_to_standard(output), workspace.data(), scaling);
     }
 
     /*!
@@ -380,7 +380,7 @@ public:
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), forward_shaper,
                                                forward_executors(), direction::forward);
-        apply_scale(1, direction::forward, scaling, output);
+        apply_scale(1, direction::forward, scaling, convert_to_standard(output));
     }
     /*!
      * \brief An overload allowing for a batch of FFTs to be performed in a single command.
@@ -398,7 +398,7 @@ public:
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), forward_shaper,
                                                forward_executors(), direction::forward);
-        apply_scale(batch_size, direction::forward, scaling, output);
+        apply_scale(batch_size, direction::forward, scaling, convert_to_standard(output));
     }
     /*!
      * \brief An overload that allocates workspace internally.
@@ -486,7 +486,7 @@ public:
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), backward_shaper,
                                                backward_executors(), direction::backward);
-        apply_scale(1, direction::backward, scaling, output);
+        apply_scale(1, direction::backward, scaling, convert_to_standard(output));
     }
     /*!
      * \brief Overload for batch transforms, see the corresponding overload of forward().
@@ -501,7 +501,7 @@ public:
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), backward_shaper,
                                                backward_executors(), direction::backward);
-        apply_scale(batch_size, direction::backward, scaling, output);
+        apply_scale(batch_size, direction::backward, scaling, convert_to_standard(output));
     }
     /*!
      * \brief Overload for batch transforms with internally allocated workspace.

@@ -216,7 +216,7 @@ namespace backend{
         }
         //! \brief Free memory.
         template<typename scalar_type>
-        static void free(hipStream_t stream, scalar_type *pntr){
+        static void free(hipStream_t, scalar_type *pntr){
             if (pntr == nullptr) return;
             rocm::check_error(hipFree(pntr), "hipFree()");
         }

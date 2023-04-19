@@ -164,7 +164,7 @@ public:
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), forward_shaper,
                                                forward_executors(), direction::forward);
-        apply_scale(1, direction::forward, scaling, output);
+        apply_scale(1, direction::forward, scaling, convert_to_standard(output));
     }
     //! \brief Overload utilizing a batch transform.
     template<typename input_type, typename output_type>
@@ -178,7 +178,7 @@ public:
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), forward_shaper,
                                                forward_executors(), direction::forward);
-        apply_scale(batch_size, direction::forward, scaling, output);
+        apply_scale(batch_size, direction::forward, scaling, convert_to_standard(output));
     }
     //! \brief Overload utilizing a batch transform using internally allocated workspace.
     template<typename input_type, typename output_type>
@@ -252,7 +252,7 @@ public:
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), backward_shaper,
                                                backward_executors(), direction::backward);
-        apply_scale(1, direction::backward, scaling, output);
+        apply_scale(1, direction::backward, scaling, convert_to_standard(output));
     }
     //! \brief Overload that performs a batch transform.
     template<typename input_type, typename output_type>
@@ -266,7 +266,7 @@ public:
                                                convert_to_standard(workspace),
                                                executor_buffer_offset, size_comm_buffers(), backward_shaper,
                                                backward_executors(), direction::backward);
-        apply_scale(batch_size, direction::backward, scaling, output);
+        apply_scale(batch_size, direction::backward, scaling, convert_to_standard(output));
     }
     //! \brief Overload that performs a batch transform using internally allocated workspace.
     template<typename input_type, typename output_type>
