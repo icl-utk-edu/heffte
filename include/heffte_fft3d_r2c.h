@@ -354,7 +354,7 @@ private:
             add_trace name("scale");
             #ifdef Heffte_ENABLE_MAGMA
             if (std::is_same<location_tag, tag::gpu>::value){
-                hmagma.scal(batch_size * (dir == direction::forward) ? size_outbox() : size_inbox(), get_scale_factor(scaling), data);
+                hmagma.scal(batch_size * ((dir == direction::forward) ? size_outbox() : size_inbox()), get_scale_factor(scaling), data);
                 return;
             }
             #endif
