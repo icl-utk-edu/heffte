@@ -38,7 +38,7 @@ class complex_allocator_t {
         inline const_pointer address(const_reference r) const { return &r; }
 
         //! \brief Define allocation for complex type
-        pointer allocate(size_type n, typename std::allocator<void>::const_pointer = nullptr) {
+        pointer allocate(size_type n, void const* = nullptr) {
             #ifdef Heffte_ENABLE_AVX
             return reinterpret_cast<pointer>(aligned_alloc(alignof(F), n*sizeof(F)));
             #else
