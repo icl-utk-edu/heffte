@@ -24,7 +24,7 @@ elif [ "$BACKEND" = "gpu_amd" ]; then
    VARIANTS="+rocm amdgpu_target=gfx90a ^hip@5.1.3"
 fi
 
-SPEC="heffte@master $VARIANTS ^$MPI %$COMPILER"
+SPEC="heffte@develop $VARIANTS ^$MPI %$COMPILER"
 echo SPEC=$SPEC
 
 if [ "$STAGE" = "build" ]; then
