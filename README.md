@@ -1,10 +1,12 @@
-![HEFFTE_banner](https://bitbucket.org/aayala32/logos/raw/35784b25fbec88f5cfbc39e0a1aa545fa644955c/logo_fft.png)
-
 **Highly Efficient FFT for Exascale**
 
-**Innovative Computing Laboratory**
+Joint project between:
 
-**University of Tennessee**
+**Innovative Computing Laboratory, University of Tennessee**
+
+and
+
+**Oak Ridge National Laboratory**
 
 * * *
 
@@ -15,7 +17,7 @@
 About
 =====
 
-The Highly Efficient FFT for Exascale (HeFFTe) library is being developed as part of the Exascale
+The Highly Efficient FFT for Exascale (heFFTe) library is being developed as part of the Exascale
 Computing Project (ECP), which is a joint project of the U.S. Department of Energy's Office of
 Science and National Nuclear Security Administration (NNSA). HeFFTe delivers algorithms for
 distributed fast-Fourier transforms in on a heterogeneous systems, targeting the upcoming exascale machines.
@@ -27,8 +29,8 @@ Documentation
 =============
 
 * Installation and a Doxygen documentation can be done with the CMake options `-D Heffte_ENABLE_DOXYGEN=ON`
-* [Online Documentation](https://mkstoyanov.bitbucket.io/heffte/)
-* [HeFFTe installation](https://mkstoyanov.bitbucket.io/heffte/md_doxygen_installation.html)
+* [Online Documentation](https://icl-utk-edu.github.io/heffte/)
+* [HeFFTe installation](https://icl-utk-edu.github.io/heffte/md_doxygen_installation.html)
 * [HeFFTe Website and Papers](https://www.icl.utk.edu/publications/fft-ecp-fast-fourier-transform)
 
 * * *
@@ -36,15 +38,15 @@ Documentation
 Getting Help
 ============
 
-For assistance with HeFFTe, email *heffte@icl.utk.edu* or start a [Bitbucket Issue](https://bitbucket.org/icl/heffte/issues?status=new&status=open)
+For assistance with HeFFTe, email *heffte@icl.utk.edu* or start a [Github Issue](https://github.com/icl-utk-edu/slate/issues)
 
 * * *
 
 Contributing
 ============
 
-The HeFFTe project welcomes contributions from new developers.
-Contributions can be offered through the standard Bitbucket pull request model.
+The heFFTe project welcomes contributions from new developers.
+Contributions can be offered through the standard Github pull request model.
 We ask that you complete and submit a contributor agreement.
 
 * * *
@@ -52,8 +54,8 @@ We ask that you complete and submit a contributor agreement.
 Resources
 =========
 
-* Visit the [Doxygen Documentation website](https://mkstoyanov.bitbucket.io/heffte/)
-* Visit the [HeFFTe website](http://icl.utk.edu/fft/) for more information about the HeFFTe project.
+* Visit the [Doxygen Documentation website](https://icl-utk-edu.github.io/heffte/)
+* Visit the [HeFFTe website](http://icl.utk.edu/fft/) for more information about the heFFTe project.
 * Visit the [ECP website](https://exascaleproject.org) to find out more about the DOE Exascale Computing Initiative.
 
 * * *
