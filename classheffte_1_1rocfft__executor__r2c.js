@@ -1,0 +1,26 @@
+var classheffte_1_1rocfft__executor__r2c =
+[
+    [ "rocfft_executor_r2c", "classheffte_1_1rocfft__executor__r2c.html#a5471b5574f0710d029d16cb09afd6bae", null ],
+    [ "forward", "classheffte_1_1rocfft__executor__r2c.html#a65540ac05f39247497c408883cf495d7", null ],
+    [ "backward", "classheffte_1_1rocfft__executor__r2c.html#a8cf8c4e26ae6267c4a469236d2739b1d", null ],
+    [ "forward", "classheffte_1_1rocfft__executor__r2c.html#a61d4bf1c8e5ce83cb49b5c3e33957f22", null ],
+    [ "backward", "classheffte_1_1rocfft__executor__r2c.html#a3890aaa042b8e2330584b14e91c23164", null ],
+    [ "forward", "classheffte_1_1rocfft__executor__r2c.html#adfa3a7e372a5fc99cf0417ba1ad1376c", null ],
+    [ "backward", "classheffte_1_1rocfft__executor__r2c.html#ac19082253d9264375b755653b998952a", null ],
+    [ "box_size", "classheffte_1_1rocfft__executor__r2c.html#a6217dd544109878fa331ec1dd4bf5023", null ],
+    [ "complex_size", "classheffte_1_1rocfft__executor__r2c.html#a05ad72e10060cb2efc26163f5795e51b", null ],
+    [ "workspace_size", "classheffte_1_1rocfft__executor__r2c.html#acd11c6f1ad55ac5a25a1598db5a32585", null ],
+    [ "compute_workspace_size", "classheffte_1_1rocfft__executor__r2c.html#aa5440d3a1ecf586565f2f6a225811cec", null ],
+    [ "forward", "classheffte_1_1rocfft__executor__r2c.html#a53847ba79a69b44c28aa0af99ba886c4", null ],
+    [ "forward", "classheffte_1_1rocfft__executor__r2c.html#a6bed80e165a8d58f952b35f20b2b3c38", null ],
+    [ "forward", "classheffte_1_1rocfft__executor__r2c.html#a75c0b1773a9151e8855513c457febe44", null ],
+    [ "forward", "classheffte_1_1rocfft__executor__r2c.html#a15b90f516f94ab07c521ee84fff38db0", null ],
+    [ "forward", "classheffte_1_1rocfft__executor__r2c.html#ac41643967ca00140219e88335c37b198", null ],
+    [ "forward", "classheffte_1_1rocfft__executor__r2c.html#aeeda09508ffeedc5eb194e8fcdd15c5a", null ],
+    [ "backward", "classheffte_1_1rocfft__executor__r2c.html#a09fe4efecf5e28f891052399487c7c12", null ],
+    [ "backward", "classheffte_1_1rocfft__executor__r2c.html#ad3f50a316b629ebc5e7c8656cc4288a4", null ],
+    [ "backward", "classheffte_1_1rocfft__executor__r2c.html#ac6a079d83e77f115aa12bde838c173e2", null ],
+    [ "backward", "classheffte_1_1rocfft__executor__r2c.html#a6eb9b0d490fae5b0060763289a9142e9", null ],
+    [ "backward", "classheffte_1_1rocfft__executor__r2c.html#a98bf9ea775199c0055415042c70169fd", null ],
+    [ "backward", "classheffte_1_1rocfft__executor__r2c.html#a034923e5c12d5d01c677893600263d6e", null ]
+];

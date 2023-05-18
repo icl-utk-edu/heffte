@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['omega_659',['omega',['../structheffte_1_1stock_1_1omega.html',1,'heffte::stock']]],
+  ['one_5fdim_5fbackend_660',['one_dim_backend',['../structheffte_1_1one__dim__backend.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3acufft_20_3e_661',['one_dim_backend&lt; backend::cufft &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1cufft_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3acufft_5fcos_20_3e_662',['one_dim_backend&lt; backend::cufft_cos &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1cufft__cos_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3acufft_5fsin_20_3e_663',['one_dim_backend&lt; backend::cufft_sin &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1cufft__sin_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3afftw_20_3e_664',['one_dim_backend&lt; backend::fftw &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1fftw_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3afftw_5fcos_20_3e_665',['one_dim_backend&lt; backend::fftw_cos &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1fftw__cos_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3afftw_5fsin_20_3e_666',['one_dim_backend&lt; backend::fftw_sin &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1fftw__sin_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3amkl_20_3e_667',['one_dim_backend&lt; backend::mkl &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1mkl_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3amkl_5fcos_20_3e_668',['one_dim_backend&lt; backend::mkl_cos &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1mkl__cos_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3amkl_5fsin_20_3e_669',['one_dim_backend&lt; backend::mkl_sin &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1mkl__sin_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3aonemkl_20_3e_670',['one_dim_backend&lt; backend::onemkl &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1onemkl_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3aonemkl_5fcos_20_3e_671',['one_dim_backend&lt; backend::onemkl_cos &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1onemkl__cos_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3aonemkl_5fsin_20_3e_672',['one_dim_backend&lt; backend::onemkl_sin &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1onemkl__sin_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3arocfft_20_3e_673',['one_dim_backend&lt; backend::rocfft &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1rocfft_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3arocfft_5fcos_20_3e_674',['one_dim_backend&lt; backend::rocfft_cos &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1rocfft__cos_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3arocfft_5fsin_20_3e_675',['one_dim_backend&lt; backend::rocfft_sin &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1rocfft__sin_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3astock_20_3e_676',['one_dim_backend&lt; backend::stock &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1stock_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3astock_5fcos_20_3e_677',['one_dim_backend&lt; backend::stock_cos &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1stock__cos_01_4.html',1,'heffte']]],
+  ['one_5fdim_5fbackend_3c_20backend_3a_3astock_5fsin_20_3e_678',['one_dim_backend&lt; backend::stock_sin &gt;',['../structheffte_1_1one__dim__backend_3_01backend_1_1stock__sin_01_4.html',1,'heffte']]],
+  ['onemkl_679',['onemkl',['../structheffte_1_1backend_1_1onemkl.html',1,'heffte::backend']]],
+  ['onemkl_5fcos_680',['onemkl_cos',['../structheffte_1_1backend_1_1onemkl__cos.html',1,'heffte::backend']]],
+  ['onemkl_5fexecutor_681',['onemkl_executor',['../classheffte_1_1onemkl__executor.html',1,'heffte']]],
+  ['onemkl_5fexecutor_5fr2c_682',['onemkl_executor_r2c',['../classheffte_1_1onemkl__executor__r2c.html',1,'heffte']]],
+  ['onemkl_5fsin_683',['onemkl_sin',['../structheffte_1_1backend_1_1onemkl__sin.html',1,'heffte::backend']]]
+];

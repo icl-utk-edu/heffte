@@ -1,0 +1,20 @@
+<map id="Fast Fourier Transform" name="Fast Fourier Transform">
+<area shape="rect" id="node1" href="$group__fft3dr2r.html" title=" " alt="" coords="213,5,401,31"/>
+<area shape="rect" id="node2" href="$group__heffterocm.html" title=" " alt="" coords="254,55,361,80"/>
+<area shape="rect" id="node3" href="$group__hefftestock.html" title=" " alt="" coords="253,104,362,129"/>
+<area shape="rect" id="node4" href="$group__fft3dplan.html" title=" " alt="" coords="240,154,375,194"/>
+<area shape="rect" id="node5" href="$group__hefftecuda.html" title=" " alt="" coords="256,219,359,244"/>
+<area shape="rect" id="node6" href="$group__hefftepacking.html" title=" " alt="" coords="208,268,407,293"/>
+<area shape="rect" id="node7" title=" " alt="" coords="5,416,160,441"/>
+<area shape="rect" id="node8" href="$group__fft3dbackend.html" title=" " alt="" coords="215,317,399,343"/>
+<area shape="rect" id="node9" href="$group__hefftereshape.html" title=" " alt="" coords="238,367,377,392"/>
+<area shape="rect" id="node10" href="$group__hefftetrace.html" title=" " alt="" coords="258,416,357,441"/>
+<area shape="rect" id="node11" href="$group__hefftefftw.html" title=" " alt="" coords="254,465,361,491"/>
+<area shape="rect" id="node12" href="$group__heffteoneapi.html" title=" " alt="" coords="247,515,367,540"/>
+<area shape="rect" id="node13" href="$group__hefftemkl.html" title=" " alt="" coords="258,564,357,589"/>
+<area shape="rect" id="node14" href="$group__hefftempi.html" title=" " alt="" coords="227,614,387,654"/>
+<area shape="rect" id="node15" href="$group__fft3dcomplex.html" title=" " alt="" coords="252,679,363,704"/>
+<area shape="rect" id="node16" href="$group__fft3magma.html" title=" " alt="" coords="235,729,379,769"/>
+<area shape="rect" id="node17" href="$group__fft3dmisc.html" title=" " alt="" coords="232,793,383,819"/>
+<area shape="rect" id="node18" href="$group__fft3dgeometry.html" title=" " alt="" coords="224,843,391,868"/>
+</map>

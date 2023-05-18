@@ -1,0 +1,105 @@
+var group__hefftemkl =
+[
+    [ "is_enabled< mkl >", "structheffte_1_1backend_1_1is__enabled_3_01mkl_01_4.html", null ],
+    [ "is_enabled< mkl_cos >", "structheffte_1_1backend_1_1is__enabled_3_01mkl__cos_01_4.html", null ],
+    [ "is_enabled< mkl_sin >", "structheffte_1_1backend_1_1is__enabled_3_01mkl__sin_01_4.html", null ],
+    [ "default_backend< tag::cpu >", "structheffte_1_1backend_1_1default__backend_3_01tag_1_1cpu_01_4.html", [
+      [ "type", "structheffte_1_1backend_1_1default__backend_3_01tag_1_1cpu_01_4.html#ab90876584b663a72c60cce2862bccafc", null ]
+    ] ],
+    [ "is_ccomplex< float _Complex >", "structheffte_1_1is__ccomplex_3_01float_01__Complex_01_4.html", null ],
+    [ "is_zcomplex< double _Complex >", "structheffte_1_1is__zcomplex_3_01double_01__Complex_01_4.html", null ],
+    [ "plan_mkl", "structheffte_1_1plan__mkl.html", [
+      [ "plan_mkl", "structheffte_1_1plan__mkl.html#a25e3ebaa302f37d9fe18a20e9457243f", null ],
+      [ "plan_mkl", "structheffte_1_1plan__mkl.html#a727b99e8930ad9f4a6e28060383526d6", null ],
+      [ "plan_mkl", "structheffte_1_1plan__mkl.html#ab328a3ec2dd719635907d25721efb696", null ],
+      [ "~plan_mkl", "structheffte_1_1plan__mkl.html#a26db3b284e6be3c20efb3a0481c284e4", null ],
+      [ "operator DFTI_DESCRIPTOR_HANDLE", "structheffte_1_1plan__mkl.html#aaf75110d403ddbe6649b8aefd680ee27", null ],
+      [ "plan", "structheffte_1_1plan__mkl.html#a86f608a2330020789988f81008e11ac0", null ]
+    ] ],
+    [ "mkl_executor", "classheffte_1_1mkl__executor.html", [
+      [ "mkl_executor", "classheffte_1_1mkl__executor.html#a9b534e39e890f654b1cefbb9f48c78f7", null ],
+      [ "mkl_executor", "classheffte_1_1mkl__executor.html#a7c31d9395bbd910d5f42135848c0dde4", null ],
+      [ "mkl_executor", "classheffte_1_1mkl__executor.html#a5910e3a5be8a312df7e19c03802374e4", null ],
+      [ "forward", "classheffte_1_1mkl__executor.html#a28d7fdbb024d358767a674be8e4bbcf9", null ],
+      [ "backward", "classheffte_1_1mkl__executor.html#a9d9257031ce04e3e44edd335cfe4ccef", null ],
+      [ "forward", "classheffte_1_1mkl__executor.html#a1c412cce65b311cc70a64686b23a3fe3", null ],
+      [ "backward", "classheffte_1_1mkl__executor.html#ab80e5d4f53839135633e807e3a6bdc95", null ],
+      [ "forward", "classheffte_1_1mkl__executor.html#aecf86a8538e4ab57439ae728c7dd9435", null ],
+      [ "backward", "classheffte_1_1mkl__executor.html#aee8ee6fb938c70ab65395d23d50960d7", null ],
+      [ "forward", "classheffte_1_1mkl__executor.html#a4a3e359b92d45bb08f26a808e24c2e24", null ],
+      [ "backward", "classheffte_1_1mkl__executor.html#a61c446a81bf4c002c928a09e85add81d", null ],
+      [ "box_size", "classheffte_1_1mkl__executor.html#a5d811c3ac20ba797a9f83fb8bfb25456", null ],
+      [ "workspace_size", "classheffte_1_1mkl__executor.html#a34bcdbbf21e4e3f0981bcf73bd4bd289", null ],
+      [ "forward", "classheffte_1_1mkl__executor.html#a53847ba79a69b44c28aa0af99ba886c4", null ],
+      [ "forward", "classheffte_1_1mkl__executor.html#a6bed80e165a8d58f952b35f20b2b3c38", null ],
+      [ "forward", "classheffte_1_1mkl__executor.html#a75c0b1773a9151e8855513c457febe44", null ],
+      [ "forward", "classheffte_1_1mkl__executor.html#a15b90f516f94ab07c521ee84fff38db0", null ],
+      [ "forward", "classheffte_1_1mkl__executor.html#ac41643967ca00140219e88335c37b198", null ],
+      [ "forward", "classheffte_1_1mkl__executor.html#aeeda09508ffeedc5eb194e8fcdd15c5a", null ],
+      [ "backward", "classheffte_1_1mkl__executor.html#a09fe4efecf5e28f891052399487c7c12", null ],
+      [ "backward", "classheffte_1_1mkl__executor.html#ad3f50a316b629ebc5e7c8656cc4288a4", null ],
+      [ "backward", "classheffte_1_1mkl__executor.html#ac6a079d83e77f115aa12bde838c173e2", null ],
+      [ "backward", "classheffte_1_1mkl__executor.html#a6eb9b0d490fae5b0060763289a9142e9", null ],
+      [ "backward", "classheffte_1_1mkl__executor.html#a98bf9ea775199c0055415042c70169fd", null ],
+      [ "backward", "classheffte_1_1mkl__executor.html#a034923e5c12d5d01c677893600263d6e", null ],
+      [ "complex_size", "classheffte_1_1mkl__executor.html#a09f83f4de9a869be73ac97cba917a312", null ]
+    ] ],
+    [ "plan_mkl_r2c", "structheffte_1_1plan__mkl__r2c.html", [
+      [ "plan_mkl_r2c", "structheffte_1_1plan__mkl__r2c.html#a899d712b08b47adb17045e3689a83f90", null ],
+      [ "~plan_mkl_r2c", "structheffte_1_1plan__mkl__r2c.html#aa99952be6e7e2dab48c4af76977593a1", null ],
+      [ "operator DFTI_DESCRIPTOR_HANDLE", "structheffte_1_1plan__mkl__r2c.html#a37097f7008617acda3b01c30683e4df1", null ],
+      [ "plan", "structheffte_1_1plan__mkl__r2c.html#a5287ea35d22b05a47cf1ab7ac535d904", null ]
+    ] ],
+    [ "mkl_executor_r2c", "classheffte_1_1mkl__executor__r2c.html", [
+      [ "mkl_executor_r2c", "classheffte_1_1mkl__executor__r2c.html#a6e1a019e6225ae32d72d95055054dc3e", null ],
+      [ "forward", "classheffte_1_1mkl__executor__r2c.html#a4280b290460d429178d33f4474368909", null ],
+      [ "backward", "classheffte_1_1mkl__executor__r2c.html#abd808c4190ae7281aefd0ae1a8fb7cf1", null ],
+      [ "forward", "classheffte_1_1mkl__executor__r2c.html#a3c8713ad67b81e8b866973d5cbdd786a", null ],
+      [ "backward", "classheffte_1_1mkl__executor__r2c.html#aaca61f3bd3e33ec4c51841cf5d17d463", null ],
+      [ "box_size", "classheffte_1_1mkl__executor__r2c.html#a11c311cf32c805ea16a879532542c3fb", null ],
+      [ "complex_size", "classheffte_1_1mkl__executor__r2c.html#a142b7800b269ce8444f9f44b27dfed78", null ],
+      [ "workspace_size", "classheffte_1_1mkl__executor__r2c.html#a5116b3fe3247cbbcc4f4a8e3c4213d73", null ],
+      [ "forward", "classheffte_1_1mkl__executor__r2c.html#a53847ba79a69b44c28aa0af99ba886c4", null ],
+      [ "forward", "classheffte_1_1mkl__executor__r2c.html#a6bed80e165a8d58f952b35f20b2b3c38", null ],
+      [ "forward", "classheffte_1_1mkl__executor__r2c.html#a75c0b1773a9151e8855513c457febe44", null ],
+      [ "forward", "classheffte_1_1mkl__executor__r2c.html#a15b90f516f94ab07c521ee84fff38db0", null ],
+      [ "forward", "classheffte_1_1mkl__executor__r2c.html#ac41643967ca00140219e88335c37b198", null ],
+      [ "forward", "classheffte_1_1mkl__executor__r2c.html#aeeda09508ffeedc5eb194e8fcdd15c5a", null ],
+      [ "backward", "classheffte_1_1mkl__executor__r2c.html#a09fe4efecf5e28f891052399487c7c12", null ],
+      [ "backward", "classheffte_1_1mkl__executor__r2c.html#ad3f50a316b629ebc5e7c8656cc4288a4", null ],
+      [ "backward", "classheffte_1_1mkl__executor__r2c.html#ac6a079d83e77f115aa12bde838c173e2", null ],
+      [ "backward", "classheffte_1_1mkl__executor__r2c.html#a6eb9b0d490fae5b0060763289a9142e9", null ],
+      [ "backward", "classheffte_1_1mkl__executor__r2c.html#a98bf9ea775199c0055415042c70169fd", null ],
+      [ "backward", "classheffte_1_1mkl__executor__r2c.html#a034923e5c12d5d01c677893600263d6e", null ]
+    ] ],
+    [ "one_dim_backend< backend::mkl >", "structheffte_1_1one__dim__backend_3_01backend_1_1mkl_01_4.html", [
+      [ "executor", "structheffte_1_1one__dim__backend_3_01backend_1_1mkl_01_4.html#ad75281b8d1a978b437a3bce5a71f71f4", null ],
+      [ "executor_r2c", "structheffte_1_1one__dim__backend_3_01backend_1_1mkl_01_4.html#ad0407b2fbd8b377529a9037debf50727", null ]
+    ] ],
+    [ "one_dim_backend< backend::mkl_cos >", "structheffte_1_1one__dim__backend_3_01backend_1_1mkl__cos_01_4.html", [
+      [ "executor", "structheffte_1_1one__dim__backend_3_01backend_1_1mkl__cos_01_4.html#ace2513291dd9d0dd26fdacf244f425b7", null ],
+      [ "executor_r2c", "structheffte_1_1one__dim__backend_3_01backend_1_1mkl__cos_01_4.html#a1f0c070aa743cd221a012da65f5c8daa", null ]
+    ] ],
+    [ "one_dim_backend< backend::mkl_sin >", "structheffte_1_1one__dim__backend_3_01backend_1_1mkl__sin_01_4.html", [
+      [ "executor", "structheffte_1_1one__dim__backend_3_01backend_1_1mkl__sin_01_4.html#a33699ea420212184b9fccbe95c52f0df", null ],
+      [ "executor_r2c", "structheffte_1_1one__dim__backend_3_01backend_1_1mkl__sin_01_4.html#a0376081bc197b8a07eabfde534b5b7f4", null ]
+    ] ],
+    [ "default_plan_options< backend::mkl >", "structheffte_1_1default__plan__options_3_01backend_1_1mkl_01_4.html", null ],
+    [ "default_plan_options< backend::mkl_cos >", "structheffte_1_1default__plan__options_3_01backend_1_1mkl__cos_01_4.html", null ],
+    [ "default_plan_options< backend::mkl_sin >", "structheffte_1_1default__plan__options_3_01backend_1_1mkl__sin_01_4.html", null ],
+    [ "mkl", "structheffte_1_1backend_1_1mkl.html", null ],
+    [ "mkl_cos", "structheffte_1_1backend_1_1mkl__cos.html", null ],
+    [ "mkl_sin", "structheffte_1_1backend_1_1mkl__sin.html", null ],
+    [ "uses_fft_types< mkl_cos >", "structheffte_1_1backend_1_1uses__fft__types_3_01mkl__cos_01_4.html", null ],
+    [ "uses_fft_types< mkl_sin >", "structheffte_1_1backend_1_1uses__fft__types_3_01mkl__sin_01_4.html", null ],
+    [ "uses_fft_types< cufft_cos >", "structheffte_1_1backend_1_1uses__fft__types_3_01cufft__cos_01_4.html", null ],
+    [ "uses_fft_types< cufft_sin >", "structheffte_1_1backend_1_1uses__fft__types_3_01cufft__sin_01_4.html", null ],
+    [ "uses_fft_types< rocfft_cos >", "structheffte_1_1backend_1_1uses__fft__types_3_01rocfft__cos_01_4.html", null ],
+    [ "uses_fft_types< rocfft_sin >", "structheffte_1_1backend_1_1uses__fft__types_3_01rocfft__sin_01_4.html", null ],
+    [ "uses_fft_types< onemkl_cos >", "structheffte_1_1backend_1_1uses__fft__types_3_01onemkl__cos_01_4.html", null ],
+    [ "uses_fft_types< onemkl_sin >", "structheffte_1_1backend_1_1uses__fft__types_3_01onemkl__sin_01_4.html", null ],
+    [ "check_error", "group__hefftemkl.html#gae3317af3fef359dce3b7b1429e15b85b", null ],
+    [ "name< mkl >", "group__hefftemkl.html#ga778818485c99f752b0e84a10a47eafd2", null ],
+    [ "name< mkl_cos >", "group__hefftemkl.html#gadb8d83a62eca6f02c1cb7acae918c698", null ],
+    [ "name< mkl_sin >", "group__hefftemkl.html#ga462f2e917f86a7594d4c40f32f5b9579", null ]
+];

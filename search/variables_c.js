@@ -1,0 +1,5 @@
+var searchData=
+[
+  ['plan_1029',['plan',['../structheffte_1_1plan__fftw_3_01std_1_1complex_3_01float_01_4_00_01dir_01_4.html#af1dc239da8505a97c700674c9055a9ab',1,'heffte::plan_fftw&lt; std::complex&lt; float &gt;, dir &gt;::plan()'],['../structheffte_1_1plan__fftw_3_01std_1_1complex_3_01double_01_4_00_01dir_01_4.html#a16be718a3609421fd25035d1bff64a73',1,'heffte::plan_fftw&lt; std::complex&lt; double &gt;, dir &gt;::plan()'],['../structheffte_1_1plan__fftw_3_01float_00_01dir_01_4.html#ad0d549074e2d1e9ac9676ed2af97c15d',1,'heffte::plan_fftw&lt; float, dir &gt;::plan()'],['../structheffte_1_1plan__fftw_3_01double_00_01dir_01_4.html#a7846ae852166ddab97cbdde49434a403',1,'heffte::plan_fftw&lt; double, dir &gt;::plan()'],['../structheffte_1_1plan__mkl.html#a86f608a2330020789988f81008e11ac0',1,'heffte::plan_mkl::plan()'],['../structheffte_1_1plan__mkl__r2c.html#a5287ea35d22b05a47cf1ab7ac535d904',1,'heffte::plan_mkl_r2c::plan()']]],
+  ['plane_5fstride_1030',['plane_stride',['../structheffte_1_1pack__plan__3d.html#a77b0facc12b440a98c6c87c63b0511b4',1,'heffte::pack_plan_3d']]]
+];

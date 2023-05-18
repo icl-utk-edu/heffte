@@ -1,0 +1,24 @@
+var searchData=
+[
+  ['r2c_433',['r2c',['../structheffte_1_1box3d.html#a834afa9d585eaaa047e656ca7dc5db2e',1,'heffte::box3d']]],
+  ['rank_5fremap_434',['rank_remap',['../structheffte_1_1rank__remap.html',1,'heffte::rank_remap'],['../structheffte_1_1rank__remap.html#ac3ddc0df8798b859555b71635baa65f9',1,'heffte::rank_remap::rank_remap(int rank)'],['../structheffte_1_1rank__remap.html#ae76ef0915e569e14db0a3dc434ee4880',1,'heffte::rank_remap::rank_remap()']]],
+  ['real2real_5fexecutor_435',['real2real_executor',['../structheffte_1_1real2real__executor.html',1,'heffte::real2real_executor&lt; fft_backend_tag, prepost_processor &gt;'],['../structheffte_1_1real2real__executor.html#a67d4200ea8af85694228f6ee24f320ea',1,'heffte::real2real_executor::real2real_executor(typename backend::device_instance&lt; typename backend::buffer_traits&lt; fft_backend_tag &gt;::location &gt;::stream_type cstream, box3d&lt; index &gt; const box, int dimension)'],['../structheffte_1_1real2real__executor.html#afa8863b93ef60351d186286388d7cd97',1,'heffte::real2real_executor::real2real_executor(typename backend::device_instance&lt; typename backend::buffer_traits&lt; fft_backend_tag &gt;::location &gt;::stream_type cstream, box3d&lt; index &gt; const)'],['../structheffte_1_1real2real__executor.html#aedd93e54d3f981e7fb72356778210b8c',1,'heffte::real2real_executor::real2real_executor(typename backend::device_instance&lt; typename backend::buffer_traits&lt; fft_backend_tag &gt;::location &gt;::stream_type cstream, box3d&lt; index &gt; const, int, int)']]],
+  ['real_5fbuffer_5fcontainer_436',['real_buffer_container',['../classheffte_1_1fft3d__r2c.html#a0e288866564e7d12287ec95695aeacec',1,'heffte::fft3d_r2c::real_buffer_container()'],['../classheffte_1_1fft3d.html#adb9b0e347c94f2bdb5376a19e3d878b6',1,'heffte::fft3d::real_buffer_container()']]],
+  ['rebind_437',['rebind',['../structheffte_1_1stock_1_1complex__allocator__t_1_1rebind.html',1,'heffte::stock::complex_allocator_t']]],
+  ['recv_5funaware_438',['recv_unaware',['../classheffte_1_1reshape3d__base.html#afaa2ec503bff63d1b9bb51949c574793',1,'heffte::reshape3d_base']]],
+  ['reorder_439',['reorder',['../group__fft3dgeometry.html#gaaeffaad7ebc798b6e829789ee8c22b24',1,'heffte']]],
+  ['reorder_5fslabs_440',['reorder_slabs',['../group__fft3dplan.html#ga6a746cf133878c2dbdb54cf8d332864a',1,'heffte']]],
+  ['reshape_20operations_441',['Reshape operations',['../group__hefftereshape.html',1,'']]],
+  ['reshape3d_5falltoall_442',['reshape3d_alltoall',['../classheffte_1_1reshape3d__alltoall.html',1,'heffte']]],
+  ['reshape3d_5falltoallv_443',['reshape3d_alltoallv',['../classheffte_1_1reshape3d__alltoallv.html',1,'heffte']]],
+  ['reshape3d_5fbase_444',['reshape3d_base',['../classheffte_1_1reshape3d__base.html',1,'heffte::reshape3d_base&lt; index &gt;'],['../classheffte_1_1reshape3d__base.html#a19e89844e438291d9eab6f3f260057f6',1,'heffte::reshape3d_base::reshape3d_base()']]],
+  ['reshape3d_5fpointtopoint_445',['reshape3d_pointtopoint',['../classheffte_1_1reshape3d__pointtopoint.html',1,'heffte']]],
+  ['reshape3d_5ftranspose_446',['reshape3d_transpose',['../classheffte_1_1reshape3d__transpose.html',1,'heffte::reshape3d_transpose&lt; location_tag, index &gt;'],['../classheffte_1_1reshape3d__transpose.html#a406f0be4d3797709e40cbba5665d8f54',1,'heffte::reshape3d_transpose::reshape3d_transpose()']]],
+  ['reshape_5falgorithm_447',['reshape_algorithm',['../group__fft3d.html#ga4c9d07a6600d0e32939ec064c0604767',1,'heffte']]],
+  ['rocfft_448',['rocfft',['../structheffte_1_1backend_1_1rocfft.html',1,'heffte::backend']]],
+  ['rocfft_5fcos_449',['rocfft_cos',['../structheffte_1_1backend_1_1rocfft__cos.html',1,'heffte::backend']]],
+  ['rocfft_5fexecutor_450',['rocfft_executor',['../classheffte_1_1rocfft__executor.html',1,'heffte::rocfft_executor'],['../classheffte_1_1rocfft__executor.html#a57905949ae9eafd5aaba7283dd40a37a',1,'heffte::rocfft_executor::rocfft_executor(hipStream_t active_stream, box3d&lt; index &gt; const box, int dimension)'],['../classheffte_1_1rocfft__executor.html#a9ff107933976a563bb8f9f8605c097ac',1,'heffte::rocfft_executor::rocfft_executor(hipStream_t active_stream, box3d&lt; index &gt; const box, int dir1, int dir2)'],['../classheffte_1_1rocfft__executor.html#aea9fd52e36d2f78dd26507855514eb4f',1,'heffte::rocfft_executor::rocfft_executor(hipStream_t active_stream, box3d&lt; index &gt; const box)']]],
+  ['rocfft_5fexecutor_5fr2c_451',['rocfft_executor_r2c',['../classheffte_1_1rocfft__executor__r2c.html',1,'heffte::rocfft_executor_r2c'],['../classheffte_1_1rocfft__executor__r2c.html#a5471b5574f0710d029d16cb09afd6bae',1,'heffte::rocfft_executor_r2c::rocfft_executor_r2c()']]],
+  ['rocfft_5fsin_452',['rocfft_sin',['../structheffte_1_1backend_1_1rocfft__sin.html',1,'heffte::backend']]],
+  ['rtransform_453',['rtransform',['../group__fft3d.html#ga4231b1482a0c4a46f6a7cfa4cec9e085',1,'heffte']]]
+];
