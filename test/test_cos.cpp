@@ -109,6 +109,7 @@ void perform_tests(MPI_Comm const comm){
     #ifdef Heffte_ENABLE_CUDA
     check_cpu_compile_types<backend::cufft_cos>();
     check_cpu_compile_types<backend::cufft_sin>();
+    check_cpu_compile_types<backend::cufft_cos1>();
     test_cosine_transform<backend::cufft_cos, float>(comm);
     test_cosine_transform<backend::cufft_cos, double>(comm);
     test_cosine_transform<backend::cufft_sin, float>(comm);

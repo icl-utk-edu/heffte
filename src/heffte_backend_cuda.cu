@@ -265,6 +265,21 @@ __global__ void sin_post_backward_kernel(int N, scalar_type const *fft_signal, s
     }
 }
 
+template<typename scalar_type>
+__global__ void cos1_pre_forward_kernel(int N, scalar_type const *fft_signal, scalar_type *result){
+}
+
+template<typename scalar_type>
+__global__ void cos1_post_forward_kernel(int N, scalar_type const *fft_signal, scalar_type *result){
+}
+
+template<typename scalar_type>
+__global__ void cos1_pre_backward_kernel(int N, scalar_type const *fft_signal, scalar_type *result){
+}
+
+template<typename scalar_type>
+__global__ void cos1_post_backward_kernel(int N, scalar_type const *fft_signal, scalar_type *result){
+}
 
 /*
  * Create a 1-D CUDA thread grid using the total_threads and number of threads per block.
@@ -467,6 +482,30 @@ void sin_pre_pos_processor::post_backward(cudaStream_t stream, int length, preci
     dim3 grid( (length + BLK_X-1)/BLK_X, 1 );
     sin_post_backward_kernel<<<grid, threads, 0, stream>>>(length, fft_result, result);
 }
+template<typename precision>
+void cos1_pre_pos_processor::pre_forward(cudaStream_t stream, int length, precision const input[], precision fft_signal[]){
+    dim3 threads( BLK_X, 1 );
+    dim3 grid( (length + BLK_X-1)/BLK_X, 1 );
+    cos1_pre_forward_kernel<<<grid, threads, 0, stream>>>(length, input, fft_signal);
+}
+template<typename precision>
+void cos1_pre_pos_processor::post_forward(cudaStream_t stream, int length, std::complex<precision> const fft_result[], precision result[]){
+    dim3 threads( BLK_X, 1 );
+    dim3 grid( (length + BLK_X-1)/BLK_X, 1 );
+    cos1_post_forward_kernel<<<grid, threads, 0, stream>>>(length, reinterpret_cast<precision const*>(fft_result), result);
+}
+template<typename precision>
+void cos1_pre_pos_processor::pre_backward(cudaStream_t stream, int length, precision const input[], std::complex<precision> fft_signal[]){
+    dim3 threads( BLK_X, 1 );
+    dim3 grid( (length + BLK_X-1)/BLK_X, 1 );
+    cos1_pre_backward_kernel<<<grid, threads, 0, stream>>>(length, input, reinterpret_cast<precision*>(fft_signal));
+}
+template<typename precision>
+void cos1_pre_pos_processor::post_backward(cudaStream_t stream, int length, precision const fft_result[], precision result[]){
+    dim3 threads( BLK_X, 1 );
+    dim3 grid( (length + BLK_X-1)/BLK_X, 1 );
+    cos1_post_backward_kernel<<<grid, threads, 0, stream>>>(length, fft_result, result);
+}
 
 #define heffte_instantiate_cos(precision) \
     template void cos_pre_pos_processor::pre_forward<precision>(cudaStream_t, int, precision const[], precision[]); \
@@ -480,6 +519,15 @@ void sin_pre_pos_processor::post_backward(cudaStream_t stream, int length, preci
 
 heffte_instantiate_cos(float)
 heffte_instantiate_cos(double)
+
+#define heffte_instantiate_cos1(precision)\
+    template void cos1_pre_pos_processor::pre_forward<precision>(cudaStream_t, int, precision const[], precision[]); \
+    template void cos1_pre_pos_processor::post_forward<precision>(cudaStream_t, int,  std::complex<precision> const[], precision[]); \
+    template void cos1_pre_pos_processor::pre_backward<precision>(cudaStream_t, int, precision const[], std::complex<precision>[]); \
+    template void cos1_pre_pos_processor::post_backward<precision>(cudaStream_t, int, precision const[], precision[]); \
+
+heffte_instantiate_cos1(float)
+heffte_instantiate_cos1(double)
 
 } // namespace cuda
 

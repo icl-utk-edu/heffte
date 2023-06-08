@@ -145,6 +145,21 @@ namespace cuda {
         template<typename precision>
         static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
     };
+
+    struct cos1_pre_pos_processor{
+        //! \brief Pre-process in the forward transform.
+        template<typename precision>
+        static void pre_forward(cudaStream_t, int length, precision const input[], precision fft_signal[]);
+        //! \brief Post-process in the forward transform.
+        template<typename precision>
+        static void post_forward(cudaStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        //! \brief Pre-process in the inverse transform.
+        template<typename precision>
+        static void pre_backward(cudaStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        //! \brief Post-process in the inverse transform.
+        template<typename precision>
+        static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
+    };
 }
 
 namespace backend{
@@ -163,6 +178,8 @@ namespace backend{
      * \brief Indicate that the cuFFT backend has been enabled for Sine Transform.
      */
     template<> struct is_enabled<cufft_sin> : std::true_type{};
+
+    template<> struct is_enabled<cufft_cos1> : std::true_type{};
 
     /*!
      * \ingroup hefftecuda
@@ -286,6 +303,14 @@ namespace backend{
         //! \brief The data is managed by the cuda vector container.
         template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
     };
+
+    template<>
+    struct buffer_traits<cufft_cos1>{
+        //! \brief The cufft library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the cuda vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };    
 }
 
 /*!
@@ -750,6 +775,11 @@ template<> struct one_dim_backend<backend::cufft_sin>{
     using executor_r2c = void;
 };
 
+template<> struct one_dim_backend<backend::cufft_cos1>{
+    using executor = real2real_executor<backend::cufft, cuda::cos1_pre_pos_processor>;
+    using executor_r2c = void;
+};
+
 /*!
  * \ingroup hefftepacking
  * \brief Simple packer that copies sub-boxes without transposing the order of the indexes.
@@ -817,6 +847,10 @@ template<> struct default_plan_options<backend::cufft>{
  * \brief Sets the default options for the cufft backend.
  */
 template<> struct default_plan_options<backend::cufft_cos>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
+};
+template<> struct default_plan_options<backend::cufft_cos1>{
     //! \brief The reshape operations will not transpose the data.
     static const bool use_reorder = true;
 };
