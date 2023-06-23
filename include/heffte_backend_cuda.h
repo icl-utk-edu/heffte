@@ -126,6 +126,7 @@ namespace cuda {
         //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
+        static const int factor = 0;
     };
     /*!
      * \ingroup hefftecuda
@@ -144,6 +145,7 @@ namespace cuda {
         //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
+        static const int factor = 0;
     };
 
     struct cos1_pre_pos_processor{
@@ -159,6 +161,7 @@ namespace cuda {
         //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
+        static const int factor = 1;
     };
 }
 

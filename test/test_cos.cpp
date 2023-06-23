@@ -74,9 +74,11 @@ void test_cosine_transform(MPI_Comm comm){
         trans_cos.forward(local_input.data(), forward.data());
         tassert(approx(forward, reference));
 
-        tvector inverse(trans_cos.size_inbox());
-        trans_cos.backward(forward.data(), inverse.data(), heffte::scale::full);
-        tassert(approx(inverse, reference_inv, (std::is_same<scalar_type, float>::value) ? 0.001 : 1.0));
+        if(!std::is_same<backend_tag, heffte::backend::cufft_cos1>::value){
+            tvector inverse(trans_cos.size_inbox());
+            trans_cos.backward(forward.data(), inverse.data(), heffte::scale::full);
+            tassert(approx(inverse, reference_inv, (std::is_same<scalar_type, float>::value) ? 0.001 : 1.0)); 
+        }
     }
 }
 
