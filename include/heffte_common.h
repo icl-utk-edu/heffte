@@ -317,12 +317,12 @@ namespace backend {
      * \ingroup hefftecuda
      * \brief Returns the human readable name of the cuFFT backend.
      */
-    template<> inline std::string name<cufft_cos>(){ return "cufft-cos"; }
+    template<> inline std::string name<cufft_cos>(){ return "cufft-cos-type-II"; }
     /*!
      * \ingroup hefftecuda
      * \brief Returns the human readable name of the cuFFT backend.
      */
-    template<> inline std::string name<cufft_sin>(){ return "cufft-sin"; }
+    template<> inline std::string name<cufft_sin>(){ return "cufft-sin-type-II"; }
 
     template<> inline std::string name<cufft_cos1>(){ return "cufft-cos-type-I"; }
 

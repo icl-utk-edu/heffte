@@ -298,7 +298,7 @@ __global__ void cos1_post_forward_kernel(int N, scalar_type const *fft_signal, s
 // IDCT-I backward kernel for DCT-I. The transform itself doesn't change, since (DCT-I)^-1=DCT-I. 
 // However, the kernel has slight changes to adapt to the c2r transform.
 // set imaginary parts to zero; even symmetry
-// (a b c) -> (a,0 b,0 c,0 b,0)
+// (a b c) -> (a,0 b,0 c,0 b,0 a,0)
 template<typename scalar_type>
 __global__ void cos1_pre_backward_kernel(int N, scalar_type const *input, scalar_type *fft_signal){
     int ind = blockIdx.x*BLK_X + threadIdx.x;
@@ -307,18 +307,25 @@ __global__ void cos1_pre_backward_kernel(int N, scalar_type const *input, scalar
         fft_signal[2*ind] = input[ind];
         fft_signal[2*ind+1] = 0.0;
     }
-    if(ind > 0 && ind < N){
+    if(ind < N){
         fft_signal[4*(N-1)-2*ind] = input[ind];
         fft_signal[4*(N-1)-2*ind+1] = 0.0;
     }
 
 }
 
-/*template<typename scalar_type>
+// Extract even elements
+// (a b c d e f) -> (a c e)
+template<typename scalar_type>
 __global__ void cos1_post_backward_kernel(int N, scalar_type const *fft_signal, scalar_type *result){
+    int ind = blockIdx.x*BLK_X + threadIdx.x;
+
+    if(ind < N){
+        result[ind] = fft_signal[2*ind];
+    }
 
 }
-*/
+
 /*
  * Create a 1-D CUDA thread grid using the total_threads and number of threads per block.
  * Basically, computes the number of blocks but no more than 65536.
@@ -542,7 +549,7 @@ template<typename precision>
 void cos1_pre_pos_processor::post_backward(cudaStream_t stream, int length, precision const fft_result[], precision result[]){
     dim3 threads( BLK_X, 1 );
     dim3 grid( (length + BLK_X-1)/BLK_X, 1 );
-    cos1_post_forward_kernel<<<grid, threads, 0, stream>>>(length, fft_result, result);
+    cos1_post_backward_kernel<<<grid, threads, 0, stream>>>(length, fft_result, result);
 }
 
 #define heffte_instantiate_cos(precision) \
