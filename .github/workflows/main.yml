@@ -20,7 +20,8 @@ jobs:
           - maker: spack
             backend: ONEAPI
         include:
-          - backend: ONEAPI
+          - maker: [cmake, spack]
+            backend: ONEAPI
             device: cpu_intel 
       fail-fast: false
     runs-on: ${{matrix.device}}
