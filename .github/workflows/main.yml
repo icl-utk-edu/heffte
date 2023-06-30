@@ -20,9 +20,9 @@ jobs:
           - maker: spack
             backend: ONEAPI
         include:
-          - maker: [cmake, spack]
+          - maker: cmake
             backend: ONEAPI
-            device: cpu_intel 
+            device: cpu_intel
       fail-fast: false
     runs-on: ${{matrix.device}}
     timeout-minutes: 60
