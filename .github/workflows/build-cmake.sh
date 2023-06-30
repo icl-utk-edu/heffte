@@ -25,11 +25,11 @@ elif [[ "$BACKEND" == "ONEAPI" || "$BACKEND" == "gpu_intel" ]]; then
    ARGS+=" -DHeffte_ENABLE_ONEAPI=ON"
    ARGS+=" -D CMAKE_CXX_COMPILER=icpx -D Heffte_ONEMKL_ROOT=$MKLROOT"
    [ -z "$MKLROOT" ] && echo "Error loading OneAPI-MKL!" && exit 1
-elif [ "$BACKEND" = "gpu_nvidia" ]; then
+elif [ "$BACKEND" = "CUDA" ]; then
    ARGS+=" -DHeffte_ENABLE_CUDA=ON"
    load cuda
    which nvcc
-elif [ "$BACKEND" = "gpu_amd" ]; then
+elif [ "$BACKEND" = "ROCM" ]; then
    ARGS+=" -DHeffte_ENABLE_ROCM=ON"
    export PATH=/opt/rocm/bin:$PATH
    which hipcc

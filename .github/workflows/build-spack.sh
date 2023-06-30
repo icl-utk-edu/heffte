@@ -18,9 +18,9 @@ if [ "$BACKEND" = "FFTW" ]; then
    VARIANTS="+fftw"
 elif [ "$BACKEND" = "MKL" ]; then
    VARIANTS="+mkl"
-elif [ "$BACKEND" = "gpu_nvidia" ]; then
+elif [ "$BACKEND" = "CUDA" ]; then
    VARIANTS="+cuda cuda_arch=70 ^cuda@11.4.3"
-elif [ "$BACKEND" = "gpu_amd" ]; then
+elif [ "$BACKEND" = "ROCM" ]; then
    VARIANTS="+rocm amdgpu_target=gfx90a ^hip@5.1.3"
 fi
 
