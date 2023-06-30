@@ -15,11 +15,15 @@ jobs:
       matrix:
         maker: [cmake, spack]
         backend: [BUILTIN, FFTW, MKL, ONEAPI]
+        device: [cpu]
         exclude: # spack package doesn't support oneapi
           - maker: spack
             backend: ONEAPI
+        include:
+          - backend: ONEAPI
+            device: cpu_intel 
       fail-fast: false
-    runs-on: cpu
+    runs-on: ${{matrix.device}}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
