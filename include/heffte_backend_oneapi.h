@@ -134,6 +134,8 @@ namespace oapi {
         //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(sycl::queue&, int length, precision const fft_result[], precision result[]);
+        
+        static const int factor = 0;
     };
     /*!
      * \ingroup hefftecuda
@@ -152,6 +154,8 @@ namespace oapi {
         //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(sycl::queue&, int length, precision const fft_result[], precision result[]);
+
+        static const int factor = 0;
     };
 
 }
