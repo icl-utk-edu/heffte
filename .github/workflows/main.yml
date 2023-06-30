@@ -15,13 +15,22 @@ jobs:
       matrix:
         maker: [cmake, spack]
         backend: [BUILTIN, FFTW, MKL]
+        device: [cpu]
         include:
-          - device: cpu
-          - backend: ONEAPI
+          - maker: cmake
+            backend: ONEAPI
             device: cpu_intel
-          - backend: CUDA
+          - maker: cmake
+            backend: CUDA
             device: gpu_nvidia
-          - backend: ROCM
+          - maker: spack
+            backend: CUDA
+            device: gpu_nvidia
+          - maker: cmake
+            backend: ROCM
+            device: gpu_amd
+          - maker: spack
+            backend: ROCM
             device: gpu_amd
       fail-fast: false
     runs-on: ${{matrix.device}}
