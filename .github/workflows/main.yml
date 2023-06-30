@@ -15,8 +15,8 @@ jobs:
       matrix:
         maker: [cmake, spack]
         backend: [BUILTIN, FFTW, MKL]
-        device: [cpu]
         include:
+          - device: cpu
           - backend: ONEAPI
             device: cpu_intel
           - backend: CUDA
