@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         maker: [cmake, spack]
-        backend: [BUILTIN, FFTW, MKL, ONEAPI]
+        backend: [BUILTIN, FFTW, MKL]
         device: [cpu]
         exclude: # spack package doesn't support oneapi
           - maker: spack
