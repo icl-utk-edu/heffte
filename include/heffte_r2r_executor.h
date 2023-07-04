@@ -28,13 +28,12 @@ namespace heffte {
  * \ingroup fft3dr2r
  * \brief Create a box with larger dimension that will exploit the symmetry for the Sine and Cosine Transforms.
  */
-/*
-template<typename index>
-box3d<index> make_cos_box(box3d<index> const &box, int factor){
+template<typename prepos_processor,typename index>
+box3d<index> make_extended_box(box3d<index> const &box){
     std::array<index, 3> high{box.size[0]-1, box.size[1]-1, box.size[2]-1};
-    high[box.order[0]] = 4 * (box.osize(0) - factor) - 1;
+    high[box.order[0]] = prepos_processor::compute_extended_length(box.osize(0)) - 1;
     return box3d<index>(std::array<index, 3>{0, 0, 0}, high, box.order);
-}*/
+}
 
 
 /*!
@@ -81,18 +80,10 @@ struct cpu_cos_pre_pos_processor{
         for(int i=0; i<length; i++)
             result[i] = fft_result[2*i + 1];
     }
-
-    template<typename index>
-    static box3d<index> make_extended_box(box3d<index> const &box){
-        std::array<index, 3> high{box.size[0]-1, box.size[1]-1, box.size[2]-1};
-        high[box.order[0]] = 4 * box.osize(0) - 1;
-        return box3d<index>(std::array<index, 3>{0, 0, 0}, high, box.order);
-    }
-
+    //! \brief Computes the length of the extended FFT signal
     static int compute_extended_length(int length){
         return 4 * length;
     }
-
 };
 
 /*!
@@ -136,16 +127,9 @@ struct cpu_sin_pre_pos_processor{
     static void post_backward(void*, int length, precision const fft_result[], precision result[]){
         cpu_cos_pre_pos_processor::post_backward(nullptr, length, fft_result, result);
     }
-    //! \brief Returns the box for the extended input/output.
-    template<typename index>
-    static box3d<index> make_extended_box(box3d<index> const &box){
-        std::array<index, 3> high{box.size[0]-1, box.size[1]-1, box.size[2]-1};
-        high[box.order[0]] = 4 * box.osize(0) - 1;
-        return box3d<index>(std::array<index, 3>{0, 0, 0}, high, box.order);
-    }
-    //! \brief Computes the length of the extended signal.
+    //! \brief Computes the length of the extended FFT signal.
     static int compute_extended_length(int length){
-        return 4 * length;
+        return cpu_cos_pre_pos_processor::compute_extended_length(length);
     }
 };
 
@@ -169,7 +153,7 @@ struct real2real_executor : public executor_base{
         extended_length(prepost_processor::compute_extended_length(box.osize(0))),
         num_batch(box.osize(1) * box.osize(2)),
         total_size(box.count()),
-        fft(make_executor_r2c<fft_backend_tag>(stream, prepost_processor::make_extended_box(box), dimension))
+        fft(make_executor_r2c<fft_backend_tag>(stream, make_extended_box<prepost_processor>(box), dimension))
     {
         assert(dimension == box.order[0]); // supporting only ordered operations (for now)
     }

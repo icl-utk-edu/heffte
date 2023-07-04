@@ -127,12 +127,6 @@ namespace cuda {
         template<typename precision>
         static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
         //! \brief Returns the box for the extended input/output.
-        template<typename index>
-        static box3d<index> make_extended_box(box3d<index> const &box){
-            std::array<index, 3> high{box.size[0]-1, box.size[1]-1, box.size[2]-1};
-            high[box.order[0]] = 4 * box.osize(0) - 1;
-            return box3d<index>(std::array<index, 3>{0, 0, 0}, high, box.order);
-        }
         //! \brief Computes the length of the extended signal.
         static int compute_extended_length(int length){
             return 4 * length;
@@ -155,16 +149,9 @@ namespace cuda {
         //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(cudaStream_t, int length, precision const fft_result[], precision result[]);
-        //! \brief Returns the box for the extended input/output.
-        template<typename index>
-        static box3d<index> make_extended_box(box3d<index> const &box){
-            std::array<index, 3> high{box.size[0]-1, box.size[1]-1, box.size[2]-1};
-            high[box.order[0]] = 4 * box.osize(0) - 1;
-            return box3d<index>(std::array<index, 3>{0, 0, 0}, high, box.order);
-        }
         //! \brief Computes the length of the extended signal.
         static int compute_extended_length(int length){
-            return 4 * length;
+            return cos_pre_pos_processor::compute_extended_length(length);
         }
     };
 
