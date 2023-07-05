@@ -166,7 +166,10 @@ namespace backend {
      * \brief Type-tag for the Sine Transform using the cuFFT backend
      */
     struct cufft_sin{};
-
+    /*!
+     * \ingroup hefftecuda
+     * \brief Type-tag for the Cosine Transform type 1 using the cuFFT backend
+     */ 
     struct cufft_cos1{};
 
     /*!
@@ -323,7 +326,10 @@ namespace backend {
      * \brief Returns the human readable name of the cuFFT backend.
      */
     template<> inline std::string name<cufft_sin>(){ return "cufft-sin-type-II"; }
-
+     /*!
+     * \ingroup hefftecuda
+     * \brief Returns the human readable name of the cuFFT backend.
+     */   
     template<> inline std::string name<cufft_cos1>(){ return "cufft-cos-type-I"; }
 
     /*!
