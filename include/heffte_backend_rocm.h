@@ -158,6 +158,28 @@ namespace rocm {
             return cos_pre_pos_processor::compute_extended_length(length);
         }
     };
+    /*!
+     * \ingroup hefftecuda
+     * \brief Implementation of Cosine Transform of type 1 pre-post processing methods using CUDA.
+     */
+    struct cos1_pre_pos_processor{
+        //! \brief Pre-process in the forward transform.
+        template<typename precision>
+        static void pre_forward(hipStream_t, int length, precision const input[], precision fft_signal[]);
+        //! \brief Post-process in the forward transform.
+        template<typename precision>
+        static void post_forward(hipStream_t, int length, std::complex<precision> const fft_result[], precision result[]);
+        //! \brief Pre-process in the inverse transform.
+        template<typename precision>
+        static void pre_backward(hipStream_t, int length, precision const input[], std::complex<precision> fft_signal[]);
+        //! \brief Post-process in the inverse transform.
+        template<typename precision>
+        static void post_backward(hipStream_t, int length, precision const fft_result[], precision result[]);
+        //! \brief Computes the length of the extended signal.
+        static int compute_extended_length(int length){
+            return 4 * (length-1);
+        }
+    };
 }
 
 namespace backend{
@@ -176,6 +198,11 @@ namespace backend{
      * \brief Indicate that the rocFFT backend has been enabled.
      */
     template<> struct is_enabled<rocfft_sin> : std::true_type{};
+    /*!
+     * \ingroup heffterocm
+     * \brief Indicate that the rocFFT backend has been enabled.
+     */
+    template<> struct is_enabled<rocfft_cos1> : std::true_type{};
 
     /*!
      * \ingroup heffterocm
@@ -294,6 +321,17 @@ namespace backend{
      */
     template<>
     struct buffer_traits<rocfft_sin>{
+        //! \brief The rocfft library uses data on the gpu device.
+        using location = tag::gpu;
+        //! \brief The data is managed by the ROCm vector container.
+        template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
+    };
+    /*!
+     * \ingroup heffterocm
+     * \brief Defines the location type-tag and the cuda container.
+     */
+    template<>
+    struct buffer_traits<rocfft_cos1>{
         //! \brief The rocfft library uses data on the gpu device.
         using location = tag::gpu;
         //! \brief The data is managed by the ROCm vector container.
@@ -855,6 +893,18 @@ template<> struct one_dim_backend<backend::rocfft_sin>{
     //! \brief Defines the real-to-complex executor.
     using executor_r2c = void;
 };
+/*!
+ * \ingroup heffterocm
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::rocfft_cos1>{
+    //! \brief Defines the complex-to-complex executor.
+    using executor = real2real_executor<backend::rocfft, rocm::cos1_pre_pos_processor>;
+    //! \brief Defines the real-to-complex executor.
+    using executor_r2c = void;
+};
 
 /*!
  * \ingroup hefftepacking
@@ -931,6 +981,14 @@ template<> struct default_plan_options<backend::rocfft_cos>{
  * \brief Sets the default options for the cufft backend.
  */
 template<> struct default_plan_options<backend::rocfft_sin>{
+    //! \brief The reshape operations will not transpose the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup heffterocm
+ * \brief Sets the default options for the cufft backend.
+ */
+template<> struct default_plan_options<backend::rocfft_cos1>{
     //! \brief The reshape operations will not transpose the data.
     static const bool use_reorder = true;
 };
