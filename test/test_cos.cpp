@@ -45,7 +45,7 @@ void test_cosine_transform(MPI_Comm comm){
             or std::is_same<backend_tag, backend::mkl_sin>::value or std::is_same<backend_tag, backend::cufft_sin>::value
             or std::is_same<backend_tag, backend::rocfft_sin>::value or std::is_same<backend_tag, backend::onemkl_sin>::value) {
             return std::vector<scalar_type>{7.3910362600902943e+02, -4.1810014876044050e+01, -1.0241320258448191e+02, 0.0, 3.6955181300451477e+02, -2.0905007438022025e+01, -3.8400000000000006e+02, 0.0, 0.0, 0.0, -1.9200000000000003e+02, 0.0, 3.0614674589207186e+02, -1.7318275204678301e+01, -4.2420937476555700e+01, 0.0, 1.5307337294603599e+02, -8.6591376023391504e+00, -2.7152900397563417e+02, 0.0, 0.0, 0.0, -1.3576450198781720e+02, 0.0};
-        } else if (std::is_same<backend_tag, backend::fftw_cos1>::value) {
+        } else if (std::is_same<backend_tag, backend::fftw_cos1>::value or std::is_same<backend_tag, backend::cufft_cos1>::value) {
             return std::vector<scalar_type>{600.0, -24.0, -48.0, 0.0, 0.0, 0.0, -192.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -48.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         } else if (std::is_same<backend_tag, backend::fftw_sin1>::value) {
             return std::vector<scalar_type>{1.2869458511849268e+03, -5.1477834047397081e+01, -1.7058253619218675e+02, 0.0, 2.2080499998375967e+02, -8.8321999993503919e+00, -6.9064761758659802e+02, 0.0, -5.1623951549498826e-15, 0.0, -1.1849639753652639e+02, 0.0, 3.0380670424097087e+02, -1.2152268169638841e+01, -4.0269074315674175e+01, 0.0, 5.2124989768007239e+01, -2.0849995907202907e+00, -1.6303978624871638e+02, 0.0, -2.1868256803083264e-14, 0.0, -2.7973204907458850e+01, 0.0};
@@ -76,7 +76,7 @@ void test_cosine_transform(MPI_Comm comm){
 
         tvector inverse(trans_cos.size_inbox());
         trans_cos.backward(forward.data(), inverse.data(), heffte::scale::full);
-        tassert(approx(inverse, reference_inv, (std::is_same<scalar_type, float>::value) ? 0.001 : 1.0));
+        tassert(approx(inverse, reference_inv, (std::is_same<scalar_type, float>::value) ? 0.001 : 1.0)); 
     }
 }
 
@@ -109,10 +109,13 @@ void perform_tests(MPI_Comm const comm){
     #ifdef Heffte_ENABLE_CUDA
     check_cpu_compile_types<backend::cufft_cos>();
     check_cpu_compile_types<backend::cufft_sin>();
+    check_cpu_compile_types<backend::cufft_cos1>();
     test_cosine_transform<backend::cufft_cos, float>(comm);
     test_cosine_transform<backend::cufft_cos, double>(comm);
     test_cosine_transform<backend::cufft_sin, float>(comm);
     test_cosine_transform<backend::cufft_sin, double>(comm);
+    test_cosine_transform<backend::cufft_cos1, float>(comm);
+    test_cosine_transform<backend::cufft_cos1, double>(comm);
     #endif
     #ifdef Heffte_ENABLE_ROCM
     test_cosine_transform<backend::rocfft_cos, float>(comm);

@@ -134,6 +134,10 @@ namespace oapi {
         //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(sycl::queue&, int length, precision const fft_result[], precision result[]);
+        //! \brief Computes the length of the extended signal.
+       static int compute_extended_length(int length){
+            return 4 * length;
+        }
     };
     /*!
      * \ingroup hefftecuda
@@ -152,6 +156,10 @@ namespace oapi {
         //! \brief Post-process in the inverse transform.
         template<typename precision>
         static void post_backward(sycl::queue&, int length, precision const fft_result[], precision result[]);
+        //! \brief Computes the length of the extended signal.
+       static int compute_extended_length(int length){
+            return cos_pre_pos_processor::compute_extended_length(length);
+        }
     };
 
 }

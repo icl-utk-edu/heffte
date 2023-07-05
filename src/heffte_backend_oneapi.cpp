@@ -297,6 +297,7 @@ void cos_pre_pos_processor::post_backward(sycl::queue& stream, int length, preci
             });
     }).wait();
 }
+
 template<typename precision>
 void sin_pre_pos_processor::pre_forward(sycl::queue& stream, int length, precision const input[], precision fft_signal[]){
     stream.submit([&](sycl::handler& h){

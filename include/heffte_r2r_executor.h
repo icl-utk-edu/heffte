@@ -28,12 +28,13 @@ namespace heffte {
  * \ingroup fft3dr2r
  * \brief Create a box with larger dimension that will exploit the symmetry for the Sine and Cosine Transforms.
  */
-template<typename index>
-box3d<index> make_cos_box(box3d<index> const &box){
+template<typename prepos_processor,typename index>
+box3d<index> make_extended_box(box3d<index> const &box){
     std::array<index, 3> high{box.size[0]-1, box.size[1]-1, box.size[2]-1};
-    high[box.order[0]] = 4 * box.osize(0) - 1;
+    high[box.order[0]] = prepos_processor::compute_extended_length(box.osize(0)) - 1;
     return box3d<index>(std::array<index, 3>{0, 0, 0}, high, box.order);
 }
+
 
 /*!
  * \ingroup fft3dr2r
@@ -79,6 +80,10 @@ struct cpu_cos_pre_pos_processor{
         for(int i=0; i<length; i++)
             result[i] = fft_result[2*i + 1];
     }
+    //! \brief Computes the length of the extended FFT signal
+    static int compute_extended_length(int length){
+        return 4 * length;
+    }
 };
 
 /*!
@@ -122,6 +127,10 @@ struct cpu_sin_pre_pos_processor{
     static void post_backward(void*, int length, precision const fft_result[], precision result[]){
         cpu_cos_pre_pos_processor::post_backward(nullptr, length, fft_result, result);
     }
+    //! \brief Computes the length of the extended FFT signal.
+    static int compute_extended_length(int length){
+        return cpu_cos_pre_pos_processor::compute_extended_length(length);
+    }
 };
 
 struct cpu_cos1_pre_pos_processor{};
@@ -141,9 +150,10 @@ struct real2real_executor : public executor_base{
     real2real_executor(typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type cstream, box3d<index> const box, int dimension) :
         stream(cstream),
         length(box.osize(0)),
+        extended_length(prepost_processor::compute_extended_length(box.osize(0))),
         num_batch(box.osize(1) * box.osize(2)),
         total_size(box.count()),
-        fft(make_executor_r2c<fft_backend_tag>(stream, make_cos_box(box), dimension))
+        fft(make_executor_r2c<fft_backend_tag>(stream, make_extended_box<prepost_processor>(box), dimension))
     {
         assert(dimension == box.order[0]); // supporting only ordered operations (for now)
     }
@@ -162,12 +172,13 @@ struct real2real_executor : public executor_base{
         scalar_type* temp = workspace;
         std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->box_size() + 1));
         std::complex<scalar_type>* fft_work = (fft->workspace_size() == 0) ? nullptr : ctemp + fft->complex_size();
+
         for(int i=0; i<num_batch; i++){
-            prepost_processor::pre_forward(stream, length, data + i * length, temp + i * 4 * length);
+            prepost_processor::pre_forward(stream, length, data + i * length, temp + i * extended_length );
         }
         fft->forward(temp, ctemp, fft_work);
         for(int i=0; i<num_batch; i++)
-            prepost_processor::post_forward(stream, length, ctemp + i * (2 * length + 1), data + i * length);
+            prepost_processor::post_forward(stream, length, ctemp + i * ( extended_length/2 + 1 ), data + i * length);
     }
     //! \brief Inverse transform.
     template<typename scalar_type>
@@ -176,10 +187,10 @@ struct real2real_executor : public executor_base{
         std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->box_size() + 1));
         std::complex<scalar_type>* fft_work = (fft->workspace_size() == 0) ? nullptr : ctemp + fft->complex_size();
         for(int i=0; i<num_batch; i++)
-            prepost_processor::pre_backward(stream, length, data + i * length, ctemp + i * (2 * length + 1));
+            prepost_processor::pre_backward(stream, length, data + i * length, ctemp + i * ( extended_length/2 + 1));
         fft->backward(ctemp, temp, fft_work);
         for(int i=0; i<num_batch; i++)
-            prepost_processor::post_backward(stream, length, temp + 4 * i * length, data + i * length);
+            prepost_processor::post_backward(stream, length, temp + i * extended_length, data + i * length);
     }
 
     //! \brief Placeholder for template type consistency, should never be called.
@@ -220,7 +231,7 @@ struct real2real_executor : public executor_base{
 private:
     typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type stream;
 
-    int length, num_batch, total_size;
+    int length, extended_length, num_batch, total_size;
 
     std::unique_ptr<typename one_dim_backend<fft_backend_tag>::executor_r2c> fft;
 };
