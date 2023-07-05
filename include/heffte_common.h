@@ -477,16 +477,19 @@ namespace backend {
      */
     template<> struct uses_fft_types<mkl_sin> : std::false_type{};
     /*!
-     * \ingroup hefftemkl
+     * \ingroup hefftecufft
      * \brief Sets the cos() transform types.
      */
     template<> struct uses_fft_types<cufft_cos> : std::false_type{};
     /*!
-     * \ingroup hefftemkl
+     * \ingroup hefftecufft
      * \brief Sets the sin() transform types.
      */
     template<> struct uses_fft_types<cufft_sin> : std::false_type{};
-
+    /*!
+     * \ingroup hefftecufft
+     * \brief Sets the cos1() transform types.
+     */
     template<> struct uses_fft_types<cufft_cos1> : std::false_type{};
     /*!
      * \ingroup hefftemkl
