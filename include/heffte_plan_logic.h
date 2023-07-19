@@ -209,6 +209,7 @@ plan_options set_options(plan_options opts){
         or std::is_same<backend_tag, backend::mkl_cos>::value
         or std::is_same<backend_tag, backend::cufft_cos>::value
         or std::is_same<backend_tag, backend::cufft_cos1>::value
+        or std::is_same<backend_tag, backend::rocfft_cos1>::value
         or std::is_same<backend_tag, backend::rocfft_cos>::value
         or std::is_same<backend_tag, backend::onemkl_cos>::value
         or std::is_same<backend_tag, backend::stock_sin>::value
