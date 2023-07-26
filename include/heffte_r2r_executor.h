@@ -206,8 +206,8 @@ struct real2real_executor : public executor_base{
     int box_size() const override{ return total_size; }
     //! \brief Returns the size of the box.
     size_t workspace_size() const override{
-        return fft->box_size() + 1 + 2 * fft->complex_size() + 2 * fft->workspace_size()
-               + ((std::is_same<fft_backend_tag, backend::cufft>::value) ? 3 : 0);
+        return fft->box_size() + 2 * fft->complex_size() + 2 * fft->workspace_size()
+               + ((std::is_same<fft_backend_tag, backend::cufft>::value) ? 3 : 2);
     }
     //! \brief Moves the pointer forward to be aligned to the size of std::complex<scalar_type>, used for CUDA only.
     template<typename scalar_type>
