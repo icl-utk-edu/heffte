@@ -169,8 +169,8 @@ struct real2real_executor : public executor_base{
     //! \brief Forward transform.
     template<typename scalar_type>
     void forward(scalar_type data[], scalar_type workspace[]) const{
-        scalar_type* temp = workspace;
-        std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->box_size() + 1));
+        scalar_type* temp =reinterpret_cast<scalar_type*>(align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace)));
+        std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->box_size() + 2));
         std::complex<scalar_type>* fft_work = (fft->workspace_size() == 0) ? nullptr : ctemp + fft->complex_size();
 
         for(int i=0; i<num_batch; i++){
@@ -183,8 +183,8 @@ struct real2real_executor : public executor_base{
     //! \brief Inverse transform.
     template<typename scalar_type>
     void backward(scalar_type data[], scalar_type workspace[]) const{
-        scalar_type* temp = workspace;
-        std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->box_size() + 1));
+        scalar_type* temp =reinterpret_cast<scalar_type*>(align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace)));
+        std::complex<scalar_type>* ctemp = align_pntr(reinterpret_cast<std::complex<scalar_type>*>(workspace + fft->box_size() + 2));
         std::complex<scalar_type>* fft_work = (fft->workspace_size() == 0) ? nullptr : ctemp + fft->complex_size();
         for(int i=0; i<num_batch; i++)
             prepost_processor::pre_backward(stream, length, data + i * length, ctemp + i * ( extended_length/2 + 1));
@@ -207,7 +207,7 @@ struct real2real_executor : public executor_base{
     //! \brief Returns the size of the box.
     size_t workspace_size() const override{
         return fft->box_size() + 1 + 2 * fft->complex_size() + 2 * fft->workspace_size()
-               + ((std::is_same<fft_backend_tag, backend::cufft>::value) ? 1 : 0);
+               + ((std::is_same<fft_backend_tag, backend::cufft>::value) ? 3 : 0);
     }
     //! \brief Moves the pointer forward to be aligned to the size of std::complex<scalar_type>, used for CUDA only.
     template<typename scalar_type>
