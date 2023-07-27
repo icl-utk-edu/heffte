@@ -655,7 +655,7 @@ public:
     {}
 
     //! \brief Forward transform, single precision.
-    void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const override{
+    void forward(float const indata[], std::complex<float> outdata[], std::complex<float> *workspace) const override{
         make_plan(sforward, direction::forward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -665,16 +665,16 @@ public:
             }
         }else{
             // need to create a temporary copy of the data since cufftExecR2C() requires aligned input
-            backend::buffer_traits<backend::cufft>::container<float> rdata(stream, rblock_stride);
+            float *rdata = align<backend::cufft>::pntr(reinterpret_cast<float*>(workspace));
             for(int i=0; i<blocks; i++){
-                backend::data_manipulator<tag::gpu>::copy_n(stream, indata + i * rblock_stride, rblock_stride, rdata.data());
+                backend::data_manipulator<tag::gpu>::copy_n(stream, indata + i * rblock_stride, rblock_stride, rdata);
                 cufftComplex* cdata = reinterpret_cast<cufftComplex*>(outdata + i * cblock_stride);
-                cuda::check_error(cufftExecR2C(*sforward, rdata.data(), cdata), "cufft_executor::cufftExecR2C()");
+                cuda::check_error(cufftExecR2C(*sforward, rdata, cdata), "cufft_executor::cufftExecR2C()");
             }
         }
     }
     //! \brief Backward transform, single precision.
-    void backward(std::complex<float> indata[], float outdata[], std::complex<float>*) const override{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const override{
         make_plan(sbackward, direction::backward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -682,16 +682,16 @@ public:
                 cuda::check_error(cufftExecC2R(*sbackward, cdata, outdata + i * rblock_stride), "cufft_executor::cufftExecC2R()");
             }
         }else{
-            backend::buffer_traits<backend::cufft>::container<float> odata(stream, rblock_stride);
+            float *odata = align<backend::cufft>::pntr(reinterpret_cast<float*>(workspace));
             for(int i=0; i<blocks; i++){
                 cufftComplex* cdata = const_cast<cufftComplex*>(reinterpret_cast<cufftComplex const*>(indata + i * cblock_stride));
-                cuda::check_error(cufftExecC2R(*sbackward, cdata, odata.data()), "cufft_executor::cufftExecC2R()");
-                backend::data_manipulator<tag::gpu>::copy_n(stream, odata.data(), rblock_stride, outdata + i * rblock_stride);
+                cuda::check_error(cufftExecC2R(*sbackward, cdata, odata), "cufft_executor::cufftExecC2R()");
+                backend::data_manipulator<tag::gpu>::copy_n(stream, odata, rblock_stride, outdata + i * rblock_stride);
             }
         }
     }
     //! \brief Forward transform, double precision.
-    void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const override{
+    void forward(double const indata[], std::complex<double> outdata[], std::complex<double> *workspace) const override{
         make_plan(dforward, direction::forward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -700,16 +700,16 @@ public:
                 cuda::check_error(cufftExecD2Z(*dforward, rdata, cdata), "cufft_executor::cufftExecD2Z()");
             }
         }else{
-            backend::buffer_traits<backend::cufft>::container<double> rdata(stream, rblock_stride);
+            double *rdata = align<backend::cufft>::pntr(reinterpret_cast<double*>(workspace));
             for(int i=0; i<blocks; i++){
-                backend::data_manipulator<tag::gpu>::copy_n(stream, indata + i * rblock_stride, rblock_stride, rdata.data());
+                backend::data_manipulator<tag::gpu>::copy_n(stream, indata + i * rblock_stride, rblock_stride, rdata);
                 cufftDoubleComplex* cdata = reinterpret_cast<cufftDoubleComplex*>(outdata + i * cblock_stride);
-                cuda::check_error(cufftExecD2Z(*dforward, rdata.data(), cdata), "cufft_executor::cufftExecD2Z()");
+                cuda::check_error(cufftExecD2Z(*dforward, rdata, cdata), "cufft_executor::cufftExecD2Z()");
             }
         }
     }
     //! \brief Backward transform, double precision.
-    void backward(std::complex<double> indata[], double outdata[], std::complex<double>*) const override{
+    void backward(std::complex<double> indata[], double outdata[], std::complex<double> *workspace) const override{
         make_plan(dbackward, direction::backward);
         if (blocks == 1 or rblock_stride % 2 == 0){
             for(int i=0; i<blocks; i++){
@@ -717,11 +717,11 @@ public:
                 cuda::check_error(cufftExecZ2D(*dbackward, cdata, outdata + i * rblock_stride), "cufft_executor::cufftExecZ2D()");
             }
         }else{
-            backend::buffer_traits<backend::cufft>::container<double> odata(stream, rblock_stride);
+            double *odata = align<backend::cufft>::pntr(reinterpret_cast<double*>(workspace));
             for(int i=0; i<blocks; i++){
                 cufftDoubleComplex* cdata = const_cast<cufftDoubleComplex*>(reinterpret_cast<cufftDoubleComplex const*>(indata + i * cblock_stride));
-                cuda::check_error(cufftExecZ2D(*dbackward, cdata, odata.data()), "cufft_executor::cufftExecZ2D()");
-                backend::data_manipulator<tag::gpu>::copy_n(stream, odata.data(), rblock_stride, outdata + i * rblock_stride);
+                cuda::check_error(cufftExecZ2D(*dbackward, cdata, odata), "cufft_executor::cufftExecZ2D()");
+                backend::data_manipulator<tag::gpu>::copy_n(stream, odata, rblock_stride, outdata + i * rblock_stride);
             }
         }
     }
@@ -731,7 +731,7 @@ public:
     //! \brief Returns the size of the box with complex coefficients.
     int complex_size() const override{ return csize; }
     //! \brief Return the size of the needed workspace.
-    size_t workspace_size() const override{ return 0; }
+    size_t workspace_size() const override{ return (blocks == 1 or rblock_stride % 2 == 0) ? 0 : rblock_stride / 2 + 1; }
 
 private:
     //! \brief Helper template to initialize the plan.
