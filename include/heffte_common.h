@@ -169,7 +169,7 @@ namespace backend {
     /*!
      * \ingroup hefftecuda
      * \brief Type-tag for the Cosine Transform type 1 using the cuFFT backend
-     */ 
+     */
     struct cufft_cos1{};
 
     /*!
@@ -191,7 +191,7 @@ namespace backend {
      * \ingroup heffterocm
      * \brief Type-tag for the Cosine Transform of type 1 using the rocFFT backend
      */
-    struct rocfft_cos1{};   
+    struct rocfft_cos1{};
 
     /*!
      * \ingroup heffteoneapi
@@ -334,7 +334,7 @@ namespace backend {
      /*!
      * \ingroup hefftecuda
      * \brief Returns the human readable name of the cuFFT backend.
-     */   
+     */
     template<> inline std::string name<cufft_cos1>(){ return "cufft-cos-type-I"; }
 
     /*!
@@ -577,6 +577,48 @@ public:
     virtual size_t workspace_size() const{ return 0; }
     //! \brief Return the size of the complex-box (r2c executors).
     virtual int complex_size() const{ return box_size(); }
+};
+
+/*!
+ * \ingroup fft3dbackend
+ * \brief cuFFT requires that the input and output in R2C transforms are aligned to the complex type.
+ */
+template<typename backend_tag>
+struct align{
+    //! \brief Align for float
+    static float* pntr(float *p) {
+        if (std::is_same<backend_tag, backend::cufft>::value) {
+            return (reinterpret_cast<size_t>(p) % sizeof(std::complex<float>) == 0) ? p : p+1;
+        } else {
+            return p;
+        }
+    }
+    //! \brief Align for double
+    static double* pntr(double *p) {
+        if (std::is_same<backend_tag, backend::cufft>::value) {
+            return (reinterpret_cast<size_t>(p) % sizeof(std::complex<double>) == 0) ? p : p+1;
+        } else {
+            return p;
+        }
+    }
+    //! \brief Align for complex-float
+    static std::complex<float>* pntr(std::complex<float> *p) {
+        if (std::is_same<backend_tag, backend::cufft>::value) {
+            return (reinterpret_cast<size_t>(p) % sizeof(std::complex<float>) == 0) ? p :
+                reinterpret_cast<std::complex<float>*>(reinterpret_cast<float*>(p) + 1);
+        } else {
+            return p;
+        }
+    }
+    //! \brief Align for complex-double
+    static std::complex<double>* pntr(std::complex<double> *p) {
+        if (std::is_same<backend_tag, backend::cufft>::value) {
+            return (reinterpret_cast<size_t>(p) % sizeof(std::complex<double>) == 0) ? p :
+                reinterpret_cast<std::complex<double>*>(reinterpret_cast<double*>(p) + 1);
+        } else {
+            return p;
+        }
+    }
 };
 
 /*!

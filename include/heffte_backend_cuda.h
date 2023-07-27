@@ -172,6 +172,7 @@ namespace cuda {
             return 4 * ( length-1 );
         }
     };
+
 }
 
 namespace backend{
@@ -322,7 +323,7 @@ namespace backend{
         using location = tag::gpu;
         //! \brief The data is managed by the cuda vector container.
         template<typename T> using container = heffte::gpu::device_vector<T, data_manipulator<tag::gpu>>;
-    };    
+    };
 }
 
 /*!
