@@ -567,7 +567,7 @@ void cos1_pre_pos_processor::post_backward(hipStream_t stream, int length, preci
 heffte_instantiate_cos(float)
 heffte_instantiate_cos(double)
 
-#define heffte_instantiate_cos(precision) \
+#define heffte_instantiate_cos1(precision) \
     template void cos1_pre_pos_processor::pre_forward<precision>(hipStream_t, int, precision const[], precision[]); \
     template void cos1_pre_pos_processor::post_forward<precision>(hipStream_t, int,  std::complex<precision> const[], precision[]); \
     template void cos1_pre_pos_processor::pre_backward<precision>(hipStream_t, int, precision const[], std::complex<precision>[]); \
