@@ -77,7 +77,50 @@ void test_cosine_transform(MPI_Comm comm){
 
         tvector inverse(trans_cos.size_inbox());
         trans_cos.backward(forward.data(), inverse.data(), heffte::scale::full);
-        tassert(approx(inverse, reference_inv, (std::is_same<scalar_type, float>::value) ? 0.001 : 1.0)); 
+        tassert(approx(inverse, reference_inv, (std::is_same<scalar_type, float>::value) ? 0.001 : 1.0));
+    }
+}
+
+template<typename backend1, typename backend2, typename scalar_type, int h0, int h1, int h2>
+void test_cross_reference(MPI_Comm comm){
+    int const num_ranks = mpi::comm_size(comm);
+    assert(num_ranks == 1 or num_ranks == 2 or num_ranks == 4);
+    box3d<> const world = {{0, 0, 0}, {h0, h1, h2}};
+    current_test<scalar_type, using_mpi, backend1> name(std::string("-np ") + std::to_string(num_ranks) + "  cross-reference", comm);
+    int const me = mpi::comm_rank(comm);
+    auto world_input = make_data<scalar_type>(world);
+
+    std::array<heffte::scale, 3> fscale = {heffte::scale::none, heffte::scale::symmetric, heffte::scale::full};
+    //std::array<heffte::scale, 3> bscale = {heffte::scale::full, heffte::scale::symmetric, heffte::scale::none};
+
+    for(int i=0; i<1; i++){ // TODO: figure out the scaling issues in the backward transform
+        std::array<int, 3> split = {1, 1, 1};
+        if (num_ranks == 2){
+            split[i] = 2;
+        }else if (num_ranks == 4){
+            split = {2, 2, 2};
+            split[i] = 1;
+        }
+
+        std::vector<box3d<>> boxes = heffte::split_world(world, split);
+        assert(boxes.size() == static_cast<size_t>(num_ranks));
+
+        box3d<> const inbox  = boxes[me];
+        box3d<> const outbox = boxes[me];
+
+        auto local_input1  = input_maker<backend1, scalar_type>::select(world, inbox, world_input);
+        auto local_input2  = input_maker<backend2, scalar_type>::select(world, inbox, world_input);
+
+        heffte::fft3d<backend1> fft1(inbox, outbox, comm);
+        heffte::fft3d<backend2> fft2(inbox, outbox, comm);
+
+        auto result1 = fft1.forward(local_input1, fscale[i]);
+        auto result2 = fft2.forward(local_input2, fscale[i]);
+        tassert(approx(result1, result2));
+
+        //auto backward_result1 = fft1.backward(result1, bscale[i]);
+        //auto backward_result2 = fft2.backward(result2, bscale[i]);
+        //tassert(approx(backward_result1, backward_result2));
     }
 }
 
@@ -117,6 +160,14 @@ void perform_tests(MPI_Comm const comm){
     test_cosine_transform<backend::cufft_sin, double>(comm);
     test_cosine_transform<backend::cufft_cos1, float>(comm);
     test_cosine_transform<backend::cufft_cos1, double>(comm);
+    #ifdef Heffte_ENABLE_FFTW
+    test_cross_reference<backend::fftw_cos, backend::cufft_cos, float, 10, 11, 12>(comm);
+    test_cross_reference<backend::fftw_cos, backend::cufft_cos, double, 3, 8, 5>(comm);
+    test_cross_reference<backend::fftw_sin, backend::cufft_sin, float, 10, 11, 12>(comm);
+    test_cross_reference<backend::fftw_sin, backend::cufft_sin, double, 3, 8, 5>(comm);
+    test_cross_reference<backend::fftw_cos1, backend::cufft_cos1, float, 10, 11, 12>(comm);
+    test_cross_reference<backend::fftw_cos1, backend::cufft_cos1, double, 3, 8, 5>(comm);
+    #endif
     #endif
     #ifdef Heffte_ENABLE_ROCM
     test_cosine_transform<backend::rocfft_cos, float>(comm);
