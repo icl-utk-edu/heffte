@@ -51,3 +51,14 @@ macro(heffte_find_libraries)
     endforeach()
     unset(_hfft_lib)
 endmacro()
+
+# add an MPI test with given number of ranks
+# respects the CMake conventions for running MPI
+macro(heffte_add_mpi_test)
+    cmake_parse_arguments(_heffte "" "NAME;COMMAND;RANKS" "" ${ARGN} )
+    add_test(${_heffte_NAME} ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${_heffte_RANKS} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${_heffte_COMMAND} ${MPIEXEC_POSTFLAGS})
+    set_tests_properties(${_heffte_NAME} PROPERTIES RUN_SERIAL ${Heffte_SEQUENTIAL_TESTING})
+    unset(_heffte_NAME)
+    unset(_heffte_RANKS)
+    unset(_heffte_COMMAND)
+endmacro()
