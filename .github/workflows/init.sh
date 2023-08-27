@@ -7,7 +7,7 @@ shopt -s expand_aliases
 alias print=echo
 alias load="spack load --first"
 
-COMPILER=gcc@9.5.0
+COMPILER=gcc@11.3.0
 load $COMPILER
 
 MPI="openmpi~rsh"
