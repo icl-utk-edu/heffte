@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  heffte_cpu:
+  heffte:
     strategy:
       matrix:
         maker: [cmake, spack]
