@@ -19,9 +19,9 @@ if [ "$BACKEND" = "FFTW" ]; then
 elif [ "$BACKEND" = "MKL" ]; then
    VARIANTS="+mkl"
 elif [ "$BACKEND" = "CUDA" ]; then
-   VARIANTS="+cuda cuda_arch=70 ^cuda@11.4.3"
+   VARIANTS="+cuda cuda_arch=70 ^cuda@11.8.0"
 elif [ "$BACKEND" = "ROCM" ]; then
-   VARIANTS="+rocm amdgpu_target=gfx90a ^hip@5.1.3"
+   VARIANTS="+rocm amdgpu_target=gfx90a ^hip@5.5.0"
 fi
 
 SPEC="heffte@develop $VARIANTS ^$MPI %$COMPILER"
