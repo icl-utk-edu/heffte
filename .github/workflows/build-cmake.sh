@@ -6,7 +6,7 @@ BACKEND=$2
 source $(dirname $0)/init.sh
 
 load cmake
-load $MPI %$COMPILER
+load $MPI
 
 ARGS="-DCMAKE_INSTALL_PREFIX=install"
 if [ "$BACKEND" = "MKL" ]; then
