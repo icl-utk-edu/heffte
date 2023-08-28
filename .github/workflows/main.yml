@@ -19,7 +19,7 @@ jobs:
         include:
           - maker: cmake
             backend: ONEAPI
-            device: cpu_intel
+            device: gpu_intel
           - maker: cmake
             backend: CUDA
             device: gpu_nvidia
