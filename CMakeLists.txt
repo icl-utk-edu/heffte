@@ -187,6 +187,49 @@ target_include_directories(Heffte PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURC
 target_include_directories(Heffte PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/>)
 target_include_directories(Heffte PUBLIC $<INSTALL_INTERFACE:include>)
 
+if (Heffte_ENABLE_FORTRAN)
+    add_subdirectory(fortran)
+endif()
+if (Heffte_ENABLE_PYTHON)
+    add_subdirectory(python)
+endif()
+
+
+###########################
+# GNU Make dependencies
+###########################
+set(heffte_dep_libs "")
+get_target_property(_heffte_list Heffte LINK_LIBRARIES)
+foreach(_heffte_lib_ ${_heffte_list})
+    if (NOT TARGET ${_heffte_lib_})
+        set(heffte_dep_libs "${heffte_dep_libs} ${_heffte_lib_}")
+    else()
+        get_target_property(_heffte_list2 ${_heffte_lib_} LINK_LIBRARIES)
+        if (NOT _heffte_list2)
+            get_target_property(_heffte_list2 ${_heffte_lib_} INTERFACE_LINK_LIBRARIES)
+        endif()
+        message("Processing: ${_heffte_lib_} with libraries: ${_heffte_list2}")
+        if (_heffte_list2)
+            foreach(_heffte_lib2_ ${_heffte_list2})
+                if (NOT TARGET ${_heffte_lib2_})
+                    set(heffte_dep_libs "${heffte_dep_libs} ${_heffte_lib2_}")
+                endif()
+            endforeach()
+        endif()
+    endif()
+endforeach()
+if (Heffte_ENABLE_FORTRAN)
+    set(heffte_fortran_backends "")
+    foreach(heffte_backend stock fftw mkl cufft rocfft onemkl)
+        if (TARGET "heffte_${heffte_backend}")
+            set(heffte_fortran_backends "${heffte_fortran_backends} -lheffte${heffte_backend}fortran")
+        endif()
+    endforeach()
+endif()
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteMakefile.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/configured/HeffteMakefile.in")
+
+
 ###########################
 # Documentation
 ###########################
@@ -209,6 +252,7 @@ install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
                                                               PATTERN "*.cu*" EXCLUDE
                                                               )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h DESTINATION include/)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/configured/HeffteMakefile.in DESTINATION share/heffte/)
 
 # package-config
 include(CMakePackageConfigHelpers)
@@ -233,12 +277,6 @@ else()
     endif()
     add_library(Heffte::Heffte INTERFACE IMPORTED GLOBAL)
     target_link_libraries(Heffte::Heffte INTERFACE Heffte)
-endif()
-if (Heffte_ENABLE_FORTRAN)
-    add_subdirectory(fortran)
-endif()
-if (Heffte_ENABLE_PYTHON)
-    add_subdirectory(python)
 endif()
 
 

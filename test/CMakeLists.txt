@@ -1,12 +1,3 @@
-macro(heffte_add_mpi_test)
-    cmake_parse_arguments(_heffte "" "NAME;COMMAND;RANKS" "" ${ARGN} )
-    add_test(${_heffte_NAME} ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${_heffte_RANKS} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${_heffte_COMMAND} ${MPIEXEC_POSTFLAGS})
-    set_tests_properties(${_heffte_NAME} PROPERTIES RUN_SERIAL ${Heffte_SEQUENTIAL_TESTING})
-    unset(_heffte_NAME)
-    unset(_heffte_RANKS)
-    unset(_heffte_COMMAND)
-endmacro()
-
 # tests the consistency of the headers, it is a compile time test
 add_executable(test_heffte_header  test_heffte_header.cpp)
 target_link_libraries(test_heffte_header  Heffte)
