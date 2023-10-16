@@ -15,7 +15,7 @@
 #define __HIP_PLATFORM_HCC__
 #endif
 #include <hip/hip_runtime.h>
-#include <rocfft.h>
+#include <rocfft/rocfft.h>
 #include "heffte_backend_vector.h"
 
 #ifdef Heffte_ENABLE_MAGMA

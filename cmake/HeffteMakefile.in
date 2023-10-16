@@ -1,4 +1,4 @@
-heffte_include = -I@CMAKE_INSTALL_PREFIX@/include/
+heffte_include = -I@CMAKE_INSTALL_PREFIX@/include/ @heffte_dep_includes@
 heffte_link = -L@CMAKE_INSTALL_PREFIX@/lib/
 heffte_libs = -lheffte @heffte_dep_libs@
 heffte_fortran_libs = @heffte_fortran_backends@ $(heffte_libs) -lstdc++
