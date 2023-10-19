@@ -22,6 +22,12 @@ option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
 option(BUILD_SHARED_LIBS      "Builds shared libraries using CMake conventions"  ON)
 
+if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
+    option(Heffte_ENABLE_TESTING "Enable the internal unit tests" ON)
+else()
+    option(Heffte_ENABLE_TESTING "Enable the internal unit tests" OFF)
+endif()
+
 option(Heffte_SEQUENTIAL_TESTING  "Force all tests to run sequentially to avoid oversubscribing resources."  OFF)
 
 # add the file with common CMake helper macros
@@ -283,12 +289,13 @@ configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cm
 ######################
 # EXAMPLES and TESTS #
 ######################
-if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
+if (Heffte_ENABLE_TESTING)
     add_subdirectory(benchmarks)
     add_subdirectory(examples)
     enable_testing()
     add_subdirectory(test)
-else()
+endif()
+if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
     if (CUDA_INCLUDE_DIRS)
         # cuda_add_library() apparently adds the includes as private
         target_include_directories(Heffte PUBLIC ${CUDA_INCLUDE_DIRS})
@@ -313,9 +320,11 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/configured/CMakeLists.txt"
 ##############################
 # Examples for post install
 ##############################
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExampleCMakeLists.cmake" "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" DESTINATION share/heffte/examples)
-install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.c" PATTERN "*.f90")
+if (Heffte_ENABLE_TESTING)
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExampleCMakeLists.cmake" "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" @ONLY)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" DESTINATION share/heffte/examples)
+    install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.c" PATTERN "*.f90")
+endif()
 
 # print summary of the CMake options, skip if using add_subdirectory(heffte)
 if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
