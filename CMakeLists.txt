@@ -69,6 +69,10 @@ if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set (CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "default install path" FORCE )
 endif()
 
+if (Heffte_ENABLE_TESTING)
+    enable_testing()
+endif()
+
 # try to find git and if available, set the hit-hash into the header
 find_package(Git)
 # do not set the hash if git is missing or
@@ -292,7 +296,6 @@ configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cm
 if (Heffte_ENABLE_TESTING)
     add_subdirectory(benchmarks)
     add_subdirectory(examples)
-    enable_testing()
     add_subdirectory(test)
 endif()
 if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
