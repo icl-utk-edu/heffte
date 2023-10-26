@@ -529,7 +529,7 @@ public:
         forward(outdata, workspace);
     }
     //! \brief Performs backward float-complex transform and truncates the complex part of the result.
-    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const{
+    void backward(std::complex<float> indata[], float outdata[], std::complex<float> *workspace) const override{
         backward(indata, workspace);
         cuda::convert(stream, total_size, indata, outdata);
     }
