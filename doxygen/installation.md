@@ -7,16 +7,12 @@
 At the minimum, heFFTe requires a C++11 capable compiler,
 an implementation of the Message Passing Library (MPI),
 and at least one backend FFT library.
-The heFFTe library can be build with either CMake 3.10 or newer,
-or a simple GNU Make build engine.
-CMake is the recommended way to use heFFTe since dependencies and options
-are much easier to export to user projects and not all options
-could be cleanly implemented in the rigid Makefile.
+The heFFTe library can be build with either CMake 3.19 or newer.
 
 | Compiler | Tested versions |
 |----|----|
-| gcc      | 7 - 11          |
-| clang    | 5 - 14          |
+| gcc      | 9 - 11          |
+| clang    | 11 - 14          |
 | icc      | 18              |
 | dpcpp    | 2023.0          |
 | OpenMPI  | 4.0.3           |
@@ -27,10 +23,10 @@ Tested backend libraries:
 |----|----|
 | stock          | all             |
 | fftw3          | 3.3.7 - 3.3.10  |
-| mkl            | 2016            |
+| mkl            | 2023.0            |
 | oneapi/onemkl  | 2023.0          |
-| cuda/cufft     | 10 - 11         |
-| rocm/rocfft    | 4.0 - 5.6       |
+| cuda/cufft     | 11 - 12         |
+| rocm/rocfft    | 5.0 - 5.6       |
 
 The listed tested versions are part of the continuous integration and nightly build systems,
 but heFFTe may yet work with other compilers and backend versions.
@@ -57,7 +53,7 @@ cmake \
     -D Heffte_ENABLE_FFTW=ON \
     -D FFTW_ROOT=<path-to-fftw3-installation> \
     -D Heffte_ENABLE_CUDA=ON \
-    -D CUDA_TOOLKIT_ROOT_DIR=<path-to-cuda-installation> \
+    -D CMAKE_CUDA_COMPILER=<path-to-cuda-installation> \
     <path-to-heffte-source-code>
 ```
 
@@ -166,6 +162,12 @@ An example is installed in `<install-prefix>/share/heffte/examples/`.
 The package-config also provides a set of components corresponding to the different compile options, specifically:
 ```
     FFTW MKL CUDA ROCM ONEAPI PYTHON Fortran GPUAWARE
+```
+
+Starting with 2.4, heFFTe will also generate a GNU Make file that exports the flags and libraries needed by heFFTe.
+The file is intended to help projects that use GNU Make to handle the transitive dependencies.
+```
+    <install-prefix>/share/heffte/HeffteMakefile.in
 ```
 
 ### Known Issues
