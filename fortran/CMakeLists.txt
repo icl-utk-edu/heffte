@@ -1,8 +1,4 @@
 if (Heffte_ENABLE_SWIG)
-    if (CMAKE_VERSION VERSION_LESS 3.18)
-        list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/backport-cmake-318")
-    endif()
-
     find_package(SWIG COMPONENTS fortran REQUIRED)
 
     # SWIG is requested and available; make sure it's the Fortran fork.
