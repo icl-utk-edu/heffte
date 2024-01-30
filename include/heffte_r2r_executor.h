@@ -133,7 +133,52 @@ struct cpu_sin_pre_pos_processor{
     }
 };
 
-struct cpu_cos1_pre_pos_processor{};
+/*!
+ * \ingroup fft3dr2r
+ * \brief Pre/Post processing for the Cosine transform type I using the CPU.
+ */
+struct cpu_cos1_pre_pos_processor{
+    //! \brief Pre-process in the forward transform.
+    template<typename precision>
+    static void pre_forward(void*, int length, precision const input[], precision fft_signal[]){
+        for (int i = 0; i < length-1; i++){
+            fft_signal[2*i] = input[i];
+            fft_signal[2*i+1] = 0.0; 
+        }
+        for (int i = 1; i < length; i++){
+            fft_signal[4*(length-1)-2*i] = input[i];
+            fft_signal[4*(length-1)-2*i+1] = 0.0;
+        }
+    }
+    //! \brief Post-process in the forward transform.
+    template<typename precision>
+    static void post_forward(void*, int length, std::complex<precision> const fft_result[], precision result[]){
+        cpu_cos_pre_pos_processor::post_forward(nullptr, length, fft_result, result);
+    }
+    //! \brief Pre-process in the inverse transform.
+    template<typename precision>
+    static void pre_backward(void*, int length, precision const input[], std::complex<precision> fft_signal[]){
+        for (int i = 0; i < length; i++){
+            fft_signal[i] = std::complex<precision>(input[i], 0.0);
+        }
+        int index = length-1;
+        for (int i = length; i < 2*length-1; i++){
+            fft_signal[i] = std::complex<precision>(input[index], 0.0);
+            index--;
+        }
+    }
+    //! \brief Post-process in the inverse transform.
+    template<typename precision>
+    static void post_backward(void*, int length, precision const fft_result[], precision result[]){
+        for(int i=0; i<length; i++)
+            result[i] = fft_result[2*i];
+    }
+    //! \brief Computes the length of the extended signal.
+    static int compute_extended_length(int length){
+        return 4 * ( length-1 );
+    }
+};
+
 struct cpu_sin1_pre_pos_processor{};
 
 /*!
