@@ -208,8 +208,6 @@ plan_options set_options(plan_options opts){
     if (std::is_same<backend_tag, backend::stock_cos>::value
         or std::is_same<backend_tag, backend::mkl_cos>::value
         or std::is_same<backend_tag, backend::cufft_cos>::value
-        or std::is_same<backend_tag, backend::cufft_cos1>::value
-        or std::is_same<backend_tag, backend::rocfft_cos1>::value
         or std::is_same<backend_tag, backend::rocfft_cos>::value
         or std::is_same<backend_tag, backend::onemkl_cos>::value
         or std::is_same<backend_tag, backend::stock_sin>::value
@@ -217,6 +215,9 @@ plan_options set_options(plan_options opts){
         or std::is_same<backend_tag, backend::cufft_sin>::value
         or std::is_same<backend_tag, backend::rocfft_sin>::value
         or std::is_same<backend_tag, backend::onemkl_sin>::value
+        or std::is_same<backend_tag, backend::stock_cos1>::value
+        or std::is_same<backend_tag, backend::cufft_cos1>::value
+        or std::is_same<backend_tag, backend::rocfft_cos1>::value
     ){
         // currently the cosine options work only with reorder.
         opts.use_reorder = true;
