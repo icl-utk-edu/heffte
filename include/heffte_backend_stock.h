@@ -36,6 +36,11 @@ namespace backend{
      * \brief Indicate that the stock backend has been enabled.
      */
     template<> struct is_enabled<stock_sin> : std::true_type{};
+    /*!
+     * \ingroup hefftestock
+     * \brief Indicate that the stock backend has been enabled.
+     */
+    template<> struct is_enabled<stock_cos1> : std::true_type{};
 
 // Specialization is not necessary since the default behavior assumes CPU parameters.
 //     template<>
@@ -655,6 +660,18 @@ template<> struct one_dim_backend<backend::stock_sin>{
     //! \brief There is no real-to-complex variant.
     using executor_r2c = void;
 };
+/*!
+ * \ingroup hefftestock
+ * \brief Helper struct that defines the types and creates instances of one-dimensional executors.
+ *
+ * The struct is specialized for each backend.
+ */
+template<> struct one_dim_backend<backend::stock_cos1>{
+    //! \brief Defines the real-to-real executor.
+    using executor = real2real_executor<backend::stock, cpu_cos1_pre_pos_processor>;
+    //! \brief There is no real-to-complex variant.
+    using executor_r2c = void;
+};
 
 /*!
  * \ingroup hefftestock
@@ -677,6 +694,14 @@ template<> struct default_plan_options<backend::stock_cos>{
  * \brief Sets the default options for the stock fft backend.
  */
 template<> struct default_plan_options<backend::stock_sin>{
+    //! \brief The reshape operations will also reorder the data.
+    static const bool use_reorder = true;
+};
+/*!
+ * \ingroup hefftestock
+ * \brief Sets the default options for the stock fft backend.
+ */
+template<> struct default_plan_options<backend::stock_cos1>{
     //! \brief The reshape operations will also reorder the data.
     static const bool use_reorder = true;
 };
