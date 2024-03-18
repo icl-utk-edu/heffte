@@ -19,17 +19,17 @@ jobs:
           - maker: spack
             backend: ONEAPI
       fail-fast: false
-    runs-on: cpu
+    runs-on: slurm:cpu
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build
         run: .github/workflows/build-${{matrix.maker}}.sh build ${{matrix.backend}}
       - name: Test
         run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.backend}}
       - name: SmokeTest
         run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.backend}}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: heffte ${{matrix.maker}} ${{matrix.device}}
@@ -47,17 +47,17 @@ jobs:
           - maker: spack
             device: gpu_intel
       fail-fast: false
-    runs-on: ${{matrix.device}}
+    runs-on: slurm:${{matrix.device}}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build
         run: .github/workflows/build-${{matrix.maker}}.sh build ${{matrix.device}}
       - name: Test
         run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.device}}
       - name: SmokeTest
         run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.device}}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: heffte ${{matrix.maker}} ${{matrix.device}}
