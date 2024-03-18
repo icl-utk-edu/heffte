@@ -37,7 +37,5 @@ elif [ "$STAGE" = "test" ]; then
    spack uninstall -a -y heffte || true
    spack dev-build -i --fresh --test=root $SPEC
 else # STAGE = smoketest
-   # Remove MPI load once spack package test() is corrected.
-   spack load --first $MPI %$COMPILER
    spack test run heffte
 fi

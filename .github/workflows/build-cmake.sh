@@ -5,29 +5,28 @@ BACKEND=$2
 
 source $(dirname $0)/init.sh
 
-load cmake
-load $MPI %$COMPILER
+module load cmake
+module load $MPI
 
 ARGS="-DCMAKE_INSTALL_PREFIX=install"
 if [ "$BACKEND" = "MKL" ]; then
    ARGS+=" -DHeffte_ENABLE_MKL=ON"
-   load intel-mkl
+   module load intel-oneapi-mkl
    [ -z "$MKLROOT" ] && echo "Error loading MKL!" && exit 1
 elif [ "$BACKEND" = "FFTW" ]; then
    ARGS+=" -DHeffte_ENABLE_FFTW=ON"
-   load fftw
+   module load fftw
    fftw-wisdom
 elif [[ "$BACKEND" == "ONEAPI" || "$BACKEND" == "gpu_intel" ]]; then
-   load intel-oneapi-mkl
-   load intel-oneapi-compilers
-   spack unload $COMPILER
-   load gcc@11
+   module load intel-oneapi-mkl
+   module load intel-oneapi-compilers
+   module load gcc@11
    ARGS+=" -DHeffte_ENABLE_ONEAPI=ON"
    ARGS+=" -D CMAKE_CXX_COMPILER=icpx -D Heffte_ONEMKL_ROOT=$MKLROOT"
    [ -z "$MKLROOT" ] && echo "Error loading OneAPI-MKL!" && exit 1
 elif [ "$BACKEND" = "gpu_nvidia" ]; then
    ARGS+=" -DHeffte_ENABLE_CUDA=ON"
-   load cuda
+   module load cuda
    which nvcc
 elif [ "$BACKEND" = "gpu_amd" ]; then
    ARGS+=" -DHeffte_ENABLE_ROCM=ON"
