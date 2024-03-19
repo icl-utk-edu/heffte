@@ -6,8 +6,8 @@ BACKEND=$2
 source $(dirname $0)/init.sh
 
 export HOME=`pwd`
-git clone https://github.com/spack/spack /tmp/spack
-source /tmp/spack/share/spack/setup-env.sh
+git clone https://github.com/spack/spack || true
+source spack/share/spack/setup-env.sh
 
 spack config add upstreams:spack-instance-1:install_tree:/spack/opt/spack
 
@@ -16,8 +16,6 @@ if [ "$BACKEND" = "FFTW" ]; then
    VARIANTS="+fftw"
 elif [ "$BACKEND" = "MKL" ]; then
    VARIANTS="+mkl"
-   echo HeFFT+mkl in spack uses deprecated intel-mkl package, exiting
-   exit
 elif [ "$BACKEND" = "CUDA" ]; then
    VARIANTS="+cuda cuda_arch=70 ^cuda@11.8.0"
 elif [ "$BACKEND" = "ROCM" ]; then
