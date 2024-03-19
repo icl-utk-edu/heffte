@@ -21,20 +21,14 @@ jobs:
             backend: ONEAPI
             device: gpu_intel
           - maker: cmake
-            backend: ONEAPI
-            device: cpu_intel
-          - maker: cmake
             backend: CUDA
             device: gpu_nvidia
           - maker: spack
             backend: CUDA
             device: gpu_nvidia
-#          - maker: cmake
-#            backend: ROCM
-#            device: gpu_amd
-#          - maker: spack
-#            backend: ROCM
-#            device: gpu_amd
+          - maker: cmake
+            backend: ROCM
+            device: gpu_amd
       fail-fast: false
     runs-on: slurm:${{matrix.device}}
     timeout-minutes: 60
