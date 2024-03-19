@@ -33,14 +33,14 @@ jobs:
     runs-on: slurm:${{matrix.device}}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build
         run: .github/workflows/build-${{matrix.maker}}.sh build ${{matrix.backend}}
       - name: Test
         run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.backend}}
       - name: SmokeTest
         run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.backend}}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: heffte ${{matrix.maker}} ${{matrix.backend}} ${{matrix.device}} 
