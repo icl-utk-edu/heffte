@@ -32,7 +32,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: heffte ${{matrix.maker}} ${{matrix.device}}
+          name: heffte ${{matrix.maker}} ${{matrix.backend}}
           path: |
                 *.txt
                 spack-build-*/CMakeFiles/*.log
