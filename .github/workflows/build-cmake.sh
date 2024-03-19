@@ -20,7 +20,6 @@ elif [ "$BACKEND" = "FFTW" ]; then
 elif [[ "$BACKEND" == "ONEAPI" ]]; then
    module load intel-oneapi-mkl
    module load intel-oneapi-compilers
-   module switch gcc@11
    ARGS+=" -DHeffte_ENABLE_ONEAPI=ON"
    ARGS+=" -D CMAKE_CXX_COMPILER=icpx -D Heffte_ONEMKL_ROOT=$MKLROOT"
    [ -z "$MKLROOT" ] && echo "Error loading OneAPI-MKL!" && exit 1

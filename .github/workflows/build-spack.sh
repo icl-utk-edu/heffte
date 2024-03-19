@@ -22,7 +22,7 @@ elif [ "$BACKEND" = "ROCM" ]; then
    VARIANTS="+rocm amdgpu_target=gfx90a ^hip@5.1.3"
 fi
 
-SPEC="heffte@develop $VARIANTS ^openmpi~rsh %$COMPILER"
+SPEC="heffte@develop $VARIANTS ^openmpi~rsh"
 echo SPEC=$SPEC
 
 if [ "$STAGE" = "build" ]; then
