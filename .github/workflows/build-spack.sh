@@ -9,13 +9,13 @@ export HOME=`pwd`
 git clone https://github.com/spack/spack || true
 source spack/share/spack/setup-env.sh
 
-spack config add upstreams:spack-instance-1:install_tree:/spack/opt/spack
-
 VARIANTS=""
 if [ "$BACKEND" = "FFTW" ]; then
    VARIANTS="+fftw"
 elif [ "$BACKEND" = "MKL" ]; then
    VARIANTS="+mkl"
+   # Need to replace deprecated intel-mkl package with oneapi version
+   sed -i s/intel-mkl/intel-oneapi-mkl/ spack/var/spack/repos/builtin/packages/heffte/package.py
 elif [ "$BACKEND" = "CUDA" ]; then
    VARIANTS="+cuda cuda_arch=70 ^cuda@11.8.0"
 elif [ "$BACKEND" = "ROCM" ]; then
@@ -26,7 +26,6 @@ SPEC="heffte@develop $VARIANTS ^openmpi~rsh"
 echo SPEC=$SPEC
 
 if [ "$STAGE" = "build" ]; then
-   rm -rf .spack
    spack compiler find
    spack spec $SPEC
    spack install --only=dependencies --fresh $SPEC
