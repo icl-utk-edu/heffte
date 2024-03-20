@@ -45,11 +45,10 @@ if [ "$STAGE" = "build" ]; then
    make -j4
    make install
    ls -lR install/lib*/libheffte.so
+elif [ "$BACKEND" = "ONEAPI" ]; then
+    echo "Skipping tests due to lack of hardware support"
+    exit
 elif [ "$STAGE" = "test" ]; then
-   if [ $BACKEND = "ONEAPI" ]; then
-      echo "Skipping tests due to lack of hardware support"
-      exit
-   fi
    ctest -V
 elif [ "$STAGE" = "smoketest" ]; then
    make test_install
