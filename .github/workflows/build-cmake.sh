@@ -17,7 +17,7 @@ elif [ "$BACKEND" = "FFTW" ]; then
    ARGS+=" -DHeffte_ENABLE_FFTW=ON"
    module load fftw
    fftw-wisdom
-elif [[ "$BACKEND" == "ONEAPI" ]]; then
+elif [ "$BACKEND" == "ONEAPI" ]; then
    module load intel-oneapi-mkl
    module load intel-oneapi-compilers
    ARGS+=" -DHeffte_ENABLE_ONEAPI=ON"
@@ -46,6 +46,10 @@ if [ "$STAGE" = "build" ]; then
    make install
    ls -lR install/lib*/libheffte.so
 elif [ "$STAGE" = "test" ]; then
+   if [ $BACKEND = "ONEAPI" ]; then
+      echo "Skipping tests due to lack of hardware support"
+      exit
+   fi
    ctest -V
 elif [ "$STAGE" = "smoketest" ]; then
    make test_install
