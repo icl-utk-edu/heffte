@@ -2,6 +2,7 @@
 #define HEFFTE_STOCK_ALLOCATOR_H
 
 #include <memory>
+#include <stdlib.h>
 #include <vector>
 
 #include "heffte_stock_complex.h"
