@@ -73,14 +73,20 @@ if (NOT FFTW_LIBRARIES)
         PREFIX ${FFTW_ROOT}
         VAR FFTW_LIBRARIES
         REQUIRED "fftw3" "fftw3f"
-        OPTIONAL "fftw3_omp" "fftw3f_omp" "fftw3_threads" "fftw3f_threads"
-                               )
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        find_package(OpenMP REQUIRED)
-        list(APPEND FFTW_LIBRARIES ${OpenMP_CXX_LIBRARIES})
-    else()
-        if ("fftw3_omp" IN_LIST FFTW_LIBRARIES)
-            list(APPEND FFTW_LIBRARIES "-lgomp")
+        OPTIONAL "fftw3_threads" "fftw3f_threads")
+    heffte_find_fftw_libraries(
+        PREFIX ${FFTW_ROOT}
+        VAR FFTW_OMP_LIBRARIES
+        REQUIRED ""
+        OPTIONAL "fftw3_omp" "fftw3f_omp")
+
+    if (FFTW_OMP_LIBRARIES)
+        list(APPEND FFTW_OMP_LIBRARIES "${FFTW_LIBRARIES}")
+        if (Heffte_FFTW_LIBOMP)
+            list(APPEND FFTW_LIBRARIES "${Heffte_FFTW_LIBOMP}")
+        else()
+            find_package(OpenMP REQUIRED)
+            list(APPEND FFTW_LIBRARIES OpenMP::OpenMP_CXX)
         endif()
     endif()
 endif()

@@ -30,6 +30,10 @@ endif()
 
 option(Heffte_SEQUENTIAL_TESTING  "Force all tests to run sequentially to avoid oversubscribing resources."  OFF)
 
+if (Heffte_ENABLE_FFTW)
+    set(Heffte_FFTW_LIBOMP "" CACHE STRING "The OpenMP library used for FFTW if different from the default for the CXX compiler, e.g., if using clang and fftw uses gnu use -DHeffte_FFTW_LIBOMP=-lgomp")
+endif()
+
 # add the file with common CMake helper macros
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/heffte_macros.cmake")
 
