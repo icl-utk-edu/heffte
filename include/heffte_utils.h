@@ -23,6 +23,7 @@
 #include <deque>
 #include <fstream>
 #include <mpi.h>
+#include <limits>
 
 #include "heffte_config.h"
 

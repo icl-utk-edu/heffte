@@ -640,14 +640,19 @@ inline std::vector<box3d<index>> make_slabs(box3d<index> const world, int num_sl
  * \returns the dimensions of the 3d grid that will minimize the size of each box.
  */
 template<typename index>
-inline std::array<int, 3> proc_setup_min_surface(box3d<index> const world, int num_procs){
-    assert(world.count() > 0); // make sure the world is not empty
+inline std::array<int, 3> proc_setup_min_surface(box3d<index> const &world, int num_procs){
+    // make sure the world is not empty and we have at least one entry per rank
+    assert(num_procs > 0 and world.count() >= num_procs);
+
+    // trivial case, handle here so we don't run into it by accident
+    if (num_procs == 1)
+        return {1, 1, 1};
 
     // using valarrays that work much like vectors, but can perform basic
     // point-wise operations such as addition, multiply, and division
     std::valarray<index> all_indexes = {world.size[0], world.size[1], world.size[2]};
-    // set initial guess, probably the worst grid but a valid one
-    std::valarray<index> best_grid = {1, 1, num_procs};
+    // set initial guess, not a valid grid for the case when num_procs > 0
+    std::valarray<index> best_grid = {1, 1, 1};
 
     // internal helper method to compute the surface
     auto surface = [&](std::valarray<index> const &proc_grid)->
@@ -656,7 +661,7 @@ inline std::array<int, 3> proc_setup_min_surface(box3d<index> const world, int n
             return ( box_size * box_size.cshift(1) ).sum();
         };
 
-    index best_surface = surface({1, 1, num_procs});
+    index best_surface = std::numeric_limits<index>::max();
 
     for(int i=1; i<=num_procs; i++){
         if (num_procs % i == 0){
@@ -664,10 +669,13 @@ inline std::array<int, 3> proc_setup_min_surface(box3d<index> const world, int n
             for(int j=1; j<=remainder; j++){
                 if (remainder % j == 0){
                     std::valarray<index> candidate_grid = {i, j, remainder / j};
-                    index const candidate_surface = surface(candidate_grid);
-                    if (candidate_surface < best_surface){
-                        best_surface = candidate_surface;
-                        best_grid    = candidate_grid;
+                    std::valarray<bool> valid = (candidate_grid <= all_indexes);
+                    if (valid[0] and valid[1] and valid[2]){
+                        index const candidate_surface = surface(candidate_grid);
+                        if (candidate_surface < best_surface){
+                            best_surface = candidate_surface;
+                            best_grid    = candidate_grid;
+                        }
                     }
                 }
             }
