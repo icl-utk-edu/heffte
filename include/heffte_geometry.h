@@ -641,13 +641,17 @@ inline std::vector<box3d<index>> make_slabs(box3d<index> const world, int num_sl
  */
 template<typename index>
 inline std::array<int, 3> proc_setup_min_surface(box3d<index> const world, int num_procs){
-    assert(world.count() > 0); // make sure the world is not empty
+    // make sure the world is not empty and we have at least one entry per rank
+    assert(num_procs > 0 and world.count() > 0);
+
+    if (num_procs == 1)
+        return {1, 1, 1};
 
     // using valarrays that work much like vectors, but can perform basic
     // point-wise operations such as addition, multiply, and division
     std::valarray<index> all_indexes = {world.size[0], world.size[1], world.size[2]};
-    // set initial guess, probably the worst grid but a valid one
-    std::valarray<index> best_grid = {1, 1, num_procs};
+    // set initial guess
+    std::valarray<index> best_grid = {1, 1, 1};
 
     // internal helper method to compute the surface
     auto surface = [&](std::valarray<index> const &proc_grid)->
@@ -656,18 +660,24 @@ inline std::array<int, 3> proc_setup_min_surface(box3d<index> const world, int n
             return ( box_size * box_size.cshift(1) ).sum();
         };
 
-    index best_surface = surface({1, 1, num_procs});
+    index best_surface = std::numeric_limits<index>::max();
 
-    for(int i=1; i<=num_procs; i++){
+    int const i_max = std::min((index)num_procs, all_indexes[0]);
+    for(int i=1; i<=i_max; i++){
         if (num_procs % i == 0){
-            int const remainder = num_procs / i;
-            for(int j=1; j<=remainder; j++){
-                if (remainder % j == 0){
-                    std::valarray<index> candidate_grid = {i, j, remainder / j};
-                    index const candidate_surface = surface(candidate_grid);
-                    if (candidate_surface < best_surface){
-                        best_surface = candidate_surface;
-                        best_grid    = candidate_grid;
+            int const j_max = std::min((index)(num_procs / i), all_indexes[1]);
+            for(int j=1; j<=j_max; j++){
+                if (j_max % j == 0){
+                    int const k = num_procs / (i * j);
+                    if (k <= all_indexes[2]){
+                        if (i * j * k == num_procs) {
+                            std::valarray<index> candidate_grid = {i, j, k};
+                            index const candidate_surface = surface(candidate_grid);
+                            if (candidate_surface < best_surface){
+                                best_surface = candidate_surface;
+                                best_grid    = candidate_grid;
+                            }
+                        }
                     }
                 }
             }
