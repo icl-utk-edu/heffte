@@ -256,9 +256,8 @@ void reshape3d_alltoall<location_tag, packer, index>::apply_base(int batch_size,
                 offset += batch_size * num_entries;
             }
         }
+        this->synchronize_device();
     }
-
-    this->synchronize_device();
 
     #ifdef Heffte_ENABLE_GPU
     if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
@@ -385,10 +384,9 @@ void reshape3d_alltoallv<location_tag, packer, index>::apply_base(int batch_size
             }
         }
     }
-    }
-
     // the synchronize_device() is needed to flush the kernels of the asynchronous packing
     this->synchronize_device();
+    }
 
     #ifdef Heffte_ENABLE_GPU
     if (std::is_same<location_tag, tag::gpu>::value and not use_gpu_aware){
@@ -563,9 +561,9 @@ void reshape3d_pointtopoint<location_tag, packer, index>::no_gpuaware_send_recv(
                     packit.pack(this->stream(), packplan[i], source + j * this->input_size + send_offset[i],
                                 send_buffer + offset + j * send_size[i]);
                 }
-            }
 
             gpu::transfer::unload(this->stream(), send_buffer + offset, batch_size * send_size[i], cpu_send + offset);
+            }
 
             { heffte::add_trace name("isend " + std::to_string(send_size[i]) + " for " + std::to_string(send_proc[i]));
             MPI_Isend(cpu_send + offset, batch_size * send_size[i], mpi::type_from<scalar_type>(),
@@ -660,9 +658,9 @@ void reshape3d_pointtopoint<location_tag, packer, index>::apply_base(int batch_s
                 packit.pack(this->stream(), packplan[i], source + j * this->input_size + send_offset[i],
                             send_buffer + offset + j * send_size[i]);
             }
-        }
 
-        this->synchronize_device();
+            this->synchronize_device();
+        }
 
         if (algorithm == reshape_algorithm::p2p_plined){
             heffte::add_trace name("isend " + std::to_string(batch_size * send_size[i]) + " for " + std::to_string(send_proc[i]));
