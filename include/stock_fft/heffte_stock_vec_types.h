@@ -9,7 +9,7 @@
 
 #include "heffte_config.h"
 
-#ifdef __AVX__
+#ifdef Heffte_ENABLE_AVX
 #include <immintrin.h>
 #endif
 #include <complex>
