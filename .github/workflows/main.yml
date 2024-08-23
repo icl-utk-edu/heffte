@@ -30,7 +30,7 @@ jobs:
             backend: ROCM
             device: gpu_amd
       fail-fast: false
-    runs-on: slurm:${{matrix.device}}
+    runs-on: ${{matrix.device}}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
