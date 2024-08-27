@@ -5,6 +5,8 @@ BACKEND=$2
 
 source $(dirname $0)/init.sh
 
+spack env activate heffte
+
 spack load cmake
 spack load openmpi
 
