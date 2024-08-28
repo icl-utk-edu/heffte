@@ -49,7 +49,10 @@ if [ "$STAGE" = "build" ]; then
    make install
    ls -lR install/lib*/libheffte.so
 elif [ "$BACKEND" = "ONEAPI" ]; then
-    echo "Skipping tests due to lack of hardware support"
+    echo "Skipping tests due to lack of hardware support."
+    exit
+elif [ "$BACKEND" = "ROCM" ]; then
+    echo "ROCM backend tests require HIP-aware MPI.  Skipping tests."
     exit
 elif [ "$STAGE" = "test" ]; then
    ctest -V
