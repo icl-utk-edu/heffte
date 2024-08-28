@@ -20,21 +20,19 @@ elif [ "$BACKEND" = "MKL" ]; then
 elif [ "$BACKEND" = "CUDA" ]; then
    VARIANTS="+cuda cuda_arch=70 ^cuda@11.8.0"
 elif [ "$BACKEND" = "ROCM" ]; then
-   VARIANTS="+rocm amdgpu_target=gfx90a ^hip@5.1.3"
+   VARIANTS="+rocm amdgpu_target=gfx90a ^hip@5.7.3"
 fi
 
-SPEC="heffte@develop $VARIANTS ^openmpi~rsh"
+SPEC="heffte@develop $VARIANTS ^openmpi"
 echo SPEC=$SPEC
 
 if [ "$STAGE" = "build" ]; then
    spack compiler find
    spack spec $SPEC
-   spack install --only=dependencies --fresh $SPEC
-   spack uninstall -a -y heffte || true
-   spack dev-build -i --fresh $SPEC
+   spack dev-build -i $SPEC
 elif [ "$STAGE" = "test" ]; then
    spack uninstall -a -y heffte || true
-   spack dev-build -i --fresh --test=root $SPEC
+   spack dev-build -i --test=root $SPEC
 else # STAGE = smoketest
    spack test run heffte
 fi
