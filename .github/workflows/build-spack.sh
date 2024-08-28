@@ -29,7 +29,7 @@ echo SPEC=$SPEC
 if [ "$STAGE" = "build" ]; then
    spack compiler find
    spack spec $SPEC
-   spack dev-build -i $SPEC
+   spack dev-build $SPEC
 elif [ "$STAGE" = "test" ]; then
    spack uninstall -a -y heffte || true
    spack dev-build -i --test=root $SPEC
