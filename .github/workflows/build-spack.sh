@@ -8,6 +8,7 @@ source $(dirname $0)/init.sh
 export HOME=`pwd`
 git clone https://github.com/spack/spack || true
 source spack/share/spack/setup-env.sh
+spack config --scope=site add upstreams:i1:install_tree:/apps/spacks/current/opt/spack
 
 VARIANTS=""
 if [ "$BACKEND" = "FFTW" ]; then

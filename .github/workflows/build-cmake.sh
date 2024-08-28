@@ -5,6 +5,7 @@ BACKEND=$2
 
 source $(dirname $0)/init.sh
 
+source /apps/spacks/current/github_env/share/spack/setup-env.sh
 spack env activate heffte
 
 spack load cmake
