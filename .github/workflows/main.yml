@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  heffte:
+    strategy:
+      matrix:
+        maker: [cmake, spack]
+        backend: [BUILTIN, FFTW, MKL]
+        device: [cpu_intel]
+        include:
+          - maker: cmake
+            backend: ONEAPI
+            device: gpu_intel
+          - maker: cmake
+            backend: CUDA
+            device: gpu_nvidia
+          - maker: spack
+            backend: CUDA
+            device: gpu_nvidia
+          - maker: cmake
+            backend: ROCM
+            device: gpu_amd
+      fail-fast: false
+    runs-on: ${{matrix.device}}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: .github/workflows/build-${{matrix.maker}}.sh build ${{matrix.backend}}
+      - name: Test
+        run: .github/workflows/build-${{matrix.maker}}.sh test ${{matrix.backend}}
+      - name: SmokeTest
+        run: .github/workflows/build-${{matrix.maker}}.sh smoketest ${{matrix.backend}}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: heffte ${{matrix.maker}} ${{matrix.backend}} ${{matrix.device}} 
+          path: |
+                *.txt
+                spack-build-*/CMakeFiles/*.log
+                build/CMakeFiles/*.log
+                .spack/test/*/*.txt
