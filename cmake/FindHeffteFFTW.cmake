@@ -73,6 +73,11 @@ if (NOT FFTW_LIBRARIES)
         PREFIX ${FFTW_ROOT}
         VAR FFTW_LIBRARIES
         REQUIRED "fftw3" "fftw3f"
+        OPTIONAL "")
+    heffte_find_fftw_libraries(
+        PREFIX ${FFTW_ROOT}
+        VAR FFTW_THREADS_LIBRARIES
+        REQUIRED ""
         OPTIONAL "fftw3_threads" "fftw3f_threads")
     heffte_find_fftw_libraries(
         PREFIX ${FFTW_ROOT}
@@ -80,8 +85,20 @@ if (NOT FFTW_LIBRARIES)
         REQUIRED ""
         OPTIONAL "fftw3_omp" "fftw3f_omp")
 
+    if (FFTW_THREADS_LIBRARIES)
+        list(APPEND FFTW_LIBRARIES "${FFTW_THREADS_LIBRARIES}")
+        set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+        if(WIN32)  # Windows has an internal pthreads lib we can use
+            find_package(Threads)
+        else()
+            find_package(Threads REQUIRED)
+        endif()
+        if(Threads_FOUND)
+            list(APPEND FFTW_LIBRARIES Threads::Threads)
+        endif()
+    endif()
     if (FFTW_OMP_LIBRARIES)
-        list(APPEND FFTW_OMP_LIBRARIES "${FFTW_LIBRARIES}")
+        list(APPEND FFTW_LIBRARIES "${FFTW_OMP_LIBRARIES}")
         if (Heffte_FFTW_LIBOMP)
             list(APPEND FFTW_LIBRARIES "${Heffte_FFTW_LIBOMP}")
         else()
