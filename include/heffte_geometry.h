@@ -235,6 +235,13 @@ inline box3d<index> find_world(std::vector<box3d<index>> const &boxes){
         for(index i=0; i<3; i++)
             high[i] = std::max(high[i], b.high[i]);
     }
+    for(auto b : boxes){
+        for(index i=0; i<3; i++)
+        if (low[i]>0){
+            high[i] -= low[i];
+            low[i] = 0;
+        }
+    }
     return {low, high};
 }
 
