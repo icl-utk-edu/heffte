@@ -26,7 +26,7 @@ set(heffte_library_path "${CMAKE_CURRENT_BINARY_DIR}/../${CMAKE_SHARED_LIBRARY_P
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/heffte_config.cmake.py"  "${CMAKE_CURRENT_BINARY_DIR}/heffte_config.py")
 
 # configure for the install folder
-set(heffte_library_path "${CMAKE_INSTALL_PREFIX}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}heffte${CMAKE_SHARED_LIBRARY_SUFFIX}")
+set(heffte_library_path "${CMAKE_INSTALL_LIBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}heffte${CMAKE_SHARED_LIBRARY_SUFFIX}")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/heffte_config.cmake.py"  "${CMAKE_CURRENT_BINARY_DIR}/configured/heffte_config.py")
 
 # add testing files to the CMake build folder
@@ -57,6 +57,6 @@ endif()
 # install the python files
 set(heffte_python_module "${CMAKE_CURRENT_SOURCE_DIR}/heffte.py;${CMAKE_CURRENT_BINARY_DIR}/configured/heffte_config.py")
 install(FILES ${heffte_python_module}
-        DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages")
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages")
 install(FILES ${heffte_python_module}
-        DESTINATION "${CMAKE_INSTALL_PREFIX}/share/heffte/python")
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/heffte/python")
