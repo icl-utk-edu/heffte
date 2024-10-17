@@ -26,7 +26,7 @@ set(heffte_library_path "${CMAKE_CURRENT_BINARY_DIR}/../${CMAKE_SHARED_LIBRARY_P
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/heffte_config.cmake.py"  "${CMAKE_CURRENT_BINARY_DIR}/heffte_config.py")
 
 # configure for the install folder
-set(heffte_library_path "${CMAKE_INSTALL_LIBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}heffte${CMAKE_SHARED_LIBRARY_SUFFIX}")
+set(heffte_library_path "${CMAKE_INSTALL_FULL_LIBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}heffte${CMAKE_SHARED_LIBRARY_SUFFIX}")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/heffte_config.cmake.py"  "${CMAKE_CURRENT_BINARY_DIR}/configured/heffte_config.py")
 
 # add testing files to the CMake build folder
