@@ -41,4 +41,4 @@ doxygen_add_docs(heffte_doxygen
                  COMMENT "Building the ${PROJECT_NAME} documentation")
 
 add_dependencies(Heffte heffte_doxygen)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../html DESTINATION "share/heffte/docs")
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../html DESTINATION "${CMAKE_INSTALL_DATADIR}/heffte/docs")

@@ -97,6 +97,9 @@ find_package(MPI REQUIRED) # always a dependency
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
+# define and populate CMAKE_INSTALL_*DIR variables
+include(GNUInstallDirs)
+
 # libheffte source files list (does not include the cuda kernels)
 add_library(Heffte
     include/heffte.h
@@ -274,24 +277,24 @@ endif()
 ###########################
 # install
 ###########################
-install(TARGETS Heffte EXPORT Heffte_Targets DESTINATION lib)
-install(EXPORT Heffte_Targets FILE HeffteTargets.cmake NAMESPACE Heffte:: DESTINATION lib/cmake/Heffte)
+install(TARGETS Heffte EXPORT Heffte_Targets DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(EXPORT Heffte_Targets FILE HeffteTargets.cmake NAMESPACE Heffte:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Heffte)
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfigVersion.cmake" DESTINATION lib/cmake/Heffte)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfigVersion.cmake" DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Heffte)
 install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
                                                               PATTERN "**~" EXCLUDE
                                                               PATTERN "*_gpu*" EXCLUDE
                                                               PATTERN "*.cu*" EXCLUDE
                                                               )
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h DESTINATION include/)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/configured/HeffteMakefile.in DESTINATION share/heffte/)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/heffte_config.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/configured/HeffteMakefile.in DESTINATION ${CMAKE_INSTALL_DATADIR}/heffte/)
 
 # package-config
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file("HeffteConfigVersion.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
 configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/HeffteConfig.cmake"
                               "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfig.cmake"
-                              INSTALL_DESTINATION "lib/Heffte/")
+                              INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/Heffte/")
 
 
 ######################
@@ -329,8 +332,8 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/configured/CMakeLists.txt"
 ##############################
 if (Heffte_ENABLE_TESTING)
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExampleCMakeLists.cmake" "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" @ONLY)
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" DESTINATION share/heffte/examples)
-    install(DIRECTORY examples/ DESTINATION share/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.c" PATTERN "*.f90")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt" DESTINATION ${CMAKE_INSTALL_DATADIR}/heffte/examples)
+    install(DIRECTORY examples/ DESTINATION ${CMAKE_INSTALL_DATADIR}/heffte/examples FILES_MATCHING PATTERN "*.cpp" PATTERN "*.c" PATTERN "*.f90")
 endif()
 
 # print summary of the CMake options, skip if using add_subdirectory(heffte)

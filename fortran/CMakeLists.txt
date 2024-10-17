@@ -50,10 +50,10 @@ function(heffte_add_swig_module heffte_backend)
 
     install(TARGETS ${heffte_module_name}
             EXPORT Heffte_Targets
-            RUNTIME DESTINATION "bin"
-            LIBRARY DESTINATION "lib"
-            ARCHIVE DESTINATION "lib")
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${heffte_module_name}.mod" DESTINATION include)
+            RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+            LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+            ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${heffte_module_name}.mod" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     unset(heffte_src_file)
     unset(heffte_module_name)
     unset(heffte_backend)

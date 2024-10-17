@@ -93,7 +93,7 @@ endif()
 
 if (@Heffte_ENABLE_PYTHON@)
     set(Heffte_PYTHON_FOUND  "ON")
-    set(Heffte_PYTHONPATH "@CMAKE_INSTALL_PREFIX@/share/heffte/python")
+    set(Heffte_PYTHONPATH "@CMAKE_INSTALL_FULL_DATADIR@/heffte/python")
 endif()
 
 if ("@BUILD_SHARED_LIBS@")
