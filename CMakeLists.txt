@@ -281,7 +281,7 @@ install(TARGETS Heffte EXPORT Heffte_Targets DESTINATION ${CMAKE_INSTALL_LIBDIR}
 install(EXPORT Heffte_Targets FILE HeffteTargets.cmake NAMESPACE Heffte:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Heffte)
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/HeffteConfigVersion.cmake" DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Heffte)
-install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h"
                                                               PATTERN "**~" EXCLUDE
                                                               PATTERN "*_gpu*" EXCLUDE
                                                               PATTERN "*.cu*" EXCLUDE
