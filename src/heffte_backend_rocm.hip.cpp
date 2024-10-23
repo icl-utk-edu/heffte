@@ -34,6 +34,8 @@ void synchronize_default_stream(){
 
 namespace rocm {
 
+bool initialize::is_initialized = false;
+
 /*
  * Launch with one thread per entry.
  *

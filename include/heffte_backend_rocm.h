@@ -180,6 +180,23 @@ namespace rocm {
             return 4 * (length-1);
         }
     };
+
+    /*!
+     * \ingroup heffterocm
+     * \brief Indicates whether the rocfft_setup() method has been called
+     */
+    struct initialize {
+        //! \brief Static (global) variable indicating if rocfft_setup() has been called
+        static bool is_initialized;
+        //! \brief Make initialize
+        static void make() {
+            if (not is_initialized) {
+                rocfft_setup();
+                is_initialized = true;
+            }
+
+        }
+    };
 }
 
 namespace backend{
@@ -549,7 +566,9 @@ public:
         total_size(box.count()),
         embed({0, 0}),
         worksize(compute_workspace_size())
-    {}
+    {
+        rocm::initialize::make();
+    }
     //! \brief Merges two FFTs into one.
     template<typename index>
     rocfft_executor(hipStream_t active_stream, box3d<index> const box, int dir1, int dir2) :
@@ -740,7 +759,9 @@ public:
         rsize(box.count()),
         csize(box.r2c(dimension).count()),
         worksize(compute_workspace_size())
-    {}
+    {
+        rocm::initialize::make();
+    }
 
     //! \brief Forward transform, single precision.
     template<typename precision_type>
