@@ -508,15 +508,15 @@ private:
         }else if (size2 == 0){
             plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
             plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
-            plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, embed.data());
-            plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::FWD_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::BWD_STRIDES, embed.data());
             plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
             plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
         }else{
             plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
             plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
-            plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, embed.data());
-            plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::FWD_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::BWD_STRIDES, embed.data());
             plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
             plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
         }
@@ -620,8 +620,8 @@ private:
         plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_NOT_INPLACE);
         plan.set_value(oneapi::mkl::dft::config_param::CONJUGATE_EVEN_STORAGE, DFTI_COMPLEX_COMPLEX);
         MKL_LONG slstride[] = {0, static_cast<MKL_LONG>(stride)};
-        plan.set_value(oneapi::mkl::dft::config_param::INPUT_STRIDES, slstride);
-        plan.set_value(oneapi::mkl::dft::config_param::OUTPUT_STRIDES, slstride);
+        plan.set_value(oneapi::mkl::dft::config_param::FWD_STRIDES, slstride);
+        plan.set_value(oneapi::mkl::dft::config_param::BWD_STRIDES, slstride);
         plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) rdist);
         plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) cdist);
         plan.commit(q);
