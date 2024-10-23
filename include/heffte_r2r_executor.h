@@ -143,7 +143,7 @@ struct cpu_cos1_pre_pos_processor{
     static void pre_forward(void*, int length, precision const input[], precision fft_signal[]){
         for (int i = 0; i < length-1; i++){
             fft_signal[2*i] = input[i];
-            fft_signal[2*i+1] = 0.0; 
+            fft_signal[2*i+1] = 0.0;
         }
         for (int i = 1; i < length; i++){
             fft_signal[4*(length-1)-2*i] = input[i];
@@ -190,6 +190,11 @@ struct cpu_sin1_pre_pos_processor{};
  */
 template<typename fft_backend_tag, typename prepost_processor>
 struct real2real_executor : public executor_base{
+    //! \brief Will not be used, suppresses compiler warnings
+    using executor_base::forward;
+    //! \brief Will not be used, suppresses compiler warnings
+    using executor_base::backward;
+
     //! \brief Construct a plan for batch 1D transforms.
     template<typename index>
     real2real_executor(typename backend::device_instance<typename backend::buffer_traits<fft_backend_tag>::location>::stream_type cstream, box3d<index> const box, int dimension) :
