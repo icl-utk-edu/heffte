@@ -22,6 +22,16 @@ option(Heffte_ENABLE_TRACING  "Enable the tracing capabilities"  OFF)
 
 option(BUILD_SHARED_LIBS      "Builds shared libraries using CMake conventions"  ON)
 
+if (Heffte_ENABLE_CUDA OR Heffte_ENABLE_ROCM OR Heffte_ENABLE_ONEAPI)
+    if (Heffte_DISABLE_GPU_AWARE_MPI)
+        option(Heffte_ENABLE_GPU_AWARE_MPI "GPU to GPU direct MPI calls" OFF)
+    else()
+        option(Heffte_ENABLE_GPU_AWARE_MPI "GPU to GPU direct MPI calls" ON)
+    endif()
+else()
+    set(Heffte_ENABLE_GPU_AWARE_MPI OFF CACHE BOOL "GPU to GPU direct MPI calls" FORCE)
+endif()
+
 if (${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
     option(Heffte_ENABLE_TESTING "Enable the internal unit tests" ON)
 else()
