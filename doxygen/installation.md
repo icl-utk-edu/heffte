@@ -135,12 +135,15 @@ The `CMAKE_CUDA_COMPILER` is usually enough for a standard CUDA installation.
 
 ### GPU-Aware MPI
 
-Different implementations of MPI can provide GPU-Aware capabilities, where data can be send/received directly in GPU memory. OpenMPI provided CUDA aware capabilities if compiled with the corresponding options, e.g., see [CUDA-Aware OpenMPI](https://www.open-mpi.org/faq/?category=buildcuda). CUDA, ROCm and OneAPI support such API; however, the specific implementation available to the user may not be available for various reasons, e.g., insufficient hardware support. HeFFTe can be compiled without GPU-Aware capabilities with the CMake option:
+Different implementations of MPI can provide GPU-Aware capabilities, where data can be send/received directly in GPU memory. OpenMPI provided CUDA aware capabilities if compiled with the corresponding options, e.g., see [CUDA-Aware OpenMPI](https://www.open-mpi.org/faq/?category=buildcuda). CUDA, ROCm and OneAPI support such API; however, the specific implementation available to the user may not be available for various reasons, e.g., insufficient hardware support. HeFFTe can be compiled with and without GPU-Aware capabilities with the CMake option:
 ```
-    -D Heffte_DISABLE_GPU_AWARE_MPI=ON
+    -D Heffte_ENABLE_GPU_AWARE_MPI=<ON/OFF>
 ```
+The option is set to ON by default whenever any GPU backend has been enabled. It has no effect when using CPU only backends and is therefore set to OFF.
+
 **Note:** The GPU-Aware capabilities can also be disabled at runtime by setting the corresponding option in `heffte::plan_options`. On some platforms, the GPU-Aware MPI calls have significantly larger latency and moving the buffers to the CPU before ini
 
+**Note:** The old option `Heffte_DISABLE_GPU_AWARE_MPI` is still accepted for compatibility reasons but it is deprecated.
 
 ### Linking to HeFFTe
 

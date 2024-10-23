@@ -22,14 +22,14 @@ namespace heffte {
     /*!
      * \internal
      * \ingroup hefftereshape
-     * \brief Struct type to convert pre-processor define Heffte_DISABLE_GPU_AWARE_MPI to boolean.
+     * \brief Struct type to convert pre-processor define Heffte_ENABLE_GPU_AWARE_MPI to boolean.
      *
      * \endinternal
      */
-#ifdef Heffte_DISABLE_GPU_AWARE_MPI
-    struct disable_gpu_aware : std::true_type {};
-#else
+#ifdef Heffte_ENABLE_GPU_AWARE_MPI
     struct disable_gpu_aware : std::false_type {};
+#else
+    struct disable_gpu_aware : std::true_type {};
 #endif
 
 
