@@ -202,11 +202,15 @@ using gpu_backend = heffte::backend::rocfft;
 
 hipStream_t make_stream(backend::rocfft){
     hipStream_t result;
-    hipStreamCreateWithFlags(&result, hipStreamNonBlocking);
+    rocm::check_error( hipStreamCreateWithFlags(&result, hipStreamNonBlocking), "hipStreamCreateWithFlags()");
     return result;
 }
-void sync_stream(hipStream_t){ hipDeviceSynchronize(); }
-void free_stream(hipStream_t stream){ hipStreamDestroy(stream); }
+void sync_stream(hipStream_t){
+    rocm::check_error( hipDeviceSynchronize(), "hipDeviceSynchronize()");
+}
+void free_stream(hipStream_t stream){
+    rocm::check_error( hipStreamDestroy(stream), "hipStreamDestroy()");
+}
 #endif
 #ifdef Heffte_ENABLE_ONEAPI
 using gpu_backend = heffte::backend::onemkl;
