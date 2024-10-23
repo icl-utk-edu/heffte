@@ -73,22 +73,34 @@ if (NOT FFTW_LIBRARIES)
         PREFIX ${FFTW_ROOT}
         VAR FFTW_LIBRARIES
         REQUIRED "fftw3" "fftw3f"
-        OPTIONAL "fftw3_threads" "fftw3f_threads")
+        OPTIONAL "")
     heffte_find_fftw_libraries(
         PREFIX ${FFTW_ROOT}
         VAR FFTW_OMP_LIBRARIES
         REQUIRED ""
         OPTIONAL "fftw3_omp" "fftw3f_omp")
+    heffte_find_fftw_libraries(
+        PREFIX ${FFTW_ROOT}
+        VAR FFTW_THREADS_LIBRARIES
+        REQUIRED ""
+        OPTIONAL "fftw3_threads" "fftw3f_threads")
 
     if (FFTW_OMP_LIBRARIES)
-        list(APPEND FFTW_OMP_LIBRARIES "${FFTW_LIBRARIES}")
+        list(PREPEND FFTW_LIBRARIES "${FFTW_OMP_LIBRARIES}")
         if (Heffte_FFTW_LIBOMP)
             list(APPEND FFTW_LIBRARIES "${Heffte_FFTW_LIBOMP}")
         else()
             find_package(OpenMP REQUIRED)
             list(APPEND FFTW_LIBRARIES OpenMP::OpenMP_CXX)
         endif()
+    elseif (FFTW_THREADS_LIBRARIES)
+        list(PREPEND FFTW_LIBRARIES "${FFTW_THREADS_LIBRARIES}")
+        set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+        find_package(Threads REQUIRED)
+        list(APPEND FFTW_LIBRARIES Threads::Threads)
     endif()
+
+    message(STATUS "FFTW_LIBRARIES = ${FFTW_LIBRARIES}")
 endif()
 
 # respect user provided FFTW_INCLUDES

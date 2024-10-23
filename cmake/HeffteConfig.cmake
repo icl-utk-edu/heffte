@@ -8,13 +8,22 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/HeffteTargets.cmake")
 
-if (@Heffte_ENABLE_FFTW@ AND NOT TARGET Heffte::FFTW)
-    add_library(Heffte::FFTW INTERFACE IMPORTED GLOBAL)
+if ("@Heffte_ENABLE_FFTW@")
+    # find dependencies
     if ("@OpenMP_FOUND@")
         find_package(OpenMP REQUIRED)
     endif()
-    target_link_libraries(Heffte::FFTW INTERFACE @FFTW_LIBRARIES@)
-    set_target_properties(Heffte::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES @FFTW_INCLUDES@)
+    if (NOT "@FFTW_THREADS_LIBRARIES@" STREQUAL "")
+        set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+        find_package(Threads REQUIRED)
+    endif()
+
+    # add the target, if missing
+    if (NOT TARGET Heffte::FFTW)
+        add_library(Heffte::FFTW INTERFACE IMPORTED GLOBAL)
+        target_link_libraries(Heffte::FFTW INTERFACE @FFTW_LIBRARIES@)
+        set_target_properties(Heffte::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES @FFTW_INCLUDES@)
+    endif()
 endif()
 
 if (@Heffte_ENABLE_MKL@ AND NOT TARGET Heffte::MKL)
