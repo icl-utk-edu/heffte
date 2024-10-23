@@ -21,6 +21,7 @@ fi
     -DCMAKE_CXX_FLAGS="@CMAKE_CXX_FLAGS@" \
     -DHeffte_DIR=@CMAKE_INSTALL_FULL_LIBDIR@/cmake/Heffte \
     -DMPI_CXX_COMPILER="@MPI_CXX_COMPILER@" \
+    -DMPIEXEC_EXECUTABLE="@MPIEXEC_EXECUTABLE@" \
     $heffte_mpic_compiler \
     $heffte_mpif_compiler \
     -DMPIEXEC_NUMPROC_FLAG="@MPIEXEC_NUMPROC_FLAG@" \
