@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-project("Heffte" VERSION 2.4.0 LANGUAGES CXX)
+project("Heffte" VERSION 2.4.1 LANGUAGES CXX)
 
 option(Heffte_ENABLE_FFTW     "Enable the FFTW backend"            OFF)
 option(Heffte_ENABLE_CUDA     "Enable the CUDA and cuFFT backend"  OFF)
