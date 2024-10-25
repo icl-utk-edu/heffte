@@ -10,7 +10,6 @@
 
 #ifdef Heffte_ENABLE_ONEAPI
 
-#include <CL/sycl.hpp>
 #include "oneapi/mkl.hpp"
 
 namespace heffte {
