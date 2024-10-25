@@ -11,11 +11,10 @@ The heFFTe library can be build with either CMake 3.19 or newer.
 
 | Compiler | Tested versions |
 |----|----|
-| gcc      | 9 - 11          |
-| clang    | 11 - 14          |
-| icc      | 18              |
-| dpcpp    | 2023.0          |
-| OpenMPI  | 4.0.3           |
+| gcc      | 11 - 13         |
+| clang    | 14 - 18         |
+| dpcpp    | 2024.2          |
+| OpenMPI  | 4.1.6           |
 
 Tested backend libraries:
 
@@ -23,10 +22,10 @@ Tested backend libraries:
 |----|----|
 | stock          | all             |
 | fftw3          | 3.3.7 - 3.3.10  |
-| mkl            | 2023.0            |
-| oneapi/onemkl  | 2023.0          |
-| cuda/cufft     | 11 - 12         |
-| rocm/rocfft    | 5.0 - 5.6       |
+| mkl            | 2024.2          |
+| oneapi/onemkl  | 2024.2          |
+| cuda/cufft     | 11 - 12.6       |
+| rocm/rocfft    | 5.6 - 6.2       |
 
 The listed tested versions are part of the continuous integration and nightly build systems,
 but heFFTe may yet work with other compilers and backend versions.
@@ -107,6 +106,8 @@ Note that fftw3 uses two different libraries for single and double precision, wh
     -D MKL_ROOT=<path-to-mkl-installation>
 ```
 The `MKL_ROOT` default to the environment variable `MKLROOT` (chosen by Intel). The additional variable `Heffte_MKL_THREAD_LIBS` allows to choose the MKL threaded backend, tested with `mkl_gnu_thread` and `mkl_intel_thread`, the default is to use GNU-threads on GCC compiler and Intel otherwise. Note that `mkl_intel_thread` also requires `libiomp5.so` and heFFTe will search for it in the system paths and `LD_LIBRARY_PATH`, unless the variable `Heffte_MKL_IOMP5` is defined and pointing to `libiomp5.so`. GNU-threads do not use `libiomp5.so` but the GNU `libgomp.so` which CMake finds automatically.
+
+**Note** if paired with oneMKL or using a clang compiler and CMake, the `Heffte_MKL_IOMP5` variable should not be needed.
 
 * **oneMKL** the [Intel oneMKL Library](https://spec.oneapi.com/versions/latest/elements/oneMKL/source/index.html) provides optimized FFT implementation targeting Intel GPUs and can be enabled within heFFTe with:
 ```
