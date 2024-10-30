@@ -8,7 +8,7 @@ The Python wrappers require the following modules:
 ```
     ctypes   # standard module included in most python distributions
     numpy    # used at the core of most Python numerical packages
-    mpi3py   # provides MPI bindings for Python
+    mpi4py   # provides MPI bindings for Python
 ```
 In addition, using the CUDA backend requires:
 ```
