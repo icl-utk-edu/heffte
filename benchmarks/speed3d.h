@@ -213,17 +213,6 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     precision_type mpi_max_err = 0.0;
     MPI_Allreduce(&err, &mpi_max_err, 1, mpi::type_from<precision_type>(), MPI_MAX, fft_comm);
 
-    if (mpi_max_err > precision<std::complex<precision_type>>::tolerance){
-        // benchmark failed, the error is too much
-        if (me == 0){
-            cout << "------------------------------- \n"
-                 << "ERROR: observed error after heFFTe benchmark exceeds the tolerance\n"
-                 << "       tolerance: " << precision<std::complex<precision_type>>::tolerance
-                 << "  error: " << mpi_max_err << endl;
-        }
-        return;
-    }
-
     // Print results
     if(me==0){
         t_max = t_max / (2.0 * ntest);
@@ -249,6 +238,17 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
         cout << "Tolerance:    " << precision<std::complex<precision_type>>::tolerance << "\n";
         cout << "Max error:    " << mpi_max_err << "\n";
         cout << endl;
+    }
+
+    if (mpi_max_err > precision<std::complex<precision_type>>::tolerance){
+        // benchmark failed, the error is too much
+        if (me == 0){
+            cout << "------------------------------- \n"
+                 << "ERROR: observed error after heFFTe benchmark exceeds the tolerance\n"
+                 << "       tolerance: " << precision<std::complex<precision_type>>::tolerance
+                 << "  error: " << mpi_max_err << endl;
+        }
+        return;
     }
 }
 
@@ -346,7 +346,7 @@ int main(int argc, char *argv[]){
                  << "         -batch batch_size: specifies the size of the batch to use in the benchmark\n"
                  << "         -r2c_dir dir: specifies the r2c direction for the r2c tests, dir must be 0 1 or 2 \n"
                  << "         -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices\n"
-                 << "         -nX: number of times to repeat the run, accepted variants are -n5 (default), -n10, -n50\n"
+                 << "         -nX: number of times to repeat the run, accepted variants are -n5 (default), -n1, -n10, -n50\n"
                  #ifdef BENCH_R2R
                  << "Examples:\n"
                  << "    mpirun -np  4 " << bench_executable << " fftw-cos  double 128 128 128 -p2p\n"

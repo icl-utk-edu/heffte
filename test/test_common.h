@@ -391,7 +391,9 @@ int get_int_arg(std::string const &name, std::deque<std::string> const &args, in
 
 int nruns(std::deque<std::string> const &args){
     for(auto &s : args)
-        if (s == "-n10")
+        if (s == "-n1")
+            return 1;
+        else if (s == "-n10")
             return 10;
         else if (s == "-n50")
             return 50;
