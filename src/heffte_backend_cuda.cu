@@ -295,7 +295,7 @@ __global__ void cos1_post_forward_kernel(int N, scalar_type const *fft_signal, s
 
 }
 
-// IDCT-I backward kernel for DCT-I. The transform itself doesn't change, since (DCT-I)^-1=DCT-I. 
+// IDCT-I backward kernel for DCT-I. The transform itself doesn't change, since (DCT-I)^-1=DCT-I.
 // However, the kernel has slight changes to adapt to the c2r transform.
 // set imaginary parts to zero; even symmetry
 // (a b c) -> (a,0 b,0 c,0 b,0 a,0)
@@ -470,8 +470,11 @@ heffte_instantiate_packers(long long)
 
 template<typename scalar_type, typename index>
 void scale_data(cudaStream_t stream, index num_entries, scalar_type *data, double scale_factor){
+    if (num_entries == 0) // empty input/output box is allowed, do nothing
+        return;
     thread_grid_1d grid(num_entries, max_threads);
     simple_scal<scalar_type, max_threads><<<grid.blocks, grid.threads, 0, stream>>>(num_entries, data, static_cast<scalar_type>(scale_factor));
+    check_error( cudaPeekAtLastError(), "scale kernel launch" );
 }
 
 template void scale_data<float, int>(cudaStream_t, int num_entries, float *data, double scale_factor);
