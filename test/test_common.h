@@ -356,7 +356,7 @@ bool has_option(std::deque<std::string> const &args, std::string const &opt){
     return false;
 }
 //! \brief Takes the three arguments after \b opt and converts them to an array of ints, throws runtime_error if no arguments or cannot convert.
-std::array<int, 3> get_grid(std::deque<std::string> const &args, std::string const &opt){
+inline std::array<int, 3> get_grid(std::deque<std::string> const &args, std::string const &opt){
     auto iopt = args.begin();
     while(iopt != args.end()){
         if (*iopt == opt){ // found the argument, take the next three entries
@@ -374,7 +374,7 @@ std::array<int, 3> get_grid(std::deque<std::string> const &args, std::string con
     throw std::runtime_error(opt + " not found");
 }
 
-int get_int_arg(std::string const &name, std::deque<std::string> const &args, int default_value = -1){
+inline int get_int_arg(std::string const &name, std::deque<std::string> const &args, int default_value = -1){
     auto iopt = args.begin();
     while(iopt != args.end()){
         if (*iopt == name){
@@ -388,8 +388,27 @@ int get_int_arg(std::string const &name, std::deque<std::string> const &args, in
     }
     return default_value;
 }
-
-int nruns(std::deque<std::string> const &args){
+//! returns the number of runs selected in the args
+inline int nruns(std::deque<std::string> const &args){
+    for(auto &s : args) {
+        std::string::size_type nr = s.find("-nruns");
+        if (nr != 0)
+            continue;
+        // found a string with -nruns, get the number
+        int num = 0;
+        try {
+            num = std::stoi(s.substr(6));
+        } catch(std::invalid_argument &) {
+            std::cerr << "cannot convert '" << s.substr(6) << "' to 'int'\n";
+            throw;
+        } catch(std::out_of_range &) {
+            std::cerr << "provided integer '" << s.substr(6) << "' is too large\n";
+            throw;
+        }
+        if (num < 0)
+            throw std::runtime_error("the number of of runs has to be non-negative");
+        return num;
+    }
     for(auto &s : args)
         if (s == "-n1")
             return 1;

@@ -215,9 +215,16 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
 
     // Print results
     if(me==0){
-        t_max = t_max / (2.0 * ntest);
-        double const fftsize  = static_cast<double>(world.count());
-        double const floprate = 5.0 * batch_size * fftsize * std::log(fftsize) * 1e-9 / std::log(2.0) / t_max;
+        double const fftsize = static_cast<double>(world.count());
+
+        double floprate = 0.0;
+        if (ntest > 0) { // something was tested
+            t_max /= (2.0 * ntest); // time per test, 2 transforms forward/backward
+            floprate = 5.0 * batch_size * fftsize * std::log(fftsize) * 1e-9 / std::log(2.0) / t_max;
+        } else {
+            t_max = 0.0; // nothing was tested
+        }
+
         long long mem_usage = static_cast<long long>(fft.size_inbox()) + static_cast<long long>(fft.size_outbox())
                             + static_cast<long long>(fft.size_workspace());
         mem_usage *= sizeof(output_type);
@@ -232,6 +239,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
         for(int i=0; i<5; i++)
             print_proc_grid(i);
         cout << "\n";
+        cout << "Num runs:     " << ntest << '\n';
         cout << "Time per run: " << t_max << " (s)\n";
         cout << "Performance:  " << floprate << " GFlops/s\n";
         cout << "Memory usage: " << mem_usage << "MB/rank\n";
@@ -351,6 +359,7 @@ int main(int argc, char *argv[]){
      -r2c_dir dir: specifies the r2c direction for the r2c tests, dir must be 0 1 or 2
      -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices
      -nX: number of times to repeat the run, accepted variants are -n5 (default), -n1, -n10, -n50
+     -nrunsXYZ: same as -n but allows for a custom number, XYZ must be a non-negative integer, e.g., -nruns17
 
 )help2";
 
