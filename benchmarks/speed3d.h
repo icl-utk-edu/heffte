@@ -322,42 +322,49 @@ int main(int argc, char *argv[]){
 
     if (argc < 6){
         if (mpi::world_rank(0)){
-            cout << "\nUsage:\n    mpirun -np x " << bench_executable << " <backend> <precision> <size-x> <size-y> <size-z> <args>\n\n"
-                 << "    options\n"
-                 << "        backend is the 1-D FFT library\n"
-                 << "            available options for this build: " << backends << "\n"
-                 << "        precision is either float or double\n"
-                 << "          use float-long or double-long to enable 64-bit indexing\n"
-                 << "        size-x/y/z are the 3D array dimensions \n\n"
-                 << "        args is a set of optional arguments that define algorithmic tweaks and variations\n"
-                 << "         -reorder: reorder the elements of the arrays so that each 1-D FFT will use contiguous data\n"
-                 << "         -no-reorder: some of the 1-D will be strided (non contiguous)\n"
-                 << "         -a2a: use MPI_Alltoall() communication method\n"
-                 << "         -a2av: use MPI_Alltoallv() communication method (default)\n"
-                 << "         -p2p: use MPI_Send() and MPI_Irecv() communication methods\n"
-                 << "         -p2p_pl: use MPI_Isend() and MPI_Irecv() communication methods\n"
-                 << "         -no-gpu-aware: move the data to the cpu before doing gpu operations (gpu backends only)\n"
-                 << "         -pencils: use pencil reshape logic\n"
-                 << "         -slabs: use slab reshape logic\n"
-                 << "         -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries \n"
-                 << "         -ingrid x y z: specifies the processor grid to use in the input, x y z must be integers \n"
-                 << "         -outgrid x y z: specifies the processor grid to use in the output, x y z must be integers \n"
-                 << "         -subcomm num_ranks: specifies the number of ranks to use in intermediate reshapes\n"
-                 << "         -batch batch_size: specifies the size of the batch to use in the benchmark\n"
-                 << "         -r2c_dir dir: specifies the r2c direction for the r2c tests, dir must be 0 1 or 2 \n"
-                 << "         -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices\n"
-                 << "         -nX: number of times to repeat the run, accepted variants are -n5 (default), -n1, -n10, -n50\n"
-                 #ifdef BENCH_R2R
-                 << "Examples:\n"
+            cout << "\nUsage:\n    mpirun -np x " << bench_executable << " <backend> <precision> <size-x> <size-y> <size-z> <args>\n";
+            cout << R"help1(
+  options
+    <backend> is the 1-D FFT library
+)help1";
+            cout << "      available backends for this build: " << backends;
+            cout << R"help2(
+    <precision> is either float or double
+      use float-long or double-long to enable 64-bit indexing
+    <size-x/y/z> are the 3D array dimensions
+
+    <args> is a set of optional arguments that define algorithmic tweaks and variations
+     -reorder: reorder the elements of the arrays so that each 1-D FFT will use contiguous data
+     -no-reorder: some of the 1-D will be strided (non contiguous)
+     -a2a: use MPI_Alltoall() communication method
+     -a2av: use MPI_Alltoallv() communication method (default)
+     -p2p: use MPI_Send() and MPI_Irecv() communication methods
+     -p2p_pl: use MPI_Isend() and MPI_Irecv() communication methods
+     -no-gpu-aware: move the data to the cpu before doing gpu operations (gpu backends only)
+     -pencils: use pencil reshape logic
+     -slabs: use slab reshape logic
+     -io_pencils: if input and output proc grids are pencils, useful for comparison with other libraries
+     -ingrid x y z: specifies the processor grid to use in the input, x y z must be integers
+     -outgrid x y z: specifies the processor grid to use in the output, x y z must be integers
+     -subcomm num_ranks: specifies the number of ranks to use in intermediate reshapes
+     -batch batch_size: specifies the size of the batch to use in the benchmark
+     -r2c_dir dir: specifies the r2c direction for the r2c tests, dir must be 0 1 or 2
+     -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices
+     -nX: number of times to repeat the run, accepted variants are -n5 (default), -n1, -n10, -n50
+
+)help2";
+
+            #ifdef BENCH_R2R
+            cout << "Examples:\n"
                  << "    mpirun -np  4 " << bench_executable << " fftw-cos  double 128 128 128 -p2p\n"
                  << "    mpirun -np  8 " << bench_executable << " cufft-cos float  256 256 256\n"
                  << "    mpirun -np 12 " << bench_executable << " fftw-sin  double 512 512 512 -slabs\n\n";
-                 #else
-                 << "Examples:\n"
+            #else
+            cout << "Examples:\n"
                  << "    mpirun -np  4 " << bench_executable << " fftw  double 128 128 128 -no-reorder\n"
                  << "    mpirun -np  8 " << bench_executable << " cufft float  256 256 256\n"
                  << "    mpirun -np 12 " << bench_executable << " fftw  double 512 512 512 -p2p -slabs\n\n";
-                 #endif
+            #endif
         }
 
         MPI_Finalize();
