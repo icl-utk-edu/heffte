@@ -61,6 +61,9 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     std::array<int,3> proc_i = heffte::proc_setup_min_surface(world, nprocs);
     std::array<int,3> proc_o = heffte::proc_setup_min_surface(world, nprocs);
 
+    // if selected, skip the error checking in the results
+    bool const check_error = not has_option(args, "-no-error");
+
     // Check if user in/out processor grids are pencil-shaped, useful for performance comparison with other libraries
     if (has_option(args, "-io_pencils")){
         std::array<int, 2> proc_grid = make_procgrid(nprocs);
@@ -208,10 +211,13 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     #endif
 
     precision_type err = 0.0;
-    for(size_t i=0; i<input.size(); i++)
-        err = std::max(err, std::abs(reference_input[i] - result[i]));
     precision_type mpi_max_err = 0.0;
-    MPI_Allreduce(&err, &mpi_max_err, 1, mpi::type_from<precision_type>(), MPI_MAX, fft_comm);
+
+    if (check_error) {
+        for(size_t i=0; i<input.size(); i++)
+            err = std::max(err, std::abs(reference_input[i] - result[i]));
+        MPI_Allreduce(&err, &mpi_max_err, 1, mpi::type_from<precision_type>(), MPI_MAX, fft_comm);
+    }
 
     // Print results
     if(me==0){
@@ -243,12 +249,16 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
         cout << "Time per run: " << t_max << " (s)\n";
         cout << "Performance:  " << floprate << " GFlops/s\n";
         cout << "Memory usage: " << mem_usage << "MB/rank\n";
-        cout << "Tolerance:    " << precision<std::complex<precision_type>>::tolerance << "\n";
-        cout << "Max error:    " << mpi_max_err << "\n";
+        if (check_error) {
+            cout << "Tolerance:    " << precision<std::complex<precision_type>>::tolerance << "\n";
+            cout << "Max error:    " << mpi_max_err << "\n";
+        } else {
+            cout << "(no error checking)\n";
+        }
         cout << endl;
     }
 
-    if (mpi_max_err > precision<std::complex<precision_type>>::tolerance){
+    if (check_error and mpi_max_err > precision<std::complex<precision_type>>::tolerance){
         // benchmark failed, the error is too much
         if (me == 0){
             cout << "------------------------------- \n"
@@ -360,6 +370,7 @@ int main(int argc, char *argv[]){
      -mps: for the cufft backend and multiple gpus, associate the mpi ranks with different cuda devices
      -nX: number of times to repeat the run, accepted variants are -n5 (default), -n1, -n10, -n50
      -nrunsXYZ: same as -n but allows for a custom number, XYZ must be a non-negative integer, e.g., -nruns17
+     -no-error: skips the error checking, avoids conditioning problems when doing large number of runs
 
 )help2";
 
