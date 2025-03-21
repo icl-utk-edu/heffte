@@ -89,11 +89,11 @@ std::vector<int> a2a_group(std::vector<int> const &send_proc, std::vector<int> c
             // note the O(n^2) graph search, but should be OK for now
             for(size_t j=0; j<input_boxes.size(); j++){
                 if (not marked[j] and not input_boxes[iproc].collide(output_boxes[j]).empty()){
-                    result.push_back(j);
+                    result.emplace_back(static_cast<int>(j));
                     marked[j] = true;
                 }
                 if (not marked[j] and not output_boxes[iproc].collide(input_boxes[j]).empty()){
-                    result.push_back(j);
+                    result.emplace_back(static_cast<int>(j));
                     marked[j] = true;
                 }
             }
@@ -104,7 +104,7 @@ std::vector<int> a2a_group(std::vector<int> const &send_proc, std::vector<int> c
     // sort based on the flag
     result.resize(0);
     for(size_t i=0; i<input_boxes.size(); i++)
-        if (marked[i]) result.push_back(i);
+        if (marked[i]) result.emplace_back(i);
 
     return result;
 }

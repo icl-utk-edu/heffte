@@ -7,7 +7,7 @@ program HeffteFortranTester
     type(heffte_fft3d_fftw) :: fft_cpu
     type(heffte_fft3d_cufft) :: cufft
     integer :: mpi_err, me
-    integer :: i
+    integer(C_SIZE_T) :: i
     REAL(C_DOUBLE), dimension(:), allocatable :: input
     COMPLEX(C_DOUBLE_COMPLEX), dimension(:), allocatable :: output
 
@@ -36,7 +36,7 @@ allocate(input(fft_cpu%size_inbox()))
 allocate(output(fft_cpu%size_outbox()))
 
 do i = 1, fft_cpu%size_inbox()
-    input(i) = i
+    input(i) = real(i, C_DOUBLE)
 enddo
 
 call fft_cpu%forward(input, output, scale_fftw_symmetric)

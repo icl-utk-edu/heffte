@@ -70,7 +70,7 @@ struct cpu_cos_pre_pos_processor{
 
         int index = length-1;
         for(int i = length+1; i < 2*length+1; i++){
-            fft_signal[i] = std::complex<precision>(-1.0 * input[index]);
+            fft_signal[i] = std::complex<precision>(-input[index]);
             index --;
         }
     }

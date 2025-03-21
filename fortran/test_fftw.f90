@@ -5,7 +5,7 @@ program HeffteFortranTester
     implicit none
     type(heffte_fft3d_fftw) :: fft
     integer :: mpi_err, me
-    integer :: i
+    integer(C_SIZE_T) :: i
     COMPLEX(C_DOUBLE_COMPLEX), dimension(:), allocatable :: input, output, reference
 
 call MPI_Init(mpi_err)
@@ -23,18 +23,18 @@ allocate(output(fft%size_outbox()))
 allocate(reference(fft%size_outbox()))
 
 do i = 1, fft%size_inbox()
-    input(i) = i - 1
+    input(i) = cmplx(i - 1, 0.0, C_DOUBLE_COMPLEX)
 enddo
 do i = 1, fft%size_outbox()
-    reference(i) = 0.0
+    reference(i) = cmplx(0.0, 0.0, C_DOUBLE_COMPLEX)
 enddo
-reference(1) = -512.0
+reference(1) = cmplx(-512.0, 0.0, C_DOUBLE_COMPLEX)
 
 call fft%forward(input, output)
 if (me == 1) then
     do i = 1, fft%size_outbox()
         if (abs(output(i) - reference(i)) > 1.0D-14) then
-            write(*,*) "Error in forward() exceeds tolerance of 1.E-14, error is: ", abs(input(i) - reference(i))
+            write(*,*) "Error in forward() exceeds tolerance of 1.E-14, error is: ", abs(output(i) - reference(i))
             error stop
         endif
     enddo
@@ -47,8 +47,9 @@ enddo
 call fft%backward(output, input, scale_fftw_full)
 
 do i = 1, fft%size_inbox()
-    if (abs(input(i) - i + 1) > 1.0D-14) then
-        write(*,*) "Error in backward() exceeds tolerance of 1.E-14, error is: ", abs(input(i) - i - 1)
+    if (abs(input(i) - cmplx(i - 1, 0.0, C_DOUBLE_COMPLEX)) > 1.0D-14) then
+        write(*,*) "Error in backward() exceeds tolerance of 1.E-14, error is: ", &
+            abs(input(i) - cmplx(i - 1, 0.0, C_DOUBLE_COMPLEX))
         error stop
     endif
 enddo

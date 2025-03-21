@@ -59,9 +59,10 @@ std::vector<scalar_type> get_subdata(box3d<> const world, box3d<> const subbox){
         for(int j = 0; j < subbox.size[1]; j++){
             for(int i = 0; i < subbox.size[0]; i++){
                 result[k * sslowstride + j * smidstride + i]
-                    = static_cast<scalar_type>((k + world.low[2] + subbox.low[2]) * wslowstride
-                                                + (j + world.low[1] + subbox.low[1]) * wmidstride
-                                                + i + world.low[0] + subbox.low[0]);
+                    = static_cast<typename real_type<scalar_type>::type>(
+                          (k + world.low[2] + subbox.low[2]) * wslowstride
+                        + (j + world.low[1] + subbox.low[1]) * wmidstride
+                        + i + world.low[0] + subbox.low[0]);
             }
         }
     }
@@ -144,9 +145,9 @@ void test_cpu(MPI_Comm const comm){
         batch_input.insert(batch_input.end(), input_data.begin(), input_data.end());
         batch_reference.insert(batch_reference.end(), reference_data.begin(), reference_data.end());
         for(size_t j=batch_input.size() - input_data.size(); j < batch_input.size(); j++)
-            batch_input[j] *= (i + 2);
+            batch_input[j] *= (typename real_type<scalar_type>::type)(i + 2);
         for(size_t j=batch_reference.size() - reference_data.size(); j < batch_reference.size(); j++)
-            batch_reference[j] *= (i + 2);
+            batch_reference[j] *= (typename real_type<scalar_type>::type)(i + 2);
     }
     output_data = std::vector<scalar_type>(batch_size * rotate_boxes[me].count());
 
@@ -229,9 +230,9 @@ void test_direct_reordered(MPI_Comm const comm){
     box3d<> world(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{9, 10, 8}, std::array<int, 3>{2, 0, 1});
 
     std::vector<box3d<>> inboxes, outboxes;
-    for(auto b : split_world(world, {2, 2, 1})) inboxes.push_back({b.low, b.high, world.order});
+    for(auto b : split_world(world, {2, 2, 1})) inboxes.emplace_back(b.low, b.high, world.order);
     std::vector<box3d<>> temp = split_world(world, {2, 1, 2}); // need to swap the middle two entries
-    for(auto i : std::vector<int>{0, 2, 1, 3}) outboxes.push_back({temp[i].low, temp[i].high, world.order});
+    for(auto i : std::vector<int>{0, 2, 1, 3}) outboxes.emplace_back(temp[i].low, temp[i].high, world.order);
 
     {
         auto reshape = make_reshape3d_alltoallv<tag::cpu>(nullptr, inboxes, outboxes, false, comm);
@@ -301,7 +302,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 if (i == 0 and j == 1 and k == 2) continue; // no transpose, no need to check
 
                 std::vector<box3d<>> outboxes;
-                for(auto b : ordered_outboxes) outboxes.push_back(box3d<>(b.low, b.high, order));
+                for(auto b : ordered_outboxes) outboxes.emplace_back(b.low, b.high, order);
 
                 heffte::plan_options options = default_options<default_cpu_backend>();
                 options.algorithm = variant;

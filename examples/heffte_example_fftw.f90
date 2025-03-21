@@ -5,7 +5,7 @@ program HeffteFortranExample
     implicit none
     type(heffte_fft3d_fftw) :: fft
     integer :: mpi_err, mpi_size, me
-    integer :: i
+    integer(C_SIZE_T) :: i
     COMPLEX(C_DOUBLE_COMPLEX), dimension(:), allocatable :: input, output
     REAL(C_DOUBLE) :: err
 
@@ -43,7 +43,7 @@ allocate(output(fft%size_outbox()))
 
 ! Prepare the input
 do i = 1, fft%size_inbox()
-    input(i) = i - 1
+    input(i) = cmplx(i - 1, 0, C_DOUBLE_COMPLEX)
 enddo
 
 ! The Fortran wrappers use generic overloads to automatically handle the array types
@@ -72,12 +72,12 @@ call fft%backward(output, input, scale_fftw_full)
 ! Compute the local error in the max norm
 err = 0
 do i = 1, fft%size_inbox()
-    err = max( err, abs(input(i) - (i - 1)) )
+    err = max( err, abs(input(i) - cmplx(i - 1, 0, C_DOUBLE_COMPLEX)) )
 enddo
 
 ! Write out the output one rank at a time
-do i = 1, mpi_size
-    if (me == i-1) then
+do i = 1, int(mpi_size, C_SIZE_T)
+    if (int(me, C_SIZE_T) == i-1) then
         write(*,*) "MPI rank ", me, " observed error: ", err
     endif
     call MPI_Barrier(MPI_COMM_WORLD, mpi_err)
