@@ -83,7 +83,7 @@ struct biFuncNode {
     complex_vector<F,L> workspace; // Workspace
     biFuncNode(): fptr(fft_type::discrete) {};
     biFuncNode(size_t sig_size, fft_type type): sz(sig_size), fptr(type), workspace(sig_size) {}; // Create default constructor
-    biFuncNode(size_t sig_size, size_t a, size_t ainv): fptr(a,ainv), workspace(sig_size) {};
+    biFuncNode(size_t sig_size, size_t a, size_t ainv): sz(sig_size), fptr(a,ainv), workspace(sig_size) {};
 };
 
 // Internal helper function to perform a DFT
@@ -365,8 +365,11 @@ inline void rader_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_ou
         y[m*s_out] = z[m]*Cm;
     }
 
+    // Get reverse direction
+    direction rev_dir = (dir == direction::forward) ? direction::backward : direction::forward;
+
     // Bring back into signal domain
-    subFFT->fptr(y, &z[0], s_out, 1, subFFT, (direction) (-1*((int) dir)));
+    subFFT->fptr(y, &z[0], s_out, 1, subFFT, rev_dir);
 
     // Shuffle as needed
     ak = 1;

@@ -431,6 +431,87 @@ void test_stock_fft_composite() {
     test_stock_composite_typed<double>();
 }
 
+namespace heffte {
+namespace stock {
+
+static size_t getNumNodesRader(const size_t N) {
+    size_t k = numNodesFactorHelper(N);
+    if (k == N and not (power_of(N, 2) || power_of(N, 3) || power_of(N, 4))) {
+      k = N - 1;
+    }
+    size_t rem = getLeftover(N, k);
+    if(k == N) return 1;
+    size_t left_nodes = getNumNodesRader(k);
+    size_t right_nodes = (rem == 0) ? 0 : getNumNodesRader(rem);
+    return 1 + left_nodes + right_nodes;
+}
+
+template<typename F, int L>
+static size_t init_fft_tree_rader(biFuncNode<F,L>* sRoot, const size_t N) {
+    assert(factor(N) == N);
+    size_t k = N - 1;
+    size_t a = primeRoot(N);
+    size_t ainv = modPow(a, N-2, N);
+    *sRoot = biFuncNode<F,L>(N, a, ainv);
+    size_t l = init_fft_tree(sRoot + 1, k);
+    size_t r = 0;
+    sRoot->left = 1;
+    sRoot->right = 1 + l;
+    return 1 + l + r;
+}
+
+} // namespace stock
+} // namespace heffte
+
+// Represents the Rader Fourier Transform
+template<typename F, int L>
+void test_stock_rader_template(int N) {
+    using node_ptr = std::unique_ptr<stock::biFuncNode<F,L>[]>;
+
+    size_t numNodes = stock::getNumNodesRader(N);
+    node_ptr root (new stock::biFuncNode<F,L>[numNodes]);
+    stock::biFuncNode<F,L>* rootPtr = root.get();
+    init_fft_tree_rader(rootPtr, N);
+
+    std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> fftForward = [&](complex_vector<F,L>& input, complex_vector<F,L>& output) {
+        rootPtr->fptr(input.data(), output.data(), 1, 1, rootPtr, heffte::direction::forward);
+    };
+    std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> fftBackward = [&](complex_vector<F,L>& input, complex_vector<F,L>& output) {
+        rootPtr->fptr(input.data(), output.data(), 1, 1, rootPtr, heffte::direction::backward);
+    };
+    std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> refForward = [](complex_vector<F,L>& input, complex_vector<F,L>& output) {
+        heffte::stock::DFT_helper<F,L>(input.size(), input.data(), output.data(), 1, 1, heffte::direction::forward);
+    };
+    test_fft_template(N, fftForward, fftBackward, refForward);
+}
+
+template<typename F>
+void test_stock_rader_typed() {
+    current_test<F, using_nompi> name("stock FFT rader test");
+    std::vector<int> small_primes;
+    if (std::is_same<F, float>::value) {
+      // precision loss grows rapidly with data size for 32bit floats
+      small_primes = {5, 7, 11, 13, 17, 19};
+    }
+    if (std::is_same<F, double>::value) {
+      small_primes = {5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41};
+    }
+    for (int N : small_primes) {
+      test_stock_rader_template<F,1>(N);
+#ifdef Heffte_ENABLE_AVX
+      test_stock_rader_template<F,4>(N);
+#endif
+#ifdef Heffte_ENABLE_AVX512
+      test_stock_rader_template<F, is_float<F>::value? 16 : 8>(N);
+#endif
+    }
+}
+
+void test_stock_fft_rader() {
+    test_stock_rader_typed<float>();
+    test_stock_rader_typed<double>();
+}
+
 // Test all stock components
 int main(int, char**) {
     all_tests<using_nompi> name("Non-MPI Tests for Stock Backend");
@@ -441,6 +522,7 @@ int main(int, char**) {
     test_stock_fft_pow3();
     test_stock_fft_pow4();
     test_stock_fft_composite();
+    test_stock_fft_rader();
 
     return 0;
 }
