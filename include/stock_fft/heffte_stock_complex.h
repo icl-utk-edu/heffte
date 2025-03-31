@@ -7,8 +7,11 @@
 #ifndef HEFFTE_STOCK_COMPLEX_H
 #define HEFFTE_STOCK_COMPLEX_H
 
+#include <complex>
+#include <cstddef>
+#include <initializer_list>
+#include <ostream>
 #include <type_traits>
-#include <iostream>
 
 #include "heffte_stock_vec_types.h"
 
@@ -37,7 +40,7 @@ class alignas(L*sizeof(F)) Complex {
         //! \brief Load from an array of primitives
         explicit Complex(F* const f): var(mm_load<F,L>(f)) {}
         //! \brief Load from an initializer list of primitives
-        explicit Complex(std::initializer_list<F> il): var(mm_load<F,L>(il.begin())) {};
+        explicit Complex(std::initializer_list<F> il): var(mm_load<F,L>(il.begin())) {}
         //! \brief Load from an existing vector pack
         explicit Complex(typename pack<F,L>::type v): var(v) {}
         //! \brief Load from real and imaginary parts (repeating for all numbers in pack)
@@ -47,7 +50,7 @@ class alignas(L*sizeof(F)) Complex {
         //! \brief Load from strided pointer to existing std::complex numbers
         explicit Complex(std::complex<F> const *c, int stride): var(mm_complex_load<F,L>(c, stride)) {}
         //! \brief Load from initializer list of existing std::complex numbers
-        explicit Complex(std::initializer_list<std::complex<F>> il): var(il.size() == 1 ? mm_pair_set<F,L>((*il.begin()).real(), (*il.begin()).imag()) : mm_complex_load<F,L>(il.begin())) {};
+        explicit Complex(std::initializer_list<std::complex<F>> il): var(il.size() == 1 ? mm_pair_set<F,L>((*il.begin()).real(), (*il.begin()).imag()) : mm_complex_load<F,L>(il.begin())) {}
         //! \brief Default constructor of zeros
         explicit Complex(): var(mm_zero<F,L>()) {}
 
@@ -200,8 +203,8 @@ class alignas(L*sizeof(F)) Complex {
         }
 
         //! \brief Access the ith Complex number as a std::complex
-        std::complex<F> operator[](std::size_t idx) {
-            return std::complex<F>(reinterpret_cast<F*>(&var)[2*idx], reinterpret_cast<F*>(&var)[2*idx + 1]);
+        std::complex<F> operator[](std::size_t idx) const {
+            return std::complex<F>(reinterpret_cast<F const*>(&var)[2*idx], reinterpret_cast<F const*>(&var)[2*idx + 1]);
         }
 
         //! \brief Return a vector pack representation of this number
@@ -228,6 +231,17 @@ inline std::ostream& operator<<(std::ostream& os, const Complex<F,L>& dt){
         else os << " + " << var[i+1] << "i";
         if(i+2 < L) os << ", ";
     }
+    os << " )";
+    return os;
+}
+
+template<typename F>
+inline std::ostream& operator<<(std::ostream& os, const Complex<F,1>& dt){
+    typename pack<F, 1>::type var = dt.get();
+    os << "( ";
+    os << var.real();
+    if(var.imag() < 0) os << " - " << -var.imag() << "i";
+    else os << " + " << var.imag() << "i";
     os << " )";
     return os;
 }

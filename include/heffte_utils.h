@@ -20,10 +20,13 @@
 #include <ostream>
 #include <iomanip>
 #include <string>
+#include <stdexcept>
 #include <deque>
 #include <fstream>
 #include <mpi.h>
 #include <limits>
+#include <array>
+#include <type_traits>
 
 #include "heffte_config.h"
 
