@@ -59,9 +59,9 @@ function(heffte_add_swig_module heffte_backend)
     unset(heffte_backend)
 endfunction()
 
-set(heffte_list_backeneds "STOCK_stock;FFTW_fftw;MKL_mkl;CUDA_cufft;ROCM_rocfft;ONEAPI_onemkl")
+set(heffte_list_backends "STOCK_stock;FFTW_fftw;MKL_mkl;CUDA_cufft;ROCM_rocfft;ONEAPI_onemkl")
 
-foreach(heffte_possible_backend ${heffte_list_backeneds})
+foreach(heffte_possible_backend ${heffte_list_backends})
     string(REPLACE "_" ";" heffte_combo_list ${heffte_possible_backend})
     list(GET heffte_combo_list 0 heffte_option)
     list(GET heffte_combo_list 1 heffte_backend)
