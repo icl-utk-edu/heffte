@@ -511,7 +511,7 @@ private:
         auto const &strides = embed;
 #else
         DFTI_CONFIG_VALUE const in_place = DFTI_INPLACE;
-        MKL_LONG* const strides = embed.data();
+        MKL_LONG const* const strides = embed.data();
 #endif
         if (dist == 0){
             plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, 1);
