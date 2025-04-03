@@ -139,12 +139,6 @@ template<> struct precision<double>{ static constexpr double tolerance = 1.E-11;
 template<> struct precision<std::complex<float>>{ static constexpr float tolerance = 5.E-4f; };
 template<> struct precision<std::complex<double>>{ static constexpr double tolerance = 1.E-11; };
 
-template<typename T> struct real_type{};
-template<> struct real_type<float>{ using type = float; };
-template<> struct real_type<double>{ using type = double; };
-template<> struct real_type<std::complex<float>>{ using type = float; };
-template<> struct real_type<std::complex<double>>{ using type = double; };
-
 template<typename T>
 inline bool approx(std::vector<T> const &a, std::vector<T> const &b, double correction = 1.0){
     if (a.size() != b.size()) return false;
@@ -172,11 +166,6 @@ struct test_traits<tag::cpu, void>{
     template<typename T>
     static std::vector<T> unload(container<T> const &x){ return x; }
 };
-
-template <typename scalar_type>
-std::vector<scalar_type> make_scalar_vector(std::vector<double> const &v) {
-  return std::vector<scalar_type>(v.begin(), v.end());
-}
 
 template<typename backend_tag> void* make_stream(backend_tag){ return nullptr; } // CPU case
 void sync_stream(void*){}

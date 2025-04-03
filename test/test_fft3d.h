@@ -23,7 +23,7 @@ std::vector<scalar_type> make_data(box3d<index> const world){
 
     std::vector<scalar_type> result(world.count());
     for(auto &r : result)
-        r = static_cast<typename real_type<scalar_type>::type>(unif(park_miller));
+        r = static_cast<scalar_type>(unif(park_miller));
     return result;
 }
 template<typename scalar_type, typename index>
@@ -33,7 +33,7 @@ std::vector<scalar_type> make_data(int num_batch, box3d<index> const world){
 
     std::vector<scalar_type> result(num_batch * world.count());
     for(auto &r : result)
-        r = static_cast<typename real_type<scalar_type>::type>(unif(park_miller));
+        r = static_cast<scalar_type>(unif(park_miller));
     return result;
 }
 

@@ -92,7 +92,7 @@ void test_cpu_scale(){
 template<typename scalar_type>
 std::vector<scalar_type> make_input(){
     std::vector<scalar_type> result(24);
-    for(int i=0; i<24; i++) result[i] = static_cast<typename real_type<scalar_type>::type>(i + 1);
+    for(int i=0; i<24; i++) result[i] = static_cast<scalar_type>(i + 1);
     return result;
 }
 
@@ -135,11 +135,10 @@ std::vector<scalar_type> reorder_box(std::array<int, 3> size, std::array<int, 3>
  */
 template<typename scalar_type>
 std::vector<typename fft_output<scalar_type>::type> make_fft0(){
-    using F = typename real_type<scalar_type>::type;
     std::vector<typename fft_output<scalar_type>::type> result(24);
     for(size_t i=0; i<result.size(); i+=2){
-        result[i]   = typename fft_output<scalar_type>::type((F)(3 + 2 * i));
-        result[i+1] = typename fft_output<scalar_type>::type(F{-1.0});
+        result[i]   = static_cast<typename fft_output<scalar_type>::type>(3 + 2 * i);
+        result[i+1] = static_cast<typename fft_output<scalar_type>::type>(-1.0);
     }
     return result;
 }
@@ -149,13 +148,12 @@ std::vector<typename fft_output<scalar_type>::type> make_fft0(){
  */
 template<typename scalar_type>
 std::vector<typename fft_output<scalar_type>::type> make_fft1(){
-    using F = typename real_type<scalar_type>::type;
     std::vector<typename fft_output<scalar_type>::type> result(24);
     for(int j=0; j<4; j++){
         for(int i=0; i<2; i++){
-            result[6 * j + i]     = typename fft_output<scalar_type>::type((F)((2*j + i+1) * 9.0 - i * 6.0));
-            result[6 * j + i + 2] = typename fft_output<scalar_type>::type(F{-3.0},  F(1.73205080756888));
-            result[6 * j + i + 4] = typename fft_output<scalar_type>::type(F{-3.0}, -F(1.73205080756888));
+            result[6 * j + i]     = typename fft_output<scalar_type>::type((2*j + i+1) * 9.0 - i * 6.0);
+            result[6 * j + i + 2] = typename fft_output<scalar_type>::type(-3.0,  1.73205080756888);
+            result[6 * j + i + 4] = typename fft_output<scalar_type>::type(-3.0, -1.73205080756888);
         }
     }
     return result;
@@ -165,12 +163,11 @@ std::vector<typename fft_output<scalar_type>::type> make_fft1(){
  */
 template<typename scalar_type>
 std::vector<typename fft_output<scalar_type>::type> make_fft1_r2c(){
-    using F = typename real_type<scalar_type>::type;
     std::vector<typename fft_output<scalar_type>::type> result(16);
     for(int j=0; j<4; j++){
         for(int i=0; i<2; i++){
-            result[4 * j + i]     = typename fft_output<scalar_type>::type((F)((2*j + i+1) * 9.0 - i * 6.0));
-            result[4 * j + i + 2] = typename fft_output<scalar_type>::type(F{-3.0},  F(1.73205080756888));
+            result[4 * j + i]     = typename fft_output<scalar_type>::type((2*j + i+1) * 9.0 - i * 6.0);
+            result[4 * j + i + 2] = typename fft_output<scalar_type>::type(-3.0,  1.73205080756888);
         }
     }
     return result;
@@ -181,13 +178,12 @@ std::vector<typename fft_output<scalar_type>::type> make_fft1_r2c(){
  */
 template<typename scalar_type>
 std::vector<typename fft_output<scalar_type>::type> make_fft2(){
-    using F = typename real_type<scalar_type>::type;
     std::vector<typename fft_output<scalar_type>::type> result(24);
     for(size_t i=0; i<6; i++){
-        result[i]    = typename fft_output<scalar_type>::type((F)(40.0 + 4 * (double)i));
-        result[i+ 6] = typename fft_output<scalar_type>::type(F{-12.0}, F{12.0});
-        result[i+12] = typename fft_output<scalar_type>::type(F{-12.0});
-        result[i+18] = typename fft_output<scalar_type>::type(F{-12.0}, F{-12.0});
+        result[i]    = typename fft_output<scalar_type>::type(40.0 + 4 * i);
+        result[i+ 6] = typename fft_output<scalar_type>::type(-12.0, 12.0);
+        result[i+12] = typename fft_output<scalar_type>::type(-12.0);
+        result[i+18] = typename fft_output<scalar_type>::type(-12.0, -12.0);
     }
     return result;
 }
@@ -196,12 +192,11 @@ std::vector<typename fft_output<scalar_type>::type> make_fft2(){
  */
 template<typename scalar_type>
 std::vector<typename fft_output<scalar_type>::type> make_fft2_r2c(){
-    using F = typename real_type<scalar_type>::type;
     std::vector<typename fft_output<scalar_type>::type> result(18);
     for(size_t i=0; i<6; i++){
-        result[i]    = typename fft_output<scalar_type>::type((F)(40.0 + 4 * (double)i));
-        result[i+ 6] = typename fft_output<scalar_type>::type(F{-12.0}, F{12.0});
-        result[i+12] = typename fft_output<scalar_type>::type(F{-12.0});
+        result[i]    = typename fft_output<scalar_type>::type(40.0 + 4 * i);
+        result[i+ 6] = typename fft_output<scalar_type>::type(-12.0, 12.0);
+        result[i+12] = typename fft_output<scalar_type>::type(-12.0);
     }
     return result;
 }
@@ -233,7 +228,7 @@ void test_1d_complex(){
         fft->backward(forward_result.data(), workspace.data());
 
         auto backward_result = test_traits<backend_tag>::unload(forward_result);
-        for(auto &r : backward_result) r /= (typename real_type<scalar_type>::type)(2 + i);
+        for(auto &r : backward_result) r /= (2.0 + i);
         sassert(approx(backward_result, input));
     }
 }
@@ -261,7 +256,7 @@ void test_1d_real(){
         typename test_traits<backend_tag>::template container<scalar_type> back_result(result.size());
         fft->backward(result.data(), back_result.data(), workspace.data());
         auto unload_result = test_traits<backend_tag>::unload(back_result);
-        for(auto &r : unload_result) r /= (typename real_type<scalar_type>::type)(2 + i);
+        for(auto &r : unload_result) r /= (2.0 + i);
         sassert(approx(unload_result, input));
     }
 }
@@ -284,7 +279,7 @@ void test_real_rule(typename backend::device_instance<location_tag>::stream_type
 
     fft->backward(load_input.data(), workspace.data());
     auto unload_result = test_traits<location_tag>::unload(load_input);
-    for(auto &r : unload_result) r *= (scalar_type)(scale_factor);
+    for(auto &r : unload_result) r *= scale_factor;
     sassert(approx(unload_result, full_input));
 }
 
@@ -301,38 +296,38 @@ void test_1d_r2r(){
 
     backend::device_instance<typename backend::buffer_traits<cos_tag>::location> device;
 
-    scalar_type box_scale = static_cast<scalar_type>(1.0 / (4 * box.size[0]));
-    scalar_type box5_scale = static_cast<scalar_type>(1.0 / (4 * box5.size[0]));
+    scalar_type box_scale = 1.0 / static_cast<scalar_type>(4 * box.size[0]);
+    scalar_type box5_scale = 1.0 / static_cast<scalar_type>(4 * box5.size[0]);
     if (std::is_same<cos_tag, backend::fftw_cos>::value or std::is_same<cos_tag, backend::fftw_sin>::value) {
-        box_scale = static_cast<scalar_type>(1.0 / (2 * box.size[0]));
-        box5_scale = static_cast<scalar_type>(1.0 / (2 * box5.size[0]));
+        box_scale = 1.0 / static_cast<scalar_type>(2 * box.size[0]);
+        box5_scale = 1.0 / static_cast<scalar_type>(2 * box5.size[0]);
     }
 
     {
     current_test<scalar_type, using_nompi> name(backend::name<cos_tag>() + " one-dimension");
     test_real_rule<location_tag, scalar_type>(device.stream(),
                                               heffte::make_executor<cos_tag>(device.stream(), box, 0), 6,
-                                              make_scalar_vector<scalar_type>({1.0, 2.0, 3.0, 4.0}),
-                                              make_scalar_vector<scalar_type>({2.0000000000000000e+01, -6.3086440597978992e+00, 0.0000000000000000e+00, -4.4834152916796510e-01}),
+                                              std::vector<scalar_type>{1.0, 2.0, 3.0, 4.0},
+                                              std::vector<scalar_type>{2.0000000000000000e+01, -6.3086440597978992e+00, 0.0000000000000000e+00, -4.4834152916796510e-01},
                                               box_scale);
 
     test_real_rule<location_tag, scalar_type>(device.stream(),
                                               heffte::make_executor<cos_tag>(device.stream(), box5, 0), 3,
-                                              make_scalar_vector<scalar_type>({1.0, 2.0, 3.0, 4.0, 5.0}),
-                                              make_scalar_vector<scalar_type>({30.0, -9.9595931395311208, 0.0, -8.9805595315917053e-01, 0.0}),
+                                              std::vector<scalar_type>{1.0, 2.0, 3.0, 4.0, 5.0},
+                                              std::vector<scalar_type>{30.0, -9.9595931395311208, 0.0, -8.9805595315917053e-01, 0.0},
                                               box5_scale);
     }{
     current_test<scalar_type, using_nompi> name(backend::name<sin_tag>() + " one-dimension");
     test_real_rule<location_tag, scalar_type>(device.stream(),
                                               heffte::make_executor<sin_tag>(device.stream(), box, 0), 6,
-                                              make_scalar_vector<scalar_type>({1.0, 2.0, 3.0, 4.0}),
-                                              make_scalar_vector<scalar_type>({1.3065629648763766e+01, -5.6568542494923806e+00, 5.4119610014619699e+00, -4.0e+00}),
+                                              std::vector<scalar_type>{1.0, 2.0, 3.0, 4.0},
+                                              std::vector<scalar_type>{1.3065629648763766e+01, -5.6568542494923806e+00, 5.4119610014619699e+00, -4.0e+00},
                                               box_scale);
 
     test_real_rule<location_tag, scalar_type>(device.stream(),
                                               heffte::make_executor<sin_tag>(device.stream(), box5, 0), 3,
-                                              make_scalar_vector<scalar_type>({1.0, 2.0, 3.0, 4.0, 5.0}),
-                                              make_scalar_vector<scalar_type>({1.9416407864998735e+01, -8.5065080835203979e+00, 7.4164078649987371e+00, -5.2573111211913348e+00, 6.0e+00}),
+                                              std::vector<scalar_type>{1.0, 2.0, 3.0, 4.0, 5.0},
+                                              std::vector<scalar_type>{1.9416407864998735e+01, -8.5065080835203979e+00, 7.4164078649987371e+00, -5.2573111211913348e+00, 6.0e+00},
                                               box5_scale);
     }
 }
@@ -366,7 +361,7 @@ void test_1d_r2c(){
         typename test_traits<backend_tag>::template container<scalar_type> back_result(input.size());
         fft->backward(result.data(), back_result.data(), workspace.data());
         auto unload_result = test_traits<backend_tag>::unload(back_result);
-        for(auto &r : unload_result) r /= static_cast<typename real_type<scalar_type>::type>(2 + i);
+        for(auto &r : unload_result) r /= (2.0 + i);
         sassert(approx(unload_result, input));
     }
 }
@@ -671,7 +666,7 @@ std::vector<scalar_type> make_data(box3d<> const world){
 
     std::vector<scalar_type> result(world.count());
     for(auto &r : result)
-        r = static_cast<typename real_type<scalar_type>::type>(unif(park_miller));
+        r = static_cast<scalar_type>(unif(park_miller));
     return result;
 }
 

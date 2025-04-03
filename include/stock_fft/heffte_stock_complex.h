@@ -7,11 +7,8 @@
 #ifndef HEFFTE_STOCK_COMPLEX_H
 #define HEFFTE_STOCK_COMPLEX_H
 
-#include <complex>
-#include <cstddef>
-#include <initializer_list>
-#include <ostream>
 #include <type_traits>
+#include <iostream>
 
 #include "heffte_stock_vec_types.h"
 

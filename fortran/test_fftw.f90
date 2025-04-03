@@ -23,12 +23,12 @@ allocate(output(fft%size_outbox()))
 allocate(reference(fft%size_outbox()))
 
 do i = 1, fft%size_inbox()
-    input(i) = cmplx(i - 1, 0.0, C_DOUBLE_COMPLEX)
+    input(i) = i - 1
 enddo
 do i = 1, fft%size_outbox()
-    reference(i) = cmplx(0.0, 0.0, C_DOUBLE_COMPLEX)
+    reference(i) = 0.0
 enddo
-reference(1) = cmplx(-512.0, 0.0, C_DOUBLE_COMPLEX)
+reference(1) = -512.0
 
 call fft%forward(input, output)
 if (me == 1) then
@@ -47,9 +47,8 @@ enddo
 call fft%backward(output, input, scale_fftw_full)
 
 do i = 1, fft%size_inbox()
-    if (abs(input(i) - cmplx(i - 1, 0.0, C_DOUBLE_COMPLEX)) > 1.0D-14) then
-        write(*,*) "Error in backward() exceeds tolerance of 1.E-14, error is: ", &
-            abs(input(i) - cmplx(i - 1, 0.0, C_DOUBLE_COMPLEX))
+    if (abs(input(i) - i + 1) > 1.0D-14) then
+        write(*,*) "Error in backward() exceeds tolerance of 1.E-14, error is: ", abs(input(i) - (i - 1))
         error stop
     endif
 enddo

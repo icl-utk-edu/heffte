@@ -10,12 +10,6 @@ target_link_libraries(test_heffte_templates  Heffte)
 add_executable(sandbox  sandbox.cpp)
 target_link_libraries(sandbox  Heffte)
 
-# no MPI test of the formatting helper functions of the complex class
-add_executable(test_complex_ostream  test_complex_ostream.cpp)
-target_link_libraries(test_complex_ostream  Heffte)
-add_test(unit_tests_complex_ostream  test_complex_ostream)
-set_tests_properties(unit_tests_complex_ostream PROPERTIES RUN_SERIAL ${Heffte_SEQUENTIAL_TESTING})
-
 # no MPI test of different aspects of the on-node algorithms
 add_executable(test_unit_nompi test_units_nompi.cpp)
 target_link_libraries(test_unit_nompi  Heffte)

@@ -204,7 +204,7 @@ void test_fft_template(int N,
     for(int i = 0; i < N; i++) for(int j = 0; j < vec_sz; j++) stl_output_forward_ref[i*vec_sz+j] = std::complex<F> {1.};
     sassert(approx(stl_output_forward_fft, stl_output_forward_ref));
     fftBackward(output_forward_fft, output_backward_fft);
-    output_backward_fft[0] /= (F)(input.size());
+    output_backward_fft[0] /= input.size();
     std::vector<std::complex<F>> stl_output_backward_fft = vec_to_std_complex(output_backward_fft);
 
     // Test on an actual signal comparing to DFT
@@ -220,7 +220,7 @@ void test_fft_template(int N,
     vec_to_std_complex(stl_output_forward_ref, output_forward_ref);
     sassert(approx(stl_output_forward_fft, stl_output_forward_ref));
     fftBackward(output_forward_fft, output_backward_fft);
-    for(auto &r : output_backward_fft) r /= (F)(input.size());
+    for(auto &r : output_backward_fft) r /= input.size();
     vec_to_std_complex(stl_output_backward_fft, output_backward_fft);
     sassert(approx(stl_output_backward_fft, stl_input));
 }
@@ -237,18 +237,16 @@ void test_stock_dft_template() {
     // Represents the imaginary parts of reference
     std::vector<F> imag;
     if(is_float<F>::value) {
-        imag = make_scalar_vector<F>(
-                              {18.73128,  8.5581665,
+        imag = std::vector<F> {18.73128,  8.5581665,
                                 4.765777, 2.5117664,
-                                0.7907804});
+                                0.7907804};
     }
     else {
-        imag = make_scalar_vector<F>(
-                              {18.731279813890875,
+        imag = std::vector<F> {18.731279813890875,
                                 8.55816705136493,
                                 4.765777128986846,
                                 2.5117658384695547,
-                                0.790780616972353});
+                                0.790780616972353};
     }
 
     for(int i = 1; i < (N+1)/2; i++) {
@@ -323,8 +321,8 @@ void test_stock_fft_pow2() {
 // Represents the radix-3 Fourier Transform
 template<typename F, int L>
 void test_stock_pow3_template() {
-    heffte::stock::Complex<F,L> plus120 (-F{0.5}, -(F)(sqrt(3)/2.));
-    heffte::stock::Complex<F,L> minus120 (-F{0.5}, (F)(sqrt(3)/2.));
+    heffte::stock::Complex<F,L> plus120 (-0.5, -sqrt(3)/2.);
+    heffte::stock::Complex<F,L> minus120 (-0.5, sqrt(3)/2.);
     std::function<void(complex_vector<F,L>&,complex_vector<F,L>&)> fftForward = [&plus120, &minus120](complex_vector<F,L>& input, complex_vector<F,L>& output) {
         heffte::stock::pow3_FFT_helper<F,L>(input.size(), input.data(), output.data(), 1, 1, heffte::direction::forward, plus120, minus120);
     };

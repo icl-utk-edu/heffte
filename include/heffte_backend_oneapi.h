@@ -21,13 +21,6 @@
 #include "oneapi/mkl/dfti.hpp"
 #endif
 
-#include <algorithm>
-#include <array>
-#include <complex>
-#include <cstdint>
-#include <type_traits>
-#include <vector>
-
 #ifdef Heffte_ENABLE_MAGMA
 // will enable once MAGMA has a DPC++/SYCL backend
 //#include "heffte_magma_helpers.h"
@@ -515,7 +508,7 @@ private:
     void make_plan(onemkl_plan_type &plan) const{
 #if INTEL_MKL_VERSION >= 20250100
         oneapi::mkl::dft::config_value const in_place = oneapi::mkl::dft::config_value::INPLACE;
-        std::vector<std::int64_t> const strides{embed.begin(), embed.end()};
+        auto const &strides = embed;
 #else
         DFTI_CONFIG_VALUE const in_place = DFTI_INPLACE;
         MKL_LONG* const strides = embed.data();
@@ -550,7 +543,7 @@ private:
 
     sycl::queue &q;
     int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
-    std::array<MKL_LONG, 3> embed;
+    std::vector<MKL_LONG> embed;
 
     mutable event_chainer chainer;
     mutable bool init_cplan, init_zplan;

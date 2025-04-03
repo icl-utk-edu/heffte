@@ -207,7 +207,7 @@ namespace data_scaling {
      */
     template<typename scalar_type, typename index>
     void apply(void*, index num_entries, scalar_type *data, double scale_factor){
-        for(index i=0; i<num_entries; i++) data[i] *= static_cast<scalar_type>(scale_factor);
+        for(index i=0; i<num_entries; i++) data[i] *= scale_factor;
     }
     /*!
      * \ingroup hefftepacking

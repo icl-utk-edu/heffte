@@ -59,10 +59,9 @@ std::vector<scalar_type> get_subdata(box3d<> const world, box3d<> const subbox){
         for(int j = 0; j < subbox.size[1]; j++){
             for(int i = 0; i < subbox.size[0]; i++){
                 result[k * sslowstride + j * smidstride + i]
-                    = static_cast<typename real_type<scalar_type>::type>(
-                          (k + world.low[2] + subbox.low[2]) * wslowstride
-                        + (j + world.low[1] + subbox.low[1]) * wmidstride
-                        + i + world.low[0] + subbox.low[0]);
+                    = static_cast<scalar_type>((k + world.low[2] + subbox.low[2]) * wslowstride
+                                                + (j + world.low[1] + subbox.low[1]) * wmidstride
+                                                + i + world.low[0] + subbox.low[0]);
             }
         }
     }
@@ -145,9 +144,9 @@ void test_cpu(MPI_Comm const comm){
         batch_input.insert(batch_input.end(), input_data.begin(), input_data.end());
         batch_reference.insert(batch_reference.end(), reference_data.begin(), reference_data.end());
         for(size_t j=batch_input.size() - input_data.size(); j < batch_input.size(); j++)
-            batch_input[j] *= (typename real_type<scalar_type>::type)(i + 2);
+            batch_input[j] *= (i + 2);
         for(size_t j=batch_reference.size() - reference_data.size(); j < batch_reference.size(); j++)
-            batch_reference[j] *= (typename real_type<scalar_type>::type)(i + 2);
+            batch_reference[j] *= (i + 2);
     }
     output_data = std::vector<scalar_type>(batch_size * rotate_boxes[me].count());
 

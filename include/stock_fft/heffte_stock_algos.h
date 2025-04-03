@@ -34,8 +34,8 @@ struct biFuncNode;
 template<typename F, int L>
 struct omega {
     static inline Complex<F, L> get(size_t power, size_t N, direction dir) {
-        F a = (F)(2.*M_PI)*((F) power)/((F) N);
-        return Complex<F,L>((F)(cos(a)), (F)(direction_sign(dir)*sin(a)));
+        F a = 2.*M_PI*((F) power)/((F) N);
+        return Complex<F,L>(cos(a), direction_sign(dir)*sin(a));
     }
 };
 
@@ -375,7 +375,7 @@ inline void rader_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_ou
     ak = 1;
     y[0] = y0;
     for(size_t m = 0; m < (p-1); m++) {
-        y[ak*s_out] = x[0] + (z[m]/((F) (p-1)));
+        y[ak*s_out] = x[0] + (z[m]/(static_cast<double>(p-1)));
         ak = (ak*a) % p;
     }
 }
@@ -443,8 +443,8 @@ inline void pow3_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
 template<typename F, int L>
 inline void pow3_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_out, biFuncNode<F,L>* sRoot, direction dir) {
     const size_t N = sRoot->sz;
-    Complex<F,L> plus120 (-F{0.5}, -(F)(sqrt(3)/2.));
-    Complex<F,L> minus120 (-F{0.5}, (F)(sqrt(3)/2.));
+    Complex<F,L> plus120 (-0.5, -sqrt(3)/2.);
+    Complex<F,L> minus120 (-0.5, sqrt(3)/2.);
     switch(dir) {
         case direction::forward:  pow3_FFT_helper(N, x, y, s_in, s_out, dir, plus120, minus120); break;
         case direction::backward: pow3_FFT_helper(N, x, y, s_in, s_out, dir, minus120, plus120); break;

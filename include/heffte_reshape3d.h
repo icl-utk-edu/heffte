@@ -287,7 +287,7 @@ private:
                     counts[src] = sizes[i];
                     displacements[src] = offset;
                     offset += sizes[i];
-                    map[src] = static_cast<int>(i);
+                    map[src] = i;
                 }
             }
         }

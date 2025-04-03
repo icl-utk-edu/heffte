@@ -36,7 +36,7 @@ allocate(input(fft_cpu%size_inbox()))
 allocate(output(fft_cpu%size_outbox()))
 
 do i = 1, fft_cpu%size_inbox()
-    input(i) = real(i, C_DOUBLE)
+    input(i) = i
 enddo
 
 call fft_cpu%forward(input, output, scale_fftw_symmetric)

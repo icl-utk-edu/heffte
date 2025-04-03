@@ -7,12 +7,8 @@
 #ifndef HEFFTE_GEOMETRY_H
 #define HEFFTE_GEOMETRY_H
 
-#include <algorithm>
 #include <array>
-#include <ostream>
-#include <stdexcept>
 #include <valarray>
-#include <vector>
 #include "heffte_utils.h"
 
 namespace heffte {
