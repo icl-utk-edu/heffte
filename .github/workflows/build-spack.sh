@@ -6,7 +6,9 @@ BACKEND=$2
 source $(dirname $0)/init.sh
 
 export HOME=`pwd`
-git clone https://github.com/spack/spack || true
+if [ ! -d spack ]; then
+   git clone -b v0.23.1 https://github.com/spack/spack
+fi
 source spack/share/spack/setup-env.sh
 spack config --scope=site add upstreams:i1:install_tree:/apps/spacks/current/opt/spack
 
