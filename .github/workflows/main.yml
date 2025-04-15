@@ -48,4 +48,7 @@ jobs:
                 *.txt
                 spack-build-*/CMakeFiles/*.log
                 build/CMakeFiles/*.log
+                /tmp/github/spack-stage/spack-stage/heffte-*/spack-build-out.txt
+                /tmp/github/spack-stage/spack-stage/heffte-*/install-time-test-log.txt
                 .spack/test/*/*.txt
+
