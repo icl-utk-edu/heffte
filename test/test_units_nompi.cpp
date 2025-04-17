@@ -71,10 +71,10 @@ void test_split_pencils(){
 void test_cpu_scale(){
     using namespace heffte;
     current_test<int, using_nompi> name("cpu scaling");
-    std::vector<float> x = {1.0, 33.0, 88.0, -11.0, 2.0};
+    std::vector<float> x = {1.0f, 33.0f, 88.0f, -11.0f, 2.0f};
     std::vector<float> y = x;
-    for(auto &v : y) v *= 3.0;
-    data_scaling::apply(x.size(), x.data(), 3.0);
+    for(auto &v : y) v *= 3.0f;
+    data_scaling::apply(x.size(), x.data(), 3.0f);
     sassert(approx(x, y));
 
     std::vector<std::complex<double>> cx = {{1.0, -11.0}, {33.0, 8.0}, {88.0, -11.0}, {2.0, -9.0}};
@@ -464,12 +464,12 @@ void test_gpu_vector(){
 void test_gpu_scale(){
     using namespace heffte;
     current_test<int, using_nompi> name("gpu scaling");
-    std::vector<float> x = {1.0, 33.0, 88.0, -11.0, 2.0};
+    std::vector<float> x = {1.0f, 33.0f, 88.0f, -11.0f, 2.0f};
     std::vector<float> y = x;
-    for(auto &v : y) v *= 3.0;
+    for(auto &v : y) v *= 3.0f;
     auto gx = gpu::transfer::load(x);
     backend::device_instance<tag::gpu> device;
-    data_scaling::apply(device.stream(), gx.size(), gx.data(), 3.0);
+    data_scaling::apply(device.stream(), gx.size(), gx.data(), 3.0f);
     x = gpu::transfer::unload(gx);
     sassert(approx(x, y));
 

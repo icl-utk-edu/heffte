@@ -4,8 +4,8 @@ program HeffteFortranExample
     use, intrinsic :: iso_c_binding
     implicit none
     type(heffte_fft3d_fftw) :: fft
-    integer :: mpi_err, mpi_size, me
-    integer :: i
+    integer :: mpi_err, mpi_size, me, rankid
+    integer(C_SIZE_T) :: i
     COMPLEX(C_DOUBLE_COMPLEX), dimension(:), allocatable :: input, output
     REAL(C_DOUBLE) :: err
 
@@ -76,8 +76,8 @@ do i = 1, fft%size_inbox()
 enddo
 
 ! Write out the output one rank at a time
-do i = 1, mpi_size
-    if (me == i-1) then
+do rankid = 1, mpi_size
+    if (me == rankid-1) then
         write(*,*) "MPI rank ", me, " observed error: ", err
     endif
     call MPI_Barrier(MPI_COMM_WORLD, mpi_err)

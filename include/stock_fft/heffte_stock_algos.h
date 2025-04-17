@@ -83,7 +83,7 @@ struct biFuncNode {
     complex_vector<F,L> workspace; // Workspace
     biFuncNode(): fptr(fft_type::discrete) {};
     biFuncNode(size_t sig_size, fft_type type): sz(sig_size), fptr(type), workspace(sig_size) {}; // Create default constructor
-    biFuncNode(size_t sig_size, size_t a, size_t ainv): fptr(a,ainv), workspace(sig_size) {};
+    biFuncNode(size_t sig_size, size_t a, size_t ainv): sz(sig_size), fptr(a,ainv), workspace(sig_size) {};
 };
 
 // Internal helper function to perform a DFT
@@ -145,7 +145,7 @@ inline void pow2_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     }
 
     // Size of sub-problem
-    int m = N/2;
+    size_t m = N/2;
 
     // Divide into two sub-problems
     pow2_FFT_helper(m, x, y, s_in*2, s_out, dir);
@@ -160,9 +160,9 @@ inline void pow2_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     y[m*s_out] = y_j - y[m*s_out];
 
     // Conquer larger problem accordingly
-    for(int j = 1; j < m; j++) {
-        int j_stride = j*s_out;
-        int jm_stride = (j+m)*s_out;
+    for(size_t j = 1; j < m; j++) {
+        size_t j_stride = j*s_out;
+        size_t jm_stride = (j+m)*s_out;
         y_j = y[j_stride];
         y[j_stride]  = y_j + wj*y[jm_stride];
         y[jm_stride] = y_j - wj*y[jm_stride];
@@ -197,7 +197,7 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     }
 
     // Size of sub-problem
-    int m = N/4;
+    size_t m = N/4;
 
     // Divide into two sub-problems
     pow4_FFT_helper(m, x         , y            , s_in*4, s_out, dir);
@@ -210,10 +210,10 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     Complex<F,L> w2 = w1*w1;
     Complex<F,L> w3 = w2*w1;
     Complex<F,L> wk1 = w1; Complex<F,L> wk2 = w2; Complex<F,L> wk3 = w3;
-    int k0 =         0;
-    int k1 =   m*s_out;
-    int k2 = 2*m*s_out;
-    int k3 = 3*m*s_out;
+    size_t k0 =         0;
+    size_t k1 =   m*s_out;
+    size_t k2 = 2*m*s_out;
+    size_t k3 = 3*m*s_out;
     Complex<F,L> y_k0 = y[k0];
     Complex<F,L> y_k1 = y[k1];
     Complex<F,L> y_k2 = y[k2];
@@ -224,7 +224,7 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
         y[k1] = y_k0 - y_k2 + (y_k1 - y_k3).__mul_neg_i();
         y[k2] = y_k0 + y_k2 - (y_k1 + y_k3);
         y[k3] = y_k0 - y_k2 + (y_k1 - y_k3).__mul_i();
-        for(int k = 1; k < m; k++) {
+        for(size_t k = 1; k < m; k++) {
             k0 = (k      )*s_out;
             k1 = (k +   m)*s_out;
             k2 = (k + 2*m)*s_out;
@@ -245,7 +245,7 @@ inline void pow4_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
         y[k1] = y_k0 - y_k2 + (y_k1 - y_k3).__mul_i();
         y[k2] = y_k0 + y_k2 -  y_k1 - y_k3;
         y[k3] = y_k0 - y_k2 + (y_k1 - y_k3).__mul_neg_i();
-        for(int k = 1; k < m; k++) {
+        for(size_t k = 1; k < m; k++) {
             k0 = (k      )*s_out;
             k1 = (k +   m)*s_out;
             k2 = (k + 2*m)*s_out;
@@ -337,8 +337,8 @@ inline void rader_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_ou
     // Temporary workspace
     Complex<F,L>* z = sRoot->workspace.data();
     // Loop variables
-    int ak = 1;
-    int akinv = 1;
+    size_t ak = 1;
+    size_t akinv = 1;
     Complex<F,L> y0 = x[0];
 
     // First, "invert" the order of x
@@ -365,14 +365,17 @@ inline void rader_FFT(Complex<F,L>* x, Complex<F,L>* y, size_t s_in, size_t s_ou
         y[m*s_out] = z[m]*Cm;
     }
 
+    // Get reverse direction
+    direction rev_dir = (dir == direction::forward) ? direction::backward : direction::forward;
+
     // Bring back into signal domain
-    subFFT->fptr(y, &z[0], s_out, 1, subFFT, (direction) (-1*((int) dir)));
+    subFFT->fptr(y, &z[0], s_out, 1, subFFT, rev_dir);
 
     // Shuffle as needed
     ak = 1;
     y[0] = y0;
     for(size_t m = 0; m < (p-1); m++) {
-        y[ak*s_out] = x[0] + (z[m]/((double) (p-1)));
+        y[ak*s_out] = x[0] + (z[m]/(static_cast<double>(p-1)));
         ak = (ak*a) % p;
     }
 }
@@ -403,9 +406,9 @@ inline void pow3_FFT_helper(size_t N, Complex<F,L>* x, Complex<F,L>* y, size_t s
     Complex<F,L> wk1 = w1;
     Complex<F,L> wk2 = w2;
 
-    int k1 =                0;
-    int k2 =   Nprime * s_out;
-    int k3 = 2*Nprime * s_out;
+    size_t k1 =                0;
+    size_t k2 =   Nprime * s_out;
+    size_t k3 = 2*Nprime * s_out;
 
     Complex<F,L> tmpk     = y[k1];
     Complex<F,L> tmpk_p_1 = y[k2];

@@ -5,7 +5,7 @@ program HeffteFortranTester
     implicit none
     type(heffte_fft3d_fftw) :: fft
     integer :: mpi_err, me
-    integer :: i
+    integer(C_SIZE_T) :: i
     COMPLEX(C_DOUBLE_COMPLEX), dimension(:), allocatable :: input, output, reference
 
 call MPI_Init(mpi_err)
@@ -34,7 +34,7 @@ call fft%forward(input, output)
 if (me == 1) then
     do i = 1, fft%size_outbox()
         if (abs(output(i) - reference(i)) > 1.0D-14) then
-            write(*,*) "Error in forward() exceeds tolerance of 1.E-14, error is: ", abs(input(i) - reference(i))
+            write(*,*) "Error in forward() exceeds tolerance of 1.E-14, error is: ", abs(output(i) - reference(i))
             error stop
         endif
     enddo
@@ -48,7 +48,7 @@ call fft%backward(output, input, scale_fftw_full)
 
 do i = 1, fft%size_inbox()
     if (abs(input(i) - i + 1) > 1.0D-14) then
-        write(*,*) "Error in backward() exceeds tolerance of 1.E-14, error is: ", abs(input(i) - i - 1)
+        write(*,*) "Error in backward() exceeds tolerance of 1.E-14, error is: ", abs(input(i) - (i - 1))
         error stop
     endif
 enddo
