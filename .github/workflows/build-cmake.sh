@@ -6,7 +6,10 @@ BACKEND=$2
 source $(dirname $0)/init.sh
 
 source /apps/spacks/current/github_env/share/spack/setup-env.sh
-spack env activate --without-view heffte2
+
+[ "$BACKEND" = "CUDA" ] && ENV=heffte-cuda || ENV=heffte
+
+spack env activate --without-view $ENV
 
 spack load cmake
 spack load openmpi
