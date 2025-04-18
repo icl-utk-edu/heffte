@@ -25,7 +25,8 @@ elif [ "$BACKEND" = "ROCM" ]; then
    SPEC+="+rocm amdgpu_target=gfx90a ^hip@5.7.3"
 fi
 
-SPEC+=" ^openmpi~rsh~cuda ^hwloc~cuda"
+[ "$BACKEND" = "CUDA" ] && CUDA="+cuda" || CUDA="~cuda"
+SPEC+=" ^openmpi~rsh$CUDA ^hwloc$CUDA"
 echo SPEC=$SPEC
 
 if [ "$STAGE" = "build" ]; then
