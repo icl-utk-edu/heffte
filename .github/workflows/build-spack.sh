@@ -1,9 +1,10 @@
 #!/bin/bash -e
 
+set +x
+trap 'echo "# $BASH_COMMAND"' DEBUG
+
 STAGE=$1
 BACKEND=$2
-
-source $(dirname $0)/init.sh
 
 export HOME=`pwd`
 if [ ! -d spack ]; then
