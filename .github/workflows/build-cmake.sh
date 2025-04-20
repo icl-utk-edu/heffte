@@ -14,7 +14,6 @@ fi
 source $SPACK_SETUP
 
 [ "$BACKEND" = "CUDA" ] && ENV=heffte-cuda || ENV=heffte
-
 spack env activate --without-view $ENV
 
 spack load cmake

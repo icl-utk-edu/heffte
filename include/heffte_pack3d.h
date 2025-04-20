@@ -206,7 +206,7 @@ namespace data_scaling {
      * \brief Simply multiply the \b num_entries in the \b data by the \b scale_factor.
      */
     template<typename scalar_type, typename index>
-    void apply(void*, index num_entries, scalar_type *data, double scale_factor){;
+    void apply(void*, index num_entries, scalar_type *data, double scale_factor){
         for(index i=0; i<num_entries; i++) data[i] *= scale_factor;
     }
     /*!

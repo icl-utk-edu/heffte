@@ -201,10 +201,12 @@ endif()
 
 # other target properties
 if (Heffte_ENABLE_AVX)
-    target_compile_options(Heffte PUBLIC -mfma -mavx)
+    target_compile_options(Heffte PUBLIC $<$<COMPILE_LANGUAGE:C,CXX>:-mfma>
+                                         $<$<COMPILE_LANGUAGE:C,CXX>:-mavx>)
 endif()
 if (Heffte_ENABLE_AVX512)
-    target_compile_options(Heffte PUBLIC -mavx512f -mavx512dq)
+    target_compile_options(Heffte PUBLIC $<$<COMPILE_LANGUAGE:C,CXX>:-mavx512f>
+                                         $<$<COMPILE_LANGUAGE:C,CXX>:-mavx512dq>)
 endif()
 
 target_compile_features(Heffte PUBLIC cxx_std_11)

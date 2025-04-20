@@ -15,7 +15,11 @@
 
 #include <sycl/sycl.hpp>
 #include "oneapi/mkl.hpp"
+#if INTEL_MKL_VERSION >= 20250100
+#include "oneapi/mkl/dft.hpp"
+#else
 #include "oneapi/mkl/dfti.hpp"
+#endif
 
 #ifdef Heffte_ENABLE_MAGMA
 // will enable once MAGMA has a DPC++/SYCL backend
@@ -502,21 +506,28 @@ private:
     //! \brief Helper template to create the plan.
     template<typename onemkl_plan_type>
     void make_plan(onemkl_plan_type &plan) const{
+#if INTEL_MKL_VERSION >= 20250100
+        oneapi::mkl::dft::config_value const in_place = oneapi::mkl::dft::config_value::INPLACE;
+        auto const &strides = embed;
+#else
+        DFTI_CONFIG_VALUE const in_place = DFTI_INPLACE;
+        MKL_LONG const* const strides = embed.data();
+#endif
         if (dist == 0){
             plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, 1);
-            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
+            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, in_place);
         }else if (size2 == 0){
             plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
-            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
-            plan.set_value(oneapi::mkl::dft::config_param::FWD_STRIDES, embed.data());
-            plan.set_value(oneapi::mkl::dft::config_param::BWD_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, in_place);
+            plan.set_value(oneapi::mkl::dft::config_param::FWD_STRIDES, strides);
+            plan.set_value(oneapi::mkl::dft::config_param::BWD_STRIDES, strides);
             plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
             plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
         }else{
             plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
-            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_INPLACE);
-            plan.set_value(oneapi::mkl::dft::config_param::FWD_STRIDES, embed.data());
-            plan.set_value(oneapi::mkl::dft::config_param::BWD_STRIDES, embed.data());
+            plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, in_place);
+            plan.set_value(oneapi::mkl::dft::config_param::FWD_STRIDES, strides);
+            plan.set_value(oneapi::mkl::dft::config_param::BWD_STRIDES, strides);
             plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) dist);
             plan.set_value(oneapi::mkl::dft::config_param::BWD_DISTANCE, (MKL_LONG) dist);
         }
@@ -532,7 +543,7 @@ private:
 
     sycl::queue &q;
     int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
-    std::array<MKL_LONG, 3> embed;
+    std::vector<MKL_LONG> embed;
 
     mutable event_chainer chainer;
     mutable bool init_cplan, init_zplan;
@@ -616,10 +627,18 @@ private:
     //! \brief Helper template to initialize the plan.
     template<typename onemkl_plan_type>
     void make_plan(onemkl_plan_type &plan) const{
-        plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
-        plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_NOT_INPLACE);
-        plan.set_value(oneapi::mkl::dft::config_param::CONJUGATE_EVEN_STORAGE, DFTI_COMPLEX_COMPLEX);
+#if INTEL_MKL_VERSION >= 20250100
+        oneapi::mkl::dft::config_value const not_inplace = oneapi::mkl::dft::config_value::NOT_INPLACE;
+        oneapi::mkl::dft::config_value const complex_complex = oneapi::mkl::dft::config_value::COMPLEX_COMPLEX;
+        std::vector<std::int64_t> slstride = {0, static_cast<MKL_LONG>(stride)};
+#else
+        DFTI_CONFIG_VALUE const not_inplace = DFTI_NOT_INPLACE;
+        DFTI_CONFIG_VALUE const complex_complex = DFTI_COMPLEX_COMPLEX;
         MKL_LONG slstride[] = {0, static_cast<MKL_LONG>(stride)};
+#endif
+        plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
+        plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, not_inplace);
+        plan.set_value(oneapi::mkl::dft::config_param::CONJUGATE_EVEN_STORAGE, complex_complex);
         plan.set_value(oneapi::mkl::dft::config_param::FWD_STRIDES, slstride);
         plan.set_value(oneapi::mkl::dft::config_param::BWD_STRIDES, slstride);
         plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) rdist);

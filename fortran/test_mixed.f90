@@ -7,7 +7,7 @@ program HeffteFortranTester
     type(heffte_fft3d_fftw) :: fft_cpu
     type(heffte_fft3d_cufft) :: cufft
     integer :: mpi_err, me
-    integer :: i
+    integer(C_SIZE_T) :: i
     REAL(C_DOUBLE), dimension(:), allocatable :: input
     COMPLEX(C_DOUBLE_COMPLEX), dimension(:), allocatable :: output
 

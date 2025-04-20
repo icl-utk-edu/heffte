@@ -229,9 +229,9 @@ void test_direct_reordered(MPI_Comm const comm){
     box3d<> world(std::array<int, 3>{0, 0, 0}, std::array<int, 3>{9, 10, 8}, std::array<int, 3>{2, 0, 1});
 
     std::vector<box3d<>> inboxes, outboxes;
-    for(auto b : split_world(world, {2, 2, 1})) inboxes.push_back({b.low, b.high, world.order});
+    for(auto b : split_world(world, {2, 2, 1})) inboxes.emplace_back(b.low, b.high, world.order);
     std::vector<box3d<>> temp = split_world(world, {2, 1, 2}); // need to swap the middle two entries
-    for(auto i : std::vector<int>{0, 2, 1, 3}) outboxes.push_back({temp[i].low, temp[i].high, world.order});
+    for(auto i : std::vector<int>{0, 2, 1, 3}) outboxes.emplace_back(temp[i].low, temp[i].high, world.order);
 
     {
         auto reshape = make_reshape3d_alltoallv<tag::cpu>(nullptr, inboxes, outboxes, false, comm);
@@ -301,7 +301,7 @@ void test_reshape_transposed(MPI_Comm comm){
                 if (i == 0 and j == 1 and k == 2) continue; // no transpose, no need to check
 
                 std::vector<box3d<>> outboxes;
-                for(auto b : ordered_outboxes) outboxes.push_back(box3d<>(b.low, b.high, order));
+                for(auto b : ordered_outboxes) outboxes.emplace_back(b.low, b.high, order);
 
                 heffte::plan_options options = default_options<default_cpu_backend>();
                 options.algorithm = variant;
