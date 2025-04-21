@@ -1,9 +1,10 @@
 #!/bin/bash -e
 
+set +x
+trap 'echo "# $BASH_COMMAND"' DEBUG
+
 STAGE=$1
 BACKEND=$2
-
-source $(dirname $0)/init.sh
 
 export HOME=`pwd`
 if [ ! -d spack ]; then
@@ -12,20 +13,21 @@ fi
 source spack/share/spack/setup-env.sh
 spack config --scope=site add upstreams:i1:install_tree:/apps/spacks/current/opt/spack
 
-VARIANTS=""
+SPEC="heffte@develop "
 if [ "$BACKEND" = "FFTW" ]; then
-   VARIANTS="+fftw"
+   SPEC+="+fftw"
 elif [ "$BACKEND" = "MKL" ]; then
-   VARIANTS="+mkl"
+   SPEC+="+mkl"
    # Need to replace deprecated intel-mkl package with oneapi version
    sed -i s/intel-mkl/intel-oneapi-mkl/ spack/var/spack/repos/builtin/packages/heffte/package.py
 elif [ "$BACKEND" = "CUDA" ]; then
-   VARIANTS="+cuda cuda_arch=70 ^cuda@11.8.0"
+   SPEC+="+cuda cuda_arch=70 ^cuda@11.8.0"
 elif [ "$BACKEND" = "ROCM" ]; then
-   VARIANTS="+rocm amdgpu_target=gfx90a ^hip@5.7.3"
+   SPEC+="+rocm amdgpu_target=gfx90a ^hip@5.7.3"
 fi
 
-SPEC="heffte@develop $VARIANTS ^openmpi"
+[ "$BACKEND" = "CUDA" ] && CUDA="+cuda" || CUDA="~cuda"
+SPEC+=" ^openmpi~rsh$CUDA ^hwloc$CUDA"
 echo SPEC=$SPEC
 
 if [ "$STAGE" = "build" ]; then

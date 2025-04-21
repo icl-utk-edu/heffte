@@ -1,14 +1,19 @@
 #!/bin/bash -e
 
+set +x
+trap 'echo "# $BASH_COMMAND"' DEBUG
+
 STAGE=$1
 BACKEND=$2
 
-source $(dirname $0)/init.sh
-
-source /apps/spacks/current/github_env/share/spack/setup-env.sh
+if [[ -z "$SPACK_SETUP" || ! -f "$SPACK_SETUP" ]]; then
+   echo Error! Environment variable \$SPACK_SETUP must point
+   echo to a valid setup-env.sh Spack setup script.
+   exit 1
+fi
+source $SPACK_SETUP
 
 [ "$BACKEND" = "CUDA" ] && ENV=heffte-cuda || ENV=heffte
-
 spack env activate --without-view $ENV
 
 spack load cmake
