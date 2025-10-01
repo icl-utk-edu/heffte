@@ -6,7 +6,7 @@ trap 'echo "# $BASH_COMMAND"' DEBUG
 STAGE=$1
 BACKEND=$2
 
-SPACK_SETUP=/apps/spacks/2025-04-15/github_env/share/spack/setup-env.sh
+SPACK_SETUP=/apps/spacks/2025-08-22/github_env/share/spack/setup-env.sh
 
 if [[ -z "$SPACK_SETUP" || ! -f "$SPACK_SETUP" ]]; then
    echo Error! Environment variable \$SPACK_SETUP must point
