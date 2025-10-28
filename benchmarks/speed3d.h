@@ -197,7 +197,7 @@ void benchmark_fft(std::array<int,3> size_fft, std::deque<std::string> const &ar
     // Validate result, but first unload from the GPU
     #ifdef Heffte_ENABLE_GPU
     #if defined(BENCH_C2C) || defined(BENCH_R2R)
-    if (std::is_same<backend_tag, gpu_backend>::value){
+    if (backend::uses_gpu<backend_tag>::value){
         output = gpu::transfer::unload(gpu_output);
         result = output.data();
     }
