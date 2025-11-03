@@ -60,7 +60,7 @@ __global__ __launch_bounds__(num_threads) void real_complex_convert(index num_en
  * Launch this with one block per line.
  */
 template<typename scalar_type, int num_threads, int tuple_size, bool pack, typename index>
-__global__ __launch_bounds__(num_threads) void direct_packer(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+__global__ __launch_bounds__(num_threads) void direct_packer(index nfast, index nmid, index nslow, index line_stride, index plane_stride,
                                           scalar_type const source[], scalar_type destination[]){
     index block_index = blockIdx.x;
     while(block_index < nmid * nslow){
@@ -69,11 +69,11 @@ __global__ __launch_bounds__(num_threads) void direct_packer(index nfast, index 
         index slow = block_index / nmid;
 
         scalar_type const *block_source = (pack) ?
-                            &source[tuple_size * (mid * line_stride + slow * plane_stide)] :
+                            &source[tuple_size * (mid * line_stride + slow * plane_stride)] :
                             &source[block_index * nfast * tuple_size];
         scalar_type *block_destination = (pack) ?
                             &destination[block_index * nfast * tuple_size] :
-                            &destination[tuple_size * (mid * line_stride + slow * plane_stide)];
+                            &destination[tuple_size * (mid * line_stride + slow * plane_stride)];
 
         index i = threadIdx.x;
         while(i < nfast * tuple_size){
@@ -89,7 +89,7 @@ __global__ __launch_bounds__(num_threads) void direct_packer(index nfast, index 
  * Launch this with one block per line of the destination.
  */
 template<typename scalar_type, int num_threads, int tuple_size, int map0, int map1, int map2, typename index>
-__global__ __launch_bounds__(num_threads) void transpose_unpacker(index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+__global__ __launch_bounds__(num_threads) void transpose_unpacker(index nfast, index nmid, index nslow, index line_stride, index plane_stride,
                                    index buff_line_stride, index buff_plane_stride,
                                    scalar_type const source[], scalar_type destination[]){
 
@@ -102,29 +102,29 @@ __global__ __launch_bounds__(num_threads) void transpose_unpacker(index nfast, i
         index i = threadIdx.x;
         while(i < nfast){
             if (map0 == 0 and map1 == 1 and map2 == 2){
-                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (k * buff_plane_stride + j * buff_line_stride + i)];
+                destination[tuple_size * (k * plane_stride + j * line_stride + i)] = source[tuple_size * (k * buff_plane_stride + j * buff_line_stride + i)];
                 if (tuple_size > 1)
-                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (k * buff_plane_stride + j * buff_line_stride + i) + 1];
+                    destination[tuple_size * (k * plane_stride + j * line_stride + i) + 1] = source[tuple_size * (k * buff_plane_stride + j * buff_line_stride + i) + 1];
             }else if (map0 == 0 and map1 == 2 and map2 == 1){
-                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (j * buff_plane_stride + k * buff_line_stride + i)];
+                destination[tuple_size * (k * plane_stride + j * line_stride + i)] = source[tuple_size * (j * buff_plane_stride + k * buff_line_stride + i)];
                 if (tuple_size > 1)
-                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (j * buff_plane_stride + k * buff_line_stride + i) + 1];
+                    destination[tuple_size * (k * plane_stride + j * line_stride + i) + 1] = source[tuple_size * (j * buff_plane_stride + k * buff_line_stride + i) + 1];
             }else if (map0 == 1 and map1 == 0 and map2 == 2){
-                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (k * buff_plane_stride + i * buff_line_stride + j)];
+                destination[tuple_size * (k * plane_stride + j * line_stride + i)] = source[tuple_size * (k * buff_plane_stride + i * buff_line_stride + j)];
                 if (tuple_size > 1)
-                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (k * buff_plane_stride + i * buff_line_stride + j) + 1];
+                    destination[tuple_size * (k * plane_stride + j * line_stride + i) + 1] = source[tuple_size * (k * buff_plane_stride + i * buff_line_stride + j) + 1];
             }else if (map0 == 1 and map1 == 2 and map2 == 0){
-                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (i * buff_plane_stride + k * buff_line_stride + j)];
+                destination[tuple_size * (k * plane_stride + j * line_stride + i)] = source[tuple_size * (i * buff_plane_stride + k * buff_line_stride + j)];
                 if (tuple_size > 1)
-                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (i * buff_plane_stride + k * buff_line_stride + j) + 1];
+                    destination[tuple_size * (k * plane_stride + j * line_stride + i) + 1] = source[tuple_size * (i * buff_plane_stride + k * buff_line_stride + j) + 1];
             }else if (map0 == 2 and map1 == 1 and map2 == 0){
-                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (i * buff_plane_stride + j * buff_line_stride + k)];
+                destination[tuple_size * (k * plane_stride + j * line_stride + i)] = source[tuple_size * (i * buff_plane_stride + j * buff_line_stride + k)];
                 if (tuple_size > 1)
-                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (i * buff_plane_stride + j * buff_line_stride + k) + 1];
+                    destination[tuple_size * (k * plane_stride + j * line_stride + i) + 1] = source[tuple_size * (i * buff_plane_stride + j * buff_line_stride + k) + 1];
             }else if (map0 == 2 and map1 == 0 and map2 == 1){
-                destination[tuple_size * (k * plane_stide + j * line_stride + i)] = source[tuple_size * (j * buff_plane_stride + i * buff_line_stride + k)];
+                destination[tuple_size * (k * plane_stride + j * line_stride + i)] = source[tuple_size * (j * buff_plane_stride + i * buff_line_stride + k)];
                 if (tuple_size > 1)
-                    destination[tuple_size * (k * plane_stide + j * line_stride + i) + 1] = source[tuple_size * (j * buff_plane_stride + i * buff_line_stride + k) + 1];
+                    destination[tuple_size * (k * plane_stride + j * line_stride + i) + 1] = source[tuple_size * (j * buff_plane_stride + i * buff_line_stride + k) + 1];
             }
             i += num_threads;
         }
@@ -385,22 +385,22 @@ template<typename precision_type> struct precision<std::complex<precision_type>>
 };
 
 template<typename scalar_type, typename index>
-void direct_pack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+void direct_pack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride,
                  scalar_type const source[], scalar_type destination[]){
     constexpr index max_blocks = 65536;
     using prec = typename precision<scalar_type>::type;
     direct_packer<prec, max_threads, precision<scalar_type>::tuple_size, to_pack>
-            <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>(nfast, nmid, nslow, line_stride, plane_stide,
+            <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>(nfast, nmid, nslow, line_stride, plane_stride,
             reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
 }
 
 template<typename scalar_type, typename index>
-void direct_unpack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+void direct_unpack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride,
                    scalar_type const source[], scalar_type destination[]){
     constexpr index max_blocks = 65536;
     using prec = typename precision<scalar_type>::type;
     direct_packer<prec, max_threads, precision<scalar_type>::tuple_size, not to_pack>
-            <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>(nfast, nmid, nslow, line_stride, plane_stide,
+            <<<std::min(nmid * nslow, max_blocks), max_threads, 0, stream>>>(nfast, nmid, nslow, line_stride, plane_stride,
             reinterpret_cast<prec const*>(source), reinterpret_cast<prec*>(destination));
 }
 

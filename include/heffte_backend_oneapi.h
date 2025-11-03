@@ -101,7 +101,7 @@ namespace oapi {
      * Launches a SYCL/DPC++ kernel.
      */
     template<typename scalar_type, typename index>
-    void direct_pack(sycl::queue &stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
+    void direct_pack(sycl::queue &stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride, scalar_type const source[], scalar_type destination[]);
     /*!
      * \ingroup heffteoneapi
      * \brief Performs a direct-unpack operation for data sitting on the GPU device.
@@ -109,7 +109,7 @@ namespace oapi {
      * Launches a SYCL/DPC++ kernel.
      */
     template<typename scalar_type, typename index>
-    void direct_unpack(sycl::queue &stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
+    void direct_unpack(sycl::queue &stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride, scalar_type const source[], scalar_type destination[]);
     /*!
      * \ingroup heffteoneapi
      * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
@@ -117,7 +117,7 @@ namespace oapi {
      * Launches a SYCL/DPC++ kernel.
      */
     template<typename scalar_type, typename index>
-    void transpose_unpack(sycl::queue &stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+    void transpose_unpack(sycl::queue &stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride,
                         index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                         scalar_type const source[], scalar_type destination[]);
 

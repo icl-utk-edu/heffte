@@ -39,25 +39,26 @@ namespace heffte {
  * for the example above size will be {1, 2, 3}.
  *
  * In addition to the low and high indexes, the box has orientation with respect to the i j k indexing,
- * indicating which are the fast, middle and slow growing dimensions.
- * For example, suppose we want to access the entries of a \b box stored in a \b data array
+ * indicating which are the fast (0), middle (1) and slow (2) growing dimensions.
+ * For example, suppose we want to access the entries of a \b box stored in a \b data array in column-major order
  * \code
  *  // if box.order is {0, 1, 2}
  *  int const plane = box.size[0] * box.size[1];
- *  int const lane  = box.size[0];
+ *  int const line  = box.size[0];
  *  for(int i = box.low[0]; i <= box.high[0]; i++)
  *      for(int j = box.low[1]; j <= box.high[1]; j++)
- *          for(int k = box.low[2]; j <= box.high[2]; j++)
+ *          for(int k = box.low[2]; k <= box.high[2]; k++)
  *              std::cout << data[k * plane + j * line + i] << "\n";
  * \endcode
+ * Similarly, for an array in row-major order, \b box.order should be {2, 1, 0}.
  * However,
  * \code
  *  // if box.order is {2, 0, 1}
  *  int const plane = box.size[box.order[0]] * box.size[box.order[1]];
- *  int const lane  = box.size[box.order[0]];
+ *  int const line  = box.size[box.order[0]];
  *  for(int i = box.low[0]; i <= box.high[0]; i++)
  *      for(int j = box.low[1]; j <= box.high[1]; j++)
- *          for(int k = box.low[2]; j <= box.high[2]; j++)
+ *          for(int k = box.low[2]; k <= box.high[2]; k++)
  *              std::cout << data[j * plane + i * line + k] << "\n";
  * \endcode
  *
