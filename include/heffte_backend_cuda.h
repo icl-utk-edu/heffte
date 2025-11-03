@@ -89,7 +89,7 @@ namespace cuda {
      * Launches a CUDA kernel.
      */
     template<typename scalar_type, typename index>
-    void direct_pack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
+    void direct_pack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride, scalar_type const source[], scalar_type destination[]);
     /*!
      * \ingroup hefftecuda
      * \brief Performs a direct-unpack operation for data sitting on the GPU device.
@@ -97,7 +97,7 @@ namespace cuda {
      * Launches a CUDA kernel.
      */
     template<typename scalar_type, typename index>
-    void direct_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide, scalar_type const source[], scalar_type destination[]);
+    void direct_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride, scalar_type const source[], scalar_type destination[]);
     /*!
      * \ingroup hefftecuda
      * \brief Performs a transpose-unpack operation for data sitting on the GPU device.
@@ -105,7 +105,7 @@ namespace cuda {
      * Launches a CUDA kernel.
      */
     template<typename scalar_type, typename index>
-    void transpose_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+    void transpose_unpack(cudaStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride,
                         index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                         scalar_type const source[], scalar_type destination[]);
 

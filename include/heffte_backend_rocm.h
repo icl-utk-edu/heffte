@@ -92,7 +92,7 @@ namespace rocm {
      * Launches a HIP kernel.
      */
     template<typename scalar_type, typename index>
-    void direct_pack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+    void direct_pack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride,
                     scalar_type const source[], scalar_type destination[]);
     /*!
      * \ingroup heffterocm
@@ -101,7 +101,7 @@ namespace rocm {
      * Launches a HIP kernel.
      */
     template<typename scalar_type, typename index>
-    void direct_unpack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+    void direct_unpack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride,
                     scalar_type const source[], scalar_type destination[]);
     /*!
      * \ingroup heffterocm
@@ -110,7 +110,7 @@ namespace rocm {
      * Launches a HIP kernel.
      */
     template<typename scalar_type, typename index>
-    void transpose_unpack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stide,
+    void transpose_unpack(hipStream_t stream, index nfast, index nmid, index nslow, index line_stride, index plane_stride,
                         index buff_line_stride, index buff_plane_stride, int map0, int map1, int map2,
                         scalar_type const source[], scalar_type destination[]);
 
