@@ -403,7 +403,7 @@ public:
         blocks((dimension == box.order[1]) ? box.osize(2) : 1),
         block_stride(box.osize(0) * box.osize(1)),
         total_size(box.count()),
-        embed({0, static_cast<MKL_LONG>(stride), 0}),
+        embed({0, static_cast<MKL_LONG>(stride)}),
         init_cplan(false), init_zplan(false),
         cplan(size), zplan(size)
     {}
@@ -543,7 +543,7 @@ private:
 
     sycl::queue &q;
     int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
-    std::vector<MKL_LONG> embed;
+    std::vector<int64_t> embed;
 
     mutable event_chainer chainer;
     mutable bool init_cplan, init_zplan;
@@ -629,7 +629,9 @@ private:
     void make_plan(onemkl_plan_type &plan) const{
 #if INTEL_MKL_VERSION >= 20250100
         oneapi::mkl::dft::config_value const not_inplace = oneapi::mkl::dft::config_value::NOT_INPLACE;
+        #if INTEL_MKL_VERSION <= 20250200
         oneapi::mkl::dft::config_value const complex_complex = oneapi::mkl::dft::config_value::COMPLEX_COMPLEX;
+        #endif
         std::vector<std::int64_t> slstride = {0, static_cast<MKL_LONG>(stride)};
 #else
         DFTI_CONFIG_VALUE const not_inplace = DFTI_NOT_INPLACE;
@@ -638,7 +640,9 @@ private:
 #endif
         plan.set_value(oneapi::mkl::dft::config_param::NUMBER_OF_TRANSFORMS, (MKL_LONG) howmanyffts);
         plan.set_value(oneapi::mkl::dft::config_param::PLACEMENT, not_inplace);
+        #if INTEL_MKL_VERSION <= 20250200
         plan.set_value(oneapi::mkl::dft::config_param::CONJUGATE_EVEN_STORAGE, complex_complex);
+        #endif
         plan.set_value(oneapi::mkl::dft::config_param::FWD_STRIDES, slstride);
         plan.set_value(oneapi::mkl::dft::config_param::BWD_STRIDES, slstride);
         plan.set_value(oneapi::mkl::dft::config_param::FWD_DISTANCE, (MKL_LONG) rdist);
