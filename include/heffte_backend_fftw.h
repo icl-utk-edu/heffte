@@ -84,6 +84,91 @@ template<> struct is_zcomplex<fftw_complex> : std::true_type{};
 
 /*!
  * \ingroup hefftefftw
+ * \brief Returns the alignment of the array as defined by fftwf_alignment_of().
+ */
+inline int fftw_alignment(float const *x){ return fftwf_alignment_of(const_cast<float*>(x)); }
+/*!
+ * \ingroup hefftefftw
+ * \brief Returns the alignment of the array as defined by fftw_alignment_of().
+ */
+inline int fftw_alignment(double const *x){ return fftw_alignment_of(const_cast<double*>(x)); }
+/*!
+ * \ingroup hefftefftw
+ * \brief Returns the alignment of the complex array, i.e., the alignment of its first real entry.
+ */
+inline int fftw_alignment(std::complex<float> const *x){ return fftw_alignment(reinterpret_cast<float const*>(x)); }
+/*!
+ * \ingroup hefftefftw
+ * \brief Returns the alignment of the complex array, i.e., the alignment of its first real entry.
+ */
+inline int fftw_alignment(std::complex<double> const *x){ return fftw_alignment(reinterpret_cast<double const*>(x)); }
+
+/*!
+ * \ingroup hefftefftw
+ * \brief The properties of the input and output arrays that an FFTW plan is bound to.
+ *
+ * FFTW makes a plan for the arrays given to the planner.
+ * The new-array execute functions, e.g., fftw_execute_dft(), can apply the plan to other arrays
+ * only if the other arrays are in-place or out-of-place as the planning arrays were
+ * and have the same alignment in the sense of fftw_alignment_of(),
+ * see https://www.fftw.org/fftw3_doc/New_002darray-Execute-Functions.html
+ */
+struct fftw_arrays{
+    //! \brief Records the properties of the input and output arrays of a transform.
+    template<typename input_type, typename output_type>
+    fftw_arrays(input_type const *input, output_type const *output) :
+        in_place(static_cast<void const*>(input) == static_cast<void const*>(output)),
+        input_alignment(fftw_alignment(input)),
+        output_alignment(fftw_alignment(output))
+    {}
+    //! \brief Returns true if a plan made for one set of arrays can be applied to the other.
+    bool operator == (fftw_arrays const &other) const{
+        return in_place == other.in_place and input_alignment == other.input_alignment
+               and output_alignment == other.output_alignment;
+    }
+    //! \brief Indicates whether the input and output are the same array.
+    bool in_place;
+    //! \brief The alignment of the input array.
+    int input_alignment;
+    //! \brief The alignment of the output array.
+    int output_alignment;
+};
+
+/*!
+ * \ingroup hefftefftw
+ * \brief Holds the plans of one transform, each made for arrays with different fftw_arrays properties.
+ *
+ * A plan is made the first time the transform is applied to arrays with new properties,
+ * using those arrays, and it is reused for all later arrays with the same properties.
+ * If every call uses arrays with the same alignment, there is only one plan.
+ * The plans use FFTW_ESTIMATE, so planning does not overwrite the arrays.
+ */
+template<typename plan_type>
+struct fftw_plan_set{
+    /*!
+     * \brief Returns a plan that can be applied to the input and output arrays.
+     *
+     * \tparam plan_maker is a callable that takes no arguments and returns
+     *         a pointer to a new plan made for the input and output arrays
+     *
+     * \param input is the input array of the transform
+     * \param output is the output array, the same as the input for in-place transforms
+     * \param new_plan is called only if no plan in the set can be applied to the arrays
+     */
+    template<typename input_type, typename output_type, typename plan_maker>
+    plan_type const& get(input_type const *input, output_type const *output, plan_maker new_plan){
+        fftw_arrays const arrays(input, output);
+        for(auto const &p : plans)
+            if (p.first == arrays) return *p.second;
+        plans.emplace_back(arrays, std::unique_ptr<plan_type>(new_plan()));
+        return *plans.back().second;
+    }
+    //! \brief The plans and the properties of the arrays they were made for.
+    std::vector<std::pair<fftw_arrays, std::unique_ptr<plan_type>>> plans;
+};
+
+/*!
+ * \ingroup hefftefftw
  * \brief Base plan for fftw, using only the specialization for float and double complex.
  *
  * FFTW3 library uses plans for forward and backward fft transforms.
@@ -107,10 +192,11 @@ struct plan_fftw<std::complex<float>, dir>{
      * \param howmanyffts is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
      * \param dist is the distance between the first entries of consecutive sequences
+     * \param data is the array that the plan will transform in-place, planning with FFTW_ESTIMATE does not modify it
      */
-    plan_fftw(int size, int howmanyffts, int stride, int dist) :
-        plan(fftwf_plan_many_dft(1, &size, howmanyffts, nullptr, nullptr, stride, dist,
-                                                    nullptr, nullptr, stride, dist,
+    plan_fftw(int size, int howmanyffts, int stride, int dist, std::complex<float> *data = nullptr) :
+        plan(fftwf_plan_many_dft(1, &size, howmanyffts, reinterpret_cast<fftwf_complex*>(data), nullptr, stride, dist,
+                                                    reinterpret_cast<fftwf_complex*>(data), nullptr, stride, dist,
                                                     (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                 ))
         {}
@@ -123,26 +209,30 @@ struct plan_fftw<std::complex<float>, dir>{
      * \param howmanyffts is the number of transforms in the batch
      * \param stride is the distance between entries of the same transform
      * \param dist is the distance between the first entries of consecutive sequences
+     * \param data is the array that the plan will transform in-place, planning with FFTW_ESTIMATE does not modify it
      */
-    plan_fftw(int size1, int size2, std::array<int, 2> const &embed, int howmanyffts, int stride, int dist){
+    plan_fftw(int size1, int size2, std::array<int, 2> const &embed, int howmanyffts, int stride, int dist,
+              std::complex<float> *data = nullptr){
         std::array<int, 2> size = {size2, size1};
+        fftwf_complex *fdata = reinterpret_cast<fftwf_complex*>(data);
 
         if (embed[0] == 0 and embed[1] == 0){
-            plan = fftwf_plan_many_dft(2, size.data(), howmanyffts, nullptr, nullptr, stride, dist,
-                                                    nullptr, nullptr, stride, dist,
+            plan = fftwf_plan_many_dft(2, size.data(), howmanyffts, fdata, nullptr, stride, dist,
+                                                    fdata, nullptr, stride, dist,
                                                     (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                       );
         }else{
-            plan = fftwf_plan_many_dft(2, size.data(), howmanyffts, nullptr, embed.data(), stride, dist,
-                                                    nullptr, embed.data(), stride, dist,
+            plan = fftwf_plan_many_dft(2, size.data(), howmanyffts, fdata, embed.data(), stride, dist,
+                                                    fdata, embed.data(), stride, dist,
                                                     (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                       );
         }
     }
     //! \brief Identical to the float-complex specialization.
-    plan_fftw(int size1, int size2, int size3){
+    plan_fftw(int size1, int size2, int size3, std::complex<float> *data = nullptr){
         std::array<int, 3> size = {size3, size2, size1};
-        plan = fftwf_plan_many_dft(3, size.data(), 1, nullptr, nullptr, 1, 1, nullptr, nullptr, 1, 1,
+        fftwf_complex *fdata = reinterpret_cast<fftwf_complex*>(data);
+        plan = fftwf_plan_many_dft(3, size.data(), 1, fdata, nullptr, 1, 1, fdata, nullptr, 1, 1,
                                    (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE);
     }
     //! \brief Destructor, deletes the plan.
@@ -159,32 +249,35 @@ struct plan_fftw<std::complex<float>, dir>{
 template<direction dir>
 struct plan_fftw<std::complex<double>, dir>{
     //! \brief Identical to the float-complex specialization.
-    plan_fftw(int size, int howmanyffts, int stride, int dist) :
-        plan(fftw_plan_many_dft(1, &size, howmanyffts, nullptr, nullptr, stride, dist,
-                                                   nullptr, nullptr, stride, dist,
+    plan_fftw(int size, int howmanyffts, int stride, int dist, std::complex<double> *data = nullptr) :
+        plan(fftw_plan_many_dft(1, &size, howmanyffts, reinterpret_cast<fftw_complex*>(data), nullptr, stride, dist,
+                                                   reinterpret_cast<fftw_complex*>(data), nullptr, stride, dist,
                                                    (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                ))
         {}
     //! \brief Identical to the float-complex specialization.
-    plan_fftw(int size1, int size2, std::array<int, 2> const &embed, int howmanyffts, int stride, int dist){
+    plan_fftw(int size1, int size2, std::array<int, 2> const &embed, int howmanyffts, int stride, int dist,
+              std::complex<double> *data = nullptr){
         std::array<int, 2> size = {size2, size1};
+        fftw_complex *fdata = reinterpret_cast<fftw_complex*>(data);
 
         if (embed[0] == 0 and embed[1] == 0){
-            plan = fftw_plan_many_dft(2, size.data(), howmanyffts, nullptr, nullptr, stride, dist,
-                                                      nullptr, nullptr, stride, dist,
+            plan = fftw_plan_many_dft(2, size.data(), howmanyffts, fdata, nullptr, stride, dist,
+                                                      fdata, nullptr, stride, dist,
                                                       (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                      );
         }else{
-            plan = fftw_plan_many_dft(2, size.data(), howmanyffts, nullptr, embed.data(), stride, dist,
-                                                      nullptr, embed.data(), stride, dist,
+            plan = fftw_plan_many_dft(2, size.data(), howmanyffts, fdata, embed.data(), stride, dist,
+                                                      fdata, embed.data(), stride, dist,
                                                       (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE
                                      );
         }
     }
     //! \brief Identical to the float-complex specialization.
-    plan_fftw(int size1, int size2, int size3){
+    plan_fftw(int size1, int size2, int size3, std::complex<double> *data = nullptr){
         std::array<int, 3> size = {size3, size2, size1};
-        plan = fftw_plan_many_dft(3, size.data(), 1, nullptr, nullptr, 1, 1, nullptr, nullptr, 1, 1,
+        fftw_complex *fdata = reinterpret_cast<fftw_complex*>(data);
+        plan = fftw_plan_many_dft(3, size.data(), 1, fdata, nullptr, 1, 1, fdata, nullptr, 1, 1,
                                   (dir == direction::forward) ? FFTW_FORWARD : FFTW_BACKWARD, FFTW_ESTIMATE);
     }
     //! \brief Identical to the float-complex specialization.
@@ -263,34 +356,30 @@ public:
 
     //! \brief Forward fft, float-complex case.
     void forward(std::complex<float> data[], std::complex<float>*) const override{
-        make_plan(cforward);
         for(int i=0; i<blocks; i++){
             fftwf_complex* block_data = reinterpret_cast<fftwf_complex*>(data + i * block_stride);
-            fftwf_execute_dft(*cforward, block_data, block_data);
+            fftwf_execute_dft(make_plan(cforward, data + i * block_stride), block_data, block_data);
         }
     }
     //! \brief Backward fft, float-complex case.
     void backward(std::complex<float> data[], std::complex<float>*) const override{
-        make_plan(cbackward);
         for(int i=0; i<blocks; i++){
             fftwf_complex* block_data = reinterpret_cast<fftwf_complex*>(data + i * block_stride);
-            fftwf_execute_dft(*cbackward, block_data, block_data);
+            fftwf_execute_dft(make_plan(cbackward, data + i * block_stride), block_data, block_data);
         }
     }
     //! \brief Forward fft, double-complex case.
     void forward(std::complex<double> data[], std::complex<double>*) const override{
-        make_plan(zforward);
         for(int i=0; i<blocks; i++){
             fftw_complex* block_data = reinterpret_cast<fftw_complex*>(data + i * block_stride);
-            fftw_execute_dft(*zforward, block_data, block_data);
+            fftw_execute_dft(make_plan(zforward, data + i * block_stride), block_data, block_data);
         }
     }
     //! \brief Backward fft, double-complex case.
     void backward(std::complex<double> data[], std::complex<double>*) const override{
-        make_plan(zbackward);
         for(int i=0; i<blocks; i++){
             fftw_complex* block_data = reinterpret_cast<fftw_complex*>(data + i * block_stride);
-            fftw_execute_dft(*zbackward, block_data, block_data);
+            fftw_execute_dft(make_plan(zbackward, data + i * block_stride), block_data, block_data);
         }
     }
 
@@ -321,25 +410,25 @@ public:
     size_t workspace_size() const override{ return 0; }
 
 private:
-    //! \brief Helper template to create the plan.
+    //! \brief Helper template to create the plan with the data array, or to find a plan already made for such an array.
     template<typename scalar_type, direction dir>
-    void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
-        if (not plan){
+    plan_fftw<scalar_type, dir> const& make_plan(fftw_plan_set<plan_fftw<scalar_type, dir>> &plans, scalar_type data[]) const{
+        return plans.get(data, data, [&]()->plan_fftw<scalar_type, dir>*{
             if (dist == 0)
-                plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, size2, howmanyffts));
+                return new plan_fftw<scalar_type, dir>(size, size2, howmanyffts, data);
             else if (size2 == 0)
-                plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, dist));
+                return new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, dist, data);
             else
-                plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, size2, embed, howmanyffts, stride, dist));
-        }
+                return new plan_fftw<scalar_type, dir>(size, size2, embed, howmanyffts, stride, dist, data);
+        });
     }
 
     int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
     std::array<int, 2> embed;
-    mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::forward>> cforward;
-    mutable std::unique_ptr<plan_fftw<std::complex<float>, direction::backward>> cbackward;
-    mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::forward>> zforward;
-    mutable std::unique_ptr<plan_fftw<std::complex<double>, direction::backward>> zbackward;
+    mutable fftw_plan_set<plan_fftw<std::complex<float>, direction::forward>> cforward;
+    mutable fftw_plan_set<plan_fftw<std::complex<float>, direction::backward>> cbackward;
+    mutable fftw_plan_set<plan_fftw<std::complex<double>, direction::forward>> zforward;
+    mutable fftw_plan_set<plan_fftw<std::complex<double>, direction::backward>> zbackward;
 };
 
 /*!
@@ -356,15 +445,20 @@ struct plan_fftw<float, dir>{
      * \param stride is the distance between entries of the same transform
      * \param rdist is the distance between the first entries of consecutive sequences in the real sequences
      * \param cdist is the distance between the first entries of consecutive sequences in the complex sequences
+     * \param rdata is the real array that the plan will transform, planning with FFTW_ESTIMATE does not modify it
+     * \param cdata is the complex array that the plan will transform, planning with FFTW_ESTIMATE does not modify it
+     *
+     * Distinct real and complex arrays give an out-of-place plan, which is how fftw_executor_r2c applies the plan.
      */
-    plan_fftw(int size, int howmanyffts, int stride, int rdist, int cdist) :
+    plan_fftw(int size, int howmanyffts, int stride, int rdist, int cdist,
+              float *rdata = nullptr, std::complex<float> *cdata = nullptr) :
         plan((dir == direction::forward) ?
-             fftwf_plan_many_dft_r2c(1, &size, howmanyffts, nullptr, nullptr, stride, rdist,
-                                                   nullptr, nullptr, stride, cdist,
+             fftwf_plan_many_dft_r2c(1, &size, howmanyffts, rdata, nullptr, stride, rdist,
+                                                   reinterpret_cast<fftwf_complex*>(cdata), nullptr, stride, cdist,
                                                    FFTW_ESTIMATE
                                    ) :
-             fftwf_plan_many_dft_c2r(1, &size, howmanyffts, nullptr, nullptr, stride, cdist,
-                                                   nullptr, nullptr, stride, rdist,
+             fftwf_plan_many_dft_c2r(1, &size, howmanyffts, reinterpret_cast<fftwf_complex*>(cdata), nullptr, stride, cdist,
+                                                   rdata, nullptr, stride, rdist,
                                                    FFTW_ESTIMATE
                                    ))
         {}
@@ -382,14 +476,15 @@ struct plan_fftw<float, dir>{
 template<direction dir>
 struct plan_fftw<double, dir>{
     //! \brief Identical to the float-complex specialization.
-    plan_fftw(int size, int howmanyffts, int stride, int rdist, int cdist) :
+    plan_fftw(int size, int howmanyffts, int stride, int rdist, int cdist,
+              double *rdata = nullptr, std::complex<double> *cdata = nullptr) :
         plan((dir == direction::forward) ?
-             fftw_plan_many_dft_r2c(1, &size, howmanyffts, nullptr, nullptr, stride, rdist,
-                                                   nullptr, nullptr, stride, cdist,
+             fftw_plan_many_dft_r2c(1, &size, howmanyffts, rdata, nullptr, stride, rdist,
+                                                   reinterpret_cast<fftw_complex*>(cdata), nullptr, stride, cdist,
                                                    FFTW_ESTIMATE
                                    ) :
-             fftw_plan_many_dft_c2r(1, &size, howmanyffts, nullptr, nullptr, stride, cdist,
-                                                   nullptr, nullptr, stride, rdist,
+             fftw_plan_many_dft_c2r(1, &size, howmanyffts, reinterpret_cast<fftw_complex*>(cdata), nullptr, stride, cdist,
+                                                   rdata, nullptr, stride, rdist,
                                                    FFTW_ESTIMATE
                                    ))
         {}
@@ -408,6 +503,7 @@ struct plan_fftw<double, dir>{
  * Serves the same purpose of heffte::fftw_executor but only real input is accepted
  * and only the unique (non-conjugate) coefficients are computed.
  * All real arrays must have size of real_size() and all complex arrays must have size complex_size().
+ * The transforms are out-of-place, the real and complex arrays must be distinct.
  */
 class fftw_executor_r2c : public executor_base{
 public:
@@ -436,36 +532,34 @@ public:
 
     //! \brief Forward transform, single precision.
     void forward(float const indata[], std::complex<float> outdata[], std::complex<float>*) const override{
-        make_plan(sforward);
         for(int i=0; i<blocks; i++){
             float *rdata = const_cast<float*>(indata + i * rblock_stride);
             fftwf_complex* cdata = reinterpret_cast<fftwf_complex*>(outdata + i * cblock_stride);
-            fftwf_execute_dft_r2c(*sforward, rdata, cdata);
+            fftwf_execute_dft_r2c(make_plan(sforward, rdata, outdata + i * cblock_stride), rdata, cdata);
         }
     }
     //! \brief Backward transform, single precision.
     void backward(std::complex<float> indata[], float outdata[], std::complex<float>*) const override{
-        make_plan(sbackward);
         for(int i=0; i<blocks; i++){
             fftwf_complex* cdata = const_cast<fftwf_complex*>(reinterpret_cast<fftwf_complex const*>(indata + i * cblock_stride));
-            fftwf_execute_dft_c2r(*sbackward, cdata, outdata + i * rblock_stride);
+            fftwf_execute_dft_c2r(make_plan(sbackward, outdata + i * rblock_stride, indata + i * cblock_stride),
+                                  cdata, outdata + i * rblock_stride);
         }
     }
     //! \brief Forward transform, double precision.
     void forward(double const indata[], std::complex<double> outdata[], std::complex<double>*) const override{
-        make_plan(dforward);
         for(int i=0; i<blocks; i++){
             double *rdata = const_cast<double*>(indata + i * rblock_stride);
             fftw_complex* cdata = reinterpret_cast<fftw_complex*>(outdata + i * cblock_stride);
-            fftw_execute_dft_r2c(*dforward, rdata, cdata);
+            fftw_execute_dft_r2c(make_plan(dforward, rdata, outdata + i * cblock_stride), rdata, cdata);
         }
     }
     //! \brief Backward transform, double precision.
     void backward(std::complex<double> indata[], double outdata[], std::complex<double>*) const override{
-        make_plan(dbackward);
         for(int i=0; i<blocks; i++){
             fftw_complex* cdata = const_cast<fftw_complex*>(reinterpret_cast<fftw_complex const*>(indata + i * cblock_stride));
-            fftw_execute_dft_c2r(*dbackward, cdata, outdata + i * rblock_stride);
+            fftw_execute_dft_c2r(make_plan(dbackward, outdata + i * rblock_stride, indata + i * cblock_stride),
+                                 cdata, outdata + i * rblock_stride);
         }
     }
 
@@ -477,18 +571,27 @@ public:
     size_t workspace_size() const override{ return 0; }
 
 private:
-    //! \brief Helper template to initialize the plan.
+    /*!
+     * \brief Helper template to create the plan with the real and complex arrays, or to find a plan already made for such arrays.
+     *
+     * The transform is out-of-place, so the real and complex arrays must be distinct.
+     */
     template<typename scalar_type, direction dir>
-    void make_plan(std::unique_ptr<plan_fftw<scalar_type, dir>> &plan) const{
-        if (!plan) plan = std::unique_ptr<plan_fftw<scalar_type, dir>>(new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, rdist, cdist));
+    plan_fftw<scalar_type, dir> const& make_plan(fftw_plan_set<plan_fftw<scalar_type, dir>> &plans,
+                                                  scalar_type rdata[], std::complex<scalar_type> cdata[]) const{
+        if (static_cast<void const*>(rdata) == static_cast<void const*>(cdata))
+            throw std::runtime_error("heffte::fftw_executor_r2c requires distinct real and complex arrays, the transform is out-of-place");
+        return plans.get(rdata, cdata, [&]()->plan_fftw<scalar_type, dir>*{
+            return new plan_fftw<scalar_type, dir>(size, howmanyffts, stride, rdist, cdist, rdata, cdata);
+        });
     }
 
     int size, howmanyffts, stride, blocks;
     int rdist, cdist, rblock_stride, cblock_stride, rsize, csize;
-    mutable std::unique_ptr<plan_fftw<float, direction::forward>> sforward;
-    mutable std::unique_ptr<plan_fftw<double, direction::forward>> dforward;
-    mutable std::unique_ptr<plan_fftw<float, direction::backward>> sbackward;
-    mutable std::unique_ptr<plan_fftw<double, direction::backward>> dbackward;
+    mutable fftw_plan_set<plan_fftw<float, direction::forward>> sforward;
+    mutable fftw_plan_set<plan_fftw<double, direction::forward>> dforward;
+    mutable fftw_plan_set<plan_fftw<float, direction::backward>> sbackward;
+    mutable fftw_plan_set<plan_fftw<double, direction::backward>> dbackward;
 };
 
 /*!
@@ -532,29 +635,30 @@ template<> struct fftw_r2r_types<float> {
 template<typename scalar_type, typename preprocessor, direction dir>
 struct plan_fftw_r2r{
     //! \brief Identical to the float-complex specialization.
-    plan_fftw_r2r(int size, int howmanyffts, int stride, int dist){
+    plan_fftw_r2r(int size, int howmanyffts, int stride, int dist, scalar_type *data = nullptr){
         auto kind = make_kind_array<1>();
-        plan = fftw_r2r_types<scalar_type>::plan_many(1, &size, howmanyffts, nullptr, nullptr, stride, dist,
-                                                      nullptr, nullptr, stride, dist, kind.data(), FFTW_ESTIMATE);
+        plan = fftw_r2r_types<scalar_type>::plan_many(1, &size, howmanyffts, data, nullptr, stride, dist,
+                                                      data, nullptr, stride, dist, kind.data(), FFTW_ESTIMATE);
     }
     //! \brief Identical to the float-complex specialization.
-    plan_fftw_r2r(int size1, int size2, std::array<int, 2> const &embed, int howmanyffts, int stride, int dist){
+    plan_fftw_r2r(int size1, int size2, std::array<int, 2> const &embed, int howmanyffts, int stride, int dist,
+                  scalar_type *data = nullptr){
         std::array<int, 2> size = {size2, size1};
         auto kind = make_kind_array<2>();
 
         if (embed[0] == 0 and embed[1] == 0){
-            plan = fftw_r2r_types<scalar_type>::plan_many(2, size.data(), howmanyffts, nullptr, nullptr, stride, dist,
-                                                          nullptr, nullptr, stride, dist, kind.data(), FFTW_ESTIMATE);
+            plan = fftw_r2r_types<scalar_type>::plan_many(2, size.data(), howmanyffts, data, nullptr, stride, dist,
+                                                          data, nullptr, stride, dist, kind.data(), FFTW_ESTIMATE);
         }else{
-            plan = fftw_r2r_types<scalar_type>::plan_many(2, size.data(), howmanyffts, nullptr, embed.data(), stride, dist,
-                                                          nullptr, embed.data(), stride, dist, kind.data(), FFTW_ESTIMATE);
+            plan = fftw_r2r_types<scalar_type>::plan_many(2, size.data(), howmanyffts, data, embed.data(), stride, dist,
+                                                          data, embed.data(), stride, dist, kind.data(), FFTW_ESTIMATE);
         }
     }
     //! \brief Identical to the float-complex specialization.
-    plan_fftw_r2r(int size1, int size2, int size3){
+    plan_fftw_r2r(int size1, int size2, int size3, scalar_type *data = nullptr){
         std::array<int, 3> size = {size3, size2, size1};
         auto kind = make_kind_array<3>();
-        plan = fftw_r2r_types<scalar_type>::plan_many(3, size.data(), 1, nullptr, nullptr, 1, 1, nullptr, nullptr, 1, 1, kind.data(), FFTW_ESTIMATE);
+        plan = fftw_r2r_types<scalar_type>::plan_many(3, size.data(), 1, data, nullptr, 1, 1, data, nullptr, 1, 1, kind.data(), FFTW_ESTIMATE);
     }
     //! \brief Make the array with the kind of the transform.
     template<size_t dims> static std::array<fftw_r2r_kind, dims> make_kind_array() {
@@ -633,53 +737,51 @@ template<typename prepost_processor> struct real2real_executor<backend::fftw, pr
     }
     //! \brief Forward r2r, single precision.
     virtual void forward(float data[], float*) const override{
-        make_plan(sforward);
         for(int i=0; i<blocks; i++){
-            fftwf_execute_r2r(*sforward, data + i * block_stride, data + i * block_stride);
+            fftwf_execute_r2r(make_plan(sforward, data + i * block_stride), data + i * block_stride, data + i * block_stride);
         }
     }
     //! \brief Forward r2r, double precision.
     virtual void forward(double data[], double*) const override{
-        make_plan(dforward);
         for(int i=0; i<blocks; i++){
-            fftw_execute_r2r(*dforward, data + i * block_stride, data + i * block_stride);
+            fftw_execute_r2r(make_plan(dforward, data + i * block_stride), data + i * block_stride, data + i * block_stride);
         }
     }
     //! \brief Backward r2r, single precision.
     virtual void backward(float data[], float*) const override{
-        make_plan(sbackward);
         for(int i=0; i<blocks; i++){
-            fftwf_execute_r2r(*sbackward, data + i * block_stride, data + i * block_stride);
+            fftwf_execute_r2r(make_plan(sbackward, data + i * block_stride), data + i * block_stride, data + i * block_stride);
         }
     }
     //! \brief Backward r2r, double precision.
     virtual void backward(double data[], double*) const override{
-        make_plan(dbackward);
         for(int i=0; i<blocks; i++){
-            fftw_execute_r2r(*dbackward, data + i * block_stride, data + i * block_stride);
+            fftw_execute_r2r(make_plan(dbackward, data + i * block_stride), data + i * block_stride, data + i * block_stride);
         }
     }
 
 private:
-    //! \brief Helper template to initialize the plan.
+    //! \brief Helper template to create the plan with the data array, or to find a plan already made for such an array.
     template<typename scalar_type, direction dir>
-    void make_plan(std::unique_ptr<plan_fftw_r2r<scalar_type, prepost_processor, dir>> &plan) const{
-        if (not plan){
+    plan_fftw_r2r<scalar_type, prepost_processor, dir> const&
+    make_plan(fftw_plan_set<plan_fftw_r2r<scalar_type, prepost_processor, dir>> &plans, scalar_type data[]) const{
+        using plan_type = plan_fftw_r2r<scalar_type, prepost_processor, dir>;
+        return plans.get(data, data, [&]()->plan_type*{
             if (dist == 0)
-                plan = std::unique_ptr<plan_fftw_r2r<scalar_type, prepost_processor, dir>>(new plan_fftw_r2r<scalar_type, prepost_processor, dir>(size, size2, howmanyffts));
+                return new plan_type(size, size2, howmanyffts, data);
             else if (size2 == 0)
-                plan = std::unique_ptr<plan_fftw_r2r<scalar_type, prepost_processor, dir>>(new plan_fftw_r2r<scalar_type, prepost_processor, dir>(size, howmanyffts, stride, dist));
+                return new plan_type(size, howmanyffts, stride, dist, data);
             else
-                plan = std::unique_ptr<plan_fftw_r2r<scalar_type, prepost_processor, dir>>(new plan_fftw_r2r<scalar_type, prepost_processor, dir>(size, size2, embed, howmanyffts, stride, dist));
-        }
+                return new plan_type(size, size2, embed, howmanyffts, stride, dist, data);
+        });
     }
 
     int size, size2, howmanyffts, stride, dist, blocks, block_stride, total_size;
     std::array<int, 2> embed;
-    mutable std::unique_ptr<plan_fftw_r2r<float, prepost_processor, direction::forward>> sforward;
-    mutable std::unique_ptr<plan_fftw_r2r<double, prepost_processor, direction::forward>> dforward;
-    mutable std::unique_ptr<plan_fftw_r2r<float, prepost_processor, direction::backward>> sbackward;
-    mutable std::unique_ptr<plan_fftw_r2r<double, prepost_processor, direction::backward>> dbackward;
+    mutable fftw_plan_set<plan_fftw_r2r<float, prepost_processor, direction::forward>> sforward;
+    mutable fftw_plan_set<plan_fftw_r2r<double, prepost_processor, direction::forward>> dforward;
+    mutable fftw_plan_set<plan_fftw_r2r<float, prepost_processor, direction::backward>> sbackward;
+    mutable fftw_plan_set<plan_fftw_r2r<double, prepost_processor, direction::backward>> dbackward;
 };
 
 /*!
