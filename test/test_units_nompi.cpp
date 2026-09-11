@@ -6,6 +6,8 @@
 */
 
 #include <random>
+#include <cmath>
+#include <cstring>
 
 #include "test_common.h"
 
@@ -808,6 +810,134 @@ void test_cross_reference(){
     #endif
 }
 
+#ifdef Heffte_ENABLE_FFTW
+/*
+ * FFTW can apply a plan to arrays other than the ones used to make the plan only if the new arrays
+ * are in-place or out-of-place as the planning arrays were and have the same alignment,
+ * see https://www.fftw.org/fftw3_doc/New_002darray-Execute-Functions.html
+ * The FFTW executors make their plans with the arrays of each execute, block by block,
+ * and make a new plan for arrays with a different alignment.
+ * The checks apply one executor to the same data placed at offsets of 0 to 3 real entries,
+ * which differ in alignment when FFTW uses SIMD instructions.  Every result must be finite (approx()
+ * alone would accept a NaN) and match the first call, the inverse must return the input, and repeating
+ * the first offset must reproduce the first result bit for bit (compared as bytes), since arrays like
+ * the first ones reuse the first plan.
+ */
+template<typename T> bool all_finite(std::vector<T> const &x){
+    for(auto const &v : x) if (!std::isfinite(v)) return false;
+    return true;
+}
+template<typename T> bool all_finite(std::vector<std::complex<T>> const &x){
+    for(auto const &v : x) if (!std::isfinite(v.real()) || !std::isfinite(v.imag())) return false;
+    return true;
+}
+template<typename T> bool same_bytes(std::vector<T> const &a, std::vector<T> const &b){
+    return a.size() == b.size() && std::memcmp(a.data(), b.data(), a.size() * sizeof(T)) == 0;
+}
+template<typename data_type, typename scalar_type, typename executor_type>
+void check_fftw_offsets(executor_type const &fft, std::vector<data_type> const &input, scalar_type scale){
+    constexpr size_t ratio = sizeof(data_type) / sizeof(scalar_type); // 1 for real data, 2 for complex
+    std::vector<data_type> first;
+    double norm = 1.0;
+    for(size_t offset : std::vector<size_t>{0, 1, 2, 3, 0}){
+        std::vector<scalar_type> storage(ratio * input.size() + 4);
+        data_type *data = reinterpret_cast<data_type*>(storage.data() + offset);
+        std::copy(input.begin(), input.end(), data);
+
+        fft.forward(data, nullptr);
+        std::vector<data_type> result(data, data + input.size());
+        sassert(all_finite(result));
+        if (first.empty()){
+            first = result;
+            for(auto const &r : first) norm = std::max(norm, static_cast<double>(std::abs(r)));
+        }else if (offset == 0){
+            sassert(same_bytes(result, first));
+        }
+        sassert(approx(result, first, 1.0 / norm));
+
+        fft.backward(data, nullptr);
+        result = std::vector<data_type>(data, data + input.size());
+        for(auto &r : result) r /= scale;
+        sassert(all_finite(result));
+        sassert(approx(result, input));
+    }
+}
+/*
+ * Same as check_fftw_offsets() for the out-of-place r2c executor, with the real and complex arrays
+ * at independent offsets.  The r2c transform must not modify its input, and an in-place call is refused.
+ */
+template<typename scalar_type, typename executor_type>
+void check_fftw_r2c_offsets(executor_type const &fft, std::vector<scalar_type> const &input, scalar_type scale){
+    size_t const csize = static_cast<size_t>(fft.complex_size());
+    std::vector<std::pair<size_t, size_t>> const offsets = {{0, 0}, {1, 0}, {2, 0}, {3, 0},
+                                                            {0, 1}, {1, 1}, {2, 1}, {3, 1}, {0, 0}};
+    std::vector<std::complex<scalar_type>> first;
+    double norm = 1.0;
+    for(size_t k=0; k<offsets.size(); k++){
+        std::vector<scalar_type> rstorage(input.size() + 4), cstorage(2 * csize + 2);
+        scalar_type *rdata = rstorage.data() + offsets[k].first;
+        std::complex<scalar_type> *cdata = reinterpret_cast<std::complex<scalar_type>*>(cstorage.data() + offsets[k].second);
+        std::copy(input.begin(), input.end(), rdata);
+
+        fft.forward(rdata, cdata, nullptr);
+        sassert(std::equal(input.begin(), input.end(), rdata)); // the input is not modified
+        std::vector<std::complex<scalar_type>> result(cdata, cdata + csize);
+        sassert(all_finite(result));
+        if (first.empty()){
+            first = result;
+            for(auto const &r : first) norm = std::max(norm, static_cast<double>(std::abs(r)));
+        }else if (k + 1 == offsets.size()){
+            sassert(same_bytes(result, first));
+        }
+        sassert(approx(result, first, 1.0 / norm));
+
+        fft.backward(cdata, rdata, nullptr);
+        std::vector<scalar_type> inverse(rdata, rdata + input.size());
+        for(auto &r : inverse) r /= scale;
+        sassert(all_finite(inverse));
+        sassert(approx(inverse, input));
+    }
+
+    std::vector<scalar_type> storage(2 * csize + 2);
+    bool refused = false;
+    try{
+        fft.forward(storage.data(), reinterpret_cast<std::complex<scalar_type>*>(storage.data()), nullptr);
+    }catch(std::runtime_error &){
+        refused = true;
+    }
+    sassert(refused);
+}
+
+template<typename scalar_type>
+void test_fftw_new_arrays(){
+    current_test<scalar_type, using_nompi> name("fftw executors on new arrays");
+
+    // with odd sizes, the blocks of the transforms in direction 1 start at alternating alignments
+    box3d<> const box = {{0, 0, 0}, {10, 12, 6}};
+    auto const rinput = make_data<scalar_type>(box);
+    auto const cinput = make_data<std::complex<scalar_type>>(box);
+    std::array<scalar_type, 3> const n = {static_cast<scalar_type>(box.size[0]),
+                                          static_cast<scalar_type>(box.size[1]),
+                                          static_cast<scalar_type>(box.size[2])};
+    using fftw_cos_executor = real2real_executor<backend::fftw, cpu_cos_pre_pos_processor>;
+    using fftw_sin_executor = real2real_executor<backend::fftw, cpu_sin_pre_pos_processor>;
+
+    for(int dir=0; dir<3; dir++){
+        check_fftw_r2c_offsets(fftw_executor_r2c(nullptr, box, dir), rinput, n[dir]);
+        check_fftw_offsets(fftw_executor(nullptr, box, dir), cinput, n[dir]);
+        check_fftw_offsets(fftw_cos_executor(nullptr, box, dir), rinput, 2 * n[dir]);
+        check_fftw_offsets(fftw_sin_executor(nullptr, box, dir), rinput, 2 * n[dir]);
+    }
+    // the 2-D transforms, directions 0 and 2 use the embedded layout, and the 3-D transforms
+    check_fftw_offsets(fftw_executor(nullptr, box, 0, 1), cinput, n[0] * n[1]);
+    check_fftw_offsets(fftw_executor(nullptr, box, 1, 2), cinput, n[1] * n[2]);
+    check_fftw_offsets(fftw_executor(nullptr, box, 0, 2), cinput, n[0] * n[2]);
+    check_fftw_offsets(fftw_executor(nullptr, box), cinput, n[0] * n[1] * n[2]);
+    check_fftw_offsets(fftw_cos_executor(nullptr, box, 0, 2), rinput, 4 * n[0] * n[2]);
+    check_fftw_offsets(fftw_cos_executor(nullptr, box), rinput, 8 * n[0] * n[1] * n[2]);
+}
+#endif
+
 int main(int, char**){
 
     all_tests<using_nompi> name("Non-MPI Tests");
@@ -826,6 +956,11 @@ int main(int, char**){
     test_transpose();
 
     test_cross_reference();
+
+    #ifdef Heffte_ENABLE_FFTW
+    test_fftw_new_arrays<float>();
+    test_fftw_new_arrays<double>();
+    #endif
 
     return 0;
 }
