@@ -176,6 +176,21 @@ namespace backend {
      * \brief Type-tag for the Cosine Transform type 1 using the cuFFT backend
      */
     struct cufft_cos1{};
+    /*!
+     * \ingroup hefftecuda
+     * \brief Type-tag for the Sine Transform type 1 using the cuFFT backend
+     */
+    struct cufft_sin1{};
+    /*!
+     * \ingroup hefftecuda
+     * \brief Type-tag for the Cosine Transform type 4 using the cuFFT backend
+     */
+    struct cufft_cos4{};
+    /*!
+     * \ingroup hefftecuda
+     * \brief Type-tag for the Sine Transform type 4 using the cuFFT backend
+     */
+    struct cufft_sin4{};
 
     /*!
      * \ingroup heffterocm
@@ -346,6 +361,21 @@ namespace backend {
      * \brief Returns the human readable name of the cuFFT backend.
      */
     template<> inline std::string name<cufft_cos1>(){ return "cufft-cos-type-I"; }
+    /*!
+     * \ingroup hefftecuda
+     * \brief Returns the human readable name of the cuFFT backend.
+     */
+    template<> inline std::string name<cufft_sin1>(){ return "cufft-sin-type-I"; }
+    /*!
+     * \ingroup hefftecuda
+     * \brief Returns the human readable name of the cuFFT backend.
+     */
+    template<> inline std::string name<cufft_cos4>(){ return "cufft-cos-type-IV"; }
+    /*!
+     * \ingroup hefftecuda
+     * \brief Returns the human readable name of the cuFFT backend.
+     */
+    template<> inline std::string name<cufft_sin4>(){ return "cufft-sin-type-IV"; }
 
     /*!
      * \ingroup heffterocm
@@ -516,6 +546,21 @@ namespace backend {
      * \brief Sets the cos1() transform types.
      */
     template<> struct uses_fft_types<cufft_cos1> : std::false_type{};
+    /*!
+     * \ingroup hefftecufft
+     * \brief Sets the sin1() transform types.
+     */
+    template<> struct uses_fft_types<cufft_sin1> : std::false_type{};
+    /*!
+     * \ingroup hefftecufft
+     * \brief Sets the cos4() transform types.
+     */
+    template<> struct uses_fft_types<cufft_cos4> : std::false_type{};
+    /*!
+     * \ingroup hefftecufft
+     * \brief Sets the sin4() transform types.
+     */
+    template<> struct uses_fft_types<cufft_sin4> : std::false_type{};
     /*!
      * \ingroup heffterocm
      * \brief Sets the cos() transform types.
@@ -729,6 +774,9 @@ constexpr bool has_executor2d(){
             or std::is_same<backend_tag, backend::stock_cos1>::value
             or std::is_same<backend_tag, backend::cufft_cos1>::value
             or std::is_same<backend_tag, backend::rocfft_cos1>::value
+            or std::is_same<backend_tag, backend::cufft_sin1>::value
+            or std::is_same<backend_tag, backend::cufft_cos4>::value
+            or std::is_same<backend_tag, backend::cufft_sin4>::value
             );
 }
 /*!
@@ -751,6 +799,9 @@ constexpr bool has_executor3d(){
             or std::is_same<backend_tag, backend::stock_cos1>::value
             or std::is_same<backend_tag, backend::cufft_cos1>::value
             or std::is_same<backend_tag, backend::rocfft_cos1>::value
+            or std::is_same<backend_tag, backend::cufft_sin1>::value
+            or std::is_same<backend_tag, backend::cufft_cos4>::value
+            or std::is_same<backend_tag, backend::cufft_sin4>::value
             );
 }
 
