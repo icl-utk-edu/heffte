@@ -406,6 +406,206 @@ void test_1d_all(){
     #endif
 }
 
+/*
+ * Helper functions for tests involving the 2D transform of a 3D matrix.
+ * Assumes a box of size 2x4x8 with ramp signal 1, 2, 3, ...
+ */
+struct fft2d_test_helper {
+  template<typename T>
+  static void make_input_ramp(std::vector<T> &input, box3d<> const &box){
+    auto const &order = box.order;
+    auto const &size = box.size;
+    std::array<int, 3> k;
+    auto it = input.begin();
+    for(k[order[2]]=0; k[order[2]]<size[order[2]]; k[order[2]]++)
+    for(k[order[1]]=0; k[order[1]]<size[order[1]]; k[order[1]]++)
+    for(k[order[0]]=0; k[order[0]]<size[order[0]]; k[order[0]]++){
+      *it = static_cast<T>(1 + k[0] + size[0] * (k[1] + size[1] * k[2]));
+      ++it;
+    }
+  }
+
+  /*
+   * Closed form expression of the 2D transform of a 3D ramp:
+   * - axes: a is dir1, b is dir2, d is dir3 (untransformed direction)
+   * - size: \vec{n} = {2, 4, 8}
+   * - stride: \vec{s} = {1, n[0], n[0] * n[1]} = {1, 2, 8}
+   * - signal: x(\vec{k}) = 1 + s[0] * k[0] + s[1] * k[1] + s[2] * k[2]
+   *                      = c + s[a] * k[a] + s[b] * k[b] with c = 1 + s[d] * k[d]
+   * - transform:
+   *     X(q[a], q[b], k[d]) =
+   *       \sum_{k[a]=0}^{n[a]-1}
+   *         \sum_{k[b]=0}^{n[b]-1}
+   *           x(k[a], k[b], k[d]) *
+   *             exp(-2 * i * pi * k[a] * q[a] / n[a]) *
+   *             exp(-2 * i * pi * k[b] * q[b] / n[b])
+   * - factorized transform:
+   *     X(q[a], q[b], k[d]) =
+   *       c * E[a](q[a]) * E[b](q[b]) +
+   *       s[a] * J[a](q[a]) * E[b](q[b]) +
+   *       s[b] * E[a](q[a]) * J[b](q[b])
+   *   where, for x in {a, b},
+   *   E[x] is the DFT of the constant sequence {1, 1, ..., 1} and yields
+   *   signal {n[b], 0, ..., 0},
+   *   and J[x] is the DFT of the ramp sequence {0, 1, ..., n[x] - 1} and yields
+   *   J[x](\vec{q}) = n[x] / 2 * (-1 + i * cot(pi * \vec{q} / n[x])) when q != 0
+   */
+  template<typename T, typename T2>
+  static void make_transformed_signal(
+        std::vector<T> &reference, box3d<> const &box, int dir1, int dir2,
+        std::pair<double, T2> (*kernel)(int, double)){
+    auto const &order = box.order;
+    auto const dir3 = 3 - dir1 - dir2; // untransformed direction
+    std::array<double, 3> const n = {double(box.size[0]), double(box.size[1]), double(box.size[2])};
+    std::array<double, 3> const s = {1., n[0], n[0] * n[1]}; // strides of the linear index
+    std::array<int, 3> k;
+    for(k[2]=0; k[2]<box.size[2]; k[2]++)
+    for(k[1]=0; k[1]<box.size[1]; k[1]++)
+    for(k[0]=0; k[0]<box.size[0]; k[0]++){
+      auto const c = 1. + s[dir3] * k[dir3];
+      auto const sa = s[dir1];
+      auto const sb = s[dir2];
+      auto const dft1 = kernel(k[dir1], n[dir1]);
+      auto const dft2 = kernel(k[dir2], n[dir2]);
+      auto const Ea = dft1.first;
+      auto const Eb = dft2.first;
+      auto const Ja = dft1.second;
+      auto const Jb = dft2.second;
+      auto const index = k[order[0]] + box.osize(0) * (k[order[1]] + box.osize(1) * k[order[2]]);
+      reference[index] = static_cast<T>(c * Ea * Eb + sa * Ja * Eb + sb * Ea * Jb);
+    }
+  }
+
+  static std::pair<double, std::complex<double>> dft(int q, double len){
+    if (q == 0)
+      return {len, 0.5 * len * (len - 1.)};
+    return {0., 0.5 * len * std::complex<double>(-1., 1. / std::tan(M_PI * q / len))};
+  }
+
+  static std::pair<double, double> dct_ii(int q, double len){
+    // REDFT10 (DCT-II)
+    double const a = M_PI * q / (2. * len);
+    if (q == 0)
+      return {2. * len, len * (len - 1.)};
+    return {0., (q % 2 == 1) ? -std::cos(a) / (std::sin(a) * std::sin(a)) : 0.};
+  }
+
+  static std::pair<double, double> dst_ii(int q, double len){
+    // RODFT10 (DST-II)
+    int const m = q + 1;
+    double const b = M_PI * m / (2. * len);
+    if (m % 2 == 1)
+      return {2. / std::sin(b), (len - 1.) / std::sin(b)};
+    return {0., -len / std::sin(b)};
+  }
+};
+
+/*
+ * Tests the 2-D executor for the backend_tag in the complex-to-complex case.
+ * The test is done against pen-and-paper solution using a box of size 2x4x8 with data 1, 2, 3, ...
+ */
+template<typename backend_tag, typename scalar_type, typename kernel>
+void test_2d_c2c(kernel analytical){
+    current_test<scalar_type, using_nompi> name(backend::name<backend_tag>() + " two-dimension");
+
+    std::vector<std::array<int, 3>> orders = {{0, 1, 2}, {2, 1, 0}, {1, 2, 0}};
+    std::vector<std::complex<scalar_type>> input(64ul);
+    std::vector<std::complex<scalar_type>> reference(64ul);
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
+
+    for (auto const &order : orders){
+      box3d<> const box = {{0, 0, 0}, {1, 3, 7}, order};
+      std::array<double, 3> const n = {double(box.size[0]), double(box.size[1]), double(box.size[2])};
+      for(int dir1=0; dir1<3; dir1++)
+      for(int dir2=0; dir2<3; dir2++)
+      if (dir1 != dir2){
+        fft2d_test_helper::make_input_ramp(input, box);
+        fft2d_test_helper::make_transformed_signal(reference, box, dir1, dir2, analytical);
+
+        auto fft = heffte::make_executor<backend_tag>(device.stream(), box, dir1, dir2);
+
+        auto forward_result = test_traits<backend_tag>::load(input);
+        fft->forward(forward_result.data(), nullptr);
+        sassert(approx(forward_result, reference));
+
+        fft->backward(forward_result.data(), nullptr);
+        auto backward_result = test_traits<backend_tag>::unload(forward_result);
+        for(auto &r : backward_result) r /= double(box.size[dir1] * box.size[dir2]);
+        sassert(approx(backward_result, input));
+      }
+    }
+}
+
+/*
+ * Tests the 2-D executor for the backend_tag in the real-to-real case.
+ * The test is done against pen-and-paper solution using a box of size 2x4x8 with data 1, 2, 3, ...
+ */
+template<typename backend_tag, typename scalar_type, typename kernel>
+void test_2d_r2r(kernel analytical){
+    current_test<scalar_type, using_nompi> name(backend::name<backend_tag>() + " two-dimension r2r");
+
+    std::vector<std::array<int, 3>> orders = {{0, 1, 2}, {2, 1, 0}, {1, 2, 0}};
+    std::vector<scalar_type> input(64ul);
+    std::vector<scalar_type> reference(64ul);
+    backend::device_instance<typename backend::buffer_traits<backend_tag>::location> device;
+
+    for (auto const &order : orders){
+      box3d<> const box = {{0, 0, 0}, {1, 3, 7}, order};
+      std::array<double, 3> const n = {double(box.size[0]), double(box.size[1]), double(box.size[2])};
+      for(int dir1=0; dir1<3; dir1++)
+      for(int dir2=0; dir2<3; dir2++)
+      if (dir1 != dir2){
+        fft2d_test_helper::make_input_ramp(input, box);
+        fft2d_test_helper::make_transformed_signal(reference, box, dir1, dir2, analytical);
+
+        auto fft = heffte::make_executor<backend_tag>(device.stream(), box, dir1, dir2);
+
+        auto forward_result = test_traits<backend_tag>::load(input);
+        fft->forward(forward_result.data(), forward_result.data());
+        sassert(approx(forward_result, reference));
+
+        fft->backward(forward_result.data(), forward_result.data());
+        auto backward_result = test_traits<backend_tag>::unload(forward_result);
+        for(auto &r : backward_result) r /= double(4 * box.size[dir1] * box.size[dir2]);
+        sassert(approx(backward_result, input));
+      }
+    }
+}
+
+// instantiates a test for the backend tag using all cases of 2D complex-to-complex transforms
+template<typename backend_tag, typename kernel>
+void test_2d_all_c2c(kernel analytical){
+    test_2d_c2c<backend_tag, float>(analytical);
+    test_2d_c2c<backend_tag, double>(analytical);
+}
+
+// instantiates a test for the backend tag using all cases of 2D real-to-real transforms
+template<typename backend_tag, typename kernel>
+void test_2d_all_r2r(kernel analytical){
+    test_2d_r2r<backend_tag, float>(analytical);
+    test_2d_r2r<backend_tag, double>(analytical);
+}
+
+void test_2d_all(){
+    #ifdef Heffte_ENABLE_FFTW
+    test_2d_all_c2c<backend::fftw>(&fft2d_test_helper::dft);
+    test_2d_all_r2r<backend::fftw_cos>(&fft2d_test_helper::dct_ii);
+    test_2d_all_r2r<backend::fftw_sin>(&fft2d_test_helper::dst_ii);
+    #endif
+    #ifdef Heffte_ENABLE_MKL
+    test_2d_all_c2c<backend::mkl>(&fft2d_test_helper::dft);
+    #endif
+    #ifdef Heffte_ENABLE_CUDA
+    test_2d_all_c2c<backend::cufft>(&fft2d_test_helper::dft);
+    #endif
+    #ifdef Heffte_ENABLE_ROCM
+    test_2d_all_c2c<backend::rocfft>(&fft2d_test_helper::dft);
+    #endif
+    #ifdef Heffte_ENABLE_ONEAPI
+    test_2d_all_c2c<backend::onemkl>(&fft2d_test_helper::dft);
+    #endif
+}
+
 #ifdef Heffte_ENABLE_GPU
 // Tests the load/unload methods associated with the gpu vector template.
 template<typename scalar_type>
@@ -821,6 +1021,7 @@ int main(int, char**){
     test_gpu_scale();
 
     test_1d_all();
+    test_2d_all();
 
     test_1d_reorder();
     test_transpose();

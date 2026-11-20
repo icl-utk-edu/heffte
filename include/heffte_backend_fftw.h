@@ -230,7 +230,8 @@ public:
     //! \brief Merges two FFTs into one.
     template<typename index>
     fftw_executor(void*, box3d<index> const box, int dir1, int dir2) :
-        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        size(box.osize(std::min(box.find_order(dir1), box.find_order(dir2)))),
+        size2(box.osize(std::max(box.find_order(dir1), box.find_order(dir2)))),
         blocks(1), block_stride(0), total_size(box.count()), embed({0, 0})
     {
         int odir1 = box.find_order(dir1);
@@ -239,22 +240,22 @@ public:
         if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
             stride = 1;
             dist = size * size2;
-            howmanyffts = box.size[2];
+            howmanyffts = box.osize(2);
         }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
-            stride = box.size[0];
+            stride = box.osize(0);
             dist = 1;
-            howmanyffts = box.size[0];
+            howmanyffts = box.osize(0);
         }else{ // case of directions (0, 2)
             stride = 1;
             dist = size;
-            embed = {static_cast<int>(box.size[2]), static_cast<int>(box.size[1] * box.size[0])};
-            howmanyffts = box.size[1];
+            embed = {static_cast<int>(box.osize(2)), static_cast<int>(box.osize(1) * box.osize(0))};
+            howmanyffts = box.osize(1);
         }
     }
     //! \brief Merges three FFTs into one.
     template<typename index>
     fftw_executor(void*, box3d<index> const box) :
-        size(box.size[0]), size2(box.size[1]), howmanyffts(box.size[2]),
+        size(box.size[0]), size2(box.size[1]), howmanyffts(box.osize(2)),
         stride(0), dist(0),
         blocks(1), block_stride(0),
         total_size(box.count()),
@@ -594,7 +595,8 @@ template<typename prepost_processor> struct real2real_executor<backend::fftw, pr
     //! \brief Construct a plan for batch 2D transforms, not implemented currently.
     template<typename index>
     real2real_executor(void*, box3d<index> const box, int dir1, int dir2) :
-        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        size(box.osize(std::min(box.find_order(dir1), box.find_order(dir2)))),
+        size2(box.osize(std::max(box.find_order(dir1), box.find_order(dir2)))),
         blocks(1), block_stride(0), total_size(box.count()), embed({0, 0})
     {
         int odir1 = box.find_order(dir1);
@@ -603,16 +605,16 @@ template<typename prepost_processor> struct real2real_executor<backend::fftw, pr
         if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
             stride = 1;
             dist = size * size2;
-            howmanyffts = box.size[2];
+            howmanyffts = box.osize(2);
         }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
-            stride = box.size[0];
+            stride = box.osize(0);
             dist = 1;
-            howmanyffts = box.size[0];
+            howmanyffts = box.osize(0);
         }else{ // case of directions (0, 2)
             stride = 1;
             dist = size;
-            embed = {static_cast<int>(box.size[2]), static_cast<int>(box.size[1] * box.size[0])};
-            howmanyffts = box.size[1];
+            embed = {static_cast<int>(box.osize(2)), static_cast<int>(box.osize(1) * box.osize(0))};
+            howmanyffts = box.osize(1);
         }
     }
     //! \brief Construct a plan for a single 3D transform, not implemented currently.
