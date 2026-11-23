@@ -195,7 +195,8 @@ public:
     //! \brief Merges two FFTs into one.
     template<typename index>
     mkl_executor(void*, box3d<index> const box, int dir1, int dir2) :
-        size(box.size[std::min(dir1, dir2)]), size2(box.size[std::max(dir1, dir2)]),
+        size(box.osize(std::min(box.find_order(dir1), box.find_order(dir2)))),
+        size2(box.osize(std::max(box.find_order(dir1), box.find_order(dir2)))),
         blocks(1), block_stride(0), total_size(box.count())
     {
         int odir1 = box.find_order(dir1);
@@ -205,17 +206,17 @@ public:
             stride = 1;
             dist = size * size2;
             embed = {static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(size)};
-            howmanyffts = box.size[2];
+            howmanyffts = box.osize(2);
         }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
-            stride = box.size[0];
+            stride = box.osize(0);
             dist = 1;
             embed = {static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(size) * static_cast<MKL_LONG>(stride)};
-            howmanyffts = box.size[0];
+            howmanyffts = box.osize(0);
         }else{ // case of directions (0, 2)
             stride = 1;
             dist = size;
-            embed = {static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(box.size[1]) * static_cast<MKL_LONG>(box.size[0])};
-            howmanyffts = box.size[1];
+            embed = {static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(box.osize(1)) * static_cast<MKL_LONG>(box.osize(0))};
+            howmanyffts = box.osize(1);
         }
     }
     //! \brief Merges three FFTs into one.
