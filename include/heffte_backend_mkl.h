@@ -195,24 +195,28 @@ public:
     //! \brief Merges two FFTs into one.
     template<typename index>
     mkl_executor(void*, box3d<index> const box, int dir1, int dir2) :
-        size(box.osize(std::min(box.find_order(dir1), box.find_order(dir2)))),
-        size2(box.osize(std::max(box.find_order(dir1), box.find_order(dir2)))),
         blocks(1), block_stride(0), total_size(box.count())
     {
         int odir1 = box.find_order(dir1);
         int odir2 = box.find_order(dir2);
 
         if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            size = box.osize(0);
+            size2 = box.osize(1);
             stride = 1;
             dist = size * size2;
             embed = {static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(size)};
             howmanyffts = box.osize(2);
         }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            size = box.osize(1);
+            size2 = box.osize(2);
             stride = box.osize(0);
             dist = 1;
             embed = {static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(size) * static_cast<MKL_LONG>(stride)};
             howmanyffts = box.osize(0);
         }else{ // case of directions (0, 2)
+            size = box.osize(0);
+            size2 = box.osize(2);
             stride = 1;
             dist = size;
             embed = {static_cast<MKL_LONG>(stride), static_cast<MKL_LONG>(box.osize(1)) * static_cast<MKL_LONG>(box.osize(0))};

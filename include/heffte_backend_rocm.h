@@ -572,26 +572,28 @@ public:
     //! \brief Merges two FFTs into one.
     template<typename index>
     rocfft_executor(hipStream_t active_stream, box3d<index> const box, int dir1, int dir2) :
-        stream(active_stream),
-        size(box.osize(std::min(box.find_order(dir1), box.find_order(dir2)))),
-        size2(box.osize(std::max(box.find_order(dir1), box.find_order(dir2)))),
-        blocks(1), block_stride(0), total_size(box.count()),
-        worksize(0)
+        stream(active_stream), blocks(1), block_stride(0), total_size(box.count()), worksize(0)
     {
         int odir1 = box.find_order(dir1);
         int odir2 = box.find_order(dir2);
 
         if (std::min(odir1, odir2) == 0 and std::max(odir1, odir2) == 1){
+            size = box.osize(0);
+            size2 = box.osize(1);
             stride = 1;
             dist = size * size2;
             embed = {static_cast<size_t>(stride), static_cast<size_t>(size)};
             howmanyffts = box.osize(2);
         }else if (std::min(odir1, odir2) == 1 and std::max(odir1, odir2) == 2){
+            size = box.osize(1);
+            size2 = box.osize(2);
             stride = box.osize(0);
             dist = 1;
             embed = {static_cast<size_t>(stride), static_cast<size_t>(size) * static_cast<size_t>(stride)};
             howmanyffts = box.osize(0);
         }else{ // case of directions (0, 2)
+            size = box.osize(0);
+            size2 = box.osize(2);
             stride = 1;
             dist = size;
             embed = {static_cast<size_t>(stride), static_cast<size_t>(box.osize(1)) * static_cast<size_t>(box.osize(0))};

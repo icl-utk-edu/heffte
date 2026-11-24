@@ -515,24 +515,23 @@ void test_2d_c2c(kernel analytical){
 
     for (auto const &order : orders){
       box3d<> const box = {{0, 0, 0}, {1, 3, 7}, order};
-      std::array<double, 3> const n = {double(box.size[0]), double(box.size[1]), double(box.size[2])};
       for(int dir1=0; dir1<3; dir1++)
-      for(int dir2=0; dir2<3; dir2++)
-      if (dir1 != dir2){
-        fft2d_test_helper::make_input_ramp(input, box);
-        fft2d_test_helper::make_transformed_signal(reference, box, dir1, dir2, analytical);
+        for(int dir2=0; dir2<3; dir2++)
+          if (dir1 != dir2){
+              fft2d_test_helper::make_input_ramp(input, box);
+              fft2d_test_helper::make_transformed_signal(reference, box, dir1, dir2, analytical);
 
-        auto fft = heffte::make_executor<backend_tag>(device.stream(), box, dir1, dir2);
+              auto fft = heffte::make_executor<backend_tag>(device.stream(), box, dir1, dir2);
 
-        auto forward_result = test_traits<backend_tag>::load(input);
-        fft->forward(forward_result.data(), nullptr);
-        sassert(approx(forward_result, reference));
+              auto forward_result = test_traits<backend_tag>::load(input);
+              fft->forward(forward_result.data(), nullptr);
+              sassert(approx(forward_result, reference));
 
-        fft->backward(forward_result.data(), nullptr);
-        auto backward_result = test_traits<backend_tag>::unload(forward_result);
-        for(auto &r : backward_result) r /= double(box.size[dir1] * box.size[dir2]);
-        sassert(approx(backward_result, input));
-      }
+              fft->backward(forward_result.data(), nullptr);
+              auto backward_result = test_traits<backend_tag>::unload(forward_result);
+              for(auto &r : backward_result) r /= double(box.size[dir1] * box.size[dir2]);
+              sassert(approx(backward_result, input));
+          }
     }
 }
 
@@ -551,24 +550,23 @@ void test_2d_r2r(kernel analytical){
 
     for (auto const &order : orders){
       box3d<> const box = {{0, 0, 0}, {1, 3, 7}, order};
-      std::array<double, 3> const n = {double(box.size[0]), double(box.size[1]), double(box.size[2])};
       for(int dir1=0; dir1<3; dir1++)
-      for(int dir2=0; dir2<3; dir2++)
-      if (dir1 != dir2){
-        fft2d_test_helper::make_input_ramp(input, box);
-        fft2d_test_helper::make_transformed_signal(reference, box, dir1, dir2, analytical);
+        for(int dir2=0; dir2<3; dir2++)
+          if (dir1 != dir2){
+              fft2d_test_helper::make_input_ramp(input, box);
+              fft2d_test_helper::make_transformed_signal(reference, box, dir1, dir2, analytical);
 
-        auto fft = heffte::make_executor<backend_tag>(device.stream(), box, dir1, dir2);
+              auto fft = heffte::make_executor<backend_tag>(device.stream(), box, dir1, dir2);
 
-        auto forward_result = test_traits<backend_tag>::load(input);
-        fft->forward(forward_result.data(), forward_result.data());
-        sassert(approx(forward_result, reference));
+              auto forward_result = test_traits<backend_tag>::load(input);
+              fft->forward(forward_result.data(), forward_result.data());
+              sassert(approx(forward_result, reference));
 
-        fft->backward(forward_result.data(), forward_result.data());
-        auto backward_result = test_traits<backend_tag>::unload(forward_result);
-        for(auto &r : backward_result) r /= double(4 * box.size[dir1] * box.size[dir2]);
-        sassert(approx(backward_result, input));
-      }
+              fft->backward(forward_result.data(), forward_result.data());
+              auto backward_result = test_traits<backend_tag>::unload(forward_result);
+              for(auto &r : backward_result) r /= double(4 * box.size[dir1] * box.size[dir2]);
+              sassert(approx(backward_result, input));
+          }
     }
 }
 
